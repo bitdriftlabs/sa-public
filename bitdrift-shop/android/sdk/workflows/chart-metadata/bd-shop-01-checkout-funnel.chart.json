@@ -1,0 +1,34 @@
+[
+  {
+    "rule_id": "user-journey-sankey",
+    "metadata": {
+      "title": "User Journey: Welcome → Screens → Confirmation",
+      "summary": { "description": "Screen-by-screen flow from Welcome to order Confirmation. Node width shows how many journeys passed through each screen." },
+      "sankey_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "completed-journeys",
+    "metadata": {
+      "title": "Completed Journeys (reached Confirmation)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Completed journeys", "y_axis": { "description": "Journeys", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "completions-by-variant",
+    "metadata": {
+      "title": "Completions by Checkout Flow Variant",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Completions", "y_axis": { "description": "Journeys", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  }
+]

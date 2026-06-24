@@ -1,0 +1,116 @@
+{
+  "name": "bd-shop — User Journey Sankey",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "welcome-start",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "_screen_name",
+                "operator": "EQUAL",
+                "string_value": "Welcome"
+              }
+            }
+          }
+        },
+        {
+          "match_rule": {
+            "match_id": "any-screen",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "_screen_name",
+                "operator": "NOT_EQUAL",
+                "string_value": "Confirmation"
+              }
+            }
+          },
+          "loop_match_id": "any-screen"
+        },
+        {
+          "match_rule": {
+            "match_id": "order-confirmed",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "_screen_name",
+                "operator": "EQUAL",
+                "string_value": "Confirmation"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "user-journey-sankey",
+      "sankey_diagram_rule": {
+        "nodes": [
+          {
+            "id": "welcome-start",
+            "fixed": "Welcome"
+          },
+          {
+            "id": "any-screen",
+            "extract_field": "_screen_name"
+          },
+          {
+            "id": "order-confirmed",
+            "fixed": "Confirmation"
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "completed-journeys",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "order-confirmed"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "completions-by-variant",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "order-confirmed"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "state_value": {
+                      "scope": "FEATURE_FLAG_EXPOSURE",
+                      "key": "checkout_flow"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

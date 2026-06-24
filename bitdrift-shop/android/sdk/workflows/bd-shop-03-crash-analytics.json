@@ -1,0 +1,65 @@
+{
+  "name": "bd-shop \u2014 Crash Distribution & Session Capture",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "jvm-crash",
+            "issue_match": {
+              "bdrl_program": "# Match JVM crashes and categorize by exception type.\n# The bitdrift-shop demo triggers: NullPointerException, StackOverflowError, OutOfMemoryError.\nif .type != 3 || length(.errors) == 0 {\n  abort\n}\nname = string(.errors[0].name) ?? \"\"\nif contains(name, \"NullPointerException\") {\n  add_field(\"crash_category\", \"null_pointer\")\n} else if contains(name, \"StackOverflowError\") {\n  add_field(\"crash_category\", \"stack_overflow\")\n} else if contains(name, \"OutOfMemoryError\") {\n  add_field(\"crash_category\", \"oom\")\n} else {\n  add_field(\"crash_category\", \"other_jvm\")\n}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "crash-count-total",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "jvm-crash"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "crash-count-by-type",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "jvm-crash"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "crash_category"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

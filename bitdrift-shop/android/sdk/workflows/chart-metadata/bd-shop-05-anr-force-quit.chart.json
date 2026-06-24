@@ -1,0 +1,54 @@
+[
+  {
+    "rule_id": "anr-count",
+    "metadata": {
+      "title": "ANR Count (built-in + termination, device-unique)",
+      "summary": { "description": "Built-in ANR detections and ANR-reason app terminations, counted by unique device." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Built-in ANR", "y_axis": { "description": "Devices", "unit": "UNSPECIFIED" } },
+          { "title": "ANR termination", "y_axis": { "description": "Devices", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "injected-anr-by-variant",
+    "metadata": {
+      "title": "Injected ANR by anr_a Variant",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Injected ANRs", "y_axis": { "description": "Events", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "force-quit-by-variant",
+    "metadata": {
+      "title": "Force-Quit by force_quit Variant",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Force-quits", "y_axis": { "description": "Events", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "capture-on-anr",
+    "metadata": {
+      "title": "Session Capture on Injected ANR",
+      "flush_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "capture-on-force-quit",
+    "metadata": {
+      "title": "Session Capture on Force-Quit",
+      "flush_chart_metadata": {}
+    }
+  }
+]

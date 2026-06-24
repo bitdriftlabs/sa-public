@@ -1,0 +1,170 @@
+{
+  "name": "bd-shop \u2014 ANR & Force-Quit Tracking",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "built-in-anr",
+            "ootb_match": {
+              "android_condition": "APP_ANDROID_BUILT_IN_ANR"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "termination-anr",
+            "ootb_match": {
+              "android_condition": "APP_TERMINATION",
+              "generic_match": {
+                "base_matcher": {
+                  "log_field": "_app_exit_reason",
+                  "operator": "EQUAL",
+                  "string_value": "ANR"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "injected-anr",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "message",
+                "operator": "EQUAL",
+                "string_value": "guest_anr_injected"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "force-quit",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "message",
+                "operator": "EQUAL",
+                "string_value": "force_quit_injected"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "anr-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "built-in-anr"
+              }
+            },
+            "track_unique": {
+              "device_id": true
+            }
+          },
+          {
+            "count": {
+              "value": {
+                "match_id": "termination-anr"
+              }
+            },
+            "track_unique": {
+              "device_id": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "injected-anr-by-variant",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "injected-anr"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "state_value": {
+                      "scope": "FEATURE_FLAG_EXPOSURE",
+                      "key": "anr_a"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "force-quit-by-variant",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "force-quit"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "state_value": {
+                      "scope": "FEATURE_FLAG_EXPOSURE",
+                      "key": "force_quit"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "capture-on-anr",
+      "flush_rule": {
+        "match_id": "injected-anr",
+        "applied_daily_limit": 25
+      }
+    },
+    {
+      "rule_id": "capture-on-force-quit",
+      "flush_rule": {
+        "match_id": "force-quit",
+        "applied_daily_limit": 25
+      }
+    }
+  ]
+}

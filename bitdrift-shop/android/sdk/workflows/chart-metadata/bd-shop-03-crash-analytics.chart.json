@@ -1,0 +1,27 @@
+[
+  {
+    "rule_id": "crash-count-total",
+    "metadata": {
+      "title": "JVM Crash Count (total)",
+      "summary": { "description": "All JVM crashes matched by the issue-match BDRL program." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Crashes", "y_axis": { "description": "Crashes", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "crash-count-by-type",
+    "metadata": {
+      "title": "Crash Count by Category (null_pointer / stack_overflow / oom)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Crashes", "y_axis": { "description": "Crashes", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  }
+]

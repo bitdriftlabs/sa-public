@@ -1,0 +1,46 @@
+[
+  {
+    "rule_id": "payment-failures-by-method",
+    "metadata": {
+      "title": "Payment Failures by Method",
+      "summary": { "description": "payment_failed events split by payment_method (card / apple_pay / paypal / android_pay)." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Failures", "y_axis": { "description": "Failures", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "payment-failures-by-variant",
+    "metadata": {
+      "title": "Payment Failures by payment_ui Variant",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Failures", "y_axis": { "description": "Failures", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "checkout-failures-by-type",
+    "metadata": {
+      "title": "Checkout Failures by Type (guest / signin)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Failures", "y_axis": { "description": "Failures", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "capture-on-payment-failure",
+    "metadata": {
+      "title": "Session Capture on Payment Failure",
+      "flush_chart_metadata": {}
+    }
+  }
+]

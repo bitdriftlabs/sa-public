@@ -1,0 +1,9 @@
+services:
+  backend:
+    networks:
+      - tinyolly-network
+
+networks:
+  tinyolly-network:
+    external: true
+    name: tinyolly-network
