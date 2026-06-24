@@ -1,0 +1,9 @@
+services:
+  backend:
+    image: stevelerner/shoppingdemo-backend:${TAG:-latest}
+    pull_policy: always
+    container_name: bitdrift-shop-backend
+    ports:
+      - "5173:5173"
+    environment:
+      CHAOS_MODE: "${CHAOS_MODE:-0}"

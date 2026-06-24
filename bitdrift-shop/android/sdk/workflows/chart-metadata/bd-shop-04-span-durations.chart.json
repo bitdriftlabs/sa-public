@@ -1,0 +1,51 @@
+[
+  {
+    "rule_id": "journey-duration-histogram",
+    "metadata": {
+      "title": "Journey Duration (full shopping journey)",
+      "summary": { "description": "_duration_ms histogram for the journey span (Welcome → Confirmation)." },
+      "metric_chart_metadata": {
+        "histogram_bar_chart_display_mode": {},
+        "metadata": [
+          { "title": "Journey duration", "y_axis": { "description": "Duration", "unit": "MILLISECONDS" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "checkout-duration-histogram",
+    "metadata": {
+      "title": "Checkout Duration by Variant",
+      "metric_chart_metadata": {
+        "histogram_bar_chart_display_mode": {},
+        "metadata": [
+          { "title": "Checkout duration", "y_axis": { "description": "Duration", "unit": "MILLISECONDS" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "discovery-duration-histogram",
+    "metadata": {
+      "title": "Product Discovery Duration",
+      "metric_chart_metadata": {
+        "histogram_bar_chart_display_mode": {},
+        "metadata": [
+          { "title": "Discovery duration", "y_axis": { "description": "Duration", "unit": "MILLISECONDS" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "journey-completions-by-variant",
+    "metadata": {
+      "title": "Journey Completions by Checkout Flow Variant",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Completions", "y_axis": { "description": "Journeys", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  }
+]

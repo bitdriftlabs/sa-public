@@ -1,0 +1,184 @@
+{
+  "name": "bd-shop \u2014 Span Duration Histograms",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "exclusive": {},
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "journey-span-end",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_name",
+                      "operator": "EQUAL",
+                      "string_value": "journey"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "exclusive": {},
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "checkout-span-end",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_name",
+                      "operator": "EQUAL",
+                      "string_value": "checkout"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "exclusive": {},
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "discovery-span-end",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_name",
+                      "operator": "EQUAL",
+                      "string_value": "product_discovery"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "journey-duration-histogram",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "journey-span-end"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "checkout-duration-histogram",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "checkout-span-end"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "state_value": {
+                      "scope": "FEATURE_FLAG_EXPOSURE",
+                      "key": "checkout_flow"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "discovery-duration-histogram",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "discovery-span-end"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "journey-completions-by-variant",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "journey-span-end"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "state_value": {
+                      "scope": "FEATURE_FLAG_EXPOSURE",
+                      "key": "checkout_flow"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

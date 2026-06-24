@@ -1,0 +1,123 @@
+{
+  "name": "bd-shop \u2014 Payment & Checkout Errors",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "payment-failed",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "message",
+                "operator": "EQUAL",
+                "string_value": "payment_failed"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "checkout-failed",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "message",
+                "operator": "EQUAL",
+                "string_value": "checkout_failed"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "payment-failures-by-method",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "payment-failed"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "payment_method"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "payment-failures-by-variant",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "payment-failed"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "state_value": {
+                      "scope": "FEATURE_FLAG_EXPOSURE",
+                      "key": "payment_ui"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "checkout-failures-by-type",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "checkout-failed"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "checkout_type"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "capture-on-payment-failure",
+      "flush_rule": {
+        "match_id": "payment-failed",
+        "applied_daily_limit": 50
+      }
+    }
+  ]
+}
