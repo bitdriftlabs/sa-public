@@ -85,6 +85,10 @@ struct ScreenContainer<Content: View>: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
+
+                Text("App v" + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
 
             Spacer()

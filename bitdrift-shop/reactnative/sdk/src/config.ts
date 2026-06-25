@@ -1,6 +1,10 @@
 import {Platform} from 'react-native';
 import {BITDRIFT_API_KEY as ENV_API_KEY, BITDRIFT_API_HOST as ENV_API_HOST, BACKEND_PORT as ENV_BACKEND_PORT} from '@env';
 
+// ─── App version ─────────────────────────────────────────────────────────────
+// Displayed on screen via ScreenContainer. Keep in sync with package.json.
+export const APP_VERSION = '1.0.0';
+
 // ─── bitdrift SDK ────────────────────────────────────────────────────────────
 // Set BITDRIFT_API_KEY in your .env file.
 // Values are injected at Metro bundle time via react-native-dotenv.
