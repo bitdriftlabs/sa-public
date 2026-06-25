@@ -16,7 +16,10 @@ export type RootStackParamList = {
   PaymentCard: {checkoutSession?: string} | undefined;
   PaymentApplePay: {checkoutSession?: string} | undefined;
   PaymentPayPal: {checkoutSession?: string} | undefined;
+  PaymentAndroidPay: {checkoutSession?: string} | undefined;
+  PaymentFailed: {paymentMethod?: string} | undefined;
   Confirmation: {orderId?: string} | undefined;
+  Advanced: undefined;
 };
 
 export type ScreenProps<T extends keyof RootStackParamList> =

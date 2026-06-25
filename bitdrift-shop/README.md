@@ -10,9 +10,9 @@ Each app implements the same 16-screen shopping flow and the same probabilistic 
 
 | App | Folder | Stack | Platforms / minimum OS |
 |-----|--------|-------|------------------------|
-| **Android** | [android/sdk/](android/sdk/) | Kotlin, Jetpack Compose, Material 3 (Kotlin 2.x, AGP 8.x) | Android — `minSdk 26` (Android 8.0), compiled against SDK 36 |
-| **React Native** | [reactnative/sdk/](reactnative/sdk/) | TypeScript, React Native 0.77, React 18, React Navigation | Android and iOS (iOS deployment target 13.4) |
-| **Kotlin Multiplatform** | [kotlin-multiplatform/sdk/](kotlin-multiplatform/sdk/) | Kotlin 2.1 shared logic; Jetpack Compose (Android) + SwiftUI (iOS) | Android — `minSdk 26`; iOS app — deployment target 16.0 |
+| **Android** | [android/](android/) | Kotlin, Jetpack Compose, Material 3 (Kotlin 2.x, AGP 8.x) | Android — `minSdk 26` (Android 8.0), compiled against SDK 36 |
+| **React Native** | [reactnative/](reactnative/) | TypeScript, React Native 0.77, React 18, React Navigation | Android and iOS (iOS deployment target 13.4) |
+| **Kotlin Multiplatform- Work in Process** | [kotlin-multiplatform/](kotlin-multiplatform/) | Kotlin 2.1 shared logic; Jetpack Compose (Android) + SwiftUI (iOS) | Android — `minSdk 26`; iOS app — deployment target 16.0 |
 | **Backend** | [backend/](backend/) | Python 3.10+, FastAPI, Uvicorn | Runs locally (tested on macOS) |
 
 > **iOS** ships through the React Native app and the Kotlin Multiplatform iOS app; there is no separate native Swift app in this repository. All apps included here are the **SDK-instrumented** variants.
@@ -35,7 +35,7 @@ The bitdrift Capture SDK integration shown across these apps is documented platf
 
 Build and run instructions live in each app's own folder. Start with the README in the app you're interested in:
 
-- [android/sdk/](android/sdk/) — Android app
-- [reactnative/sdk/](reactnative/sdk/) — React Native app (Android + iOS)
-- [kotlin-multiplatform/sdk/](kotlin-multiplatform/sdk/) — Kotlin Multiplatform app (Android + iOS)
+- [android/](android/) — Android app
+- [reactnative/](reactnative/) — React Native app (Android + iOS)
+- [kotlin-multiplatform/](kotlin-multiplatform/) — Work in process- Kotlin Multiplatform app (Android + iOS)
 - [backend/](backend/) — FastAPI server, API endpoints, and chaos mode

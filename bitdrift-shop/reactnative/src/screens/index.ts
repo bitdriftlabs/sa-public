@@ -14,5 +14,8 @@ export {
 	PaymentCardScreen,
 	PaymentApplePayScreen,
 	PaymentPayPalScreen,
+	PaymentAndroidPayScreen,
+	PaymentFailedScreen,
 	ConfirmationScreen,
+	AdvancedScreen,
 } from './ShoppingScreens';

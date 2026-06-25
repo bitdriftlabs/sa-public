@@ -1,4 +1,4 @@
-]633;E;head -n 285 /Volumes/external/code/bitdrift/bitdrift-shop/reactnative/sdk/README.md;818a1407-0e14-425d-b22e-bfd7865ac1ec]633;C# Bitdrift Shop — React Native (SDK)
+# Bitdrift Shop — React Native (SDK)
 
 A demo React Native app simulating an e-commerce shopping experience with realistic, randomised user journeys. This version is **instrumented with the [bitdrift Capture SDK](https://docs.bitdrift.io)** (`@bitdrift/react-native`), demonstrating screen views, structured logging, HTTP timing, app launch TTI, and global fields.
 
@@ -60,7 +60,7 @@ The default is `5173`. The correct host for iOS Simulator (`127.0.0.1`) and Andr
 ### 1. Start the Backend
 
 ```bash
-cd ../../backend
+cd ../backend
 ./start-backend-docker.sh
 ```
 
@@ -98,20 +98,72 @@ Removes `node_modules`, iOS Pods/build, Android build outputs, Metro caches, and
 
 ## bitdrift Instrumentation
 
-This app exercises the following SDK features:
+This app is instrumented to **match the Android app** (`../android`) feature-for-feature.
+All bitdrift calls funnel through `src/utils/logger.ts`.
 
-| Workshop | Feature | Where |
-|----------|---------|-------|
-| 1 | **SDK Init** — `init(apiKey, SessionStrategy.Activity)` | `App.tsx` |
-| 2 | **Screen Views** — `logScreenView(name)` on every screen | `ScreenContainer.tsx` via `logger.ts` |
-| 3 | **App Launch TTI** — measured from module eval to first render | `App.tsx` |
-| 4b | **HTTP Timing** — every API call logs method, path, status, duration | `ApiClient.ts` |
-| 4c | **Structured Logging** — `debug/info/warning/error` with typed fields | `logger.ts`, `SimulationContext.tsx` |
-| 5 | **Global Fields** — `app_variant` + `platform` on every log | `App.tsx` |
-| 6 | **Device Code** — `getDeviceID()` + POST `/v1/device/code` button on Welcome screen | `ShoppingScreens.tsx` |
-| 7 | **Support Log** — `getSessionURL()` button on Welcome screen | `ShoppingScreens.tsx` |
+| Feature | API | Where |
+|---------|-----|-------|
+| **SDK Init** | `init(apiKey, SessionStrategy.Activity)` | `App.tsx` |
+| **Screen Views** | `logScreenView(name)` on every screen | `ScreenContainer.tsx` via `logger.ts` |
+| **App Launch TTI** | `logAppLaunchTTI()` from module eval to first render | `App.tsx` |
+| **Lifecycle events** | `app_open` / `app_close` via AppState | `appLifecycle.ts` |
+| **HTTP capture** | every API call logs method, path, status, duration | `ApiClient.ts` |
+| **Path templates** | `x-capture-path-template` on dynamic routes (product/category/order) | `ApiClient.ts` |
+| **Structured logs** | `info/warn/error/debug` + ~20 business events (`add_to_cart`, `checkout_started`, `payment_completed`, `payment_failed`, …) | `logger.ts`, screens, `SimulationContext.tsx` |
+| **Global fields** | `app_variant=sdk-demo` + `platform` + `ff_*` mirrors | `App.tsx`, `variants.ts` |
+| **Entity ID** | `setEntityId()` per journey | `logger.ts`, `SimulationContext.tsx` |
+| **Feature-flag exposures** | `setFeatureFlagExposure()` ×7 (`checkout_flow`, `payment_ui`, `cart_abandon_rate`, `payment_android_pay`, `order_summary`, `anr_a`, `force_quit`) | `variants.ts` |
+| **Spans** | `journey` → `product_discovery` / `checkout` (+ `_duration_ms`) | `logger.ts`, `SimulationContext.tsx` |
+| **Device Code** | `getDeviceID()` + POST `/v1/device/code` button | `ShoppingScreens.tsx` |
+| **Support Log** | `getSessionURL()` button + `supportlog` field toggle | `ShoppingScreens.tsx`, Advanced screen |
+| **Crash reporting** | 20-entry crash catalog + native signal module | `crashes.ts`, native `BdCrash` |
 
 All configuration (API key, backend URL) is centralised in `src/config.ts`.
+
+### Personas, simulation modes & chaos (Advanced screen)
+
+The **Advanced** screen (button on Welcome) ports the Android app's controls:
+
+- **Variants** — Control / Variant A / Variant B bias every decision in the simulation
+  (discovery, reviews, wishlist, cart churn, guest-vs-signin, payment mix, failure/abandon
+  rates) and drive the feature-flag exposures above.
+- **Simulation modes** — **Sim A/B** (5 journeys each across all variants) and **Cardinality**
+  (hammers `/inventory/lookup/<item>/<session>` with unique URLs to demonstrate the path-
+  template fix).
+- **Fault injection** — **Slow** (heavy on-thread recommendation scoring), **Crash** (cycles
+  the 20-crash catalog at journey end), **ANR-A** (Variant A + guest checkout, blocks the UI
+  thread), **Quit** (hard process exit on ProductDetail). Each records a feature-flag exposure
+  and an `*_injected` event.
+- **Support Log** toggle sets the `supportlog` global field.
+
+### Platform parity notes (RN SDK differences)
+
+A few Android behaviours can't be reproduced 1:1 with `@bitdrift/react-native@0.12.x`. These
+are handled gracefully and documented in code:
+
+- **Spans** — the RN SDK has no span API, so spans are reproduced as paired start/end logs
+  carrying `_duration_ms` and `_span_id` (the same data shape bitdrift's span feature emits).
+- **New session per journey** — not available in the RN SDK; the app uses
+  `SessionStrategy.Activity` (rotates on inactivity) and emits a `journey_started` boundary
+  marker instead.
+- **Memory events** (`memory_pressure` / `low_memory`) — no cross-platform RN signal; left
+  unwired (would need a native `onTrimMemory` / `didReceiveMemoryWarning` hook).
+- **Crash auto-restart loop** — Android re-arms via `AlarmManager`; RN/iOS can't self-relaunch,
+  so the crash loop fires crashes in sequence but does not auto-restart the process.
+
+### Native crash module (`BdCrash`)
+
+Native-signal crashes (`SIGSEGV/SIGBUS/SIGABRT/SIGFPE`), true ANR (main-thread block) and
+force-quit need a native module:
+
+- **Android** — `android/app/src/main/java/ai/bitdrift/shop/BdCrashModule.kt` (+ `BdCrashPackage.kt`,
+  registered in `MainApplication.kt`). Works after a Gradle rebuild.
+- **iOS** — `ios/ShopDemoRN/BdCrash.m`. **Add it to the `ShopDemoRN` target in Xcode** (or via
+  `pod install` if using a synchronized group) before it compiles.
+
+When the module isn't present (app not yet rebuilt), these crashes fall back to a labelled JS
+error so the app still runs. JS-portable crashes (null deref, stack overflow, etc.) need no
+native code.
 
 ---
 
@@ -134,42 +186,48 @@ All configuration (API key, backend URL) is centralised in `src/config.ts`.
 | `PaymentCard` | 6 | Credit card payment |
 | `PaymentApplePay` | 6 | Apple Pay |
 | `PaymentPayPal` | 6 | PayPal |
+| `PaymentAndroidPay` | 6 | Google Pay |
+| `PaymentFailed` | 6 | Payment failure / retry |
 | `Confirmation` | 7 | Order confirmation |
+| `Advanced` | 1 | Variants, simulation modes, fault injection |
 
 ---
 
 ## Simulation Mode
 
-The Welcome screen has **Sim 10**, **Sim 100**, and **∞ Sim** buttons that drive fully automated journeys through the shopping funnel.
+The Welcome screen has **Sim 10**, **Sim 100**, and **∞ Sim** buttons that drive fully automated journeys through the shopping funnel. The **Advanced** screen adds **Sim A/B** and **Cardinality** modes and a **persona/variant** selector.
 
-Each journey uses a probabilistic state machine — random branches at every decision point produce realistic, unique sessions:
+Each journey uses a probabilistic state machine whose branch weights are **biased by the active variant** (the table below is the Control baseline; Variant A is a snap-decision digital-native, Variant B a deliberate card-paying shopper):
 
-| Step | Choices |
+| Step | Choices (Control) |
 |------|---------|
 | Discovery | Browse / Search / Categories→CategoryBrowse |
 | After listing | 50% visit Featured |
 | Product | 50% read Reviews, 40% add to Wishlist |
 | Cart | add 1–3 extra items, 60% remove one, 20% empty+re-add, 30% flip one item |
 | Checkout | 50% Guest / 50% Sign-in |
-| Payment | Card / Apple Pay / PayPal (equal weight) |
+| Payment | Card / Apple Pay / PayPal / Google Pay (equal weight) |
 
-Every journey ends at Confirmation.
+Exact per-variant probabilities live in `src/sim/variants.ts`. Journeys may abandon at the
+cart, at checkout, or on a payment failure (with a 50% retry); successful ones end at
+Confirmation. Spans (`journey`, `product_discovery`, `checkout`) and an entity ID are emitted
+per journey.
 
 ---
 
 ## Project Structure
 
 ```
-sdk/
+reactnative/
 ├── .env.example                     # Copy to .env and add your API key
 ├── App.tsx                          # SDK init, TTI, global fields, root navigator
 ├── index.js                         # Entry point
 ├── start.sh                         # Convenience launch script
 ├── cleanup.sh                       # Remove build artifacts
 └── src/
-    ├── config.ts                    # API key + backend URL (reads from .env)
+    ├── config.ts                    # API key + backend URL + APP_VARIANT (reads from .env)
     ├── api/
-    │   └── ApiClient.ts             # HTTP client — all endpoints, timed + logged
+    │   └── ApiClient.ts             # HTTP client — endpoints, path templates, cardinality demo
     ├── components/
     │   ├── Buttons.tsx              # Primary / secondary / simulation buttons
     │   ├── ScreenContainer.tsx      # Shared layout, triggers logScreenView
@@ -177,17 +235,25 @@ sdk/
     │   ├── StepIndicator.tsx        # Journey progress dots
     │   └── index.ts
     ├── context/
-    │   └── SimulationContext.tsx    # Probabilistic state machine + navigation driver
+    │   └── SimulationContext.tsx    # Persona-biased state machine, spans, entity, chaos
+    ├── sim/
+    │   ├── variants.ts              # SimVariant personas, probabilities, feature-flag mapping
+    │   └── crashes.ts               # 20-crash catalog + native-module bridge (ANR / force-quit)
     ├── navigation/
-    │   └── types.ts                 # Typed route params for all 16 screens
+    │   └── types.ts                 # Typed route params for all 19 screens
     ├── screens/
-    │   ├── ShoppingScreens.tsx      # All 16 screen components
+    │   ├── ShoppingScreens.tsx      # All screens incl. Advanced + payment variants
     │   └── index.ts
     ├── types/
     │   └── models.ts                # Typed backend response interfaces
     └── utils/
         ├── colors.ts                # Color palette
-        └── logger.ts                # bitdrift + console dual-write logger
+        ├── appLifecycle.ts          # app_open / app_close via AppState
+        └── logger.ts                # bitdrift wrappers: logs, fields, entity, flags, spans
+
+# Native crash module (rebuild required to activate):
+#   android/app/src/main/java/ai/bitdrift/shop/BdCrashModule.kt + BdCrashPackage.kt
+#   ios/ShopDemoRN/BdCrash.m   (add to the Xcode target)
 ```
 
 ---

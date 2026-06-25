@@ -14,5 +14,5 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["App.tsx", "index.js", "src/**/*"]
+  "include": ["App.tsx", "index.js", "env.d.ts", "src/**/*"]
 }

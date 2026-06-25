@@ -9,7 +9,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "@bitdrift/react-native": "^0.11.17",
+    "@bitdrift/react-native": "^0.12.8",
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
     "react": "18.2.0",

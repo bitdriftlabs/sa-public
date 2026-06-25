@@ -6,7 +6,7 @@ Demo Android app simulating an e-commerce shopping experience, **already instrum
 
 This is community-contributed content provided for educational purposes only.
 
-> Want to instrument **your own** app? This README documents what's already wired up here. For a step-by-step, prompt-driven walkthrough you can apply to any app, see the repository's [instrumentation-guide/](../../../instrumentation-guide/).
+> Want to instrument **your own** app? This README documents what's already wired up here. For a step-by-step, prompt-driven walkthrough you can apply to any app, see the repository's [instrumentation-guide/](../../instrumentation-guide/).
 
 ## Quick Start
 
@@ -97,7 +97,7 @@ See [`workflows/README.md`](workflows/README.md) for deploy instructions.
 ## Reference
 
 - **[README-refs.md](README-refs.md)** — screens (18), emulator setup, local config, simulation modes, entity list, project structure
-- **[../../../instrumentation-guide/](../../../instrumentation-guide/)** — how to instrument **any** app (prompt-driven), plus a cleanup guide
+- **[../../instrumentation-guide/](../../instrumentation-guide/)** — how to instrument **any** app (prompt-driven), plus a cleanup guide
 - **[workflows/README.md](workflows/README.md)** — deploy and monitor workflows via bd CLI
 
 **Simulation features:** [ANR-A](README-refs.md#anr-a-guest-journey-testing) · [Force Quit](README-refs.md#force-quit-journey-testing) · [Crash Loop](README-refs.md#crash-loop) · [Slow Frames](README-refs.md#slow-frames-performance-bug-demo)

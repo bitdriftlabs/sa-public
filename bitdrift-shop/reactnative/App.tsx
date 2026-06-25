@@ -13,7 +13,8 @@ import {SimulationProvider, useSimulation} from './src/context/SimulationContext
 import {SimulationOverlay} from './src/components';
 import {Colors} from './src/utils/colors';
 import {ScreenLogger} from './src/utils/logger';
-import {BITDRIFT_API_KEY, BITDRIFT_API_HOST} from './src/config';
+import {startLifecycleLogging} from './src/utils/appLifecycle';
+import {BITDRIFT_API_KEY, BITDRIFT_API_HOST, APP_VARIANT} from './src/config';
 import type {RootStackParamList} from './src/navigation/types';
 
 import {
@@ -32,7 +33,10 @@ import {
   PaymentCardScreen,
   PaymentApplePayScreen,
   PaymentPayPalScreen,
+  PaymentAndroidPayScreen,
+  PaymentFailedScreen,
   ConfirmationScreen,
+  AdvancedScreen,
 } from './src/screens';
 
 // Capture wall-clock time at module evaluation for TTI measurement.
@@ -48,10 +52,11 @@ init(BITDRIFT_API_KEY, SessionStrategy.Activity, {
   },
 });
 
-// Workshop 5 — Global Fields
+// Global Fields
 // These fields are automatically attached to every log, span, and network
-// event so dashboards can slice data by variant or platform.
-addField('app_variant', 'workshop-demo');
+// event so dashboards can slice data by variant or platform. app_variant matches
+// the Android app's value ("sdk-demo") so both platforms slice identically.
+addField('app_variant', APP_VARIANT);
 addField('platform', Platform.OS);
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -91,7 +96,10 @@ const AppNavigator: React.FC = () => {
           <Stack.Screen name="PaymentCard" component={PaymentCardScreen} />
           <Stack.Screen name="PaymentApplePay" component={PaymentApplePayScreen} />
           <Stack.Screen name="PaymentPayPal" component={PaymentPayPalScreen} />
+          <Stack.Screen name="PaymentAndroidPay" component={PaymentAndroidPayScreen} />
+          <Stack.Screen name="PaymentFailed" component={PaymentFailedScreen} />
           <Stack.Screen name="Confirmation" component={ConfirmationScreen} />
+          <Stack.Screen name="Advanced" component={AdvancedScreen} />
         </Stack.Navigator>
       </NavigationContainer>
       <SimulationOverlay />
@@ -101,11 +109,13 @@ const AppNavigator: React.FC = () => {
 
 const App: React.FC = () => {
   useEffect(() => {
-    // Workshop 3 — App Launch TTI
+    // App Launch TTI
     // Measure time from module evaluation to first render and emit the
     // standard TTI event so the dashboard shows your app's launch latency.
     logAppLaunchTTI(Date.now() - APP_START_TIME);
     ScreenLogger.logInfo('app_launched');
+    // Foreground/background lifecycle events (app_open / app_close).
+    startLifecycleLogging();
   }, []);
 
   return (

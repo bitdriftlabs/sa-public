@@ -5,6 +5,11 @@ import {BITDRIFT_API_KEY as ENV_API_KEY, BITDRIFT_API_HOST as ENV_API_HOST, BACK
 // Displayed on screen via ScreenContainer. Keep in sync with package.json.
 export const APP_VERSION = '1.0.0';
 
+// ─── Global field: app_variant ─────────────────────────────────────────────────
+// Attached to every log. Matches the Android app's value ("sdk-demo") so the two
+// platforms' sessions slice identically in the dashboard.
+export const APP_VARIANT = 'sdk-demo';
+
 // ─── bitdrift SDK ────────────────────────────────────────────────────────────
 // Set BITDRIFT_API_KEY in your .env file.
 // Values are injected at Metro bundle time via react-native-dotenv.

@@ -12,6 +12,8 @@ import {BITDRIFT_API_KEY, BITDRIFT_API_HOST} from '../config';
 import {ApiClient} from '../api/ApiClient';
 import {Colors} from '../utils/colors';
 import {useSimulation} from '../context/SimulationContext';
+import {ScreenLogger} from '../utils/logger';
+import {SimVariant, VARIANT_LABELS} from '../sim/variants';
 import {CategoryRowList, PrimaryButton, ProductRowList, ScreenContainer, SecondaryButton, SimButton} from '../components';
 import type {ScreenProps} from '../navigation/types';
 import type {
@@ -24,7 +26,6 @@ import type {
   FeaturedResponse,
   PaymentResponse,
   ProductDetailResponse,
-  ProductCard,
   ReviewsResponse,
   SearchResponse,
   WelcomeResponse,
@@ -36,7 +37,14 @@ const fallbackProduct = 'prod_a1b2c3';
 const money = (value: number | undefined) => `$${(value ?? 0).toFixed(2)}`;
 
 export const WelcomeScreen: React.FC<ScreenProps<'Welcome'>> = ({navigation}) => {
-  const {isSimulating, startSimulation, startInfiniteSimulation} = useSimulation();
+  const {
+    isSimulating,
+    startSimulation,
+    startInfiniteSimulation,
+    crashLoopEnabled,
+    nextCrashName,
+    stopCrashLoop,
+  } = useSimulation();
   const [data, setData] = React.useState<WelcomeResponse | null>(null);
 
   React.useEffect(() => {
@@ -105,6 +113,13 @@ export const WelcomeScreen: React.FC<ScreenProps<'Welcome'>> = ({navigation}) =>
 
       <View style={styles.divider} />
 
+      {crashLoopEnabled ? (
+        <View style={styles.crashLoopBox}>
+          <Text style={styles.crashLoopText}>Crash loop ACTIVE — next: {nextCrashName()}</Text>
+          <SecondaryButton title="Stop crash loop" icon="■" onPress={stopCrashLoop} />
+        </View>
+      ) : null}
+
       {isSimulating ? (
         <Text style={styles.simHint}>Simulation in progress...</Text>
       ) : (
@@ -121,6 +136,15 @@ export const WelcomeScreen: React.FC<ScreenProps<'Welcome'>> = ({navigation}) =>
         <SimButton title="Device Code" color={Colors.categories} onPress={onDeviceCode} />
         <SimButton title="Support Log" color={Colors.wishlist} onPress={onSupportLog} />
       </View>
+
+      <View style={styles.divider} />
+
+      <SecondaryButton
+        title="Advanced (variants, chaos)"
+        icon="⚙"
+        disabled={isSimulating}
+        onPress={() => navigation.navigate('Advanced')}
+      />
     </ScreenContainer>
   );
 };
@@ -310,7 +334,7 @@ export const CategoryBrowseScreen: React.FC<ScreenProps<'CategoryBrowse'>> = ({n
 };
 
 export const ProductDetailScreen: React.FC<ScreenProps<'ProductDetail'>> = ({navigation, route}) => {
-  const {productId} = route.params;
+  const {productId, source} = route.params;
   const [data, setData] = React.useState<ProductDetailResponse | null>(null);
 
   React.useEffect(() => {
@@ -335,19 +359,25 @@ export const ProductDetailScreen: React.FC<ScreenProps<'ProductDetail'>> = ({nav
       <PrimaryButton
         title="Add to Cart"
         icon="＋"
-        onPress={() => navigation.navigate('Cart', {productId})}
+        onPress={() => {
+          ScreenLogger.logInfo('add_to_cart', {product_id: productId, source_screen: source});
+          navigation.navigate('Cart', {productId});
+        }}
       />
       <SecondaryButton
         title="Save to Wishlist"
         icon="♡"
-        onPress={() => navigation.navigate('Wishlist', {productId})}
+        onPress={() => {
+          ScreenLogger.logInfo('add_to_wishlist', {product_id: productId, source_screen: source});
+          navigation.navigate('Wishlist', {productId});
+        }}
       />
     </ScreenContainer>
   );
 };
 
 export const ReviewsScreen: React.FC<ScreenProps<'Reviews'>> = ({navigation, route}) => {
-  const {productId} = route.params;
+  const {productId, source} = route.params;
   const [data, setData] = React.useState<ReviewsResponse | null>(null);
 
   React.useEffect(() => {
@@ -369,11 +399,21 @@ export const ReviewsScreen: React.FC<ScreenProps<'Reviews'>> = ({navigation, rou
       color={Colors.reviews}
       onBack={() => navigation.goBack()}
       onCart={() => navigation.navigate('Cart')}>
-      <PrimaryButton title="Add to Cart" icon="＋" onPress={() => navigation.navigate('Cart', {productId})} />
+      <PrimaryButton
+        title="Add to Cart"
+        icon="＋"
+        onPress={() => {
+          ScreenLogger.logInfo('add_to_cart', {product_id: productId, source_screen: source});
+          navigation.navigate('Cart', {productId});
+        }}
+      />
       <SecondaryButton
         title="Save to Wishlist"
         icon="♡"
-        onPress={() => navigation.navigate('Wishlist', {productId})}
+        onPress={() => {
+          ScreenLogger.logInfo('add_to_wishlist', {product_id: productId, source_screen: source});
+          navigation.navigate('Wishlist', {productId});
+        }}
       />
     </ScreenContainer>
   );
@@ -424,8 +464,11 @@ export const CartScreen: React.FC<ScreenProps<'Cart'>> = ({navigation, route}) =
   const removeItem = async (id: string) => {
     try {
       const response = await ApiClient.deleteCartItem(id);
+      ScreenLogger.logInfo('cart_item_removed', {product_id: id});
       setData(response);
-    } catch {}
+    } catch (e) {
+      ScreenLogger.logError('cart_failed', {product_id: id}, e);
+    }
   };
 
   const count = data?.items?.length ?? 0;
@@ -448,12 +491,18 @@ export const CartScreen: React.FC<ScreenProps<'Cart'>> = ({navigation, route}) =
       <PrimaryButton
         title="Checkout as Guest"
         icon="👤"
-        onPress={() => navigation.navigate('CheckoutGuest', {productId})}
+        onPress={() => {
+          ScreenLogger.logInfo('checkout_started', {checkout_type: 'guest'});
+          navigation.navigate('CheckoutGuest', {productId});
+        }}
       />
       <SecondaryButton
         title="Sign In to Checkout"
         icon="🔐"
-        onPress={() => navigation.navigate('CheckoutSignIn', {productId})}
+        onPress={() => {
+          ScreenLogger.logInfo('checkout_started', {checkout_type: 'signin'});
+          navigation.navigate('CheckoutSignIn', {productId});
+        }}
       />
       <SecondaryButton
         title="Keep Shopping"
@@ -489,12 +538,18 @@ export const WishlistScreen: React.FC<ScreenProps<'Wishlist'>> = ({navigation, r
       <PrimaryButton
         title="Checkout as Guest"
         icon="👤"
-        onPress={() => navigation.navigate('CheckoutGuest', {productId})}
+        onPress={() => {
+          ScreenLogger.logInfo('checkout_started', {checkout_type: 'guest'});
+          navigation.navigate('CheckoutGuest', {productId});
+        }}
       />
       <SecondaryButton
         title="Sign In to Checkout"
         icon="🔐"
-        onPress={() => navigation.navigate('CheckoutSignIn', {productId})}
+        onPress={() => {
+          ScreenLogger.logInfo('checkout_started', {checkout_type: 'signin'});
+          navigation.navigate('CheckoutSignIn', {productId});
+        }}
       />
     </ScreenContainer>
   );
@@ -595,9 +650,30 @@ export const PaymentCardScreen: React.FC<ScreenProps<'PaymentCard'>> = ({navigat
       color={Colors.paymentCard}
       onBack={() => navigation.goBack()}
       onCart={() => navigation.navigate('Cart')}>
-      <PrimaryButton title="Visa ending 4242" icon="✓" onPress={() => navigation.navigate('Confirmation', {orderId})} />
-      <SecondaryButton title="Mastercard ending 8888" icon="✓" onPress={() => navigation.navigate('Confirmation', {orderId})} />
-      <SecondaryButton title="Amex ending 1001" icon="✓" onPress={() => navigation.navigate('Confirmation', {orderId})} />
+      <PrimaryButton
+        title="Visa ending 4242"
+        icon="✓"
+        onPress={() => {
+          ScreenLogger.logInfo('payment_completed', {payment_method: 'visa', card_last4: '4242', order_id: orderId});
+          navigation.navigate('Confirmation', {orderId});
+        }}
+      />
+      <SecondaryButton
+        title="Mastercard ending 8888"
+        icon="✓"
+        onPress={() => {
+          ScreenLogger.logInfo('payment_completed', {payment_method: 'mastercard', card_last4: '8888', order_id: orderId});
+          navigation.navigate('Confirmation', {orderId});
+        }}
+      />
+      <SecondaryButton
+        title="Amex ending 1001"
+        icon="✓"
+        onPress={() => {
+          ScreenLogger.logInfo('payment_completed', {payment_method: 'amex', card_last4: '1001', order_id: orderId});
+          navigation.navigate('Confirmation', {orderId});
+        }}
+      />
     </ScreenContainer>
   );
 };
@@ -626,7 +702,10 @@ export const PaymentApplePayScreen: React.FC<ScreenProps<'PaymentApplePay'>> = (
       <PrimaryButton
         title="Complete Purchase"
         icon="✓"
-        onPress={() => navigation.navigate('Confirmation', {orderId})}
+        onPress={() => {
+          ScreenLogger.logInfo('payment_completed', {payment_method: 'apple_pay', order_id: orderId});
+          navigation.navigate('Confirmation', {orderId});
+        }}
       />
     </ScreenContainer>
   );
@@ -655,8 +734,220 @@ export const PaymentPayPalScreen: React.FC<ScreenProps<'PaymentPayPal'>> = ({nav
       <PrimaryButton
         title="Complete Purchase"
         icon="✓"
-        onPress={() => navigation.navigate('Confirmation', {orderId})}
+        onPress={() => {
+          ScreenLogger.logInfo('payment_completed', {payment_method: 'paypal', order_id: orderId});
+          navigation.navigate('Confirmation', {orderId});
+        }}
       />
+    </ScreenContainer>
+  );
+};
+
+export const PaymentAndroidPayScreen: React.FC<ScreenProps<'PaymentAndroidPay'>> = ({navigation, route}) => {
+  const checkoutSession = route.params?.checkoutSession ?? '';
+  const [data, setData] = React.useState<PaymentResponse | null>(null);
+
+  React.useEffect(() => {
+    ApiClient.payAndroidPay(checkoutSession).then(setData).catch(() => undefined);
+  }, [checkoutSession]);
+
+  const orderId = data?.order_id ?? '';
+
+  return (
+    <ScreenContainer
+      screenName="PaymentAndroidPay"
+      title="Google Pay"
+      subtitle={data ? `Google Pay — ${money(data.amount_charged)}` : 'Authenticating...'}
+      step={6}
+      icon="◈"
+      color={Colors.paymentApplePay}
+      onBack={() => navigation.goBack()}
+      onCart={() => navigation.navigate('Cart')}>
+      <PrimaryButton
+        title="Complete Purchase"
+        icon="✓"
+        onPress={() => {
+          ScreenLogger.logInfo('payment_completed', {payment_method: 'android_pay', order_id: orderId});
+          navigation.navigate('Confirmation', {orderId});
+        }}
+      />
+    </ScreenContainer>
+  );
+};
+
+export const PaymentFailedScreen: React.FC<ScreenProps<'PaymentFailed'>> = ({navigation, route}) => {
+  const method = route.params?.paymentMethod ?? 'card';
+
+  React.useEffect(() => {
+    ScreenLogger.logError('payment_failed', {payment_method: method});
+  }, [method]);
+
+  return (
+    <ScreenContainer
+      screenName="PaymentFailed"
+      title="Payment Failed"
+      subtitle={`We couldn't process your ${method} payment.\nPlease try a different method.`}
+      step={6}
+      icon="⚠"
+      color="#B71C1C"
+      onBack={() => navigation.goBack()}>
+      <PrimaryButton
+        title="Try Another Method"
+        icon="↺"
+        onPress={() => navigation.goBack()}
+      />
+      <SecondaryButton
+        title="Back to Cart"
+        icon="🛒"
+        onPress={() => navigation.navigate('Cart')}
+      />
+    </ScreenContainer>
+  );
+};
+
+const VariantButton: React.FC<{
+  label: string;
+  active: boolean;
+  color: string;
+  onPress: () => void;
+}> = ({label, active, color, onPress}) => (
+  <TouchableOpacity
+    style={[styles.variantButton, {backgroundColor: active ? color : 'rgba(255,255,255,0.16)'}]}
+    onPress={onPress}
+    activeOpacity={0.85}>
+    <Text style={styles.variantButtonText}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const ToggleButton: React.FC<{
+  label: string;
+  on: boolean;
+  disabled?: boolean;
+  onColor: string;
+  onPress: () => void;
+}> = ({label, on, disabled, onColor, onPress}) => (
+  <TouchableOpacity
+    style={[
+      styles.toggleButton,
+      {backgroundColor: on ? onColor : 'rgba(255,255,255,0.16)'},
+      disabled && styles.toggleDisabled,
+    ]}
+    onPress={onPress}
+    disabled={disabled}
+    activeOpacity={0.85}>
+    <Text style={styles.toggleButtonText}>{on ? `${label}: ON` : label}</Text>
+  </TouchableOpacity>
+);
+
+export const AdvancedScreen: React.FC<ScreenProps<'Advanced'>> = ({navigation}) => {
+  const {
+    activeVariant,
+    setVariant,
+    crashLoopEnabled,
+    anrAEnabled,
+    forceQuitEnabled,
+    slowModeEnabled,
+    supportLogEnabled,
+    setCrashLoop,
+    setAnrA,
+    setForceQuit,
+    setSlowMode,
+    setSupportLog,
+    nextCrashName,
+    startAbSimulation,
+    startCardinalitySimulation,
+    isSimulating,
+  } = useSimulation();
+
+  const isVariantA = activeVariant === SimVariant.VariantA;
+  const anrStatus = !isVariantA
+    ? 'unavailable (select Variant A)'
+    : anrAEnabled
+    ? 'enabled'
+    : 'disabled';
+  const crashStatus = crashLoopEnabled ? `enabled (next: ${nextCrashName()})` : 'disabled';
+
+  return (
+    <ScreenContainer
+      screenName="Advanced"
+      title="Advanced"
+      subtitle="Personas, simulation modes, and fault injection"
+      step={1}
+      icon="⚙"
+      color={Colors.welcome}
+      onBack={() => navigation.goBack()}>
+      <ScrollView style={styles.advancedScroll} contentContainerStyle={styles.advancedContent}>
+        <Text style={styles.advancedLabel}>Simulation Variant</Text>
+        <View style={styles.variantRow}>
+          <VariantButton
+            label="Control"
+            active={activeVariant === SimVariant.Control}
+            color="#607D8B"
+            onPress={() => setVariant(SimVariant.Control)}
+          />
+          <VariantButton
+            label="Variant A"
+            active={activeVariant === SimVariant.VariantA}
+            color="#00BCD4"
+            onPress={() => setVariant(SimVariant.VariantA)}
+          />
+          <VariantButton
+            label="Variant B"
+            active={activeVariant === SimVariant.VariantB}
+            color="#FF9800"
+            onPress={() => setVariant(SimVariant.VariantB)}
+          />
+        </View>
+        <Text style={styles.advancedHint}>Active: {VARIANT_LABELS[activeVariant]}</Text>
+
+        <Text style={styles.advancedLabel}>Simulation Modes</Text>
+        <View style={styles.variantRow}>
+          <SimButton title="Sim A/B (5 each)" color={Colors.browse} onPress={() => startAbSimulation(5)} />
+          <SimButton title="Cardinality" color="#9C27B0" onPress={startCardinalitySimulation} />
+        </View>
+
+        <Text style={styles.advancedLabel}>Fault Injection</Text>
+        <View style={styles.toggleRow}>
+          <ToggleButton label="Slow" on={slowModeEnabled} onColor="#FF5722" onPress={() => setSlowMode(!slowModeEnabled)} />
+          <ToggleButton label="Crash" on={crashLoopEnabled} onColor="#D32F2F" onPress={() => setCrashLoop(!crashLoopEnabled)} />
+        </View>
+        <View style={styles.toggleRow}>
+          <ToggleButton
+            label="ANR-A"
+            on={anrAEnabled}
+            disabled={!isVariantA}
+            onColor="#F44336"
+            onPress={() => setAnrA(!anrAEnabled)}
+          />
+          <ToggleButton label="Quit" on={forceQuitEnabled} onColor="#FF6F00" onPress={() => setForceQuit(!forceQuitEnabled)} />
+        </View>
+
+        <View style={styles.statusChip}>
+          <Text style={styles.statusChipText}>
+            Crash: {crashStatus} | ANR-A: {anrStatus} | Quit: {forceQuitEnabled ? 'enabled' : 'disabled'}
+          </Text>
+        </View>
+
+        {isVariantA && anrAEnabled ? (
+          <Text style={styles.advancedHint}>
+            ANR Watchdog Required — run scripts/watchdog.sh to auto-dismiss the ANR and relaunch.
+          </Text>
+        ) : null}
+        {forceQuitEnabled ? (
+          <Text style={styles.advancedHint}>
+            Force-quit kills the process — run scripts/watchdog.sh to detect and relaunch.
+          </Text>
+        ) : null}
+
+        <Text style={styles.advancedLabel}>Debug Tools</Text>
+        <ToggleButton
+          label="Support Log"
+          on={supportLogEnabled}
+          onColor="#4CAF50"
+          onPress={() => setSupportLog(!supportLogEnabled)}
+        />
+        {isSimulating ? <Text style={styles.simHint}>Simulation in progress...</Text> : null}
+      </ScrollView>
     </ScreenContainer>
   );
 };
@@ -709,6 +1000,87 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     textAlign: 'center',
     marginVertical: 8,
+  },
+  crashLoopBox: {
+    width: '100%',
+    backgroundColor: 'rgba(211,47,47,0.25)',
+    borderColor: '#D32F2F',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    marginVertical: 6,
+    gap: 8,
+  },
+  crashLoopText: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  advancedScroll: {
+    width: '100%',
+  },
+  advancedContent: {
+    paddingBottom: 16,
+    gap: 4,
+  },
+  advancedLabel: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  advancedHint: {
+    color: Colors.muted,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  variantRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  variantButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  variantButtonText: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  toggleButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  toggleButtonText: {
+    color: Colors.white,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  toggleDisabled: {
+    opacity: 0.4,
+  },
+  statusChip: {
+    width: '100%',
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 10,
+  },
+  statusChipText: {
+    color: Colors.white,
+    fontSize: 12,
+    textAlign: 'center',
   },
   cartList: {
     width: '100%',
