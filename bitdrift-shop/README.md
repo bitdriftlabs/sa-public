@@ -1,5 +1,7 @@
 # bitdrift Shop
 
+**Version 1.0**
+
 A full-stack e-commerce demo that generates realistic mobile shopping traffic — browsing, searching, cart management, checkout, and payment — with built-in journey simulation and chaos testing. It exists to exercise the **bitdrift Capture SDK** across platforms with lifelike sessions.
 
 Each app implements the same 16-screen shopping flow and the same probabilistic simulation logic, and all of them talk to one shared backend.

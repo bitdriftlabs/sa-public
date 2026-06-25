@@ -12,6 +12,7 @@ import {
 import {StepIndicator} from './StepIndicator';
 import {Colors} from '../utils/colors';
 import {ScreenLogger} from '../utils/logger';
+import {APP_VERSION} from '../config';
 import type {Category, ProductCard} from '../types/models';
 
 type ScreenContainerProps = {
@@ -72,6 +73,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
 
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
+        <Text style={styles.version}>App v{APP_VERSION}</Text>
 
         <View style={styles.buttonsContainer}>{children}</View>
       </View>
@@ -223,6 +225,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
     paddingHorizontal: 8,
+  },
+  version: {
+    fontSize: 11,
+    color: Colors.muted,
+    opacity: 0.6,
+    textAlign: 'center',
+    marginBottom: 12,
   },
   buttonsContainer: {
     width: '100%',
