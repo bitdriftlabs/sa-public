@@ -2,40 +2,35 @@
 
 Examples and reference material from the bitdrift Solutions Architecture team.
 
-## About this repository
-
-This repository is a collection of samples, integration examples, and reference
-implementations created by bitdrift Solutions Architects. It exists to help the
-community explore bitdrift, learn integration patterns, and accelerate their own
-experimentation.
-
 ## Important: community-supported, not an official product
 
 The contents of this repository are **community-level contributions provided for
 reference and educational purposes only.** They are **not** official bitdrift
 products, are **not** part of any bitdrift product offering, and are **not**
 covered by any bitdrift service-level agreement, support commitment, or warranty.
+Everything here is provided "as is." Review and test any code before adapting it
+for your own environment.
 
-- **As-is, no warranty.** Everything here is provided "as is," without warranty
-  of any kind, express or implied. Use it at your own risk.
-- **Not officially supported.** These examples are maintained on a best-effort
-  basis by the Solutions Architecture team and are not backed by bitdrift's
-  official support channels.
-- **May change or break.** Samples may be incomplete, may not reflect current
-  best practices, and may stop working as APIs and dependencies evolve.
-- **Review before use.** Always review and test any code before adapting it for
-  your own environment. Do not assume it is production-ready.
-
-For official products, documentation, and support, please refer to the
+For official products, documentation, and support, see the
 [bitdrift documentation](https://docs.bitdrift.io) and your standard bitdrift
 support channels.
 
-## Contributing
+## What's in this repository
 
-Contributions and improvements from the community are welcome. Please open an
-issue or pull request to start a conversation.
+### [bitdrift-shop/](bitdrift-shop/)
 
-## License
+A full-stack e-commerce demo that generates realistic mobile shopping traffic to
+exercise the bitdrift Capture SDK. It includes SDK-instrumented apps for
+**Android**, **React Native** (Android + iOS), and **Kotlin Multiplatform**
+(Android + iOS), all backed by a shared **FastAPI** server with a built-in
+journey simulator and chaos-testing mode.
 
-See the [LICENSE](LICENSE) file for details, if present. In the absence of a
-license file, all rights are reserved by the respective authors.
+### [instrumentation-guide/](instrumentation-guide/)
+
+Platform-neutral guides for working with the bitdrift Capture SDK in **any** app:
+
+- **INSTRUMENTATION_GUIDE.md** — a step-by-step checklist for wiring up the SDK,
+  with each step mapped to the product feature it unlocks (Android examples, plus
+  iOS and React Native API maps).
+- **CLEANUP_GUIDE.md** — how to cleanly remove the SDK and return an app to its
+  baseline state.
