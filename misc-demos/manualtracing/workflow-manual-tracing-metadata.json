@@ -1,0 +1,3 @@
+{
+  "description": "Activates tracing for URLConnection (manual) journey sessions. Matches on the 'manual_tracing' field set to true, which is logged by NetworkViewModel at the start of each Loop Journey / Run 5x Journey (URLConnection) run. Fires start_tracing_rule to flip Logger.isTracingActive=true (so ManualHttpClient injects traceparent headers and sets _trace_id on response logs) and flush_rule to upload the captured session. Live at https://explorations.bitdrift.io/workflow/1iBn"
+}

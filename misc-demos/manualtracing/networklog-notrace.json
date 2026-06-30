@@ -1,0 +1,293 @@
+{
+    "id": "-4441127388768383966",
+    "occurredAtMs": 1780346771186,
+    "triggeredListenerIds": [
+        "h7N5CsGqVKHHxI3NLVo4MWgpCu0IsGtTGPeijh0xJHw",
+        "jzMqvF6bDcHgqkndE2I-pDE5GZt_g_85YMyNkT9Sb38",
+        "vs9e4zjA5-nHsnkBw1gkougFIbZPymkMloq0jMB9k8U"
+    ],
+    "logLevel": 1,
+    "detailText": "/api/products",
+    "text": "→ HTTP GET",
+    "tags": [
+        {
+            "text": "currencyCode=USD"
+        }
+    ],
+    "icons": [
+        {
+            "description": "Offline",
+            "src": {
+                "icon": "bd:network-offline"
+            },
+            "fill": "grey.dark",
+            "color": "grey.light"
+        },
+        {
+            "description": "App is in the foreground",
+            "src": {
+                "icon": "ph:sun"
+            },
+            "color": "indigo.light",
+            "fill": "amber.dark"
+        }
+    ],
+    "rowTypeIcon": {
+        "src": {
+            "icon": "ph:trend-up-bold"
+        },
+        "color": "cyan.main",
+        "description": "Operation start"
+    },
+    "accentColor": "cyan.main",
+    "metadata": [
+        {
+            "key": "_app_version_code",
+            "type": "bitdrift",
+            "value": "1"
+        },
+        {
+            "key": "_architecture",
+            "type": "bitdrift",
+            "value": "arm64-v8a"
+        },
+        {
+            "key": "_host",
+            "type": "bitdrift",
+            "value": "10.0.2.2"
+        },
+        {
+            "key": "_locale",
+            "type": "bitdrift",
+            "value": "en_US"
+        },
+        {
+            "key": "_manufacturer",
+            "type": "bitdrift",
+            "value": "Google"
+        },
+        {
+            "key": "_method",
+            "type": "bitdrift",
+            "value": "GET"
+        },
+        {
+            "key": "_network_quality",
+            "type": "bitdrift",
+            "value": "offline"
+        },
+        {
+            "key": "_os_api_level",
+            "type": "bitdrift",
+            "value": "36"
+        },
+        {
+            "key": "_path",
+            "type": "bitdrift",
+            "value": "/api/products"
+        },
+        {
+            "key": "_path_template",
+            "type": "bitdrift",
+            "value": "/api/products"
+        },
+        {
+            "key": "_query",
+            "type": "bitdrift",
+            "value": "currencyCode=USD"
+        },
+        {
+            "key": "_request_body_bytes_expected_to_send_count",
+            "type": "bitdrift",
+            "value": "0"
+        },
+        {
+            "key": "_span_id",
+            "type": "bitdrift",
+            "value": "26a8f792-bdf1-41ee-8648-118b4d326eec"
+        },
+        {
+            "key": "_span_name",
+            "type": "bitdrift",
+            "value": "_http"
+        },
+        {
+            "key": "_span_type",
+            "type": "bitdrift",
+            "value": "start"
+        },
+        {
+            "key": "app_id",
+            "type": "bitdrift",
+            "value": "com.example.otelshoppingdemo"
+        },
+        {
+            "key": "app_variant",
+            "type": "custom",
+            "color": "cyan700",
+            "value": "workshop-demo"
+        },
+        {
+            "key": "app_version",
+            "type": "bitdrift",
+            "value": "1.0"
+        },
+        {
+            "key": "carrier",
+            "type": "bitdrift",
+            "value": "T-Mobile"
+        },
+        {
+            "key": "device_id",
+            "type": "bitdrift",
+            "value": "272f266c-3326-460e-9236-6aa80fabd34f"
+        },
+        {
+            "key": "ff_anr_a",
+            "type": "custom",
+            "color": "cyan700",
+            "value": "disabled"
+        },
+        {
+            "key": "ff_cart_abandon_rate",
+            "type": "custom",
+            "color": "cyan700",
+            "value": "medium"
+        },
+        {
+            "key": "ff_checkout_flow",
+            "type": "custom",
+            "color": "cyan700",
+            "value": "random"
+        },
+        {
+            "key": "ff_order_summary",
+            "type": "custom",
+            "color": "cyan700",
+            "value": "v2"
+        },
+        {
+            "key": "ff_payment_android_pay",
+            "type": "custom",
+            "color": "cyan700",
+            "value": "enabled"
+        },
+        {
+            "key": "ff_payment_ui",
+            "type": "custom",
+            "color": "cyan700",
+            "value": "random"
+        },
+        {
+            "key": "ff_variant",
+            "type": "custom",
+            "color": "cyan700",
+            "value": "Control"
+        },
+        {
+            "key": "foreground",
+            "type": "bitdrift",
+            "value": "1"
+        },
+        {
+            "key": "log_level",
+            "type": "bitdrift",
+            "value": "1"
+        },
+        {
+            "key": "log_type",
+            "type": "bitdrift",
+            "value": "8"
+        },
+        {
+            "key": "message",
+            "value": "HTTPRequest",
+            "type": "bitdrift"
+        },
+        {
+            "key": "network_type",
+            "type": "bitdrift",
+            "value": "wlan"
+        },
+        {
+            "key": "os_version",
+            "type": "bitdrift",
+            "value": "16"
+        },
+        {
+            "key": "radio_type",
+            "type": "bitdrift",
+            "value": "forbidden"
+        }
+    ],
+    "sourceLog": {
+        "app_id": "com.example.otelshoppingdemo",
+        "device_id": "272f266c-3326-460e-9236-6aa80fabd34f",
+        "hash": "-4441127388768383966",
+        "listener_id": "h7N5CsGqVKHHxI3NLVo4MWgpCu0IsGtTGPeijh0xJHw",
+        "listener_ids": [
+            "h7N5CsGqVKHHxI3NLVo4MWgpCu0IsGtTGPeijh0xJHw",
+            "jzMqvF6bDcHgqkndE2I-pDE5GZt_g_85YMyNkT9Sb38",
+            "vs9e4zjA5-nHsnkBw1gkougFIbZPymkMloq0jMB9k8U"
+        ],
+        "log_level": 1,
+        "log_type": 8,
+        "message": "HTTPRequest",
+        "session_id": "a9f739df-7f17-45da-ba04-cc2a399c3ae3",
+        "source": "",
+        "timestamp_ms": 1780346771186,
+        "fields": {
+            "_method": "GET",
+            "_architecture": "arm64-v8a",
+            "_host": "10.0.2.2",
+            "network_type": "wlan",
+            "_span_type": "start",
+            "ff_variant": "Control",
+            "_request_body_bytes_expected_to_send_count": "0",
+            "ff_payment_android_pay": "enabled",
+            "_os_api_level": "36",
+            "foreground": "1",
+            "_manufacturer": "Google",
+            "_query": "currencyCode=USD",
+            "ff_cart_abandon_rate": "medium",
+            "os_version": "16",
+            "_app_version_code": "1",
+            "app_version": "1.0",
+            "ff_order_summary": "v2",
+            "ff_anr_a": "disabled",
+            "ff_checkout_flow": "random",
+            "ff_payment_ui": "random",
+            "radio_type": "forbidden",
+            "_path_template": "/api/products",
+            "_span_name": "_http",
+            "_network_quality": "offline",
+            "_locale": "en_US",
+            "_span_id": "26a8f792-bdf1-41ee-8648-118b4d326eec",
+            "app_variant": "workshop-demo",
+            "_path": "/api/products",
+            "carrier": "T-Mobile"
+        },
+        "transformations": {
+            "detailText": "/api/products",
+            "text": "→ HTTP GET",
+            "tags": [
+                "currencyCode=USD"
+            ],
+            "icon": {
+                "color": "cyan.main",
+                "src": "ph:trend-up-bold",
+                "description": "Operation start"
+            },
+            "layer": "span"
+        },
+        "resourceUtilization": {
+            "memory": {}
+        }
+    },
+    "layer": {
+        "label": "Span",
+        "type": "span"
+    },
+    "rowType": "skipped__log",
+    "key": "9d514f5e-d0fe-4630-93f6-f28be2ac0b6f"
+}

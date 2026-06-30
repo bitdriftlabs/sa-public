@@ -1,0 +1,142 @@
+[
+  {
+    "rule_id": "metrics-chart",
+    "metadata": {
+      "title": "metricdemo Waveform Metrics",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "y_axis": { "description": "", "unit": "UNSPECIFIED" },
+            "title": "Sine",
+            "sort_order": "MAX",
+            "connector_export_config": [
+              {
+                "connector_name": "cloudwatch-export",
+                "cloudwatch_connector_export_config": {
+                  "namespace": "metricdemo",
+                  "metric_name": "metric_sine",
+                  "fixed_dimensions": {}
+                }
+              }
+            ]
+          },
+          {
+            "y_axis": { "description": "", "unit": "UNSPECIFIED" },
+            "title": "Square",
+            "sort_order": "MAX",
+            "connector_export_config": [
+              {
+                "connector_name": "cloudwatch-export",
+                "cloudwatch_connector_export_config": {
+                  "namespace": "metricdemo",
+                  "metric_name": "metric_square",
+                  "fixed_dimensions": {}
+                }
+              }
+            ]
+          },
+          {
+            "y_axis": { "description": "", "unit": "UNSPECIFIED" },
+            "title": "Sawtooth",
+            "sort_order": "MAX",
+            "connector_export_config": [
+              {
+                "connector_name": "cloudwatch-export",
+                "cloudwatch_connector_export_config": {
+                  "namespace": "metricdemo",
+                  "metric_name": "metric_sawtooth",
+                  "fixed_dimensions": {}
+                }
+              }
+            ]
+          },
+          {
+            "y_axis": { "description": "", "unit": "UNSPECIFIED" },
+            "title": "Triangle",
+            "sort_order": "MAX",
+            "connector_export_config": [
+              {
+                "connector_name": "cloudwatch-export",
+                "cloudwatch_connector_export_config": {
+                  "namespace": "metricdemo",
+                  "metric_name": "metric_triangle",
+                  "fixed_dimensions": {}
+                }
+              }
+            ]
+          },
+          {
+            "y_axis": { "description": "", "unit": "UNSPECIFIED" },
+            "title": "DC",
+            "sort_order": "MAX",
+            "connector_export_config": [
+              {
+                "connector_name": "cloudwatch-export",
+                "cloudwatch_connector_export_config": {
+                  "namespace": "metricdemo",
+                  "metric_name": "metric_dc",
+                  "fixed_dimensions": {}
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "counter-chart",
+    "metadata": {
+      "title": "metricdemo Counter (CloudWatch Consistency Check)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "y_axis": { "description": "", "unit": "UNSPECIFIED" },
+            "title": "Counter",
+            "sort_order": "MAX",
+            "connector_export_config": [
+              {
+                "connector_name": "cloudwatch-export",
+                "cloudwatch_connector_export_config": {
+                  "namespace": "metricdemo",
+                  "metric_name": "metric_counter",
+                  "fixed_dimensions": {}
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "counter-table",
+    "metadata": {
+      "title": "metricdemo Counter (CloudWatch Consistency Check)",
+      "metric_chart_metadata": {
+        "table_display_mode": {},
+        "metadata": [
+          { "title": "Counter", "sort_order": "MAX", "connector_export_config": [] }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "metrics-table",
+    "metadata": {
+      "title": "metricdemo Waveform Values (Table)",
+      "metric_chart_metadata": {
+        "table_display_mode": {},
+        "metadata": [
+          { "title": "Sine",     "sort_order": "MAX", "connector_export_config": [] },
+          { "title": "Square",   "sort_order": "MAX", "connector_export_config": [] },
+          { "title": "Sawtooth", "sort_order": "MAX", "connector_export_config": [] },
+          { "title": "Triangle", "sort_order": "MAX", "connector_export_config": [] },
+          { "title": "DC",       "sort_order": "MAX", "connector_export_config": [] }
+        ]
+      }
+    }
+  }
+]

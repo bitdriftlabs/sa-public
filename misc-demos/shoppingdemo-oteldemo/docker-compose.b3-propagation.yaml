@@ -1,0 +1,42 @@
+services:
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - default
+
+  frontend:
+    environment:
+      OTEL_PROPAGATORS: b3multi,baggage
+  product-catalog:
+    environment:
+      OTEL_PROPAGATORS: b3multi,baggage
+  cart:
+    environment:
+      OTEL_PROPAGATORS: b3multi,baggage
+  checkout:
+    environment:
+      OTEL_PROPAGATORS: b3multi,baggage
+  payment:
+    environment:
+      OTEL_PROPAGATORS: b3multi,baggage
+  currency:
+    environment:
+      OTEL_PROPAGATORS: b3multi,baggage
+  shipping:
+    environment:
+      OTEL_PROPAGATORS: b3multi,baggage
+  email:
+    environment:
+      OTEL_PROPAGATORS: b3multi,baggage
+  ad:
+    environment:
+      OTEL_PROPAGATORS: b3multi,baggage
+  quote:
+    environment:
+      OTEL_PROPAGATORS: b3multi,baggage
+
+networks:
+  default:
+    name: opentelemetry-demo
