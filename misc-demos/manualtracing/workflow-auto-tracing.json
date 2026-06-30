@@ -1,0 +1,47 @@
+{
+  "name": "Manual Tracing Demo — Auto tracing check",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          { "app_id": "ai.bitdrift.manualtracing" }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "auto-tracing-started",
+            "generic_match": {
+              "base_matcher": {
+                "log_body": true,
+                "operator": "REGEX",
+                "string_value": ".*"
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "start-tracing",
+      "start_tracing_rule": {
+        "match_id": "auto-tracing-started"
+      }
+    },
+    {
+      "rule_id": "capture",
+      "flush_rule": {
+        "match_id": "auto-tracing-started",
+        "applied_daily_limit": 100
+      }
+    }
+  ]
+}

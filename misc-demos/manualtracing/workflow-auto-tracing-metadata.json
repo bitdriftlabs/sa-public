@@ -1,0 +1,3 @@
+{
+  "description": "Activates tracing for OkHttp (auto-instrumented) journey sessions. Matches on any log message (REGEX .*), which fires on the first log of each session started by Loop Journey / Run 5x Journey (OkHttp). Fires start_tracing_rule to flip Logger.isTracingActive=true (so CaptureOkHttpTracingInterceptor injects traceparent headers and CaptureOkHttpEventListenerFactory records _trace_id on response logs) and flush_rule to upload the captured session. Live at https://explorations.bitdrift.io/workflow/8jAN"
+}

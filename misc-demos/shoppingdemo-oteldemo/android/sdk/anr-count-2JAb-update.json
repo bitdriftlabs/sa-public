@@ -1,0 +1,70 @@
+{
+  "name": "ANR Count",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          { "app_id": "com.example.shoppingdemo" }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "rule1_fatal_issue_anr",
+            "ootb_match": {
+              "android_condition": "APP_ANDROID_BUILT_IN_ANR"
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "rule2_app_termination_anr",
+            "ootb_match": {
+              "android_condition": "APP_TERMINATION",
+              "generic_match": {
+                "base_matcher": {
+                  "log_field": "_app_exit_reason",
+                  "operator": "EQUAL",
+                  "string_value": "ANR"
+                }
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "anr_count_metric",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": { "match_id": "rule1_fatal_issue_anr" }
+            },
+            "track_unique": { "device_id": true }
+          },
+          {
+            "count": {
+              "value": { "match_id": "rule2_app_termination_anr" }
+            },
+            "track_unique": { "device_id": true }
+          }
+        ]
+      }
+    }
+  ]
+}

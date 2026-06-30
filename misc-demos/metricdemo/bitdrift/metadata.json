@@ -1,0 +1,9 @@
+{
+  "description": "Tracks the sum of all 5 waveform metrics (sine, square, sawtooth, triangle, dc) emitted once per second by the metricdemo Android app. Exports to CloudWatch for external monitoring and alerting.",
+  "per_rule_metadata": [
+    { "rule_id": "metrics-chart", "title": "Waveform Metrics (Plot)" },
+    { "rule_id": "counter-chart", "title": "Counter (CloudWatch Consistency Check)" },
+    { "rule_id": "counter-table", "title": "Counter (Table)" },
+    { "rule_id": "metrics-table", "title": "Waveform Metrics (Table)" }
+  ]
+}

@@ -1,0 +1,3 @@
+{
+  "description": "Activates tracing when the user taps Loop URLConnection or Run 10x URLConnection. Matches on the 'manual_tracing' field logged by NetworkViewModel at sim start, then fires start_tracing_rule (sets isTracingActive=true so ManualHttpClient injects traceparent headers) and flush_rule to capture the session."
+}

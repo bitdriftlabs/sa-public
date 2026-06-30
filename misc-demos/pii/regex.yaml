@@ -1,0 +1,28 @@
+filters_configuration:
+  matching_filters:
+  - filters:
+    - filter:
+        matcher:
+          base_matcher:
+            sampled_match:
+              sample_rate: 1000000
+        transforms:
+        - regex_match_and_substitute_field:
+            name: ''
+            pattern: |
+              (?ix)
+              (
+                (?:authorization|proxy-authorization)\s*[:=]\s*bearer\s+[A-Za-z0-9._~+/=-]{8,}
+                | (?:access[_-]?token|refresh[_-]?token|auth[_-]?token|id[_-]?token|session[_-]?token|bearer|api[_-]?key)\s*[:=]\s*(?:"[A-Za-z0-9._~+/=-]{8,}"|'[A-Za-z0-9._~+/=-]{8,}'|[A-Za-z0-9._~+/=-]{8,})
+                | secret\s*[:=]\s*(?:"[A-Za-z0-9._~+/=!@#$%^&*-]{8,}"|'[A-Za-z0-9._~+/=!@#$%^&*-]{8,}'|[A-Za-z0-9._~+/=!@#$%^&*-]{8,})
+                | (?:device[_-]?id|client[_-]?device[_-]?id|oai[_-]?device[_-]?id)\s*[:=]\s*(?:"[A-Za-z0-9._:-]{8,}"|'[A-Za-z0-9._:-]{8,}'|[A-Za-z0-9._:-]{8,})
+                | Bearer\s+[A-Za-z0-9._~+/=-]{8,}
+                | eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}
+                | encdvc_[0-9a-f]{32,}
+                | ua-[0-9a-fA-F-]{8,}
+                | [0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}
+              )
+            substitution: <redacted>
+      id: scrub
+    matcher:
+      always: true
