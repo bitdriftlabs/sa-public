@@ -42,3 +42,15 @@ Agent and manual versions of both are available- the agent version is a focused 
   with the bitdrift feature each prompt unlocks and links to the docs.
 - **CLEANUP_GUIDE.md** **AGENT_CLEANUP_GUIDE.md** and — the inverse: prompts that drive the skill to remove the
   instrumentation in reverse order and return an app to its baseline state.
+
+### [misc-demos/](misc-demos/)
+
+Standalone demos and reference artifacts from customer engagements and internal SA work.
+
+- **[manualtracing/](misc-demos/manualtracing/)** — Android app demonstrating manual vs automatic OkHttp network instrumentation with the bitdrift Capture SDK. Shows how both approaches produce identical span structure in the timeline and how `_trace_id` appears on response logs when a tracing workflow is active.
+
+- **[shoppingdemo-oteldemo/](misc-demos/shoppingdemo-oteldemo/)** — Android shopping demo backed by the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store microservices. Demonstrates B3 multi-header trace propagation end-to-end: bitdrift SDK on mobile → OTel Demo backend → Zipkin for visual trace inspection.
+
+- **[metricdemo/](misc-demos/metricdemo/)** — Android app that emits five synthetic waveforms (sine, square, sawtooth, triangle, DC, counter) to bitdrift every second. Used to validate bitdrift chart accuracy against CloudWatch and other metric backends.
+
+- **[pii/](misc-demos/pii/)** — Reference regex configuration and validation artifacts for PII scrubbing via bitdrift's `regex_match_and_substitute_field` filter. Includes the regex YAML, change documentation, and validation test results.
