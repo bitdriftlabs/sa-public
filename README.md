@@ -24,7 +24,7 @@ support channels.
 A full-stack e-commerce demo that generates realistic mobile shopping traffic to
 exercise the bitdrift Capture SDK. It includes SDK-instrumented apps for
 **Android**, **React Native** (Android + iOS), and **Kotlin Multiplatform**
-(Android + iOS), all backed by a shared **FastAPI** server with a built-in
+(Android + iOS), all backed by a shared locally run Docker based **FastAPI** server with a built-in
 journey simulator and chaos-testing mode.
 
 ### [instrumentation-guide/](instrumentation-guide/)
@@ -35,7 +35,7 @@ drives bitdrift's **bd-instrumentation** skill to do the work — write the call
 sites, wire the build, and verify it — on Android, iOS, or React Native. You run
 the prompts in order; the skill handles the platform-specific details.
 
-Agent and manual versions of both are available- the agent version is a focused context doc used for agentic instrumentation of bitdrift capabilities:
+Agent and human versions of both are available- the agent version is a focused context doc used for agentic instrumentation of bitdrift capabilities:
 - **INSTRUMENTATION_GUIDE.md** and **AGENT_NSTRUMENTATION_GUIDE.md** — a sequenced set of agent prompts to stand up the
   SDK and add screen views, user identity, network capture, structured logs,
   fields, TTI, spans, support tooling, crash symbolication, and log forwarding —
@@ -49,7 +49,7 @@ Standalone demos and reference artifacts from customer engagements and internal 
 
 - **[manualtracing/](misc-demos/manualtracing/)** — Android app demonstrating manual vs automatic OkHttp network instrumentation with the bitdrift Capture SDK. Shows how both approaches produce identical span structure in the timeline and how `_trace_id` appears on response logs when a tracing workflow is active.
 
-- **[shoppingdemo-oteldemo/](misc-demos/shoppingdemo-oteldemo/)** — Android shopping demo backed by the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store microservices. Demonstrates B3 multi-header trace propagation end-to-end: bitdrift SDK on mobile → OTel Demo backend → Zipkin for visual trace inspection.
+- **[shoppingdemo-oteldemo/](misc-demos/shoppingdemo-oteldemo/)** — Android shopping demo backed by the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store microservices. Demonstrates OpenTelemetry tracing as well as B3 multi-header trace propagation end-to-end: bitdrift SDK on mobile → OTel Demo backend → Zipkin for visual trace inspection.
 
 - **[metricdemo/](misc-demos/metricdemo/)** — Android app that emits five synthetic waveforms (sine, square, sawtooth, triangle, DC, counter) to bitdrift every second. Used to validate bitdrift chart accuracy against CloudWatch and other metric backends.
 
