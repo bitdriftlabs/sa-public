@@ -43,6 +43,11 @@ class SimulationManager : ViewModel() {
 
     var crashLoopEnabled by mutableStateOf(false)
 
+    // Fast crash mode: skips the shopping journey entirely and fires the next crash
+    // combo immediately on every relaunch (see fireFastCrash). Selected on the startup
+    // splash screen alongside crashLoopEnabled, not from Advanced settings.
+    var fastCrashModeEnabled by mutableStateOf(false)
+
     var anrAEnabled by mutableStateOf(false)
 
     var forceQuitEnabled by mutableStateOf(false)
@@ -496,24 +501,63 @@ class SimulationManager : ViewModel() {
     // ─── Crash cycling ───────────────────────────────────────────────────
 
     /**
-     * If crash loop is enabled, picks the next crash type in sequence, logs it,
-     * pre-schedules an AlarmManager restart (survives native signals), waits for
-     * the SDK to flush, then fires the crash. The index persists across process
-     * restarts so each journey uses a different crash type.
+     * Picks the next (crash type, foreground/background) combo in a deterministic
+     * sweep and advances the persisted index. comboIdx cycles 0 until
+     * Crashes.all.size * 2, so every crash type is guaranteed to occur in both
+     * foreground and background exactly once per full sweep, rather than relying on
+     * independent random coin-flips to eventually cover all combinations.
      */
-    private fun maybeFireCrash() {
+    private fun pickNextCrashCombo(prefs: android.content.SharedPreferences): Triple<String, () -> Unit, Boolean> {
+        val crashes = Crashes.all
+        val totalCombos = crashes.size * 2
+        val comboIdx = prefs.getInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, 0) % totalCombos
+        // commit() not apply() — the process dies moments later
+        prefs.edit()
+            .putInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, (comboIdx + 1) % totalCombos)
+            .commit()
+        val (name, fn) = crashes[comboIdx / 2]
+        val fireInBackground = comboIdx % 2 == 1
+        return Triple(name, fn, fireInBackground)
+    }
+
+    /**
+     * Fires fn(), backgrounding the app first via moveTaskToBack if fireInBackground
+     * and an Activity is available — waiting BACKGROUND_SETTLE_MS for ActivityManager
+     * to actually demote process importance away from foreground before the crash
+     * lands. Otherwise fires after the shorter CRASH_FLUSH_MS SDK-flush window.
+     */
+    private fun dispatchCrash(fn: () -> Unit, fireInBackground: Boolean, activity: android.app.Activity?) {
+        if (fireInBackground && activity != null) {
+            activity.moveTaskToBack(true)
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                fn()
+            }, BACKGROUND_SETTLE_MS)
+            return
+        }
+        // Foreground path, or no Activity available to background with. Mirror
+        // crashdemo exactly: fire from a plain main-thread runnable, outside coroutine
+        // machinery, with a blocking flush window so the SDK persists the crash report
+        // and preceding logs before the process dies.
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            try { Thread.sleep(CRASH_FLUSH_MS) } catch (_: InterruptedException) {}
+            fn()
+        }
+    }
+
+    /**
+     * If crash loop is enabled, picks the next crash combo, logs it, pre-schedules an
+     * AlarmManager restart (survives native signals), then dispatches the crash.
+     * Called once per completed shopping journey from runSingleJourney().
+     */
+    private fun maybeFireCrash(nc: NavController) {
         if (!crashLoopEnabled) return
         val ctx = ShoppingDemoApp.appContext
         val prefs = ctx.getSharedPreferences(ShoppingDemoApp.PREFS, Context.MODE_PRIVATE)
-        val crashes = Crashes.all
-        val idx = prefs.getInt(ShoppingDemoApp.KEY_NEXT_INDEX, 0) % crashes.size
-        val (name, fn) = crashes[idx]
-        // commit() not apply() — the process dies moments later
-        prefs.edit()
-            .putInt(ShoppingDemoApp.KEY_NEXT_INDEX, (idx + 1) % crashes.size)
-            .commit()
+        val (name, fn, fireInBackground) = pickNextCrashCombo(prefs)
+        val crashContext = if (fireInBackground) "background" else "foreground"
         Logger.addField("crash_kind", name)
-        Logger.logWarning { "about_to_crash: $name (idx=$idx)" }
+        Logger.addField("crash_context", crashContext)
+        Logger.logWarning { "about_to_crash: $name (context=$crashContext)" }
         // Pre-schedule the restart BEFORE the crash — AlarmManager survives even
         // SIGSEGV/SIGBUS where the JVM uncaught-exception handler cannot run.
         ShoppingDemoApp.scheduleRestart(ctx, CRASH_RESTART_DELAY_MS)
@@ -521,13 +565,30 @@ class SimulationManager : ViewModel() {
         // session) racing the crash — the crash must land in the session that holds
         // the about_to_crash breadcrumb. The AlarmManager restart resumes the loop.
         isCancelled = true
-        // Mirror crashdemo exactly: fire from a plain main-thread runnable, outside
-        // coroutine machinery, with a blocking flush window so the SDK persists the
-        // crash report and preceding logs before the process dies.
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            try { Thread.sleep(CRASH_FLUSH_MS) } catch (_: InterruptedException) {}
-            fn()
-        }
+        val activity = if (fireInBackground) nc.context as? android.app.Activity else null
+        dispatchCrash(fn, fireInBackground, activity)
+    }
+
+    /**
+     * Fast crash-loop entry point: skips the shopping journey entirely. Picks the
+     * next combo and fires immediately, relying on the AlarmManager restart to
+     * relaunch through the startup splash — which MainActivity is wired to skip when
+     * fast mode is active — and MainActivity re-invoking this from the Welcome
+     * screen on every relaunch. Self-sustaining across process restarts; no Sim
+     * button or journey is involved.
+     */
+    fun fireFastCrash(activity: android.app.Activity?) {
+        if (!crashLoopEnabled || !fastCrashModeEnabled) return
+        val ctx = ShoppingDemoApp.appContext
+        val prefs = ctx.getSharedPreferences(ShoppingDemoApp.PREFS, Context.MODE_PRIVATE)
+        val (name, fn, fireInBackground) = pickNextCrashCombo(prefs)
+        val crashContext = if (fireInBackground) "background" else "foreground"
+        Logger.startNewSession()
+        Logger.addField("crash_kind", name)
+        Logger.addField("crash_context", crashContext)
+        Logger.logWarning { "about_to_crash (fast): $name (context=$crashContext)" }
+        ShoppingDemoApp.scheduleRestart(ctx, CRASH_RESTART_DELAY_MS)
+        dispatchCrash(fn, fireInBackground, activity)
     }
 
     // ─── The single journey ──────────────────────────────────────────────
@@ -936,7 +997,7 @@ class SimulationManager : ViewModel() {
                 delay(200L)
                 checkoutSpan?.end(SpanResult.SUCCESS, mapOf("payment_method" to retryMethod, "retried" to "true"))
                 journeySpan?.end(SpanResult.SUCCESS)
-                maybeFireCrash()
+                maybeFireCrash(nc)
             return
         }
 
@@ -959,13 +1020,18 @@ class SimulationManager : ViewModel() {
         android.util.Log.d("SimNav", "★ Confirmation DONE, variant=${activeVariant.label}")
         checkoutSpan?.end(SpanResult.SUCCESS, mapOf("payment_method" to paymentMethod))
         journeySpan?.end(SpanResult.SUCCESS)
-        maybeFireCrash()
+        maybeFireCrash(nc)
     }
     }
 
     companion object {
         private const val CRASH_RESTART_DELAY_MS = 2000L
         private const val CRASH_FLUSH_MS = 300L
+        // Longer than CRASH_FLUSH_MS: gives ActivityManager time to actually demote
+        // process importance away from foreground after moveTaskToBack, before the
+        // crash fires. Empirical starting point — validate against reported
+        // app_metrics.running_state and tune if crashes still land as foreground.
+        private const val BACKGROUND_SETTLE_MS = 2000L
         const val KEY_RESTART_VARIANT = "restart_variant"
 
         val DEMO_ENTITIES = listOf(

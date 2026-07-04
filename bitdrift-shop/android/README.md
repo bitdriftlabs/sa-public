@@ -1,10 +1,18 @@
 # Bitdrift Shop (Android — SDK)
 
-**Version 1.0**
+**Version 3.0**
 
-Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.23.6` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
+Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.23.9` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
 
 This is community-contributed content provided for educational purposes only.
+
+> ⚠️ **Run `scripts/watchdog.sh` before enabling any crash/fault mode.** If **Crash Loop**, **ANR-A**, or **Force-Quit** is turned on (Advanced screen), the watchdog must already be running against the target emulator:
+> ```bash
+> ./scripts/watchdog.sh
+> ```
+> These modes deliberately crash, freeze, or kill the app so bitdrift has faults to capture. Without the watchdog polling and relaunching the app, the emulator gets stuck on a dead process or a frozen ANR dialog and the simulation stalls instead of continuing. See [Crash Loop](README-refs.md#crash-loop), [ANR-A](README-refs.md#anr-a-guest-journey-testing), and [Force-Quit](README-refs.md#force-quit-journey-testing) for what each mode does and how the watchdog recovers from it.
+>
+> **Fast Crash Mode fires too quickly to stop from the UI.** If you enabled "Fast crash mode" on the startup splash screen, tapping "Stop crash loop" won't reliably catch it — use the `adb` commands under [Stopping Fast Crash Mode](README-refs.md#crash-loop) instead.
 
 > Want to instrument **your own** app? This README documents what's already wired up here. For a step-by-step, prompt-driven walkthrough you can apply to any app, see the repository's [instrumentation-guide/](../../instrumentation-guide/).
 
@@ -44,7 +52,7 @@ Every Capture SDK feature below is wired up in this app. The table maps each to 
 
 | Feature | SDK surface | Where it lives |
 |---------|-------------|----------------|
-| **SDK + build plugin** | `io.bitdrift:capture:0.23.6`, `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts), [app/build.gradle.kts](app/build.gradle.kts) |
+| **SDK + build plugin** | `io.bitdrift:capture:0.23.9`, `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts), [app/build.gradle.kts](app/build.gradle.kts) |
 | **Logger startup** | `Logger.start(apiKey, apiUrl, sessionStrategy, fieldProviders)` in `Application.onCreate()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
 | **Session strategy** | `SessionStrategy.Fixed()` (fresh session per launch) | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
 | **Screen views** | `Logger.logScreenView()` via a centralized `NavController.OnDestinationChangedListener` | [MainActivity.kt](app/src/main/java/ai/bitdrift/shop/MainActivity.kt), [ScreenLogger.kt](app/src/main/java/ai/bitdrift/shop/ScreenLogger.kt) |
@@ -58,7 +66,7 @@ Every Capture SDK feature below is wired up in this app. The table maps each to 
 | **Crash symbolication** | ProGuard mapping/symbol upload via the build plugin's `bdUpload*` tasks (release builds) | [build.gradle.kts](build.gradle.kts) |
 | **Session boundaries** | `Logger.startNewSession()` at the start of each simulated journey, with global fields re-applied afterward | [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt) |
 
-The app also exercises fault scenarios on top of this instrumentation — ANR, force-quit, crash loop, and slow-frame demos — driven from the simulation controls and `crash_kind` field. See the simulation references below.
+The app also exercises fault scenarios on top of this instrumentation — ANR, force-quit, crash loop, and slow-frame demos — driven from the simulation controls and the `crash_kind`/`crash_context` fields. Each crash-loop firing now has an independent 50% chance of happening in the foreground or after backgrounding the app (`moveTaskToBack`), so every crash type can be observed in either app state — see [Crash Loop](README-refs.md#crash-loop) and [workflows/foreground-background-crashes.md](workflows/foreground-background-crashes.md).
 
 ## What this lights up in the dashboard
 
@@ -78,7 +86,7 @@ With the instrumentation above, the app feeds these bitdrift features — most w
 
 ## Deploy workflows for evaluation
 
-Once the app is generating data, use the **bd-cli** skill to deploy the five sample workflows in [`workflows/`](workflows/) — each turns the signals above into metrics, alerts, or funnels:
+Once the app is generating data, use the **bd-cli** skill to deploy the seven sample workflows in [`workflows/`](workflows/) — each turns the signals above into metrics, alerts, or funnels:
 
 | Workflow | Uses | Focus |
 |----------|------|-------|
@@ -87,6 +95,8 @@ Once the app is generating data, use the **bd-cli** skill to deploy the five sam
 | `bd-shop-03-crash-analytics.json` | logger, symbols | Crash issue matching, readable stacks |
 | `bd-shop-04-span-durations.json` | spans, global fields | Span histograms, SLO tracking, perf by variant |
 | `bd-shop-05-anr-force-quit.json` | logger, fields | Android fault tracking (ANR, force-quit), variant rates |
+| `bd-shop-06-crash-foreground.json` | issue-match BDRL, `app_metrics.running_state` | Crash count while the app is in the foreground |
+| `bd-shop-07-crash-background.json` | issue-match BDRL, `app_metrics.running_state` | Crash count while the app is backgrounded — see [foreground-background-crashes.md](workflows/foreground-background-crashes.md) |
 
 > **Prompt:** *"Deploy the bd-shop-*.json workflows to bitdrift using bd CLI and verify they transition to LIVE status."*
 
@@ -99,6 +109,7 @@ See [`workflows/README.md`](workflows/README.md) for deploy instructions.
 - **[README-refs.md](README-refs.md)** — screens (18), emulator setup, local config, simulation modes, entity list, project structure
 - **[../../instrumentation-guide/](../../instrumentation-guide/)** — how to instrument **any** app (prompt-driven), plus a cleanup guide
 - **[workflows/README.md](workflows/README.md)** — deploy and monitor workflows via bd CLI
+- **[workflows/foreground-background-crashes.md](workflows/foreground-background-crashes.md)** — foreground vs. background crash workflows: why they're separate, the BDRL behind each, and how to cross-check the split against real data
 
 **Simulation features:** [ANR-A](README-refs.md#anr-a-guest-journey-testing) · [Force Quit](README-refs.md#force-quit-journey-testing) · [Crash Loop](README-refs.md#crash-loop) · [Slow Frames](README-refs.md#slow-frames-performance-bug-demo)
 

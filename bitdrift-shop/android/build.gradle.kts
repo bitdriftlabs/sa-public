@@ -3,5 +3,5 @@ plugins {
     alias(libs.plugins.android.application) apply false
     kotlin("android") version "2.2.10" apply false
     kotlin("plugin.compose") version "2.2.10" apply false
-    id("io.bitdrift.capture-plugin") version "0.23.6" apply false
+    id("io.bitdrift.capture-plugin") version "0.23.9" apply false
 }

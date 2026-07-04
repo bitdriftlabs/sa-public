@@ -1,0 +1,44 @@
+{
+  "name": "bd-shop — Crashes in Foreground",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "foreground-crash",
+            "issue_match": {
+              "bdrl_program": "# IssueMatch is a filter: every crash report runs through this script, and\n# abort is the only way to reject one. Whatever does NOT hit abort \"matches\"\n# and fires the downstream counter action. So this script only needs to\n# define what to reject (not foreground) -- everything that survives is\n# foreground, and that's exactly what the counter picks up.\n#\n# The parallel \"Crashes in Background\" workflow (bd-shop-07) counts everything\n# that is NOT this exact state (foreground_service, perceptible, or any\n# other/unknown value) -- Android has no separate \"background\" literal.\nstate = string(.app_metrics.running_state) ?? \"\"\nis_foreground = state == \"foreground\"\n\n# Reject anything that is NOT foreground -- everything that survives (is\n# foreground) matches, and the counter action fires for it.\nif !is_foreground {\n  abort\n}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "foreground-crash-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "foreground-crash"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

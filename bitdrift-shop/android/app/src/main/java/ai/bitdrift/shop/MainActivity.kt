@@ -111,16 +111,22 @@ fun ShoppingDemoContent() {
         context.getSharedPreferences(SimulationManager.FORCE_QUIT_PREFS_NAME, android.content.Context.MODE_PRIVATE)
     }
 
+    // Fast crash mode restarts through the same startup flow as every other crash —
+    // skip the splash/countdown for it too, or every fast-mode restart would pay a
+    // mandatory 5s delay, defeating the point of "fast."
     var phase by remember {
         mutableStateOf(
             if (anrPrefs.getBoolean("restart_pending", false) ||
                 forceQuitPrefs.getBoolean("restart_pending", false) ||
                 anrPrefs.getBoolean("resume_infinite", false) ||
-                forceQuitPrefs.getBoolean("resume_infinite", false)
+                forceQuitPrefs.getBoolean("resume_infinite", false) ||
+                (crashPrefs.getBoolean(ShoppingDemoApp.KEY_ACTIVE, false) &&
+                    crashPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false))
             ) StartupPhase.APP else StartupPhase.CONFIG
         )
     }
     var crashEnabled by remember { mutableStateOf(crashPrefs.getBoolean("active", false)) }
+    var fastCrashEnabled by remember { mutableStateOf(crashPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)) }
     var autoInfiniteEnabled by remember { mutableStateOf(autoInfinitePrefs.getBoolean("active", false)) }
     var countdown by remember { mutableStateOf(5) }
 
@@ -131,8 +137,16 @@ fun ShoppingDemoContent() {
                     countdown = i
                     delay(1000)
                 }
-                crashPrefs.edit().putBoolean("active", crashEnabled).apply()
+                // commit() not apply() -- with fast crash mode on, the crash can land
+                // within a second or two of this write. apply()'s async disk flush can
+                // lose the race against the process dying, silently reverting these
+                // flags to their pre-toggle values on the next cold start.
+                crashPrefs.edit()
+                    .putBoolean("active", crashEnabled)
+                    .putBoolean(ShoppingDemoApp.KEY_FAST_MODE, fastCrashEnabled)
+                    .commit()
                 simulationManager.crashLoopEnabled = crashEnabled
+                simulationManager.fastCrashModeEnabled = fastCrashEnabled
                 if (autoInfiniteEnabled) {
                     simulationManager.scheduleAutoStartInfinite()
                 }
@@ -141,16 +155,22 @@ fun ShoppingDemoContent() {
 
             StartupConfigScreen(
                 crashEnabled = crashEnabled,
+                fastCrashEnabled = fastCrashEnabled,
                 autoInfiniteEnabled = autoInfiniteEnabled,
                 countdown = countdown,
                 onToggleCrash = { crashEnabled = it },
+                onToggleFastCrash = { fastCrashEnabled = it },
                 onToggleAutoInfinite = {
                     autoInfiniteEnabled = it
                     autoInfinitePrefs.edit().putBoolean("active", it).apply()
                 },
                 onSkip = {
-                    crashPrefs.edit().putBoolean("active", false).apply()
+                    crashPrefs.edit()
+                        .putBoolean("active", false)
+                        .putBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)
+                        .apply()
                     simulationManager.crashLoopEnabled = false
+                    simulationManager.fastCrashModeEnabled = false
                     phase = StartupPhase.APP
                 }
             )
@@ -170,8 +190,18 @@ fun ShoppingDemoContent() {
                         WelcomeScreen(navController, simulationManager)
                         LaunchedEffect(Unit) {
                             simulationManager.crashLoopEnabled = crashPrefs.getBoolean("active", false)
+                            simulationManager.fastCrashModeEnabled = crashPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)
                             simulationManager.syncAnrAEnabledState()
                             simulationManager.syncForceQuitEnabledState()
+
+                            // Fast crash mode is self-sustaining and bypasses the shopping
+                            // journey entirely -- fire the next combo and skip every other
+                            // resume/auto-start path below.
+                            if (simulationManager.crashLoopEnabled && simulationManager.fastCrashModeEnabled) {
+                                simulationManager.fireFastCrash(activity = context as? android.app.Activity)
+                                return@LaunchedEffect
+                            }
+
                             val anrRestartPending = anrPrefs.getBoolean("restart_pending", false)
                             val fqRestartPending = forceQuitPrefs.getBoolean("restart_pending", false)
                             val anrResumeInfinite = anrPrefs.getBoolean("resume_infinite", false)
@@ -403,9 +433,11 @@ fun ShoppingDemoContent() {
 @Composable
 fun StartupConfigScreen(
     crashEnabled: Boolean,
+    fastCrashEnabled: Boolean,
     autoInfiniteEnabled: Boolean,
     countdown: Int,
     onToggleCrash: (Boolean) -> Unit,
+    onToggleFastCrash: (Boolean) -> Unit,
     onToggleAutoInfinite: (Boolean) -> Unit,
     onSkip: () -> Unit
 ) {
@@ -465,6 +497,34 @@ fun StartupConfigScreen(
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = Color(0xFFF44336)
+                        )
+                    )
+                }
+
+                // Skips the shopping journey entirely and fires the next crash combo
+                // immediately on every relaunch -- only meaningful with Crash mode on.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Fast crash mode",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            color = when {
+                                !crashEnabled -> Color.White.copy(alpha = 0.4f)
+                                fastCrashEnabled -> Color(0xFFAB47BC)
+                                else -> Color.White
+                            }
+                        )
+                    )
+                    Switch(
+                        checked = fastCrashEnabled,
+                        onCheckedChange = onToggleFastCrash,
+                        enabled = crashEnabled,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFFAB47BC)
                         )
                     )
                 }

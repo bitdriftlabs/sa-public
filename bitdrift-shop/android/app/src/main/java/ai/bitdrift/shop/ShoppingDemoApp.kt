@@ -66,7 +66,10 @@ class ShoppingDemoApp : Application() {
     companion object {
         const val PREFS = "crash_loop"
         const val KEY_ACTIVE = "active"
-        const val KEY_NEXT_INDEX = "next_index"
+        // Combined crash-type + foreground/background combo index (0 until Crashes.all.size * 2).
+        // comboIdx / 2 -> crash type; comboIdx % 2 -> 0=foreground, 1=background.
+        const val KEY_NEXT_COMBO_INDEX = "next_combo_index"
+        const val KEY_FAST_MODE = "fast_mode"
         private const val RESTART_DELAY_MS = 800L
         private const val RESTART_REQUEST_CODE = 4242
 
