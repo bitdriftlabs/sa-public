@@ -98,13 +98,16 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
             )
         } else {
             if (crashLoopOn) {
-                val nextIdx = crashLoopPrefs.getInt(ShoppingDemoApp.KEY_NEXT_INDEX, 0) % Crashes.all.size
+                val comboIdx = crashLoopPrefs.getInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, 0) % (Crashes.all.size * 2)
+                val nextCrashName = Crashes.all[comboIdx / 2].first
+                val nextContext = if (comboIdx % 2 == 1) "background" else "foreground"
+                val fastModeOn = crashLoopPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)
                 AssistChip(
                     onClick = {},
                     enabled = false,
                     label = {
                         Text(
-                            text = "Crash loop ACTIVE — next: ${Crashes.all[nextIdx].first}",
+                            text = "Crash loop ACTIVE${if (fastModeOn) " (fast)" else ""} — next: $nextCrashName/$nextContext",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     },
@@ -112,9 +115,13 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
                 )
                 Button(
                     onClick = {
-                        crashLoopPrefs.edit().putBoolean(ShoppingDemoApp.KEY_ACTIVE, false).apply()
+                        crashLoopPrefs.edit()
+                            .putBoolean(ShoppingDemoApp.KEY_ACTIVE, false)
+                            .putBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)
+                            .apply()
                         crashLoopOn = false
                         simulationManager.crashLoopEnabled = false
+                        simulationManager.fastCrashModeEnabled = false
                         simulationManager.setVariant(simulationManager.activeVariant)
                         Logger.logInfo { "crash_loop_stopped" }
                     },
@@ -385,8 +392,10 @@ fun AdvancedScreen(navController: NavController, simulationManager: SimulationMa
                 enabled = false,
                 label = {
                     val nextCrashText = if (crashLoopOn) {
-                        val idx = crashLoopPrefs.getInt(ShoppingDemoApp.KEY_NEXT_INDEX, 0) % Crashes.all.size
-                        " (next: ${Crashes.all[idx].first})"
+                        val comboIdx = crashLoopPrefs.getInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, 0) % (Crashes.all.size * 2)
+                        val fastTag = if (crashLoopPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)) "fast, " else ""
+                        val ctx = if (comboIdx % 2 == 1) "background" else "foreground"
+                        " ($fastTag next: ${Crashes.all[comboIdx / 2].first}/$ctx)"
                     } else ""
                     Text(
                         text = "Crash: ${if (crashLoopOn) "enabled$nextCrashText" else "disabled"} | ANR-A: " +

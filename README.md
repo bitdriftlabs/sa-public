@@ -36,11 +36,11 @@ sites, wire the build, and verify it — on Android, iOS, or React Native. You r
 the prompts in order; the skill handles the platform-specific details.
 
 Agent and human versions of both are available- the agent version is a focused context doc used for agentic instrumentation of bitdrift capabilities:
-- **INSTRUMENTATION_GUIDE.md** and **AGENT_NSTRUMENTATION_GUIDE.md** — a sequenced set of agent prompts to stand up the
+- **INSTRUMENTATION_GUIDE.md** and **AGENT_INSTRUMENTATION_GUIDE.md** — a sequenced set of agent prompts to stand up the
   SDK and add screen views, user identity, network capture, structured logs,
   fields, TTI, spans, support tooling, crash symbolication, and log forwarding —
   with the bitdrift feature each prompt unlocks and links to the docs.
-- **CLEANUP_GUIDE.md** **AGENT_CLEANUP_GUIDE.md** and — the inverse: prompts that drive the skill to remove the
+- **CLEANUP_GUIDE.md** and **AGENT_CLEANUP_GUIDE.md** — the inverse: prompts that drive the skill to remove the
   instrumentation in reverse order and return an app to its baseline state.
 
 ### [misc-demos/](misc-demos/)

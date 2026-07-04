@@ -14,8 +14,8 @@ android {
         applicationId = "ai.bitdrift.shop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -66,7 +66,7 @@ bitdrift {
 
 dependencies {
     // Workshop §1 (Quickstart): add bitdrift Android SDK dependency first
-    implementation("io.bitdrift:capture:0.23.6")
+    implementation("io.bitdrift:capture:0.23.9")
 
     // OkHttp for backend API calls
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
@@ -99,4 +99,22 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+// Force a full uninstall before every debug install (Android Studio Run/Debug or
+// `./gradlew installDebug`), so no stale APK/class data can linger between builds —
+// a stale install once masked a real code change during crash-loop testing.
+tasks.matching { it.name == "installDebug" }.configureEach {
+    doFirst {
+        val adb = System.getenv("ANDROID_HOME")?.let { "$it/platform-tools/adb" }
+            ?: System.getenv("ANDROID_SDK_ROOT")?.let { "$it/platform-tools/adb" }
+            ?: "adb"
+        // Plain ProcessBuilder, not Project.exec — the latter was removed in Gradle 9
+        // in favor of injected ExecOperations, which is more ceremony than this needs.
+        // Exit code intentionally ignored: fails harmlessly if not yet installed.
+        ProcessBuilder(adb, "uninstall", "ai.bitdrift.shop")
+            .redirectErrorStream(true)
+            .start()
+            .waitFor()
+    }
 }

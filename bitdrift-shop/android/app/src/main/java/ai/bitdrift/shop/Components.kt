@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import org.json.JSONObject
 
-private const val CAPTURE_SDK_VERSION = "0.23.6"
+private const val CAPTURE_SDK_VERSION = "0.23.9"
 
 // Category color mapping
 private val categoryColors = mapOf(

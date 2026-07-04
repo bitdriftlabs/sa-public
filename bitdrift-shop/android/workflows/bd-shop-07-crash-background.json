@@ -1,0 +1,44 @@
+{
+  "name": "bd-shop — Crashes in Background",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "background-crash",
+            "issue_match": {
+              "bdrl_program": "# IssueMatch is a filter: every crash report runs through this script, and\n# abort is the only way to reject one. Whatever does NOT hit abort \"matches\"\n# and fires the downstream counter action. So this script only needs to\n# define what to reject (not background) -- everything that survives is\n# background, and that's exactly what the counter picks up.\n#\n# Android's app_metrics.running_state has NO \"background\" value -- the only\n# documented values are \"foreground\", \"foreground_service\", and \"perceptible\".\n# So is_background is defined as: running_state is present and is not\n# \"foreground\" (foreground_service, perceptible, or any other/unknown value).\nstate = string(.app_metrics.running_state) ?? \"\"\nis_background = state != \"foreground\"\n\n# Reject anything that is NOT background -- everything that survives (is\n# background) matches, and the counter action fires for it.\nif !is_background {\n  abort\n}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "background-crash-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "background-crash"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

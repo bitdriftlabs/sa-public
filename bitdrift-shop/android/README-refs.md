@@ -57,7 +57,7 @@ Go to **bitdrift → Entities** and search for any name above (exact match). The
 
 ## SDK Features & Implementation
 
-See [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md) for the 13-step walkthrough and code examples. This section contains reference data about how the app works.
+See [INSTRUMENTATION_GUIDE.md](../../instrumentation-guide/INSTRUMENTATION_GUIDE.md) for the 13-step walkthrough and code examples. This section contains reference data about how the app works.
 
 ---
 
@@ -181,12 +181,78 @@ Welcome → Browse/Search/Categories → ProductDetail → (Force Quit)
 
 1. Enabling Crash mode sets `crash_loop.active = true`. The `order_summary` flag switches to `"v2"`.
 2. After Confirmation, `maybeFireCrash()` in `SimulationManager.kt`:
-   - Reads `next_index` from SharedPreferences, picks `Crashes.all[idx]`.
-   - Increments `next_index` with `commit()` (not `apply()` — process dies immediately after).
-   - Calls `Logger.addField("crash_kind", name)` and `Logger.logWarning { "about_to_crash" }`.
+   - Reads `next_combo_index` from SharedPreferences via `pickNextCrashCombo()` — a single
+     index cycling 0 until `Crashes.all.size * 2` (40), so every crash type is guaranteed to
+     occur in **both** foreground and background exactly once per full sweep, rather than
+     relying on independent random coin-flips to eventually cover every combination.
+     `comboIdx / 2` selects the crash type; `comboIdx % 2` selects foreground (0) vs.
+     background (1).
+   - Increments `next_combo_index` with `commit()` (not `apply()` — process dies immediately
+     after).
+   - Calls `Logger.addField("crash_kind", name)`, `Logger.addField("crash_context", "foreground"|"background")`, and `Logger.logWarning { "about_to_crash" }`.
    - Calls `ShoppingDemoApp.scheduleRestart(ctx, 2000ms)` to arm an AlarmManager restart **before** the crash.
-   - Waits 300ms for SDK flush, then calls `fn()`.
-3. AlarmManager fires 2s after process death, relaunching through the startup splash. `crashLoopEnabled` is restored from prefs and the next crash type fires.
+   - **Foreground path** (`dispatchCrash()` in `SimulationManager.kt`): waits 300ms for SDK flush, then calls `fn()`.
+   - **Background path:** calls `activity.moveTaskToBack(true)` (same effect as pressing Home), waits 2000ms (`BACKGROUND_SETTLE_MS`) for Android to actually demote process importance away from foreground, then calls `fn()`. Falls back to the foreground path if no `Activity` is available.
+3. AlarmManager fires 2s after process death, relaunching through the startup splash. `crashLoopEnabled` is restored from prefs and the next crash combo fires.
+
+**Fast Crash Mode:** a "Fast crash mode" toggle on the startup splash screen (next to "Crash
+mode") skips the shopping journey entirely. `SimulationManager.fireFastCrash()` picks the
+next combo and fires immediately on every relaunch — no `Sim ∞`, no navigation, no API
+calls. It's self-sustaining across restarts: `MainActivity`'s Welcome-screen effect
+re-invokes it on every cold start when `crash_loop.active && crash_loop.fast_mode` are both
+true, and the startup splash's own 5s countdown is skipped on those restarts too (otherwise
+the countdown alone would dominate the cycle time). Because the crash lands within a second
+or two of the splash screen's config write, that write uses `commit()`, not `apply()`, for
+the same reason as the combo index above — this bit us once as fast mode's toggle silently
+reverting after the first crash.
+
+**Stopping Fast Crash Mode:** it fires far too quickly to reliably tap "Stop crash loop" in
+the UI. Two `adb` commands, run in order, stop it from outside the app:
+
+```bash
+# 1. Kill the process. force-stop also cancels the package's pending AlarmManager
+#    alarms, so it won't just relaunch itself. Verified: it stays dead indefinitely,
+#    not just until the next alarm would have fired.
+adb shell am force-stop ai.bitdrift.shop
+
+# 2. Flip fast_mode off directly in the persisted prefs, while the process is dead so
+#    nothing overwrites the file back to fast_mode=true on its next commit().
+adb shell "run-as ai.bitdrift.shop sed -i 's/name=\"fast_mode\" value=\"true\"/name=\"fast_mode\" value=\"false\"/' /data/data/ai.bitdrift.shop/shared_prefs/crash_loop.xml"
+```
+
+**Quoting matters here** — `adb shell` re-joins its arguments into one string before the
+device's shell re-parses them, so local shell quoting doesn't survive the trip the way
+you'd expect. Wrapping the *entire* `run-as ...` command in one pair of double quotes, with
+the `sed` script itself single-quoted and its internal double quotes backslash-escaped (as
+above), is what actually works — verified directly against a running emulator. A more
+naturally-quoted version that looks equally reasonable (single-quoting just the `sed`
+script, unescaped) fails with `sed: bad pattern` on Android's `toybox sed`.
+
+This alone stops the rapid loop — the app comes back up with crash mode still configured
+but nothing auto-firing until `Sim ∞` is pressed manually. To fully reset (also turn off
+crash mode itself), add a second `-e` expression for `active`:
+
+```bash
+adb shell am force-stop ai.bitdrift.shop
+adb shell "run-as ai.bitdrift.shop sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"fast_mode\" value=\"true\"/name=\"fast_mode\" value=\"false\"/' /data/data/ai.bitdrift.shop/shared_prefs/crash_loop.xml"
+```
+
+The `am force-stop` step must come first both times — editing the XML while the process is
+still alive doesn't help, since any subsequent `SharedPreferences.commit()` from that
+process (which happens on every single crash iteration) rewrites its whole in-memory
+snapshot back to disk and silently clobbers the out-of-band edit.
+
+Sanity-check either command actually took effect before relaunching:
+```bash
+adb shell run-as ai.bitdrift.shop cat /data/data/ai.bitdrift.shop/shared_prefs/crash_loop.xml
+```
+
+**Why foreground vs. background matters:** every crash type can now be observed in either app state, which is what the [`bd-shop-06-crash-foreground.json` / `bd-shop-07-crash-background.json`](workflows/foreground-background-crashes.md) workflows chart. Crash *type* grouping is unaffected — foreground/background is an orthogonal dimension read from `app_metrics.running_state`, not a new set of issue groups. Android has no dedicated `"background"` value for that field (only `foreground`/`foreground_service`/`perceptible`), so the background workflow defines it as "anything that isn't exactly foreground" — see the linked doc for why that's unavoidable, not a workaround.
+
+Both workflows' BDRL only defines what to *reject* (`abort`) — `IssueMatch` counts whatever
+survives, so "counts background" really means "rejects everything that isn't background."
+See [foreground-background-crashes.md](workflows/foreground-background-crashes.md) for why
+that inversion matters when reading the actual scripts.
 
 **Why AlarmManager?** Native signal crashes (SIGSEGV/SIGBUS/SIGABRT/SIGFPE) kill the process instantly — the JVM uncaught-exception handler never runs. The AlarmManager is armed before `fn()`, so even a hard kill still triggers restart.
 
@@ -208,22 +274,27 @@ Each has a unique top-level method — bitdrift groups crashes by top frame, so 
 # Terminal 1 (safety net for dropped alarms)
 ./scripts/watchdog.sh
 
-# Terminal 2: enable Crash mode in Advanced → Crash toggle, then tap SIM ∞ on Welcome
-# To stop: tap "Stop crash loop" button on the Welcome screen (appears when loop is active)
+# Terminal 2, slow (journey-based): enable Crash mode in Advanced → Crash toggle,
+# then tap SIM ∞ on Welcome. To stop: tap "Stop crash loop" on Welcome (loop active).
+
+# Terminal 2, fast: enable both "Crash mode" and "Fast crash mode" on the startup
+# splash screen. No Sim button needed -- self-sustaining across restarts.
+# To stop: see "Stopping Fast Crash Mode" above (the UI button is too slow to tap).
 ```
 
 **Dashboard:**
-- **Issues**: 20 distinct crash groups accumulating as the loop runs; each tagged with `crash_kind`
+- **Issues**: 20 distinct crash groups accumulating as the loop runs; each tagged with `crash_kind` and `crash_context` (`foreground`/`background` — the app's own intent, independent of the BDRL-observed `app_metrics.running_state`)
 - **Session timeline**: every session ends with `about_to_crash` (Warning) + the crash event; full journey visible
-- **Workflow**: trigger on `APP_CRASH` to upload logs from every crashed session
+- **Workflow**: trigger on `APP_CRASH` to upload logs from every crashed session; `bd-shop-06-crash-foreground.json`/`bd-shop-07-crash-background.json` chart the foreground/background split
 
 **Files:**
 
 | File | Role |
 |------|------|
 | `Crashes.kt` | 20 crash types with unique top-level methods |
-| `SimulationManager.kt` | `maybeFireCrash()` — pick, log, arm, fire |
-| `ShoppingDemoApp.kt` | `scheduleRestart()` (AlarmManager), `installCrashLoopHandler()` |
+| `SimulationManager.kt` | `pickNextCrashCombo()`/`dispatchCrash()` (shared), `maybeFireCrash()` (journey-based), `fireFastCrash()` (fast mode) |
+| `ShoppingDemoApp.kt` | `scheduleRestart()` (AlarmManager), `installCrashLoopHandler()`, `KEY_FAST_MODE`/`KEY_NEXT_COMBO_INDEX` |
+| `MainActivity.kt` | Fast crash mode toggle (startup splash), phase-skip on fast-mode restarts, Welcome-screen resume/fire wiring |
 | `Screens.kt` | Crash toggle (Advanced), "Stop crash loop" button + status chip (Welcome) |
 | `scripts/watchdog.sh` | Safety net: `is_crash_loop_active()` → relaunch |
 
