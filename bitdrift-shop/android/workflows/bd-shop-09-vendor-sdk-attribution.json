@@ -1,0 +1,51 @@
+{
+  "name": "bd-shop \u2014 Vendor SDK Attribution",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "vendor-sdk-crash",
+            "issue_match": {
+              "bdrl_program": "if .type != \"JVMCrash\" {\n  abort\n}\n\nadsdk_matches = flatten(map(.errors) -> |_i, error| {\n  filter(error.stack_trace) -> |_j, frame| {\n    is_string(frame.class_name) && starts_with(frame.class_name, \"com.adsdk.\")\n  }\n})\n\nanalytics_matches = flatten(map(.errors) -> |_i, error| {\n  filter(error.stack_trace) -> |_j, frame| {\n    is_string(frame.class_name) && starts_with(frame.class_name, \"com.analytics.fake.\")\n  }\n})\n\nvendor_sdk = \"app_code\"\nif length(adsdk_matches) > 0 {\n  vendor_sdk = \"adsdk\"\n} else if length(analytics_matches) > 0 {\n  vendor_sdk = \"analytics_sdk\"\n}\n\nif true {\n  add_field(\"vendor_sdk\", vendor_sdk)\n}\n\n# Safe here ONLY because both interceptors throw a fixed literal string each\n# (bounded to 2 total values) -- do not copy this pattern for a real vendor's\n# .reason, which is unbounded free text and would violate cardinality limits.\nif vendor_sdk != \"app_code\" && length(.errors) > 0 {\n  add_field(\"vendor_reason\", string(.errors[0].reason) ?? \"unknown\")\n}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "vendor-sdk-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "vendor-sdk-crash"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "vendor_sdk"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

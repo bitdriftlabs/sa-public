@@ -1,0 +1,15 @@
+[
+  {
+    "rule_id": "attribution-rate",
+    "metadata": {
+      "title": "% of Crashes with a Known Cause",
+      "summary": { "description": "Fraction of all crashes attributable to a known blocking thread (bd-shop-08) or vendor SDK (bd-shop-09), ties the two attribution scenarios into one chart." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Attribution rate", "y_axis": { "description": "Attributed / total crashes", "unit": "PERCENTAGE" } }
+        ]
+      }
+    }
+  }
+]

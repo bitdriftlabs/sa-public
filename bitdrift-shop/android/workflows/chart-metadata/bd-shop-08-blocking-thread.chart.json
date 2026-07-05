@@ -1,0 +1,15 @@
+[
+  {
+    "rule_id": "blocking-thread-count",
+    "metadata": {
+      "title": "Crash Count by Blocking Thread",
+      "summary": { "description": "Lock-contention JVM crashes grouped by the thread holding the shared lock (thread_details.threads[].name), with blocking_thread_state, reporting_thread, and memory_pressure available via Customize Dimensions." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Crashes", "y_axis": { "description": "Crashes", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  }
+]
