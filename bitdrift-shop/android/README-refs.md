@@ -175,14 +175,14 @@ Welcome → Browse/Search/Categories → ProductDetail → (Force Quit)
 
 ### Crash Loop
 
-**What:** 20 typed crashes cycling one per journey, each firing after the Confirmation screen so a complete session is captured first.
+**What:** 23 typed crashes cycling one per journey, each firing after the Confirmation screen so a complete session is captured first.
 
 **How it works:**
 
 1. Enabling Crash mode sets `crash_loop.active = true`. The `order_summary` flag switches to `"v2"`.
 2. After Confirmation, `maybeFireCrash()` in `SimulationManager.kt`:
    - Reads `next_combo_index` from SharedPreferences via `pickNextCrashCombo()` — a single
-     index cycling 0 until `Crashes.all.size * 2` (40), so every crash type is guaranteed to
+     index cycling 0 until `Crashes.all.size * 2` (46), so every crash type is guaranteed to
      occur in **both** foreground and background exactly once per full sweep, rather than
      relying on independent random coin-flips to eventually cover every combination.
      `comboIdx / 2` selects the crash type; `comboIdx % 2` selects foreground (0) vs.
@@ -256,7 +256,9 @@ that inversion matters when reading the actual scripts.
 
 **Why AlarmManager?** Native signal crashes (SIGSEGV/SIGBUS/SIGABRT/SIGFPE) kill the process instantly — the JVM uncaught-exception handler never runs. The AlarmManager is armed before `fn()`, so even a hard kill still triggers restart.
 
-**The 20 crash types** (`Crashes.kt`):
+**Prerequisite fix — JVM crashes now actually produce a captured report:** `installCrashLoopHandler()` in `ShoppingDemoApp.kt` used to skip bitdrift's own `CaptureUncaughtExceptionHandler` entirely whenever crash-loop mode was active (the only branch that ever runs, in practice), so no JVM crash — main-thread, background-thread, or coroutine — ever produced a real captured Report while the loop was running; only the 4 native-signal crash types did, since those go through a separate, JNI-bridged handler this Java-level chain never touches. The handler now always calls the previously-installed default handler (bitdrift's) first, then proceeds with the crash-loop's own restart/kill logic — so all 23 crash types below now produce real captured issues.
+
+**The 23 crash types** (`Crashes.kt`):
 
 | # | Name | Category |
 |---|------|----------|
@@ -264,9 +266,44 @@ that inversion matters when reading the actual scripts.
 | 14 | `runtime_background_thread` | JVM background thread |
 | 15 | `coroutine_io` | JVM coroutine |
 | 16 | `oom_allocator_thread` | JVM OOM |
-| 17–20 | `native_sigsegv` … `native_sigfpe` | Native signals |
+| 17 | `lock_contention` | JVM lock contention (synthetic ANR-to-crash) |
+| 18 | `vendor_sdk_interceptor` | JVM vendor SDK (fake ad SDK) |
+| 19 | `vendor_sdk_analytics` | JVM vendor SDK (fake analytics SDK) |
+| 20–23 | `native_sigsegv` … `native_sigfpe` | Native signals |
 
-Each has a unique top-level method — bitdrift groups crashes by top frame, so all 20 appear as distinct issue groups.
+Each has a unique top-level method — bitdrift groups crashes by top frame, so all 23 appear as distinct issue groups.
+
+**Why `lock_contention` and `vendor_sdk_*` work the way they do:**
+- `lock_contention` uses three separate threads on purpose: `image-decode-thread` holds a
+  monitor and is genuinely `TIMED_WAITING`, the main thread is genuinely `BLOCKED` on that
+  same monitor, and an uninvolved `anr-watchdog-thread` converts the block into a crash after
+  a fixed 300ms delay — independent of the 2000ms hold window, so there's real margin against
+  scheduler jitter. It's a synthetic stand-in for a real ANR (deliberately turned into a crash
+  so it's guaranteed to land in the existing capture pipeline), not a real ANR — see
+  `Crashes.kt`'s own comments for the full reasoning.
+- `vendor_sdk_interceptor`/`vendor_sdk_analytics` throw from two fake OkHttp interceptors
+  (`com.adsdk.fake.AdRequestInterceptor`, `com.analytics.fake.AnalyticsPingInterceptor`)
+  before any network I/O starts, so the crash carries real third-party-looking stack frames
+  (`com.adsdk.fake.*` / `com.analytics.fake.*`) with no dependency on network reachability.
+
+**Why `bd-shop-08`/`09`/`10` work the way they do:**
+- `bd-shop-08` (blocking thread) and `bd-shop-09` (vendor SDK) are single-flow `IssueMatch`
+  workflows, same "define what to reject" pattern as `bd-shop-06`/`07` above.
+- `bd-shop-10` (the rate chart tying the other two together) is structurally different: it's
+  **two independent flows**, not one. One flow (shown as "Match Issue 1.1" in the workflow
+  UI) is the *denominator* — every crash, unconditionally — and its entire `bdrl_program` is
+  the literal `true`. That's not a placeholder: since `IssueMatch` only ever rejects via
+  `abort`, a program that never calls `abort` matches every report that reaches it, and
+  `true` is just the smallest real statement that does that. (A comment-only program matches
+  identically but has no actual statement for the workflow graph to summarize, so the UI
+  renders it as an empty match group — `true` fixes that display issue without changing
+  behavior.) The other flow ("Match Issue 2.1") is the *numerator* — it inspects
+  `.thread_details.threads` and stack frames across all errors, and `abort`s for anything it
+  can't attribute to a known thread or vendor SDK — and the `rate` action divides the two.
+
+See [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md) for the full
+BDRL scripts, the compiler gotchas that shaped them, and the presentation notes for demoing
+these three workflows.
 
 **Running:**
 
@@ -283,15 +320,15 @@ Each has a unique top-level method — bitdrift groups crashes by top frame, so 
 ```
 
 **Dashboard:**
-- **Issues**: 20 distinct crash groups accumulating as the loop runs; each tagged with `crash_kind` and `crash_context` (`foreground`/`background` — the app's own intent, independent of the BDRL-observed `app_metrics.running_state`)
+- **Issues**: 23 distinct crash groups accumulating as the loop runs; each tagged with `crash_kind` and `crash_context` (`foreground`/`background` — the app's own intent, independent of the BDRL-observed `app_metrics.running_state`)
 - **Session timeline**: every session ends with `about_to_crash` (Warning) + the crash event; full journey visible
-- **Workflow**: trigger on `APP_CRASH` to upload logs from every crashed session; `bd-shop-06-crash-foreground.json`/`bd-shop-07-crash-background.json` chart the foreground/background split
+- **Workflow**: trigger on `APP_CRASH` to upload logs from every crashed session; `bd-shop-06-crash-foreground.json`/`bd-shop-07-crash-background.json` chart the foreground/background split, `bd-shop-08-blocking-thread.json`/`bd-shop-09-vendor-sdk-attribution.json`/`bd-shop-10-attribution-rate.json` chart thread- and vendor-SDK-based attribution — see [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md)
 
 **Files:**
 
 | File | Role |
 |------|------|
-| `Crashes.kt` | 20 crash types with unique top-level methods |
+| `Crashes.kt` | 23 crash types with unique top-level methods |
 | `SimulationManager.kt` | `pickNextCrashCombo()`/`dispatchCrash()` (shared), `maybeFireCrash()` (journey-based), `fireFastCrash()` (fast mode) |
 | `ShoppingDemoApp.kt` | `scheduleRestart()` (AlarmManager), `installCrashLoopHandler()`, `KEY_FAST_MODE`/`KEY_NEXT_COMBO_INDEX` |
 | `MainActivity.kt` | Fast crash mode toggle (startup splash), phase-skip on fast-mode restarts, Welcome-screen resume/fire wiring |
@@ -388,7 +425,7 @@ Query with `name == <span>` and `_span_type == "end"` for `_duration_ms`:
 ```
 app/src/main/java/ai/bitdrift/shop/
 ├── ShoppingDemoApp.kt         # Application class — SDK init, AlarmManager restart, crash handler
-├── Crashes.kt                 # 20 typed crash variants (JVM main/bg, native signals)
+├── Crashes.kt                 # 23 typed crash variants (JVM main/bg, lock contention, vendor SDK, native signals)
 ├── ScreenLogger.kt            # Centralized logging wrapper (logScreenView, logInfo, logError)
 ├── Screen.kt                  # Navigation routes (sealed class)
 ├── Screens.kt                 # All screen composables

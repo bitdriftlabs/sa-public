@@ -22,7 +22,19 @@ bd workflow create workflows/bd-shop-06-crash-foreground.json \
   --chart-metadata-file workflows/chart-metadata/bd-shop-06-crash-foreground.chart.json
 bd workflow create workflows/bd-shop-07-crash-background.json \
   --chart-metadata-file workflows/chart-metadata/bd-shop-07-crash-background.chart.json
+bd workflow create workflows/bd-shop-08-blocking-thread.json \
+  --chart-metadata-file workflows/chart-metadata/bd-shop-08-blocking-thread.chart.json
+bd workflow create workflows/bd-shop-09-vendor-sdk-attribution.json \
+  --chart-metadata-file workflows/chart-metadata/bd-shop-09-vendor-sdk-attribution.chart.json
+bd workflow create workflows/bd-shop-10-attribution-rate.json \
+  --chart-metadata-file workflows/chart-metadata/bd-shop-10-attribution-rate.chart.json
 ```
+
+**`create` does not deploy.** A newly created workflow sits in `IDLE` state — it won't
+match anything until you also run `bd workflow deploy <ID>` (the ID is in `create`'s
+response). Verify with `bd workflow list -ojson --jq '[.items[] | {id: .workflow.id, name:
+.workflow.name, state: .workflow.state}]'` — several `IDLE` entries in there are workflows
+that were created but never deployed.
 
 To rename panels on an already-deployed workflow without recreating it, pass both the
 workflow file and its chart metadata to `update`:
@@ -37,7 +49,7 @@ Chart titles live in `chart-metadata/*.chart.json` — a `[PerRuleChartMetadata]
 each action's `rule_id` to a `ChartMetadata` (`title`, optional `summary`, and the **required**
 `metadata_type`: `metric_chart_metadata` / `sankey_chart_metadata` / `flush_chart_metadata`).
 
-**Reading `issue_match` BDRL scripts** (`bd-shop-03`, `bd-shop-06`, `bd-shop-07`):
+**Reading `issue_match` BDRL scripts** (`bd-shop-03`, `bd-shop-06` through `bd-shop-10`):
 `IssueMatch` is a filter — every report runs through the script, and `abort` is the only way
 to reject one. Whatever does *not* hit `abort` "matches" and fires the workflow's actions.
 So these scripts only ever define what to *reject*; the chart automatically counts the
@@ -55,10 +67,14 @@ worked example of why that reads backwards if you're not expecting it.
 | `bd-shop-05-anr-force-quit.json` | ANR & Force-Quit Tracking | Built-in ANR count (device-unique); ANR termination count; injected ANR and force-quit counts grouped by `anr_a`/`force_quit` variants; session capture on ANR/force-quit |
 | `bd-shop-06-crash-foreground.json` | Crashes in Foreground | Count of crashes where `app_metrics.running_state == "foreground"` via BDRL. See [foreground-background-crashes.md](foreground-background-crashes.md). |
 | `bd-shop-07-crash-background.json` | Crashes in Background | Count of crashes where `app_metrics.running_state != "foreground"` via BDRL — Android has no dedicated "background" state, so this is everything that isn't foreground. See [foreground-background-crashes.md](foreground-background-crashes.md). |
+| `bd-shop-08-blocking-thread.json` | Blocking Thread Attribution | `lock_contention` crash count grouped by `blocking_thread` (`thread_details.threads[].name`), with `blocking_thread_state`/`reporting_thread`/`memory_pressure` as secondary breakdowns. See [advanced-crash-attribution.md](advanced-crash-attribution.md). |
+| `bd-shop-09-vendor-sdk-attribution.json` | Vendor SDK Attribution | JVM crash count grouped by `vendor_sdk` (`app_code`/`adsdk`/`analytics_sdk`), detected by searching all stack frames across all errors for `com.adsdk.*`/`com.analytics.fake.*` namespaces. See [advanced-crash-attribution.md](advanced-crash-attribution.md). |
+| `bd-shop-10-attribution-rate.json` | Crash Attribution Rate | `rate` chart: % of all crashes attributable to a known blocking thread or vendor SDK, ties bd-shop-08/09 together. See [advanced-crash-attribution.md](advanced-crash-attribution.md). |
 
-See [foreground-background-crashes.md](foreground-background-crashes.md) for why these two
-are separate workflows, the platform constraint that shapes both BDRL scripts, and how to
-cross-check the split against real crash data.
+See [foreground-background-crashes.md](foreground-background-crashes.md) for why bd-shop-06/07 are
+separate workflows, the platform constraint that shapes both BDRL scripts, and how to
+cross-check the split against real crash data. See
+[advanced-crash-attribution.md](advanced-crash-attribution.md) for bd-shop-08/09/10.
 
 ## Event reference
 
