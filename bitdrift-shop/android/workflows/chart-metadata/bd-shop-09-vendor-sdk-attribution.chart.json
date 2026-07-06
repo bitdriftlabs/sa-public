@@ -1,0 +1,15 @@
+[
+  {
+    "rule_id": "vendor-sdk-count",
+    "metadata": {
+      "title": "Crash Count by Vendor SDK",
+      "summary": { "description": "JVM crashes grouped by which stack-frame namespace (com.adsdk.* / com.analytics.fake.* / app code) is present across all errors, with vendor_reason available via Customize Dimensions." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Crashes", "y_axis": { "description": "Crashes", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  }
+]

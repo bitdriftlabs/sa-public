@@ -5,6 +5,8 @@ import android.system.OsConstants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 /**
  * Catalog of crash variants. Each entry is a top-frame method so bitdrift's
@@ -36,6 +38,11 @@ object Crashes {
         "runtime_background_thread" to ::crashRuntimeBackgroundThread,
         "coroutine_io"              to ::crashCoroutineIO,
         "oom_allocator_thread"      to ::crashOomAllocatorThread,
+        // Lock contention — real, uncorrelated thread states across three threads
+        "lock_contention"           to ::crashLockContention,
+        // Vendor SDK attribution — two distinct fake-vendor namespaces
+        "vendor_sdk_interceptor"    to ::crashVendorSdkInterceptor,
+        "vendor_sdk_analytics"      to ::crashAnalyticsSdkInterceptor,
         // Native signals — each calls Os.kill directly so frames are distinct
         "native_sigsegv"            to ::crashNativeSigsegv,
         "native_sigbus"             to ::crashNativeSigbus,
@@ -134,6 +141,61 @@ object Crashes {
         Thread.sleep(SIGNAL_WAIT_MS * 10) // OOM takes longer
     }
 
+    // ── Lock contention — three real, uncorrelated thread states captured ──
+
+    private fun crashLockContention() {
+        val lock = Object()
+        val holderReady = java.util.concurrent.CountDownLatch(1)
+
+        // Holds the lock without crashing itself. Keeping "holds" and "crashes" on
+        // separate threads means this thread is still genuinely TIMED_WAITING —
+        // still holding `lock` — at snapshot time, rather than having already
+        // released the monitor via its own exception unwinding.
+        Thread {
+            synchronized(lock) {
+                holderReady.countDown()
+                Thread.sleep(LOCK_HOLD_MS)
+            }
+        }.apply { name = "image-decode-thread" }.start()
+        holderReady.await()
+
+        // A watchdog thread, uninvolved in the lock itself, converts the block into
+        // a crash after a short, fixed delay -- independent of LOCK_HOLD_MS, so
+        // there's real margin against scheduler jitter rather than a race against
+        // the same window the lock holder is using. Honest about what it's doing:
+        // this is a synthetic stand-in for a real ANR, deliberately turned into a
+        // crash so it's guaranteed to land in the existing capture pipeline.
+        Thread {
+            Thread.sleep(WATCHDOG_DELAY_MS)
+            throw RuntimeException(
+                "anr-watchdog: main thread blocked on shared lock for ${WATCHDOG_DELAY_MS}ms " +
+                    "-- converting to a crash for reporting",
+            )
+        }.apply { name = "anr-watchdog-thread" }.start()
+
+        // Blocks the calling (main) thread on the same monitor for the remainder of
+        // image-decode-thread's hold window — real Thread.State.BLOCKED.
+        synchronized(lock) { }
+    }
+
+    // ── Vendor SDK attribution — real com.adsdk.fake./com.analytics.fake. frames ─
+
+    private fun crashVendorSdkInterceptor() {
+        val client = OkHttpClient.Builder()
+            .addInterceptor(com.adsdk.fake.AdRequestInterceptor())
+            .build()
+        val request = Request.Builder().url("https://ads.fake-vendor.example/init").build()
+        client.newCall(request).execute()
+    }
+
+    private fun crashAnalyticsSdkInterceptor() {
+        val client = OkHttpClient.Builder()
+            .addInterceptor(com.analytics.fake.AnalyticsPingInterceptor())
+            .build()
+        val request = Request.Builder().url("https://ping.fake-analytics.example/batch").build()
+        client.newCall(request).execute()
+    }
+
     // ── Native signals — NO shared helper so each has a distinct top frame ─
 
     private fun crashNativeSigsegv() {
@@ -161,4 +223,6 @@ object Crashes {
     }
 
     private const val SIGNAL_WAIT_MS = 500L
+    private const val WATCHDOG_DELAY_MS = 300L // fixed, independent of hold duration
+    private const val LOCK_HOLD_MS = 2000L // wide margin vs. WATCHDOG_DELAY_MS
 }

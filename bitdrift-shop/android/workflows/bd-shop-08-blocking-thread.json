@@ -1,0 +1,51 @@
+{
+  "name": "bd-shop \u2014 Blocking Thread Attribution",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "lock-contention-crash",
+            "issue_match": {
+              "bdrl_program": "if .type != \"JVMCrash\" {\n  abort\n}\n\n# Thread names specific to real lock/monitor contention. Do not add\n# oom-allocator/worker-thread here -- those already belong to unrelated,\n# non-contention crash types (crashOomAllocatorThread/crashRuntimeBackgroundThread).\nknown_threads = [\"image-decode-thread\"]\n\nmatches = filter(array!(.thread_details.threads)) -> |_i, thread| {\n  is_string(thread.name) && any(known_threads) -> |_j, kt| { kt == thread.name }\n}\n\nif length(matches) == 0 {\n  abort\n}\n\nholder = matches[0]\nif true {\n  add_field(\"blocking_thread\", string(holder.name) ?? \"unknown\")\n}\nif true {\n  add_field(\"blocking_thread_state\", string(holder.state) ?? \"unknown\")\n}\n\nreporting = filter(array!(.thread_details.threads)) -> |_i, thread| {\n  thread.active == true\n}\nif length(reporting) > 0 {\n  add_field(\"reporting_thread\", string(reporting[0].name) ?? \"unknown\")\n}\n\n# Cheap cross-reference: was this contention captured under memory pressure?\ntotal = to_int(.app_metrics.memory.total)\nfree = to_int(.app_metrics.memory.free)\nif total > 0 {\n  pct, err = (free * 100) / total\n  if err == null {\n    free_pct = to_int(pct)\n    pressure = if free_pct < 15 { \"low\" } else { \"normal\" }\n    add_field(\"memory_pressure\", pressure)\n  }\n}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "blocking-thread-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "lock-contention-crash"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "blocking_thread"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -47,19 +47,21 @@ class ShoppingDemoApp : Application() {
     private fun installCrashLoopHandler() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            // Always let bitdrift's own handler run first -- it's the only entry point
+            // that builds and persists the structured crash Report. The crash-loop
+            // branch used to skip this entirely, so JVM crashes never produced a real
+            // captured report while crash-loop mode was active -- only native signals
+            // did, since those go through a separate handler this chain never touches.
+            defaultHandler?.uncaughtException(thread, throwable)
             val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
             if (prefs.getBoolean(KEY_ACTIVE, false)) {
                 // Pre-schedule restart via AlarmManager before the process dies.
                 // This fires even for native signals (SIGSEGV/SIGBUS/etc.) where the
-                // JVM handler is never called — the alarm is already armed before the crash.
+                // JVM handler is never called -- the alarm is already armed before the crash.
                 scheduleRestart(applicationContext, RESTART_DELAY_MS)
-                Process.killProcess(Process.myPid())
-                System.exit(1)
-            } else {
-                defaultHandler?.uncaughtException(thread, throwable)
-                Process.killProcess(Process.myPid())
-                System.exit(1)
             }
+            Process.killProcess(Process.myPid())
+            System.exit(1)
         }
     }
 

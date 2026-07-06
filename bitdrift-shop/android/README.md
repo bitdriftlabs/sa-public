@@ -86,7 +86,7 @@ With the instrumentation above, the app feeds these bitdrift features — most w
 
 ## Deploy workflows for evaluation
 
-Once the app is generating data, use the **bd-cli** skill to deploy the seven sample workflows in [`workflows/`](workflows/) — each turns the signals above into metrics, alerts, or funnels:
+Once the app is generating data, use the **bd-cli** skill to deploy the ten sample workflows in [`workflows/`](workflows/) — each turns the signals above into metrics, alerts, or funnels:
 
 | Workflow | Uses | Focus |
 |----------|------|-------|
@@ -97,6 +97,27 @@ Once the app is generating data, use the **bd-cli** skill to deploy the seven sa
 | `bd-shop-05-anr-force-quit.json` | logger, fields | Android fault tracking (ANR, force-quit), variant rates |
 | `bd-shop-06-crash-foreground.json` | issue-match BDRL, `app_metrics.running_state` | Crash count while the app is in the foreground |
 | `bd-shop-07-crash-background.json` | issue-match BDRL, `app_metrics.running_state` | Crash count while the app is backgrounded — see [foreground-background-crashes.md](workflows/foreground-background-crashes.md) |
+| `bd-shop-08-blocking-thread.json` | issue-match BDRL, `thread_details` | Lock-contention crash count grouped by blocking thread — see [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md) |
+| `bd-shop-09-vendor-sdk-attribution.json` | issue-match BDRL, cross-error stack frames | Crash count grouped by vendor SDK namespace — see [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md) |
+| `bd-shop-10-attribution-rate.json` | issue-match BDRL, `rate` chart | % of crashes attributable to a known cause — see [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md) |
+
+## Issue (Crash) Analytics
+### What the `issue-match` demos (06–10) show
+
+These five run server-side against the full crash Report, not on-device against a log line. bitdrift uniquely allows turning crash data into a **standing, ingest-time chart** across every crash automatically, instead of a human reading one report at a time.
+
+- **Foreground vs. background** (`bd-shop-06`/`07`) — splits crash volume by app state (`app_metrics.running_state`) without creating new issue groups
+  - *Mobile dev owners:* separates crashes a user was actively looking at from crashes during backgrounded/OS-driven work, without instrumenting a new field per crash type — triage what's actually user-visible first
+  - *Business owners:* quantifies how much of your crash volume is actually hurting the visible experience (the part that drives churn, support tickets, and store ratings) vs. invisible background noise — sharpens where engineering time should go
+- **Blocking thread attribution** (`bd-shop-08`) — searches `thread_details.threads[]` for a known contention pattern and charts which thread was holding the lock
+  - *Mobile dev owners:* turns a manual "open this one report and read the thread dump" investigation into a standing chart that continuously flags lock/monitor contention across the whole fleet, so a recurring concurrency bug surfaces on its own
+  - *Business owners:* concurrency bugs are some of the most expensive crashes to diagnose in engineering hours — a chart that already points at the blocking thread shortens time-to-fix on exactly the class of bug that otherwise eats weeks
+- **Vendor SDK attribution** (`bd-shop-09`) — searches stack frames across **every** error in the report (not just the top one) for a third-party namespace, and charts crash share by vendor
+  - *Mobile dev owners:* automatically classifies "is this our bug or a vendor's" for every crash, instead of manually bucketing each new crash type by hand
+  - *Business owners:* directly quantifies how much instability is caused by a third-party SDK instead of your own app — the evidence you need when negotiating with an ad/analytics vendor, deciding whether to drop a dependency, or explaining a crash-free-rate dip that isn't your team's fault
+- **Attribution rate** (`bd-shop-10`) — ties the two above together with BDRL's `rate` action (two independent flows, one used as numerator, one as denominator) into a single "% of crashes we can explain" chart, rather than leaving 08/09 as two disconnected bar charts
+  - *Mobile dev owners:* one continuously-updating number for "how much of our crash volume do we actually understand," trackable like any other engineering SLO
+  - *Business owners:* a single "% of crashes explained" KPI is legible to a non-engineering stakeholder — "we understand root cause for X% of crashes and are closing the gap" is a far easier story to tell in a business review than a raw crash count
 
 > **Prompt:** *"Deploy the bd-shop-*.json workflows to bitdrift using bd CLI and verify they transition to LIVE status."*
 
@@ -110,6 +131,7 @@ See [`workflows/README.md`](workflows/README.md) for deploy instructions.
 - **[../../instrumentation-guide/](../../instrumentation-guide/)** — how to instrument **any** app (prompt-driven), plus a cleanup guide
 - **[workflows/README.md](workflows/README.md)** — deploy and monitor workflows via bd CLI
 - **[workflows/foreground-background-crashes.md](workflows/foreground-background-crashes.md)** — foreground vs. background crash workflows: why they're separate, the BDRL behind each, and how to cross-check the split against real data
+- **[workflows/advanced-crash-attribution.md](workflows/advanced-crash-attribution.md)** — blocking-thread and vendor-SDK crash attribution workflows, plus the attribution-rate chart that ties them together
 
 **Simulation features:** [ANR-A](README-refs.md#anr-a-guest-journey-testing) · [Force Quit](README-refs.md#force-quit-journey-testing) · [Crash Loop](README-refs.md#crash-loop) · [Slow Frames](README-refs.md#slow-frames-performance-bug-demo)
 

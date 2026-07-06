@@ -1,0 +1,59 @@
+{
+  "name": "bd-shop \u2014 Crash Attribution Rate",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "all-crashes",
+            "issue_match": {
+              "bdrl_program": "true"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "attributed-crash",
+            "issue_match": {
+              "bdrl_program": "# Numerator flow: only crashes attributable to a known thread or vendor SDK.\nknown_threads = [\"image-decode-thread\"]\nthread_match = length(filter(array!(.thread_details.threads)) -> |_i, thread| {\n  is_string(thread.name) && any(known_threads) -> |_j, kt| { kt == thread.name }\n}) > 0\n\nvendor_match = length(flatten(map(.errors) -> |_i, error| {\n  filter(error.stack_trace) -> |_j, frame| {\n    is_string(frame.class_name) &&\n      (starts_with(frame.class_name, \"com.adsdk.\") || starts_with(frame.class_name, \"com.analytics.fake.\"))\n  }\n})) > 0\n\nif !thread_match && !vendor_match {\n  abort\n}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "attribution-rate",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "rate": {
+              "numerator": {
+                "match_id": "attributed-crash"
+              },
+              "denominator": {
+                "match_id": "all-crashes"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
