@@ -301,16 +301,19 @@ fun AdvancedScreen(navController: NavController, simulationManager: SimulationMa
                     }
                 }
                 Button(
-                    onClick = { simulationManager.slowModeEnabled = !simulationManager.slowModeEnabled },
+                    onClick = {
+                        simulationManager.recommendationsV2Enabled = !simulationManager.recommendationsV2Enabled
+                        simulationManager.setVariant(simulationManager.activeVariant)
+                    },
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (simulationManager.slowModeEnabled) Color(0xFFFF5722) else Color(0xFF795548)
+                        containerColor = if (simulationManager.recommendationsV2Enabled) Color(0xFF3F51B5) else Color(0xFF795548)
                     ),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                 ) {
                     Text(
-                        text = if (simulationManager.slowModeEnabled) "Slow: ON" else "Slow",
+                        text = if (simulationManager.recommendationsV2Enabled) "Rec v2: ON" else "Rec v2",
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         textAlign = TextAlign.Center
@@ -495,8 +498,14 @@ fun BrowseScreen(navController: NavController, simulationManager: SimulationMana
         } catch (_: Exception) {}
     }
 
-    val recommendations = if (simulationManager?.slowModeEnabled == true && products.isNotEmpty()) {
-        RecommendationEngine.scoreProducts(catalogJson, products.first().optString("id", ""))
+    val recommendations = if (simulationManager?.recommendationsV2Enabled == true && products.isNotEmpty()) {
+        val pid = products.first().optString("id", "")
+        // bitdrift SDK: trackSpan() wraps the scoring work and records its duration in the session
+        // timeline; ends SUCCESS on return, FAILURE on throw.
+        // POC: event tracking — unsampled duration histogram (p50/p95) for any operation
+        Logger.trackSpan("score_products", LogLevel.INFO, mapOf("product_id" to pid, "screen_name" to "Browse")) {
+            RecommendationEngine.scoreProducts(catalogJson, pid)
+        }
     } else emptyList()
 
     val subtitle = apiData?.let {
@@ -750,17 +759,17 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
     LaunchedEffect(pid) {
         try {
             apiData = ApiClient.getProduct(pid)
-            if (simulationManager?.slowModeEnabled == true) {
+            if (simulationManager?.recommendationsV2Enabled == true) {
                 catalogJson = ApiClient.getFullCatalogJson()
             }
         } catch (_: Exception) {}
     }
 
-    val recommendations = if (simulationManager?.slowModeEnabled == true) {
+    val recommendations = if (simulationManager?.recommendationsV2Enabled == true) {
         // bitdrift SDK: trackSpan() wraps the scoring work and records its duration in the session
         // timeline; ends SUCCESS on return, FAILURE on throw.
         // POC: event tracking — unsampled duration histogram (p50/p95) for any operation
-        Logger.trackSpan("score_products", LogLevel.INFO, mapOf("product_id" to pid)) {
+        Logger.trackSpan("score_products", LogLevel.INFO, mapOf("product_id" to pid, "screen_name" to "ProductDetail")) {
             RecommendationEngine.scoreProducts(catalogJson, pid)
         }
     } else emptyList()

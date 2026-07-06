@@ -1,0 +1,51 @@
+[
+  {
+    "rule_id": "slow-frame-count",
+    "metadata": {
+      "title": "Slow Rendering (Manual Span Example) — Total",
+      "summary": { "description": "Example of manual instrumentation: a Logger.trackSpan() wrapped around the suspect code, matched on _duration_ms >= 16ms. Not the primary detection — see bd-shop-11-slow-rendering.json, which needs no app-side instrumentation." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Slow renders (span)", "y_axis": { "description": "Count", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "slow-frame-by-recommendations-v2",
+    "metadata": {
+      "title": "Slow Rendering (Manual Span) by recommendations_v2 Exposure",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Slow renders (span)", "y_axis": { "description": "Count", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "slow-frame-duration-histogram",
+    "metadata": {
+      "title": "Slow Rendering Duration (Manual Span) by recommendations_v2 Exposure",
+      "metric_chart_metadata": {
+        "histogram_bar_chart_display_mode": {},
+        "metadata": [
+          { "title": "Render duration", "y_axis": { "description": "Duration", "unit": "MILLISECONDS" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "slow-frame-by-screen",
+    "metadata": {
+      "title": "Slow Rendering (Manual Span) by Screen",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Slow renders (span)", "y_axis": { "description": "Count", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  }
+]

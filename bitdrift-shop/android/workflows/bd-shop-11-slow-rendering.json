@@ -1,0 +1,121 @@
+{
+  "name": "bd-shop — Slow Rendering (Recommendations v2)",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "slow-render",
+            "ootb_match": {
+              "android_condition": "DROPPED_FRAME",
+              "generic_match": {
+                "base_matcher": {
+                  "log_field": "_frame_issue_type",
+                  "operator": "EQUAL",
+                  "string_value": "Slow"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "slow-frame-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "slow-render"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "slow-frame-by-recommendations-v2",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "slow-render"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "state_value": {
+                      "scope": "FEATURE_FLAG_EXPOSURE",
+                      "key": "recommendations_v2"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "slow-frame-duration-histogram",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "slow-render",
+                "name": "_duration_ms"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "state_value": {
+                      "scope": "FEATURE_FLAG_EXPOSURE",
+                      "key": "recommendations_v2"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "slow-frame-by-screen",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "slow-render"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "_screen_name"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
