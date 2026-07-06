@@ -107,6 +107,13 @@ breakdowns via "Customize Dimensions" on the chart.
 This is the deeper, engineer-focused half of the story — lead with it for a technical
 audience, or as the escalation after vendor SDK for a mixed one.
 
+- *Mobile dev owners:* turns a manual "open this one report and read the thread dump"
+  investigation into a standing chart that continuously flags lock/monitor contention across
+  the whole fleet, so a recurring concurrency bug surfaces on its own.
+- *Business owners:* concurrency bugs are some of the most expensive crashes to diagnose in
+  engineering hours — a chart that already points at the blocking thread shortens
+  time-to-fix on exactly the class of bug that otherwise eats weeks.
+
 ## `bd-shop-09-vendor-sdk-attribution.json` — "Which vendor SDK is causing this crash"
 
 Searches every error's stack frames for either fake-vendor namespace:
@@ -161,6 +168,13 @@ One action, `vendor-sdk-count`: `metric_chart_rule` count grouped by `vendor_sdk
 non-engineer audience in a way the thread-contention scenario doesn't — lead with this one
 for a mixed audience.
 
+- *Mobile dev owners:* automatically classifies "is this our bug or a vendor's" for every
+  crash, instead of manually bucketing each new crash type by hand.
+- *Business owners:* directly quantifies how much instability is caused by a third-party SDK
+  instead of your own app — the evidence you need when negotiating with an ad/analytics
+  vendor, deciding whether to drop a dependency, or explaining a crash-free-rate dip that
+  isn't your team's fault.
+
 **Scope note — this pattern isn't Android-specific.** The identical technique (searching
 stack frames by namespace) works over `.binary_images[]` for native crashes on any platform
 too; this checkout just doesn't have a native (`.so`) third-party library to demo it
@@ -205,6 +219,12 @@ if !thread_match && !vendor_match {
 
 Same detection logic as 08/09, reused rather than duplicated conceptually. One action,
 `attribution-rate`, a `rate` chart over the two flows above.
+
+- *Mobile dev owners:* one continuously-updating number for "how much of our crash volume do
+  we actually understand," trackable like any other engineering SLO.
+- *Business owners:* a single "% of crashes explained" KPI is legible to a non-engineering
+  stakeholder — "we understand root cause for X% of crashes and are closing the gap" is a
+  far easier story to tell in a business review than a raw crash count.
 
 ## Presentation
 

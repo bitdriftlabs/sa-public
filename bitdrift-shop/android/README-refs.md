@@ -247,6 +247,10 @@ Sanity-check either command actually took effect before relaunching:
 adb shell run-as ai.bitdrift.shop cat /data/data/ai.bitdrift.shop/shared_prefs/crash_loop.xml
 ```
 
+`scripts/check-demo-state.sh --reset` automates this full-reset sequence (and does the same for
+ANR-A/Force-Quit) — run it before starting any other demo to catch fault-injection state left
+active from a previous session, since all three flags persist across restarts by design.
+
 **Why foreground vs. background matters:** every crash type can now be observed in either app state, which is what the [`bd-shop-06-crash-foreground.json` / `bd-shop-07-crash-background.json`](workflows/foreground-background-crashes.md) workflows chart. Crash *type* grouping is unaffected — foreground/background is an orthogonal dimension read from `app_metrics.running_state`, not a new set of issue groups. Android has no dedicated `"background"` value for that field (only `foreground`/`foreground_service`/`perceptible`), so the background workflow defines it as "anything that isn't exactly foreground" — see the linked doc for why that's unavoidable, not a workaround.
 
 Both workflows' BDRL only defines what to *reject* (`abort`) — `IssueMatch` counts whatever
@@ -361,23 +365,14 @@ Logger.addField("supportlog", supportLogEnabled.toString())
 
 ### Slow Frames (Performance Bug Demo)
 
-**What:** Tapping **Slow** enables a "Recommended for You" section powered by `RecommendationEngine` — but the scoring runs synchronously in the composable body on every recomposition, blocking the main thread for 80–250ms per frame.
-
-**The problem:** `RecommendationEngine.scoreProducts()` is called directly in `BrowseScreen` (line 270) and `ProductDetailScreen` (line 531) without `remember` or background dispatch — re-executing on every scroll, tap, and state change.
-
-**The fix:** Move the call into `LaunchedEffect` + `withContext(Dispatchers.Default)`, storing the result in a `remember`-backed `mutableStateOf`. Fix is shown commented out in both screens.
-
-**Dashboard:** With Slow mode on, `slow_frame` events appear correlated with `screen_view = Browse` and `screen_view = ProductDetail`, with render times of 80–250ms vs. the normal <16ms budget.
-
-**Files:**
-
-| File | Role |
-|------|------|
-| `RecommendationEngine.kt` | `scoreProducts()` (line 16), `levenshteinSimilarity()` (line 53) |
-| `Screens.kt` line 270 | `BrowseScreen` — scoring in composable body |
-| `Screens.kt` line 531 | `ProductDetailScreen` — scoring in composable body |
-| `Components.kt` | `RecommendedSection` composable |
-| `ApiClient.kt` | `getFullCatalogJson()` |
+See [../demo-slow-rendering.md](../demo-slow-rendering.md) for the full setup, live trigger,
+dashboard/alert walkthrough, and fix-diagnosis script. Toggle: **Rec v2** button on the
+Advanced screen (`simulationManager.recommendationsV2Enabled`, feature flag key
+`recommendations_v2`). The bug lives in `RecommendationEngine.scoreProducts()`
+(`RecommendationEngine.kt:16`), called synchronously in the composable body of
+`BrowseScreen` (`Screens.kt:498`) and `ProductDetailScreen` (`Screens.kt:759`), detected via
+bitdrift's built-in Android dropped-frame detection — no app-side slow-frame instrumentation
+required.
 
 ---
 
@@ -404,7 +399,7 @@ Query with `name == <span>` and `_span_type == "end"` for `_duration_ms`:
 | `journey` | Full shopping journey root — Welcome through Confirmation |
 | `product_discovery` | Welcome → Browse/Search → ProductDetail → first cart add |
 | `checkout` | CheckoutGuest/SignIn → Payment → Confirmation |
-| `score_products` | Recommendation engine scoring (Slow mode only) |
+| `score_products` | Recommendation engine scoring (`recommendations_v2` flag only) |
 
 ## Fields
 
@@ -414,6 +409,7 @@ Query with `name == <span>` and `_span_type == "end"` for `_duration_ms`:
 | `ff_checkout_flow` | `random`, `guest`, `signin` |
 | `ff_payment_ui` | `random`, `digital`, `card` |
 | `ff_cart_abandon_rate` | `medium`, `high`, `low` |
+| `ff_recommendations_v2` | `enabled`, `disabled` |
 | `app_variant` | `sdk-demo` |
 | `user_id` | entity identifier — surfaces in Timeline session header |
 | `supportlog` | `true` when Support Log mode is active |

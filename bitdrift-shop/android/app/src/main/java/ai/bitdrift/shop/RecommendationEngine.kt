@@ -25,6 +25,9 @@ object RecommendationEngine {
 
         val refDesc = reference.optString("description", reference.optString("name", ""))
         val refCategory = reference.optString("category", "")
+        // Compare full product profiles (specs, colors, promotions, seller info, etc.), not just
+        // the description, so similar-but-differently-worded listings still score as related.
+        val refProfile = reference.toString()
 
         return products
             .filter { it.optString("id") != referenceProductId }
@@ -32,7 +35,7 @@ object RecommendationEngine {
                 val desc = product.optString("description", product.optString("name", ""))
                 val cat = product.optString("category", "")
 
-                val descSimilarity = levenshteinSimilarity(refDesc, desc)
+                val descSimilarity = levenshteinSimilarity(refProfile, product.toString())
                 val catBoost = if (cat == refCategory) 0.3 else 0.0
                 val priceProximity = priceScore(
                     reference.optDouble("price", 0.0),

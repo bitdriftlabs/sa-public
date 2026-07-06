@@ -28,6 +28,10 @@ bd workflow create workflows/bd-shop-09-vendor-sdk-attribution.json \
   --chart-metadata-file workflows/chart-metadata/bd-shop-09-vendor-sdk-attribution.chart.json
 bd workflow create workflows/bd-shop-10-attribution-rate.json \
   --chart-metadata-file workflows/chart-metadata/bd-shop-10-attribution-rate.chart.json
+bd workflow create workflows/bd-shop-11-slow-rendering.json \
+  --chart-metadata-file workflows/chart-metadata/bd-shop-11-slow-rendering.chart.json
+bd workflow create workflows/bd-shop-11b-slow-rendering-manual-span.json \
+  --chart-metadata-file workflows/chart-metadata/bd-shop-11b-slow-rendering-manual-span.chart.json
 ```
 
 **`create` does not deploy.** A newly created workflow sits in `IDLE` state — it won't
@@ -70,6 +74,8 @@ worked example of why that reads backwards if you're not expecting it.
 | `bd-shop-08-blocking-thread.json` | Blocking Thread Attribution | `lock_contention` crash count grouped by `blocking_thread` (`thread_details.threads[].name`), with `blocking_thread_state`/`reporting_thread`/`memory_pressure` as secondary breakdowns. See [advanced-crash-attribution.md](advanced-crash-attribution.md). |
 | `bd-shop-09-vendor-sdk-attribution.json` | Vendor SDK Attribution | JVM crash count grouped by `vendor_sdk` (`app_code`/`adsdk`/`analytics_sdk`), detected by searching all stack frames across all errors for `com.adsdk.*`/`com.analytics.fake.*` namespaces. See [advanced-crash-attribution.md](advanced-crash-attribution.md). |
 | `bd-shop-10-attribution-rate.json` | Crash Attribution Rate | `rate` chart: % of all crashes attributable to a known blocking thread or vendor SDK, ties bd-shop-08/09 together. See [advanced-crash-attribution.md](advanced-crash-attribution.md). |
+| `bd-shop-11-slow-rendering.json` | Slow Rendering (Recommendations v2) | **Primary.** OOTB dropped-frame count (alert target); count/duration split by `recommendations_v2` exposure and by `_screen_name`. Zero app instrumentation. See [../demo-slow-rendering.md](../demo-slow-rendering.md). |
+| `bd-shop-11b-slow-rendering-manual-span.json` | Slow Rendering — Manual Span Example | **Secondary/illustrative, no alert.** Same shape, matched on a custom `score_products` span instead of OOTB — shows what manual instrumentation looks like when you need to pinpoint an exact function. See [../demo-slow-rendering.md](../demo-slow-rendering.md). |
 
 See [foreground-background-crashes.md](foreground-background-crashes.md) for why bd-shop-06/07 are
 separate workflows, the platform constraint that shapes both BDRL scripts, and how to
@@ -92,6 +98,8 @@ These workflows match the following log events emitted by the app:
 | `guest_anr_injected` | SimulationManager.kt | `force_quit_enabled` |
 | `force_quit_injected` | SimulationManager.kt | `force_quit_screen` |
 
-Span names: `journey`, `checkout`, `product_discovery` — all emit `_duration_ms` and `_span_type: "end"`.
+Span names: `journey`, `checkout`, `product_discovery` — all emit `_duration_ms` and `_span_type: "end"`. `score_products` (recommendations_v2 flag only) also emits `_duration_ms`.
 
-Feature flag keys used in `group_by`: `checkout_flow`, `payment_ui`, `cart_abandon_rate`, `anr_a`, `force_quit`.
+OOTB match used by `bd-shop-11`: `DROPPED_FRAME` / `_frame_issue_type == "Slow"` — bitdrift's built-in Android frame-rendering detection, no app instrumentation required.
+
+Feature flag keys used in `group_by`: `checkout_flow`, `payment_ui`, `cart_abandon_rate`, `anr_a`, `force_quit`, `recommendations_v2`.

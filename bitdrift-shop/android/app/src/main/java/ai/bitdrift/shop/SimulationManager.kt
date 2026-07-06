@@ -39,7 +39,7 @@ class SimulationManager : ViewModel() {
     var totalRuns by mutableIntStateOf(0)
         private set
 
-    var slowModeEnabled by mutableStateOf(false)
+    var recommendationsV2Enabled by mutableStateOf(false)
 
     var crashLoopEnabled by mutableStateOf(false)
 
@@ -115,6 +115,9 @@ class SimulationManager : ViewModel() {
         val forceQuitState = if (forceQuitEnabled) "enabled" else "disabled"
         Logger.setFeatureFlagExposure("force_quit", forceQuitState)
         Logger.addField("ff_force_quit", forceQuitState)
+        val recommendationsV2State = if (recommendationsV2Enabled) "enabled" else "disabled"
+        Logger.setFeatureFlagExposure("recommendations_v2", recommendationsV2State)
+        Logger.addField("ff_recommendations_v2", recommendationsV2State)
         // Emit an explicit log so we can verify flag exposure in the log stream
         Logger.logInfo { "feature_flag_exposure_set" }
     }

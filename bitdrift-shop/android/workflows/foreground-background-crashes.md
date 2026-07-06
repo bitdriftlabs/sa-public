@@ -107,6 +107,15 @@ if !is_background {
 
 Same shape as the foreground workflow, inverted condition: `background-crash-count`.
 
+## Framing
+
+- *Mobile dev owners:* separates crashes a user was actively looking at from crashes during
+  backgrounded/OS-driven work, without instrumenting a new field per crash type — triage
+  what's actually user-visible first.
+- *Business owners:* quantifies how much of your crash volume is actually hurting the visible
+  experience (the part that drives churn, support tickets, and store ratings) vs. invisible
+  background noise — sharpens where engineering time should go.
+
 ## Cross-checking against real data
 
 `maybeFireCrash()` also tags every crash with a `crash_context` custom field

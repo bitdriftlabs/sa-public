@@ -1,0 +1,52 @@
+[
+  {
+    "rule_id": "slow-frame-count",
+    "metadata": {
+      "title": "Slow Rendering — Total",
+      "summary": { "description": "Count of bitdrift's built-in Android dropped/slow-frame detection (_frame_issue_type == \"Slow\"). Zero app-side instrumentation required. Alert target." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Slow frames", "y_axis": { "description": "Count", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "slow-frame-by-recommendations-v2",
+    "metadata": {
+      "title": "Slow Rendering by recommendations_v2 Exposure",
+      "summary": { "description": "Correlates slow-rendering volume with the recommendations_v2 feature flag." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Slow frames", "y_axis": { "description": "Count", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "slow-frame-duration-histogram",
+    "metadata": {
+      "title": "Slow Rendering Duration by recommendations_v2 Exposure",
+      "metric_chart_metadata": {
+        "histogram_bar_chart_display_mode": {},
+        "metadata": [
+          { "title": "Frame duration", "y_axis": { "description": "Duration", "unit": "MILLISECONDS" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "slow-frame-by-screen",
+    "metadata": {
+      "title": "Slow Rendering by Screen",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Slow frames", "y_axis": { "description": "Count", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  }
+]
