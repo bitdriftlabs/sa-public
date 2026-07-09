@@ -104,7 +104,14 @@ dependencies {
         implementation("com.google.flatbuffers:flatbuffers-java:25.2.10")
         implementation("com.google.guava:listenablefuture:1.0")
         implementation("com.google.protobuf:protobuf-kotlin-lite:4.31.1")
-        implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.25")
+        // Pinned to the project's actual Kotlin compiler version (see root
+        // build.gradle.kts), not the 1.9.25 the published POM declares: in Maven
+        // Central mode the capture-plugin detects the io.bitdrift:capture
+        // coordinate and aligns kotlin-stdlib to the compiler version itself, but
+        // that alignment doesn't kick in for this bare local file dependency,
+        // leaving stdlib on 2.0.21 — missing kotlin.coroutines.jvm.internal.SpillingKt
+        // that 2.2.10-compiled suspend functions call into (NoClassDefFoundError).
+        implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
     } else {
         implementation("io.bitdrift:capture:0.23.9")
     }
