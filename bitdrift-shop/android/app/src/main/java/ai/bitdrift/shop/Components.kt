@@ -142,9 +142,9 @@ fun ScreenContainer(
                         )
                     }
                     Text(
-                        text = "SDK v$CAPTURE_SDK_VERSION [${BuildConfig.BITDRIFT_CAPTURE_SOURCE}]${if (isOutdated) " ⚑" else ""}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isOutdated) Color(0xFFF57C00) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+                        text = "SDK v$CAPTURE_SDK_VERSION${if (isOutdated) " ⚑" else ""}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isOutdated) Color(0xFFF57C00) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                     )
                     if (isOutdated) {
                         Text(
@@ -153,6 +153,18 @@ fun ScreenContainer(
                             color = Color(0xFFF57C00).copy(alpha = 0.75f)
                         )
                     }
+                    if (BuildConfig.BITDRIFT_CAPTURE_SOURCE == "AAR") {
+                        Text(
+                            text = "${BuildConfig.BITDRIFT_LOCAL_AAR_NAME} [AAR]",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                        )
+                    }
+                    Text(
+                        text = "App v${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                    )
                 }
             } else if (imageUrl != null) {
                 AsyncImage(
@@ -192,11 +204,15 @@ fun ScreenContainer(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            Text(
-                text = "App v${BuildConfig.VERSION_NAME}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-            )
+            // Screens with a logo show version info grouped with the SDK version above;
+            // everything else (no logo) shows the app version alone down here.
+            if (logoResId == null) {
+                Text(
+                    text = "App v${BuildConfig.VERSION_NAME}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.weight(1f))
