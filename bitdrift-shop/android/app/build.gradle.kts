@@ -6,6 +6,29 @@ plugins {
     id("io.bitdrift.capture-plugin")
 }
 
+// Shared local.properties/.local.properties loader — also backs the capture
+// AAR toggle below, so it's hoisted above the `android {}` block.
+val localProps = Properties()
+val localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) localProps.load(localPropsFile.inputStream())
+val privateLocalPropsFile = rootProject.file(".local.properties")
+if (privateLocalPropsFile.exists()) privateLocalPropsFile.inputStream().use { localProps.load(it) }
+
+// Flip between the published Maven Central SDK (default) and the local
+// capture.aar under test: -PBITDRIFT_USE_LOCAL_AAR=true on the command line, or
+// set BITDRIFT_USE_LOCAL_AAR in local.properties/.local.properties/env, to switch.
+val bitdriftUseLocalAar = (
+    project.findProperty("BITDRIFT_USE_LOCAL_AAR")?.toString()
+        ?: localProps.getProperty("BITDRIFT_USE_LOCAL_AAR")
+        ?: System.getenv("BITDRIFT_USE_LOCAL_AAR")
+        ?: "false"
+    ).toBoolean()
+
+println(
+    "bitdrift capture dependency: " +
+        if (bitdriftUseLocalAar) "LOCAL AAR (aar/capture.aar)" else "Maven Central (io.bitdrift:capture:0.23.9)"
+)
+
 android {
     namespace = "ai.bitdrift.shop"
     compileSdk = 36
@@ -14,16 +37,11 @@ android {
         applicationId = "ai.bitdrift.shop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "3.2"
+        versionCode = 6
+        versionName = "3.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val localProps = Properties()
-        val localPropsFile = rootProject.file("local.properties")
-        if (localPropsFile.exists()) localProps.load(localPropsFile.inputStream())
-        val privateLocalPropsFile = rootProject.file(".local.properties")
-        if (privateLocalPropsFile.exists()) privateLocalPropsFile.inputStream().use { localProps.load(it) }
         val bitdriftSdkKey = localProps.getProperty("BITDRIFT_SDK_KEY")
             ?: System.getenv("BITDRIFT_SDK_KEY")
             ?: ""
@@ -34,6 +52,9 @@ android {
         buildConfigField("String", "BITDRIFT_API_HOST", "\"$bitdriftApiHost\"")
         buildConfigField("boolean", "SHOW_CARDINALITY", project.findProperty("SHOW_CARDINALITY")?.toString() ?: "false")
         buildConfigField("boolean", "SHOW_SIM_AB", project.findProperty("SHOW_SIM_AB")?.toString() ?: "false")
+        // Surfaced in the UI (see Components.kt) so it's obvious at a glance which
+        // capture dependency a given build/install was made with.
+        buildConfigField("String", "BITDRIFT_CAPTURE_SOURCE", "\"${if (bitdriftUseLocalAar) "AAR" else "SDK"}\"")
     }
 
     buildTypes {
@@ -65,8 +86,35 @@ bitdrift {
 }
 
 dependencies {
-    // Workshop §1 (Quickstart): add bitdrift Android SDK dependency first
-    implementation("io.bitdrift:capture:0.23.9")
+    // Workshop §1 (Quickstart): add bitdrift Android SDK dependency first.
+    // Toggle via bitdriftUseLocalAar (see top of file) to test a local build
+    // of the SDK against this app without editing this block.
+    if (bitdriftUseLocalAar) {
+        implementation(files("../aar/capture.aar"))
+
+        // capture.aar is a bare local file with no POM, so its runtime dependencies
+        // (mirrored from the published capture:0.23.9 POM) must be declared explicitly.
+        implementation("androidx.appcompat:appcompat:1.7.0")
+        implementation("androidx.core:core:1.13.1")
+        implementation("androidx.lifecycle:lifecycle-common:2.8.7")
+        implementation("androidx.lifecycle:lifecycle-process:2.8.7")
+        implementation("androidx.metrics:metrics-performance:1.0.0")
+        implementation("androidx.startup:startup-runtime:1.2.0")
+        implementation("com.google.code.gson:gson:2.11.0")
+        implementation("com.google.flatbuffers:flatbuffers-java:25.2.10")
+        implementation("com.google.guava:listenablefuture:1.0")
+        implementation("com.google.protobuf:protobuf-kotlin-lite:4.31.1")
+        // Pinned to the project's actual Kotlin compiler version (see root
+        // build.gradle.kts), not the 1.9.25 the published POM declares: in Maven
+        // Central mode the capture-plugin detects the io.bitdrift:capture
+        // coordinate and aligns kotlin-stdlib to the compiler version itself, but
+        // that alignment doesn't kick in for this bare local file dependency,
+        // leaving stdlib on 2.0.21 — missing kotlin.coroutines.jvm.internal.SpillingKt
+        // that 2.2.10-compiled suspend functions call into (NoClassDefFoundError).
+        implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
+    } else {
+        implementation("io.bitdrift:capture:0.23.9")
+    }
 
     // OkHttp for backend API calls
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

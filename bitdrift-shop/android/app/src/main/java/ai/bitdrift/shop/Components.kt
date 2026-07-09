@@ -142,7 +142,7 @@ fun ScreenContainer(
                         )
                     }
                     Text(
-                        text = "SDK v$CAPTURE_SDK_VERSION${if (isOutdated) " ⚑" else ""}",
+                        text = "SDK v$CAPTURE_SDK_VERSION [${BuildConfig.BITDRIFT_CAPTURE_SOURCE}]${if (isOutdated) " ⚑" else ""}",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (isOutdated) Color(0xFFF57C00) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
                     )

@@ -1,6 +1,6 @@
 # Bitdrift Shop (Android — SDK)
 
-**Version 3.2**
+**Version 3.3**
 
 Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.23.9` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
 
@@ -25,12 +25,27 @@ BITDRIFT_API_HOST=api.bitdrift.io
 
 Get the SDK key from **bitdrift dashboard → Settings → SDK Keys**. The key determines which project your data lands in — crashes, sessions, and workflows only appear in the project that owns this key, scoped to the `ai.bitdrift.shop` app.
 
+For bitdrift-internal testing against a non-production environment, point `BITDRIFT_API_HOST` at that environment instead (e.g. `api.bitdrift.dev`) — just make sure the SDK key is one issued by that same environment's dashboard.
+
+### Optional: test a local build of the SDK
+
+By default the app builds against the published `io.bitdrift:capture:0.23.9` Maven Central artifact. To validate an unreleased SDK build instead, drop the AAR at `aar/capture.aar` and flip the `bitdriftUseLocalAar` flag in [app/build.gradle.kts](app/build.gradle.kts), resolved in this order:
+
+1. Command-line property: `./gradlew assembleDebug -PBITDRIFT_USE_LOCAL_AAR=true`
+2. `BITDRIFT_USE_LOCAL_AAR` in `.local.properties` or `local.properties`
+3. `BITDRIFT_USE_LOCAL_AAR` env var
+4. Default: `false` (published Maven Central SDK)
+
+Every build prints which one is active, e.g. `bitdrift capture dependency: LOCAL AAR (aar/capture.aar)`. To test a different local build, replace `aar/capture.aar` with the new file (same name).
+
 ### Step 1: Start the backend
 
 ```bash
 cd backend
 ./start-backend-docker.sh
 ```
+
+Want to correlate this app's bitdrift sessions with server-side Datadog APM traces for the same requests? Swap in the Datadog-instrumented backend variant instead — see [misc-demos/backend-ddtrace/](../../misc-demos/backend-ddtrace/).
 
 ### Step 2: Run the app
 
@@ -48,7 +63,7 @@ Every Capture SDK feature below is wired up in this app, mapped to the call used
 
 | Feature | SDK surface | Where it lives |
 |---------|-------------|----------------|
-| **SDK + build plugin** | `io.bitdrift:capture:0.23.9`, `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts) |
+| **SDK + build plugin** | `io.bitdrift:capture:0.23.9` (or local `aar/capture.aar` — see [Optional: test a local build](#optional-test-a-local-build-of-the-sdk)), `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts) |
 | **Logger startup** | `Logger.start(...)` in `Application.onCreate()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
 | **Session strategy** | `SessionStrategy.Fixed()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
 | **Screen views** | `Logger.logScreenView()` via `NavController.OnDestinationChangedListener` | [MainActivity.kt](app/src/main/java/ai/bitdrift/shop/MainActivity.kt), [ScreenLogger.kt](app/src/main/java/ai/bitdrift/shop/ScreenLogger.kt) |

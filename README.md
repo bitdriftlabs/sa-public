@@ -54,3 +54,5 @@ Standalone demos and reference artifacts from customer engagements and internal 
 - **[metricdemo/](misc-demos/metricdemo/)** — Android app that emits five synthetic waveforms (sine, square, sawtooth, triangle, DC, counter) to bitdrift every second. Used to validate bitdrift chart accuracy against CloudWatch and other metric backends.
 
 - **[pii/](misc-demos/pii/)** — Reference regex configuration and validation artifacts for PII scrubbing via bitdrift's `regex_match_and_substitute_field` filter. Includes the regex YAML, change documentation, and validation test results.
+
+- **[backend-ddtrace/](misc-demos/backend-ddtrace/)** — Datadog-instrumented variant of the Bitdrift Shop backend, pairing the bitdrift Capture SDK on mobile with Datadog APM (`ddtrace`) on the server. Every request gets a `dd.trace_id`/`dd.span_id` correlated across both tools, so a bitdrift network log links straight through to the matching Datadog APM trace for that same request.
