@@ -52,6 +52,9 @@ android {
         buildConfigField("String", "BITDRIFT_API_HOST", "\"$bitdriftApiHost\"")
         buildConfigField("boolean", "SHOW_CARDINALITY", project.findProperty("SHOW_CARDINALITY")?.toString() ?: "false")
         buildConfigField("boolean", "SHOW_SIM_AB", project.findProperty("SHOW_SIM_AB")?.toString() ?: "false")
+        // Surfaced in the UI (see Components.kt) so it's obvious at a glance which
+        // capture dependency a given build/install was made with.
+        buildConfigField("String", "BITDRIFT_CAPTURE_SOURCE", "\"${if (bitdriftUseLocalAar) "AAR" else "SDK"}\"")
     }
 
     buildTypes {

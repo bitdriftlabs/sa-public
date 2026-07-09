@@ -193,7 +193,7 @@ fun ScreenContainer(
             )
 
             Text(
-                text = "App v${BuildConfig.VERSION_NAME}",
+                text = "App [${BuildConfig.BITDRIFT_CAPTURE_SOURCE}] v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
             )
