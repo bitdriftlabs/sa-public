@@ -65,8 +65,24 @@ bitdrift {
 }
 
 dependencies {
-    // Workshop §1 (Quickstart): add bitdrift Android SDK dependency first
-    implementation("io.bitdrift:capture:0.23.9")
+    // Local AAR under test (../aar/capture.aar) — replaces the Maven Central
+    // coordinate below while validating an unreleased build. Swap back to
+    // implementation("io.bitdrift:capture:0.23.9") once validated.
+    implementation(files("../aar/capture.aar"))
+
+    // capture.aar is a bare local file with no POM, so its runtime dependencies
+    // (mirrored from the published capture:0.23.9 POM) must be declared explicitly.
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.core:core:1.13.1")
+    implementation("androidx.lifecycle:lifecycle-common:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
+    implementation("androidx.metrics:metrics-performance:1.0.0")
+    implementation("androidx.startup:startup-runtime:1.2.0")
+    implementation("com.google.code.gson:gson:2.11.0")
+    implementation("com.google.flatbuffers:flatbuffers-java:25.2.10")
+    implementation("com.google.guava:listenablefuture:1.0")
+    implementation("com.google.protobuf:protobuf-kotlin-lite:4.31.1")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.25")
 
     // OkHttp for backend API calls
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
