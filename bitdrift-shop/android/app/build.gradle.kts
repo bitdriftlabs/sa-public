@@ -14,14 +14,14 @@ if (localPropsFile.exists()) localProps.load(localPropsFile.inputStream())
 val privateLocalPropsFile = rootProject.file(".local.properties")
 if (privateLocalPropsFile.exists()) privateLocalPropsFile.inputStream().use { localProps.load(it) }
 
-// Flip between the local capture.aar under test and the published Maven Central
-// SDK: -PBITDRIFT_USE_LOCAL_AAR=false on the command line, or set
-// BITDRIFT_USE_LOCAL_AAR in local.properties/.local.properties/env, to switch.
+// Flip between the published Maven Central SDK (default) and the local
+// capture.aar under test: -PBITDRIFT_USE_LOCAL_AAR=true on the command line, or
+// set BITDRIFT_USE_LOCAL_AAR in local.properties/.local.properties/env, to switch.
 val bitdriftUseLocalAar = (
     project.findProperty("BITDRIFT_USE_LOCAL_AAR")?.toString()
         ?: localProps.getProperty("BITDRIFT_USE_LOCAL_AAR")
         ?: System.getenv("BITDRIFT_USE_LOCAL_AAR")
-        ?: "true"
+        ?: "false"
     ).toBoolean()
 
 println(
