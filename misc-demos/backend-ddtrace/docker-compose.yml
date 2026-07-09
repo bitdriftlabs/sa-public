@@ -1,0 +1,15 @@
+services:
+  backend:
+    build: .
+    image: stevelerner/bitdrift-shop-backend:${TAG:-latest}
+    container_name: bitdrift-shop-backend
+    ports:
+      - "5173:5173"
+    environment:
+      CHAOS_MODE: "${CHAOS_MODE:-0}"
+    networks:
+      - dd-network
+
+networks:
+  dd-network:
+    external: true
