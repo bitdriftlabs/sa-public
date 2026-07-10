@@ -14,19 +14,23 @@ if (localPropsFile.exists()) localProps.load(localPropsFile.inputStream())
 val privateLocalPropsFile = rootProject.file(".local.properties")
 if (privateLocalPropsFile.exists()) privateLocalPropsFile.inputStream().use { localProps.load(it) }
 
-// Flip between the published Maven Central SDK (default) and the local
-// capture.aar under test: -PBITDRIFT_USE_LOCAL_AAR=true on the command line, or
-// set BITDRIFT_USE_LOCAL_AAR in local.properties/.local.properties/env, to switch.
-val bitdriftUseLocalAar = (
+// Flip between the published Maven Central SDK (default) and a local capture.aar
+// under test: set BITDRIFT_USE_LOCAL_AAR to the AAR's full path — on the command
+// line (-PBITDRIFT_USE_LOCAL_AAR=/path/to/capture.aar), in local.properties/
+// .local.properties, or as an env var. Unset, blank, or "false" means "don't use
+// it" (Maven Central); any other value is used directly as the AAR path.
+val bitdriftLocalAarPathRaw = (
     project.findProperty("BITDRIFT_USE_LOCAL_AAR")?.toString()
         ?: localProps.getProperty("BITDRIFT_USE_LOCAL_AAR")
         ?: System.getenv("BITDRIFT_USE_LOCAL_AAR")
-        ?: "false"
-    ).toBoolean()
+        ?: ""
+    ).trim()
+val bitdriftLocalAarPath = if (bitdriftLocalAarPathRaw.equals("false", ignoreCase = true)) "" else bitdriftLocalAarPathRaw
+val bitdriftUseLocalAar = bitdriftLocalAarPath.isNotBlank()
 
 println(
     "bitdrift capture dependency: " +
-        if (bitdriftUseLocalAar) "LOCAL AAR (aar/capture.aar)" else "Maven Central (io.bitdrift:capture:0.23.9)"
+        if (bitdriftUseLocalAar) "LOCAL AAR ($bitdriftLocalAarPath)" else "Maven Central (io.bitdrift:capture:0.23.9)"
 )
 
 android {
@@ -37,8 +41,8 @@ android {
         applicationId = "ai.bitdrift.shop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "3.3"
+        versionCode = 7
+        versionName = "3.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -55,6 +59,11 @@ android {
         // Surfaced in the UI (see Components.kt) so it's obvious at a glance which
         // capture dependency a given build/install was made with.
         buildConfigField("String", "BITDRIFT_CAPTURE_SOURCE", "\"${if (bitdriftUseLocalAar) "AAR" else "SDK"}\"")
+        buildConfigField(
+            "String",
+            "BITDRIFT_LOCAL_AAR_NAME",
+            "\"${if (bitdriftUseLocalAar) File(bitdriftLocalAarPath).name else ""}\""
+        )
     }
 
     buildTypes {
@@ -90,7 +99,7 @@ dependencies {
     // Toggle via bitdriftUseLocalAar (see top of file) to test a local build
     // of the SDK against this app without editing this block.
     if (bitdriftUseLocalAar) {
-        implementation(files("../aar/capture.aar"))
+        implementation(files(bitdriftLocalAarPath))
 
         // capture.aar is a bare local file with no POM, so its runtime dependencies
         // (mirrored from the published capture:0.23.9 POM) must be declared explicitly.
