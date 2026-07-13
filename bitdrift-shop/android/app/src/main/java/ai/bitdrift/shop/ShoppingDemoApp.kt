@@ -29,6 +29,7 @@ class ShoppingDemoApp : Application() {
             sessionStrategy = SessionStrategy.Fixed(),
             fieldProviders = listOf(UserIdFieldProvider(applicationContext)),
         )
+        Logger.setEntityId("demo")
         // Register lifecycle callbacks
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())
 
