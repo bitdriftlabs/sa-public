@@ -63,7 +63,7 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
 
     ScreenContainer(
         screenName = "Welcome",
-        title = apiData?.optString("store_name", "Welcome to Bitdrift Shop") ?: "Welcome to Bitdrift Shop",
+        title = apiData?.optString("store_name", "Welcome to bitdrift Shop") ?: "Welcome to bitdrift Shop",
         subtitle = subtitle,
         step = 1,
         icon = Icons.Default.ShoppingCart,
