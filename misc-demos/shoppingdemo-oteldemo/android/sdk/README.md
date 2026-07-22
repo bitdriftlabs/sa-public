@@ -5,7 +5,7 @@ A demo Android app simulating an e-commerce shopping experience, instrumented wi
 ## What This Is
 
 - **bitdrift Capture SDK** — logging, screen views, network capture, feature flag exposure, ANR simulation.
-- **OpenTelemetry Demo backend** — the open-source OTel Demo microservices stack (Telescope Store). The app talks to its frontend proxy on port 8080 instead of the original FastAPI backend.
+- **OpenTelemetry Demo backend** — the open-source OTel Demo microservices stack (Telescope Store), not the original FastAPI backend. The app talks to its frontend proxy on port 8081 (moved off the default 8080 to leave that port free for ClickStack).
 
 The OTel Demo backend generates rich distributed traces across its microservices as the app drives cart and checkout flows. The bitdrift SDK captures the mobile-side story: screen views, structured logs, network timing, and session context.
 
@@ -18,11 +18,11 @@ BITDRIFT_SDK_KEY=your_key_here
 BITDRIFT_API_HOST=api.bitdrift.io
 ```
 
-To override the backend address (defaults to Android emulator → host):
+The OTel Demo backend in this setup runs on **8081**, not the default 8080 (8080 is left free for ClickStack — see step 3 below). Add these to the same `.local.properties` file so the app points at it (defaults to Android emulator → host):
 
 ```properties
 OTEL_DEMO_HOST=10.0.2.2
-OTEL_DEMO_PORT=8080
+OTEL_DEMO_PORT=8081
 ```
 
 ## Tracing (bitdrift)
@@ -38,13 +38,115 @@ Reference: [Tracing: Network integration](https://docs.bitdrift.io/sdk/features/
 
 ## Quick Start
 
-### 1. Set up the OTel Demo backend for B3
+### 1. Start the OTel Demo backend
+
+Stock setup, no overrides — services use the OTel Demo's default W3C trace context propagation. `ENVOY_PORT=8081` moves the frontend proxy off the default 8080, leaving it free for ClickStack. From the `opentelemetry-demo` repo root:
+
+```bash
+ENVOY_PORT=8081 docker compose \
+  -f compose.yaml \
+  up \
+  --scale load-generator=0 \
+  --force-recreate \
+  --remove-orphans \
+  --detach
+```
+
+Frontend proxy starts on `http://localhost:8081`.
+
+> **Troubleshooting — `frontend-proxy` restart-looping:** if `docker ps` shows `frontend-proxy` stuck in a restart loop, check `docker logs frontend-proxy` for an Envoy `Proto constraint validation failed` error on a socket address. This means the image you pulled (`ghcr.io/open-telemetry/demo:latest-frontend-proxy`) is newer than your local `opentelemetry-demo` checkout — its baked-in `envoy.tmpl.yaml` references env vars (e.g. `OPAMP_HOST`/`OPAMP_PORT`) that your local `compose.yaml`/`.env` don't set, so they render empty and Envoy rejects the config. Fix by building the image from your local source instead of the stale pulled one:
+>
+> ```bash
+> ENVOY_PORT=8081 docker compose -f compose.yaml build frontend-proxy
+> ```
+>
+> then re-run the `up` command above.
+
+### 2. Run the Android app
+
+Set `OTEL_DEMO_PORT=8081` in `.local.properties` (see [Local Config](#local-config)), then open the project in Android Studio and run on an emulator. The app connects via `http://10.0.2.2:8081`.
+
+**Emulator requirements:**
+
+| Setting | Value |
+|---------|-------|
+| API level | API 36 (Android 16) |
+| Screen resolution | 1080×2400 (FHD+) |
+| Device profile | Medium Phone / Pixel 7 / 6a |
+| RAM | 2 GB+ |
+
+### 3. (Optional) Switch to ClickStack
+
+[ClickStack](https://github.com/ClickHouse/ClickStack) is ClickHouse's open-source observability stack for OpenTelemetry — logs, traces, metrics, and session replay in one UI. (Formerly branded standalone as "HyperDX" — same image, ports, and API, just repackaged/renamed under ClickHouse.) It's an alternative export target for the OTel Collector — no B3 override or propagation change required, it just swaps the collector's export target and works with the stock W3C setup from step 1.
+
+> **Memory requirement:** the ClickStack all-in-one container bundles ClickHouse + Mongo + the ClickStack app, and needs **at least 4GB RAM** on its own (ClickStack's own recommendation). Combined with the ~20 containers in the OTel Demo stack, give your Docker VM **8GB+** total or ClickHouse will get silently OOM-killed after a few minutes (check `docker inspect <container> --format '{{.State.OOMKilled}}'` if traces stop landing).
+>
+> - **Colima:** `colima stop && colima start --memory 8 --cpu 4` (this restarts the whole VM — every running container goes down; the OTel Demo stack's containers have `restart: unless-stopped` so they come back on their own, but the ClickStack container below does not and must be relaunched manually)
+> - **Docker Desktop:** Settings → Resources → bump Memory to 8GB → Apply & Restart
+
+Run the ClickStack all-in-one container standalone (it does **not** join the `opentelemetry-demo` docker network — it's just a container on your host). Name it so it's easy to manage/restart later:
+
+```bash
+docker run -d --name clickstack -p 8080:8080 -p 4317:4317 -p 4318:4318 docker.hyperdx.io/hyperdx/hyperdx-all-in-one
+```
+
+> The image itself is still published under the `hyperdx` Docker namespace (`docker.hyperdx.io/hyperdx/hyperdx-all-in-one`) — that's just the registry path and is current/correct. Everywhere else in this doc refers to it as ClickStack.
+
+> **Port note:** ClickStack's UI defaults to host port 8080 — the same port the OTel Demo `frontend-proxy` normally wants, which is why step 1 above moves it to `8081` via `ENVOY_PORT`, leaving 8080 free for ClickStack here.
+
+Open **http://localhost:8080** and sign up (any email/password works locally) — this auto-creates a team and an ingestion API key. Grab the key from **Team Settings → API Keys** in the UI.
+
+> **No persistence:** this container has no volume mounts, so a restart (crash, `docker stop`, Colima/Docker VM restart) wipes all data and creates a **new** team + API key on next signup. If traces stop showing up after a restart, re-check the key.
+
+Point `src/otel-collector/otelcol-config-extras.yml` in your `opentelemetry-demo` clone at ClickStack via OTLP/HTTP, with the API key as an `authorization` header (create the file if it doesn't exist):
+
+```yaml
+exporters:
+  otlphttp/clickstack:
+    endpoint: http://host.docker.internal:4318
+    headers:
+      authorization: <your ClickStack API key>
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      exporters: [debug, span_metrics, otlphttp/clickstack]
+    metrics:
+      receivers: [docker_stats, http_check/frontend-proxy, host_metrics, nginx, otlp, redis, span_metrics]
+      exporters: [debug, otlphttp/clickstack]
+    logs:
+      exporters: [debug, otlphttp/clickstack]
+```
+
+> `host.docker.internal` resolves to the host machine from inside a container on Docker Desktop (macOS/Windows) and Colima automatically. On plain Linux Docker, add `--add-host=host.docker.internal:host-gateway` to the `docker run` command above.
+>
+> Without the `authorization` header, the collector logs `401 Unauthorized` / `missing or empty authorization header` and silently drops everything — check `docker logs otel-collector | grep clickstack` if data isn't showing up.
+
+Restart the collector to pick up the config (or the whole backend, same command as step 1 — this only changes the collector's export target, not propagation):
+
+```bash
+ENVOY_PORT=8081 docker compose -f compose.yaml up --force-recreate --detach otel-collector
+```
+
+To view traces: open **http://localhost:8080**, tap **Sim 10** in the app, then search or browse traces/logs/metrics in the ClickStack UI — data lands within a few seconds. To sanity-check ingestion directly in ClickHouse: `docker exec clickstack sh -c "curl -s 'http://localhost:8123/?query=SELECT+count()+FROM+otel_traces'"`.
+
+> **Zipkin ↔ ClickStack are mutually exclusive** in `otelcol-config-extras.yml` — it only holds one exporter config at a time. To switch to Zipkin, use the config in step 4 instead.
+
+### 4. (Optional) Switch to B3 propagation + Zipkin
+
+The bitdrift SDK is configured remotely to emit **B3 multi-header** trace context (`X-B3-TraceId`, `X-B3-SpanId`, `X-B3-Sampled`). The compose override makes every backend service propagate those headers, and Zipkin provides a visual trace viewer.
 
 Copy the B3 override file from this repo to your `opentelemetry-demo` clone root:
 
 ```bash
 cp /path/to/shoppingdemo-oteldemo/docker-compose.b3-propagation.yaml /path/to/opentelemetry-demo/
 ```
+
+This adds a Zipkin container on port 9411, joined to the `opentelemetry-demo` network, and sets `OTEL_PROPAGATORS=b3multi,baggage` on all backend services that support it.
+
+> **Note on `recommendation`:** The Python-based `recommendation` service requires the `opentelemetry-propagator-b3` package which is not installed in the OTel Demo image. It is intentionally excluded from the B3 override and continues to use W3C propagation. This does not affect the core shopping flow or Zipkin traces.
 
 Add the Zipkin exporter to `src/otel-collector/otelcol-config-extras.yml` in your `opentelemetry-demo` clone (create the file if it doesn't exist):
 
@@ -64,12 +166,10 @@ service:
       exporters: [debug]
 ```
 
-### 2. Start the backend
-
-From the `opentelemetry-demo` repo root:
+Restart the backend with the B3 override layered on top:
 
 ```bash
-docker compose \
+ENVOY_PORT=8081 docker compose \
   -f compose.yaml \
   -f docker-compose.b3-propagation.yaml \
   up \
@@ -79,22 +179,28 @@ docker compose \
   --detach
 ```
 
-Frontend proxy starts on `http://localhost:8080`. Zipkin starts on `http://localhost:9411`.
+Zipkin starts on `http://localhost:9411`.
 
-> **Note:** Always use `--force-recreate` when switching between compose configurations. Without it, containers may keep stale environment variables from a previous run (e.g. a `recommendation` container that still has old propagator settings), which can block `frontend-proxy` from starting.
+> **Note:** Always use `--force-recreate` when switching between compose configurations (stock ↔ B3). Without it, containers may keep stale environment variables from a previous run (e.g. a `recommendation` container that still has old propagator settings), which can block `frontend-proxy` from starting.
 
-### 3. Run the Android app
+To view traces: open **http://localhost:9411**, tap **Sim 10** in the app, then click **Run Query** in Zipkin — traces appear within a few seconds. Click any trace to see the full waterfall across OTel Demo microservices, with B3 trace/span IDs matching what bitdrift recorded on the mobile side.
 
-Open in Android Studio and run on an emulator. The app connects via `http://10.0.2.2:8080`.
+**bitdrift backend config** (to deep-link trace IDs from bitdrift into Zipkin):
 
-**Emulator requirements:**
-
-| Setting | Value |
-|---------|-------|
-| API level | API 36 (Android 16) |
-| Screen resolution | 1080×2400 (FHD+) |
-| Device profile | Medium Phone / Pixel 7 / 6a |
-| RAM | 2 GB+ |
+```yaml
+frontend_features:
+  tracing_features:
+    trace_id_deep_link_url_template: http://localhost:9411/zipkin/traces/{traceId}
+  views_ui_enabled: true
+runtime_set:
+  runtimes:
+  - matcher:
+      always: true
+    runtime:
+      values:
+        client_config.trace.propagation_mode:
+          string_value: b3-multi
+```
 
 ## Screens
 
@@ -132,7 +238,7 @@ The Welcome screen has simulation buttons (**Sim 10**, **∞ Sim**, **Sim A/B**)
 
 - Android API 36 (targetSdk / compileSdk), API 26+ minimum
 - Emulator: 1080×2400 resolution (Medium Phone / Pixel 7)
-- [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) running on port 8080
+- [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) running on port 8081 (see [Local Config](#local-config))
 
 ## Project Structure
 
@@ -157,49 +263,11 @@ app/src/main/java/com/example/shoppingdemo/
 ```
 ┌─────────────────────┐        HTTP (OkHttp)        ┌──────────────────────────────────────┐
 │   Android Emulator   │ ◄─────────────────────────► │  OTel Demo Frontend Proxy (Envoy)    │
-│   (10.0.2.2:8080)    │    JSON request/response    │  (localhost:8080)                    │
+│   (10.0.2.2:8081)    │    JSON request/response    │  (localhost:8081)                    │
 └─────────────────────┘                              │                                      │
                                                      │  /api/products  → product-catalog    │
                                                      │  /api/cart      → cart service       │
                                                      │  /api/checkout  → checkout service   │
                                                      │  /images/       → image-provider     │
                                                      └──────────────────────────────────────┘
-```
-
-## B3 Propagation + Zipkin
-
-The bitdrift SDK is configured remotely to emit **B3 multi-header** trace context (`X-B3-TraceId`, `X-B3-SpanId`, `X-B3-Sampled`). The compose override makes every backend service propagate those headers, and Zipkin provides a visual trace viewer.
-
-### How it works
-
-**`docker-compose.b3-propagation.yaml`** (in this repo, copy to `opentelemetry-demo` root):
-- Adds a Zipkin container on port 9411, joined to the `opentelemetry-demo` network
-- Sets `OTEL_PROPAGATORS=b3multi,baggage` on all backend services that support it
-
-**`src/otel-collector/otelcol-config-extras.yml`** — wires the OTel Collector's traces pipeline to export to Zipkin.
-
-> **Note on `recommendation`:** The Python-based `recommendation` service requires the `opentelemetry-propagator-b3` package which is not installed in the OTel Demo image. It is intentionally excluded from the B3 override and continues to use W3C propagation. This does not affect the core shopping flow or Zipkin traces.
-
-### View traces in Zipkin
-
-1. Open **http://localhost:9411**
-2. In the app, tap **Sim 10** to generate traffic
-3. In Zipkin, click **Run Query** — traces appear within a few seconds
-4. Click any trace to see the full waterfall across OTel Demo microservices, with B3 trace/span IDs matching what bitdrift recorded on the mobile side
-
-### bitdrift backend config
-
-```yaml
-frontend_features:
-  tracing_features:
-    trace_id_deep_link_url_template: http://localhost:9411/zipkin/traces/{traceId}
-  views_ui_enabled: true
-runtime_set:
-  runtimes:
-  - matcher:
-      always: true
-    runtime:
-      values:
-        client_config.trace.propagation_mode:
-          string_value: b3-multi
 ```
