@@ -5,7 +5,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    id("io.bitdrift.capture-plugin") version "0.22.16"
+    id("io.bitdrift.capture-plugin") version "0.23.10"
 }
 
 android {
@@ -62,7 +62,7 @@ android {
 
 dependencies {
     // bitdrift SDK 
-    implementation("io.bitdrift:capture:0.22.16")
+    implementation("io.bitdrift:capture:0.23.10")
 
     // OkHttp (for HttpUrl used in Logger.start apiUrl)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

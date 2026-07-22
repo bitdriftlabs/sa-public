@@ -73,7 +73,7 @@ bitdrift {
 
 dependencies {
     // Workshop §1 (Quickstart): add bitdrift Android SDK dependency first
-    implementation("io.bitdrift:capture:0.23.8")
+    implementation("io.bitdrift:capture:0.23.10")
 
     // OkHttp for backend API calls
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
