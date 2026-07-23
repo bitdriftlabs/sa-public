@@ -79,6 +79,7 @@ read_prefs() {
 
 is_active() { echo "$1" | grep -q 'name="active" value="true"'; }
 is_fast_mode() { echo "$1" | grep -q 'name="fast_mode" value="true"'; }
+is_oom_only() { echo "$1" | grep -q 'name="oom_only" value="true"'; }
 
 CRASH_XML=$(read_prefs crash_loop.xml)
 ANR_XML=$(read_prefs anr_a.xml)
@@ -86,10 +87,12 @@ FQ_XML=$(read_prefs force_quit.xml)
 
 CRASH_ACTIVE=0
 FAST_MODE=0
+OOM_ONLY=0
 ANR_ACTIVE=0
 FQ_ACTIVE=0
 is_active "$CRASH_XML" && CRASH_ACTIVE=1
 is_fast_mode "$CRASH_XML" && FAST_MODE=1
+is_oom_only "$CRASH_XML" && OOM_ONLY=1
 is_active "$ANR_XML" && ANR_ACTIVE=1
 is_active "$FQ_XML" && FQ_ACTIVE=1
 
@@ -100,11 +103,10 @@ fi
 
 echo "WARNING: fault-injection state left active on $SERIAL from a previous session:"
 if [[ "$CRASH_ACTIVE" -eq 1 ]]; then
-  if [[ "$FAST_MODE" -eq 1 ]]; then
-    echo "  - Crash Loop: ON, Fast Crash Mode: ON — crashes immediately on every relaunch, skips all UI"
-  else
-    echo "  - Crash Loop: ON"
-  fi
+  mode_desc="Crash Loop: ON"
+  [[ "$FAST_MODE" -eq 1 ]] && mode_desc+=", Fast Crash Mode: ON — crashes immediately on every relaunch, skips all UI"
+  [[ "$OOM_ONLY" -eq 1 ]] && mode_desc+=", OOM-only: ON — cycling Crashes.oomOnly instead of the full catalog"
+  echo "  - $mode_desc"
 fi
 [[ "$ANR_ACTIVE" -eq 1 ]] && echo "  - ANR-A: ON"
 [[ "$FQ_ACTIVE" -eq 1 ]] && echo "  - Force-Quit: ON"
@@ -120,8 +122,8 @@ echo
 echo "Resetting..."
 "${ADB[@]}" shell am force-stop "$PKG"
 
-if [[ "$CRASH_ACTIVE" -eq 1 || "$FAST_MODE" -eq 1 ]]; then
-  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"fast_mode\" value=\"true\"/name=\"fast_mode\" value=\"false\"/' /data/data/$PKG/shared_prefs/crash_loop.xml"
+if [[ "$CRASH_ACTIVE" -eq 1 || "$FAST_MODE" -eq 1 || "$OOM_ONLY" -eq 1 ]]; then
+  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"fast_mode\" value=\"true\"/name=\"fast_mode\" value=\"false\"/' -e 's/name=\"oom_only\" value=\"true\"/name=\"oom_only\" value=\"false\"/' /data/data/$PKG/shared_prefs/crash_loop.xml"
 fi
 if [[ "$ANR_ACTIVE" -eq 1 ]]; then
   "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' /data/data/$PKG/shared_prefs/anr_a.xml"

@@ -175,25 +175,36 @@ Welcome → Browse/Search/Categories → ProductDetail → (Force Quit)
 
 ### Crash Loop
 
-**What:** 23 typed crashes cycling one per journey, each firing after the Confirmation screen so a complete session is captured first.
+**What:** 28 typed crashes cycling one per journey, each firing after the Confirmation screen so a complete session is captured first.
 
 **How it works:**
 
 1. Enabling Crash mode sets `crash_loop.active = true`. The `order_summary` flag switches to `"v2"`.
 2. After Confirmation, `maybeFireCrash()` in `SimulationManager.kt`:
    - Reads `next_combo_index` from SharedPreferences via `pickNextCrashCombo()` — a single
-     index cycling 0 until `Crashes.all.size * 2` (46), so every crash type is guaranteed to
-     occur in **both** foreground and background exactly once per full sweep, rather than
-     relying on independent random coin-flips to eventually cover every combination.
+     index cycling 0 until `crashes.size * 2` (56 for the full catalog, 12 in OOM-only mode —
+     see **OOM-Only Mode** below), so every crash type is guaranteed to occur in **both**
+     foreground and background exactly once per full sweep, rather than relying on
+     independent random coin-flips to eventually cover every combination.
      `comboIdx / 2` selects the crash type; `comboIdx % 2` selects foreground (0) vs.
      background (1).
    - Increments `next_combo_index` with `commit()` (not `apply()` — process dies immediately
      after).
    - Calls `Logger.addField("crash_kind", name)`, `Logger.addField("crash_context", "foreground"|"background")`, and `Logger.logWarning { "about_to_crash" }`.
-   - Calls `ShoppingDemoApp.scheduleRestart(ctx, 2000ms)` to arm an AlarmManager restart **before** the crash.
+   - Calls `ShoppingDemoApp.scheduleRestart(ctx, delay)` to arm an AlarmManager restart
+     **before** the crash — `delay` is `CRASH_RESTART_DELAY_MS` (2000ms) for the 22
+     fast/deterministic crash types, or `OOM_CRASH_RESTART_DELAY_MS` (45000ms) for any
+     `crash_kind` starting with `oom_` (`SimulationManager.restartDelayFor()`). OOM crashes
+     materialize on their own schedule (background allocation/thread/bitmap loop until the
+     allocator gives up) instead of throwing synchronously, so 2s isn't long enough to
+     guarantee the process has actually died by the time the alarm fires — confirmed live as
+     two concurrent `oom-bitmap-decode` threads leaked into one still-alive process, because
+     the alarm relaunched the Activity before the first attempt's background thread had
+     actually OOM'd. 45s (not 30s) leaves margin above `Crashes.OOM_GRADUAL_WAIT_MS` (35s) —
+     see **Pacing OOM Loops for a Resource Utilization Graph** below for why that grew.
    - **Foreground path** (`dispatchCrash()` in `SimulationManager.kt`): waits 300ms for SDK flush, then calls `fn()`.
    - **Background path:** calls `activity.moveTaskToBack(true)` (same effect as pressing Home), waits 2000ms (`BACKGROUND_SETTLE_MS`) for Android to actually demote process importance away from foreground, then calls `fn()`. Falls back to the foreground path if no `Activity` is available.
-3. AlarmManager fires 2s after process death, relaunching through the startup splash. `crashLoopEnabled` is restored from prefs and the next crash combo fires.
+3. AlarmManager fires after process death (2s or 45s per above), relaunching through the startup splash. `crashLoopEnabled` is restored from prefs and the next crash combo fires.
 
 **Fast Crash Mode:** a "Fast crash mode" toggle on the startup splash screen (next to "Crash
 mode") skips the shopping journey entirely. `SimulationManager.fireFastCrash()` picks the
@@ -205,6 +216,55 @@ the countdown alone would dominate the cycle time). Because the crash lands with
 or two of the splash screen's config write, that write uses `commit()`, not `apply()`, for
 the same reason as the combo index above — this bit us once as fast mode's toggle silently
 reverting after the first crash.
+
+**OOM-Only Mode:** restricts the crash loop to just the 6 OOM variants (`Crashes.oomOnly`)
+instead of the full 28-crash catalog. Two independent entry points, both writing the same
+`crash_loop.oom_only` flag:
+- **Advanced screen:** an "OOMs" button next to "Crash". It's mutually exclusive with
+  "Crash" in the UI (each button's `onClick` explicitly sets the other's underlying flag),
+  since they represent two mutex sub-modes of the same `crash_loop.active` flag — turning
+  one on always clears the other's `oom_only` state, rather than needing a separate
+  "loop active at all" flag to reason about.
+- **Startup splash:** an "OOM crashes only" switch next to "Fast crash mode"
+  (`StartupConfigScreen` in `MainActivity.kt`), enabled only when "Crash mode" is on.
+
+**OOM mode is always journey-based, never fast:** Fast Crash Mode skips the shopping
+journey entirely, which produces a nearly-empty session — confirmed live, a 3-second
+session with 4 log lines (`Application was backgrounded` / `...and views destroyed` / the
+fatal issue / `Application was terminated`) and nothing that reads as a real user session.
+Since OOM crashes are the ones most likely to actually get demoed (e.g. against a live
+crash-type workflow grouped by `crash_kind`), a `LaunchedEffect` in `StartupConfigScreen`
+keyed on `crashEnabled && oomOnlyEnabled` forces
+"Fast crash mode" off and "Auto ∞ sim" on whenever both are true, and both switches grey
+out and ignore taps while the combination holds. This means OOM-only crashes always come
+from a full Welcome → Browse → Cart → Checkout → Payment → Confirmation journey (with
+spans, API calls, screen views) ending in the crash, instead of a bare lifecycle stub. The
+Advanced screen's "OOMs" button is the same journey-based loop, just entered without going
+through the splash's countdown — it doesn't touch `crash_loop.fast_mode` at all, so it's
+not a way to get a faster/fast-mode OOM loop, just a more convenient entry point once
+you're already past the splash (e.g. toggling OOM-only mid-session without a cold start).
+
+**Pacing OOM loops for a Resource Utilization graph:** journey-based sessions still weren't
+long enough on their own. Resource Utilization is a periodic snapshot on a 3s capture
+interval (confirmed live), and the 5 gradual-accumulation OOM crashes (all but
+`oom_single_allocation`, which is deliberately instant by design — see its comment in
+`Crashes.kt`) were completing in well under a second once the reliability fixes above made
+them predictable: a handful of 128MB-stack threads or 256MB bitmaps exhausts memory almost
+immediately with no pacing. That's fine for coverage but produces 0-1 Resource Utilization
+samples — a flat point, not a graph. Each now sleeps between allocation steps
+(`BYTE_ARRAY_STEP_DELAY_MS` / `THREAD_SPAWN_STEP_DELAY_MS` / `BITMAP_STEP_DELAY_MS`, or a
+periodic batch pause for `oom_cache_growth`'s many small entries) so the climb takes
+~20-30s — several capture ticks — before the allocator gives up. The calling thread's own
+give-up wait (`OOM_GRADUAL_WAIT_MS`, 35s) and the crash-loop's restart delay
+(`OOM_CRASH_RESTART_DELAY_MS`, 45s) both had to grow to stay ahead of this new, deliberately
+longer pacing — see their comments for the full ordering constraint
+(`OOM_GRADUAL_WAIT_MS` < `OOM_CRASH_RESTART_DELAY_MS`).
+
+`pickNextCrashCombo()` reads `crash_loop.oom_only` directly from SharedPreferences on every
+call — the same prefs object `maybeFireCrash()` and `fireFastCrash()` already thread through
+— so no `SimulationManager` state needed to sync across the process-restart boundary that
+every other crash-loop mechanism (combo index, `active`, `fast_mode`) already has to deal
+with.
 
 **Stopping Fast Crash Mode:** it fires far too quickly to reliably tap "Stop crash loop" in
 the UI. Two `adb` commands, run in order, stop it from outside the app:
@@ -230,11 +290,12 @@ script, unescaped) fails with `sed: bad pattern` on Android's `toybox sed`.
 
 This alone stops the rapid loop — the app comes back up with crash mode still configured
 but nothing auto-firing until `Sim ∞` is pressed manually. To fully reset (also turn off
-crash mode itself), add a second `-e` expression for `active`:
+crash mode itself, and clear OOM-only if it was set), add `-e` expressions for `active`
+and `oom_only`:
 
 ```bash
 adb shell am force-stop ai.bitdrift.shop
-adb shell "run-as ai.bitdrift.shop sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"fast_mode\" value=\"true\"/name=\"fast_mode\" value=\"false\"/' /data/data/ai.bitdrift.shop/shared_prefs/crash_loop.xml"
+adb shell "run-as ai.bitdrift.shop sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"fast_mode\" value=\"true\"/name=\"fast_mode\" value=\"false\"/' -e 's/name=\"oom_only\" value=\"true\"/name=\"oom_only\" value=\"false\"/' /data/data/ai.bitdrift.shop/shared_prefs/crash_loop.xml"
 ```
 
 The `am force-stop` step must come first both times — editing the XML while the process is
@@ -260,22 +321,32 @@ that inversion matters when reading the actual scripts.
 
 **Why AlarmManager?** Native signal crashes (SIGSEGV/SIGBUS/SIGABRT/SIGFPE) kill the process instantly — the JVM uncaught-exception handler never runs. The AlarmManager is armed before `fn()`, so even a hard kill still triggers restart.
 
-**Prerequisite fix — JVM crashes now actually produce a captured report:** `installCrashLoopHandler()` in `ShoppingDemoApp.kt` used to skip bitdrift's own `CaptureUncaughtExceptionHandler` entirely whenever crash-loop mode was active (the only branch that ever runs, in practice), so no JVM crash — main-thread, background-thread, or coroutine — ever produced a real captured Report while the loop was running; only the 4 native-signal crash types did, since those go through a separate, JNI-bridged handler this Java-level chain never touches. The handler now always calls the previously-installed default handler (bitdrift's) first, then proceeds with the crash-loop's own restart/kill logic — so all 23 crash types below now produce real captured issues.
+**Prerequisite fix — JVM crashes now actually produce a captured report:** `installCrashLoopHandler()` in `ShoppingDemoApp.kt` used to skip bitdrift's own `CaptureUncaughtExceptionHandler` entirely whenever crash-loop mode was active (the only branch that ever runs, in practice), so no JVM crash — main-thread, background-thread, or coroutine — ever produced a real captured Report while the loop was running; only the 4 native-signal crash types did, since those go through a separate, JNI-bridged handler this Java-level chain never touches. The handler now always calls the previously-installed default handler (bitdrift's) first, then proceeds with the crash-loop's own restart/kill logic — so all 28 crash types below now produce real captured issues.
 
-**The 23 crash types** (`Crashes.kt`):
+**The 28 crash types** (`Crashes.kt`):
 
 | # | Name | Category |
 |---|------|----------|
 | 1–13 | `null_pointer` … `unsatisfied_link` | JVM main thread |
 | 14 | `runtime_background_thread` | JVM background thread |
 | 15 | `coroutine_io` | JVM coroutine |
-| 16 | `oom_allocator_thread` | JVM OOM |
-| 17 | `lock_contention` | JVM lock contention (synthetic ANR-to-crash) |
-| 18 | `vendor_sdk_interceptor` | JVM vendor SDK (fake ad SDK) |
-| 19 | `vendor_sdk_analytics` | JVM vendor SDK (fake analytics SDK) |
-| 20–23 | `native_sigsegv` … `native_sigfpe` | Native signals |
+| 16 | `oom_allocator_thread` | JVM OOM — gradual accumulation, background thread |
+| 17 | `oom_main_thread` | JVM OOM — gradual accumulation, main thread |
+| 18 | `oom_single_allocation` | JVM OOM — single allocation exceeding max heap/array size |
+| 19 | `oom_native_thread` | JVM OOM — native thread exhaustion (leaked, parked threads) |
+| 20 | `oom_bitmap_decode` | JVM OOM — bitmap allocation without recycling |
+| 21 | `oom_cache_growth` | JVM OOM — unbounded cache growth (many small objects) |
+| 22 | `lock_contention` | JVM lock contention (synthetic ANR-to-crash) |
+| 23 | `vendor_sdk_interceptor` | JVM vendor SDK (fake ad SDK) |
+| 24 | `vendor_sdk_analytics` | JVM vendor SDK (fake analytics SDK) |
+| 25–28 | `native_sigsegv` … `native_sigfpe` | Native signals |
 
-Each has a unique top-level method — bitdrift groups crashes by top frame, so all 23 appear as distinct issue groups.
+Each has a unique top-level method — bitdrift groups crashes by top frame, so all 28 appear
+as distinct issue groups. `oom_allocator_thread` through `oom_cache_growth` (16–21) make up
+`Crashes.oomOnly`, the subset cycled by OOM-Only Mode above — each exercises a different
+allocation path (gradual vs. single huge allocation, Java heap vs. native thread/bitmap
+memory, large buffers vs. many small objects) so they cover distinct real-world OOM shapes
+rather than just repeating the same allocation pattern with a different name.
 
 **Why `lock_contention` and `vendor_sdk_*` work the way they do:**
 - `lock_contention` uses three separate threads on purpose: `image-decode-thread` holds a
@@ -315,12 +386,19 @@ these three workflows.
 # Terminal 1 (safety net for dropped alarms)
 ./scripts/watchdog.sh
 
-# Terminal 2, slow (journey-based): enable Crash mode in Advanced → Crash toggle,
-# then tap SIM ∞ on Welcome. To stop: tap "Stop crash loop" on Welcome (loop active).
+# Terminal 2, slow (journey-based), full catalog: enable Crash mode in Advanced → Crash
+# toggle, then tap SIM ∞ on Welcome. To stop: tap "Stop crash loop" on Welcome (loop active).
 
-# Terminal 2, fast: enable both "Crash mode" and "Fast crash mode" on the startup
-# splash screen. No Sim button needed -- self-sustaining across restarts.
+# Terminal 2, slow (journey-based), OOM-only: tap "OOMs" in Advanced instead of "Crash",
+# then tap SIM ∞ on Welcome. Same "Stop crash loop" button to stop.
+
+# Terminal 2, fast, full catalog: enable both "Crash mode" and "Fast crash mode" on the
+# startup splash screen. No Sim button needed -- self-sustaining across restarts.
 # To stop: see "Stopping Fast Crash Mode" above (the UI button is too slow to tap).
+
+# Fast + OOM-only is not offered: the splash locks "Fast crash mode" off and "Auto ∞ sim"
+# on whenever "OOM crashes only" is on, since OOM-only is meant for realistic demo
+# sessions -- see "OOM mode is always journey-based, never fast" above.
 ```
 
 **Dashboard:**
@@ -332,10 +410,10 @@ these three workflows.
 
 | File | Role |
 |------|------|
-| `Crashes.kt` | 23 crash types with unique top-level methods |
+| `Crashes.kt` | 28 crash types with unique top-level methods, incl. `oomOnly` (6-variant OOM subset) |
 | `SimulationManager.kt` | `pickNextCrashCombo()`/`dispatchCrash()` (shared), `maybeFireCrash()` (journey-based), `fireFastCrash()` (fast mode) |
-| `ShoppingDemoApp.kt` | `scheduleRestart()` (AlarmManager), `installCrashLoopHandler()`, `KEY_FAST_MODE`/`KEY_NEXT_COMBO_INDEX` |
-| `MainActivity.kt` | Fast crash mode toggle (startup splash), phase-skip on fast-mode restarts, Welcome-screen resume/fire wiring |
+| `ShoppingDemoApp.kt` | `scheduleRestart()` (AlarmManager), `installCrashLoopHandler()`, `KEY_FAST_MODE`/`KEY_NEXT_COMBO_INDEX`/`KEY_OOM_ONLY` |
+| `MainActivity.kt` | Fast crash mode + OOM-only toggles (startup splash), phase-skip on fast-mode restarts, Welcome-screen resume/fire wiring |
 | `Screens.kt` | Crash toggle (Advanced), "Stop crash loop" button + status chip (Welcome) |
 | `scripts/watchdog.sh` | Safety net: `is_crash_loop_active()` → relaunch |
 
@@ -421,7 +499,7 @@ Query with `name == <span>` and `_span_type == "end"` for `_duration_ms`:
 ```
 app/src/main/java/ai/bitdrift/shop/
 ├── ShoppingDemoApp.kt         # Application class — SDK init, AlarmManager restart, crash handler
-├── Crashes.kt                 # 23 typed crash variants (JVM main/bg, lock contention, vendor SDK, native signals)
+├── Crashes.kt                 # 28 typed crash variants (JVM main/bg, OOM, lock contention, vendor SDK, native signals)
 ├── ScreenLogger.kt            # Centralized logging wrapper (logScreenView, logInfo, logError)
 ├── Screen.kt                  # Navigation routes (sealed class)
 ├── Screens.kt                 # All screen composables

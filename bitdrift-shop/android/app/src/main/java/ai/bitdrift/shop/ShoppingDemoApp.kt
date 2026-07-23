@@ -73,6 +73,9 @@ class ShoppingDemoApp : Application() {
         // comboIdx / 2 -> crash type; comboIdx % 2 -> 0=foreground, 1=background.
         const val KEY_NEXT_COMBO_INDEX = "next_combo_index"
         const val KEY_FAST_MODE = "fast_mode"
+        // When true, the crash loop cycles only through Crashes.oomOnly instead of
+        // Crashes.all — set by the "OOMs" button in the Advanced screen.
+        const val KEY_OOM_ONLY = "oom_only"
         private const val RESTART_DELAY_MS = 800L
         private const val RESTART_REQUEST_CODE = 4242
 

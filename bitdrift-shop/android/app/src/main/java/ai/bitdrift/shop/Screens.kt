@@ -98,8 +98,10 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
             )
         } else {
             if (crashLoopOn) {
-                val comboIdx = crashLoopPrefs.getInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, 0) % (Crashes.all.size * 2)
-                val nextCrashName = Crashes.all[comboIdx / 2].first
+                val oomOnlyOn = crashLoopPrefs.getBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false)
+                val crashes = if (oomOnlyOn) Crashes.oomOnly else Crashes.all
+                val comboIdx = crashLoopPrefs.getInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, 0) % (crashes.size * 2)
+                val nextCrashName = crashes[comboIdx / 2].first
                 val nextContext = if (comboIdx % 2 == 1) "background" else "foreground"
                 val fastModeOn = crashLoopPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)
                 AssistChip(
@@ -107,7 +109,7 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
                     enabled = false,
                     label = {
                         Text(
-                            text = "Crash loop ACTIVE${if (fastModeOn) " (fast)" else ""} — next: $nextCrashName/$nextContext",
+                            text = "${if (oomOnlyOn) "OOM loop" else "Crash loop"} ACTIVE${if (fastModeOn) " (fast)" else ""} — next: $nextCrashName/$nextContext",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     },
@@ -118,6 +120,7 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
                         crashLoopPrefs.edit()
                             .putBoolean(ShoppingDemoApp.KEY_ACTIVE, false)
                             .putBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)
+                            .putBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false)
                             .apply()
                         crashLoopOn = false
                         simulationManager.crashLoopEnabled = false
@@ -202,6 +205,7 @@ fun AdvancedScreen(navController: NavController, simulationManager: SimulationMa
     }
     var anrAOn by remember { mutableStateOf(anrAPrefs.getBoolean(SimulationManager.KEY_ANR_A_ACTIVE, false)) }
     var crashLoopOn by remember { mutableStateOf(crashLoopPrefs.getBoolean(ShoppingDemoApp.KEY_ACTIVE, false)) }
+    var oomOnlyOn by remember { mutableStateOf(crashLoopPrefs.getBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false)) }
     var forceQuitOn by remember { mutableStateOf(forceQuitPrefs.getBoolean(SimulationManager.KEY_FORCE_QUIT_ACTIVE, false)) }
     var showAnrReminder by remember { mutableStateOf(false) }
     var showQuitReminder by remember { mutableStateOf(false) }
@@ -321,21 +325,55 @@ fun AdvancedScreen(navController: NavController, simulationManager: SimulationMa
                 }
                 Button(
                     onClick = {
-                        val newState = !crashLoopOn
-                        crashLoopPrefs.edit().putBoolean(ShoppingDemoApp.KEY_ACTIVE, newState).apply()
+                        // "Crash" always means the full catalog — turning it on clears
+                        // OOM-only mode, in case that was left on from the OOMs button.
+                        val newState = !(crashLoopOn && !oomOnlyOn)
+                        crashLoopPrefs.edit()
+                            .putBoolean(ShoppingDemoApp.KEY_ACTIVE, newState)
+                            .putBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false)
+                            .apply()
                         crashLoopOn = newState
+                        oomOnlyOn = false
                         simulationManager.crashLoopEnabled = newState
                         simulationManager.setVariant(simulationManager.activeVariant)
                     },
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (crashLoopOn) Color(0xFFD32F2F) else Color(0xFF795548)
+                        containerColor = if (crashLoopOn && !oomOnlyOn) Color(0xFFD32F2F) else Color(0xFF795548)
                     ),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                 ) {
                     Text(
-                        text = if (crashLoopOn) "Crash: ON" else "Crash",
+                        text = if (crashLoopOn && !oomOnlyOn) "Crash: ON" else "Crash",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Button(
+                    onClick = {
+                        // "OOMs" is the same crash loop, restricted to Crashes.oomOnly —
+                        // turning it on enables the loop with the OOM-only flag set.
+                        val newState = !(crashLoopOn && oomOnlyOn)
+                        crashLoopPrefs.edit()
+                            .putBoolean(ShoppingDemoApp.KEY_ACTIVE, newState)
+                            .putBoolean(ShoppingDemoApp.KEY_OOM_ONLY, newState)
+                            .apply()
+                        crashLoopOn = newState
+                        oomOnlyOn = newState
+                        simulationManager.crashLoopEnabled = newState
+                        simulationManager.setVariant(simulationManager.activeVariant)
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (crashLoopOn && oomOnlyOn) Color(0xFFD32F2F) else Color(0xFF795548)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = if (crashLoopOn && oomOnlyOn) "OOMs: ON" else "OOMs",
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         maxLines = 1,
                         textAlign = TextAlign.Center
@@ -395,13 +433,14 @@ fun AdvancedScreen(navController: NavController, simulationManager: SimulationMa
                 enabled = false,
                 label = {
                     val nextCrashText = if (crashLoopOn) {
-                        val comboIdx = crashLoopPrefs.getInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, 0) % (Crashes.all.size * 2)
+                        val crashes = if (oomOnlyOn) Crashes.oomOnly else Crashes.all
+                        val comboIdx = crashLoopPrefs.getInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, 0) % (crashes.size * 2)
                         val fastTag = if (crashLoopPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)) "fast, " else ""
                         val ctx = if (comboIdx % 2 == 1) "background" else "foreground"
-                        " ($fastTag next: ${Crashes.all[comboIdx / 2].first}/$ctx)"
+                        " ($fastTag next: ${crashes[comboIdx / 2].first}/$ctx)"
                     } else ""
                     Text(
-                        text = "Crash: ${if (crashLoopOn) "enabled$nextCrashText" else "disabled"} | ANR-A: " +
+                        text = "Crash: ${if (crashLoopOn) "${if (oomOnlyOn) "OOMs only, " else ""}enabled$nextCrashText" else "disabled"} | ANR-A: " +
                             when {
                                 !isVariantASelected -> "unavailable (select Variant A)"
                                 anrAOn -> "enabled"
