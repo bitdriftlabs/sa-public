@@ -19,6 +19,18 @@ import okhttp3.Request
  */
 object Crashes {
 
+    // OOM variants, each exercising a different allocation path/thread context so they
+    // land as distinct issue groups and cover different real-world OOM shapes. Kept as
+    // its own list so the "OOMs" crash-loop mode can cycle through only these.
+    private val oomCrashes: List<Pair<String, () -> Unit>> = listOf(
+        "oom_allocator_thread"      to ::crashOomAllocatorThread,
+        "oom_main_thread"           to ::crashOomMainThread,
+        "oom_single_allocation"     to ::crashOomSingleAllocation,
+        "oom_native_thread"         to ::crashOomNativeThreadExhaustion,
+        "oom_bitmap_decode"         to ::crashOomBitmapDecode,
+        "oom_cache_growth"          to ::crashOomCacheGrowth,
+    )
+
     val all: List<Pair<String, () -> Unit>> = listOf(
         // Main-thread JVM — each exception type is a distinct issue group
         "null_pointer"              to ::crashNullPointer,
@@ -37,7 +49,6 @@ object Crashes {
         // Background-thread JVM — same exception but different stack frame
         "runtime_background_thread" to ::crashRuntimeBackgroundThread,
         "coroutine_io"              to ::crashCoroutineIO,
-        "oom_allocator_thread"      to ::crashOomAllocatorThread,
         // Lock contention — real, uncorrelated thread states across three threads
         "lock_contention"           to ::crashLockContention,
         // Vendor SDK attribution — two distinct fake-vendor namespaces
@@ -48,7 +59,11 @@ object Crashes {
         "native_sigbus"             to ::crashNativeSigbus,
         "native_sigabrt"            to ::crashNativeSigabrt,
         "native_sigfpe"             to ::crashNativeSigfpe,
-    )
+    ) + oomCrashes
+
+    // Subset used by the "OOMs" crash-loop mode (Advanced screen) to cycle through
+    // only out-of-memory variants.
+    val oomOnly: List<Pair<String, () -> Unit>> = oomCrashes
 
     // ── Main-thread JVM ────────────────────────────────────────────────────
 
@@ -133,12 +148,112 @@ object Crashes {
         Thread.sleep(SIGNAL_WAIT_MS)
     }
 
+    // A step delay is threaded through each gradual OOM loop below so the climb
+    // takes ~20-30s instead of well under a second. Reasons this matters, not just
+    // "make it slower": bitdrift's Resource Utilization panel is a periodic snapshot
+    // on a 3s capture interval (confirmed live) -- a session that dies in under 3s
+    // never gets a single sample, and one that dies in ~5s gets one, which reads as
+    // a flat point, not a graph. Pacing each loop to run for several capture ticks
+    // produces an actual rising memory curve. crashOomSingleAllocation is
+    // deliberately excluded -- it represents the opposite case (a single allocation
+    // failing instantly) and pacing it would defeat that contrast.
     private fun crashOomAllocatorThread() {
         Thread {
             val sink = mutableListOf<ByteArray>()
-            while (true) { sink.add(ByteArray(2 * 1024 * 1024)) }
+            while (true) {
+                sink.add(ByteArray(2 * 1024 * 1024))
+                Thread.sleep(BYTE_ARRAY_STEP_DELAY_MS)
+            }
         }.apply { name = "oom-allocator" }.start()
-        Thread.sleep(SIGNAL_WAIT_MS * 10) // OOM takes longer
+        Thread.sleep(OOM_GRADUAL_WAIT_MS)
+    }
+
+    // ── OOM variants ────────────────────────────────────────────────────────
+
+    // Same gradual accumulation as crashOomAllocatorThread, but on the calling
+    // (main) thread directly — top frame and thread attribution differ from the
+    // background-thread variant above.
+    private fun crashOomMainThread() {
+        val sink = mutableListOf<ByteArray>()
+        while (true) {
+            sink.add(ByteArray(2 * 1024 * 1024))
+            Thread.sleep(BYTE_ARRAY_STEP_DELAY_MS)
+        }
+    }
+
+    // A single allocation that exceeds the max array/heap size fails immediately,
+    // rather than the gradual "death by a thousand allocations" pattern above —
+    // a distinct OOM message shape ("won't fit in your heap"). Deliberately not
+    // paced -- see the note above the first gradual crash.
+    private fun crashOomSingleAllocation() {
+        @Suppress("UNUSED_VARIABLE")
+        val giant = ByteArray(Int.MAX_VALUE - 8)
+    }
+
+    // Native thread exhaustion, not Java heap exhaustion: leaks threads (each parked
+    // forever) until the OS refuses to create another one. Common in real apps with
+    // a leaking thread pool/executor. Surfaces as "OutOfMemoryError: pthread_create
+    // failed" rather than a heap-allocation failure.
+    //
+    // Each leaked thread requests a 128MB stack so a handful of threads (not
+    // thousands) exhausts address space -- confirmed live that the default ~1MB
+    // stack made this open-ended and unpredictably slow (multiple minutes on an
+    // emulator with several GB of RAM), which raced badly against the crash-loop's
+    // restart alarm; see SimulationManager.OOM_CRASH_RESTART_DELAY_MS.
+    private fun crashOomNativeThreadExhaustion() {
+        Thread {
+            val leaked = mutableListOf<Thread>()
+            while (true) {
+                val t = Thread(null, { Thread.sleep(Long.MAX_VALUE) }, "leaked-oom-thread", 128L * 1024 * 1024)
+                t.start()
+                leaked.add(t)
+                Thread.sleep(THREAD_SPAWN_STEP_DELAY_MS)
+            }
+        }.apply { name = "oom-thread-spawner" }.start()
+        Thread.sleep(OOM_GRADUAL_WAIT_MS)
+    }
+
+    // Bitmap allocation is one of the most common real-world OOM sources in
+    // image-heavy apps. Decodes large bitmaps in a loop without recycling —
+    // stresses the graphics/bitmap allocation path rather than a plain byte buffer.
+    //
+    // 8192x8192 (256MB/bitmap) instead of 4096x4096 (64MB/bitmap): bitmap pixel data
+    // lives in native memory with a much larger ceiling than the ~192MB Dalvik heap
+    // growth limit, so fewer, bigger allocations get to that ceiling faster and more
+    // predictably than many small ones -- see SimulationManager.OOM_CRASH_RESTART_DELAY_MS.
+    private fun crashOomBitmapDecode() {
+        Thread {
+            val bitmaps = mutableListOf<android.graphics.Bitmap>()
+            while (true) {
+                bitmaps.add(android.graphics.Bitmap.createBitmap(8192, 8192, android.graphics.Bitmap.Config.ARGB_8888))
+                Thread.sleep(BITMAP_STEP_DELAY_MS)
+            }
+        }.apply { name = "oom-bitmap-decode" }.start()
+        Thread.sleep(OOM_GRADUAL_WAIT_MS)
+    }
+
+    // Unbounded cache growth: many small String entries rather than a few large
+    // buffers. Representative of a real leak (e.g. an unbounded in-memory cache),
+    // and stresses the allocator with small, high-churn objects instead of large
+    // ones. Note: ART reports this the same OutOfMemoryError as the others above —
+    // it doesn't have HotSpot's distinct "GC overhead limit exceeded" message — but
+    // the allocation shape and top frame are still a genuinely different scenario.
+    //
+    // Paced in batches rather than per-entry -- these entries are cheap enough that
+    // a per-entry sleep would dominate wall time over actual allocation, and a
+    // periodic pause is enough to spread the climb across several capture ticks.
+    private fun crashOomCacheGrowth() {
+        Thread {
+            val cache = HashMap<String, String>()
+            var i = 0L
+            while (true) {
+                val key = "session-cache-key-$i"
+                cache[key] = key.repeat(64)
+                i++
+                if (i % CACHE_GROWTH_BATCH_SIZE == 0L) Thread.sleep(CACHE_GROWTH_BATCH_DELAY_MS)
+            }
+        }.apply { name = "oom-cache-growth" }.start()
+        Thread.sleep(OOM_GRADUAL_WAIT_MS)
     }
 
     // ── Lock contention — three real, uncorrelated thread states captured ──
@@ -225,4 +340,16 @@ object Crashes {
     private const val SIGNAL_WAIT_MS = 500L
     private const val WATCHDOG_DELAY_MS = 300L // fixed, independent of hold duration
     private const val LOCK_HOLD_MS = 2000L // wide margin vs. WATCHDOG_DELAY_MS
+
+    // How long the calling thread waits for a gradual OOM loop to actually crash the
+    // process before giving up and returning normally. Comfortably above the ~20-30s
+    // these loops are paced to take -- must stay under
+    // SimulationManager.OOM_CRASH_RESTART_DELAY_MS or the restart alarm fires before
+    // the crash does (see that constant's comment for what goes wrong when it doesn't).
+    private const val OOM_GRADUAL_WAIT_MS = 35_000L
+    private const val BYTE_ARRAY_STEP_DELAY_MS = 400L
+    private const val THREAD_SPAWN_STEP_DELAY_MS = 700L
+    private const val BITMAP_STEP_DELAY_MS = 2_000L
+    private const val CACHE_GROWTH_BATCH_SIZE = 5_000L
+    private const val CACHE_GROWTH_BATCH_DELAY_MS = 250L
 }

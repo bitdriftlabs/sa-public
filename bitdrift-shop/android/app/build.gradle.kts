@@ -41,8 +41,8 @@ android {
         applicationId = "ai.bitdrift.shop"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "3.4"
+        versionCode = 9
+        versionName = "4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

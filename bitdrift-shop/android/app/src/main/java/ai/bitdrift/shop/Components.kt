@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import org.json.JSONObject
 
-private const val CAPTURE_SDK_VERSION = "0.23.9"
+private const val CAPTURE_SDK_VERSION = "0.23.10"
 
 // Category color mapping
 private val categoryColors = mapOf(
@@ -391,6 +391,77 @@ fun SimulationOverlay(simulationManager: SimulationManager) {
                     tint = Color.White.copy(alpha = 0.8f)
                 )
             }
+        }
+    }
+}
+
+// Full-screen, opaque by design: fast crash mode intentionally skips all navigation
+// and UI (see fireFastCrash()'s docs), so without this there is no on-device signal
+// telling apart "about to crash in ~300ms-2s" from "the app is stuck." Covers
+// whatever Compose is doing underneath rather than a small overlay, since the whole
+// point is to be unmistakable.
+@Composable
+fun FastCrashModeSplash(status: SimulationManager.FastCrashStatus?) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A2E)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = Color(0xFFF44336),
+                modifier = Modifier.size(56.dp)
+            )
+            Text(
+                text = "FAST CRASH MODE",
+                style = MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            )
+            if (status == null) {
+                CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
+                Text(
+                    text = "Preparing next crash…",
+                    style = MaterialTheme.typography.bodyMedium.copy(color = Color.White.copy(alpha = 0.7f))
+                )
+            } else {
+                if (status.oomOnly) {
+                    AssistChip(
+                        onClick = {},
+                        enabled = false,
+                        label = { Text("OOM ONLY", color = Color(0xFFFF9800)) },
+                        colors = AssistChipDefaults.assistChipColors(containerColor = Color(0xFFFF9800).copy(alpha = 0.15f))
+                    )
+                }
+                Text(
+                    text = "Next crash: ${status.kind}",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    ),
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "(${status.context})",
+                    style = MaterialTheme.typography.bodyMedium.copy(color = Color.White.copy(alpha = 0.7f))
+                )
+            }
+            Text(
+                text = "adb shell am force-stop ai.bitdrift.shop  to stop",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = Color.White.copy(alpha = 0.4f),
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                ),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

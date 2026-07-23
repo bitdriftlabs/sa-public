@@ -48,6 +48,15 @@ class SimulationManager : ViewModel() {
     // splash screen alongside crashLoopEnabled, not from Advanced settings.
     var fastCrashModeEnabled by mutableStateOf(false)
 
+    // Surfaces what fireFastCrash() is about to do so the UI can show a full-screen
+    // splash instead of looking hung -- fast mode skips all navigation/UI by design,
+    // so without this there's no on-device signal distinguishing "about to crash in
+    // 300ms" from "stuck".
+    data class FastCrashStatus(val kind: String, val context: String, val oomOnly: Boolean)
+
+    var fastCrashStatus by mutableStateOf<FastCrashStatus?>(null)
+        private set
+
     var anrAEnabled by mutableStateOf(false)
 
     var forceQuitEnabled by mutableStateOf(false)
@@ -510,8 +519,13 @@ class SimulationManager : ViewModel() {
      * foreground and background exactly once per full sweep, rather than relying on
      * independent random coin-flips to eventually cover all combinations.
      */
+    // OOM crash kinds (see Crashes.oomOnly) need the longer restart delay -- see
+    // OOM_CRASH_RESTART_DELAY_MS's comment for why.
+    private fun restartDelayFor(crashKind: String): Long =
+        if (crashKind.startsWith("oom_")) OOM_CRASH_RESTART_DELAY_MS else CRASH_RESTART_DELAY_MS
+
     private fun pickNextCrashCombo(prefs: android.content.SharedPreferences): Triple<String, () -> Unit, Boolean> {
-        val crashes = Crashes.all
+        val crashes = if (prefs.getBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false)) Crashes.oomOnly else Crashes.all
         val totalCombos = crashes.size * 2
         val comboIdx = prefs.getInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, 0) % totalCombos
         // commit() not apply() — the process dies moments later
@@ -563,7 +577,7 @@ class SimulationManager : ViewModel() {
         Logger.logWarning { "about_to_crash: $name (context=$crashContext)" }
         // Pre-schedule the restart BEFORE the crash — AlarmManager survives even
         // SIGSEGV/SIGBUS where the JVM uncaught-exception handler cannot run.
-        ShoppingDemoApp.scheduleRestart(ctx, CRASH_RESTART_DELAY_MS)
+        ShoppingDemoApp.scheduleRestart(ctx, restartDelayFor(name))
         // Stop the simulator loop so it does not start another journey (and a fresh
         // session) racing the crash — the crash must land in the session that holds
         // the about_to_crash breadcrumb. The AlarmManager restart resumes the loop.
@@ -586,11 +600,12 @@ class SimulationManager : ViewModel() {
         val prefs = ctx.getSharedPreferences(ShoppingDemoApp.PREFS, Context.MODE_PRIVATE)
         val (name, fn, fireInBackground) = pickNextCrashCombo(prefs)
         val crashContext = if (fireInBackground) "background" else "foreground"
+        fastCrashStatus = FastCrashStatus(name, crashContext, prefs.getBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false))
         Logger.startNewSession()
         Logger.addField("crash_kind", name)
         Logger.addField("crash_context", crashContext)
         Logger.logWarning { "about_to_crash (fast): $name (context=$crashContext)" }
-        ShoppingDemoApp.scheduleRestart(ctx, CRASH_RESTART_DELAY_MS)
+        ShoppingDemoApp.scheduleRestart(ctx, restartDelayFor(name))
         dispatchCrash(fn, fireInBackground, activity)
     }
 
@@ -1029,6 +1044,21 @@ class SimulationManager : ViewModel() {
 
     companion object {
         private const val CRASH_RESTART_DELAY_MS = 2000L
+        // OOM crashes materialize on their own schedule (background allocation/thread/
+        // bitmap loop until the allocator gives up) instead of throwing synchronously,
+        // so 2s is not long enough to guarantee the process has actually died by the
+        // time the alarm fires. A too-short delay doesn't lose the crash -- the
+        // background thread still eventually OOMs and kills the process whenever it
+        // gets there -- but it does mean the alarm relaunches the (still-alive) app
+        // early, and the still-running leaked thread from the first attempt keeps
+        // accumulating alongside whatever the relaunch fires next. Confirmed live:
+        // two concurrent "oom-bitmap-decode" threads in one process from exactly this.
+        //
+        // Also needs to stay above Crashes.OOM_GRADUAL_WAIT_MS (35s) -- those loops are
+        // now deliberately paced to run for ~20-30s so the session lasts long enough
+        // to collect multiple Resource Utilization snapshots (3s capture interval)
+        // and show an actual rising memory graph instead of 0-1 flat points.
+        private const val OOM_CRASH_RESTART_DELAY_MS = 45000L
         private const val CRASH_FLUSH_MS = 300L
         // Longer than CRASH_FLUSH_MS: gives ActivityManager time to actually demote
         // process importance away from foreground after moveTaskToBack, before the

@@ -127,6 +127,7 @@ fun ShoppingDemoContent() {
     }
     var crashEnabled by remember { mutableStateOf(crashPrefs.getBoolean("active", false)) }
     var fastCrashEnabled by remember { mutableStateOf(crashPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)) }
+    var oomOnlyEnabled by remember { mutableStateOf(crashPrefs.getBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false)) }
     var autoInfiniteEnabled by remember { mutableStateOf(autoInfinitePrefs.getBoolean("active", false)) }
     var countdown by remember { mutableStateOf(5) }
 
@@ -144,6 +145,7 @@ fun ShoppingDemoContent() {
                 crashPrefs.edit()
                     .putBoolean("active", crashEnabled)
                     .putBoolean(ShoppingDemoApp.KEY_FAST_MODE, fastCrashEnabled)
+                    .putBoolean(ShoppingDemoApp.KEY_OOM_ONLY, crashEnabled && oomOnlyEnabled)
                     .commit()
                 simulationManager.crashLoopEnabled = crashEnabled
                 simulationManager.fastCrashModeEnabled = fastCrashEnabled
@@ -156,10 +158,12 @@ fun ShoppingDemoContent() {
             StartupConfigScreen(
                 crashEnabled = crashEnabled,
                 fastCrashEnabled = fastCrashEnabled,
+                oomOnlyEnabled = oomOnlyEnabled,
                 autoInfiniteEnabled = autoInfiniteEnabled,
                 countdown = countdown,
                 onToggleCrash = { crashEnabled = it },
                 onToggleFastCrash = { fastCrashEnabled = it },
+                onToggleOomOnly = { oomOnlyEnabled = it },
                 onToggleAutoInfinite = {
                     autoInfiniteEnabled = it
                     autoInfinitePrefs.edit().putBoolean("active", it).apply()
@@ -168,6 +172,7 @@ fun ShoppingDemoContent() {
                     crashPrefs.edit()
                         .putBoolean("active", false)
                         .putBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)
+                        .putBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false)
                         .apply()
                     simulationManager.crashLoopEnabled = false
                     simulationManager.fastCrashModeEnabled = false
@@ -425,6 +430,14 @@ fun ShoppingDemoContent() {
                         SimulationOverlay(simulationManager)
                     }
                 }
+
+                // Fast crash mode skips all navigation/UI by design (see fireFastCrash()),
+                // so cover the screen with an explicit status splash instead of leaving
+                // whatever the last frame happened to be -- otherwise a slow crash (or one
+                // that doesn't fire) is indistinguishable on-device from a hung app.
+                if (simulationManager.crashLoopEnabled && simulationManager.fastCrashModeEnabled) {
+                    FastCrashModeSplash(simulationManager.fastCrashStatus)
+                }
             }
         }
     }
@@ -434,13 +447,27 @@ fun ShoppingDemoContent() {
 fun StartupConfigScreen(
     crashEnabled: Boolean,
     fastCrashEnabled: Boolean,
+    oomOnlyEnabled: Boolean,
     autoInfiniteEnabled: Boolean,
     countdown: Int,
     onToggleCrash: (Boolean) -> Unit,
     onToggleFastCrash: (Boolean) -> Unit,
+    onToggleOomOnly: (Boolean) -> Unit,
     onToggleAutoInfinite: (Boolean) -> Unit,
     onSkip: () -> Unit
 ) {
+    // OOM mode is journey-based, not fast -- it only ever produces crashes by running
+    // the sim loop to Confirmation and back. Rather than let "Fast crash mode" and
+    // "Auto ∞ sim" silently contradict that, lock them to the combination OOM mode
+    // actually needs: fast mode off, infinite sim on.
+    val oomModeActive = crashEnabled && oomOnlyEnabled
+    LaunchedEffect(oomModeActive) {
+        if (oomModeActive) {
+            if (fastCrashEnabled) onToggleFastCrash(false)
+            if (!autoInfiniteEnabled) onToggleAutoInfinite(true)
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -512,7 +539,7 @@ fun StartupConfigScreen(
                         text = "Fast crash mode",
                         style = MaterialTheme.typography.titleMedium.copy(
                             color = when {
-                                !crashEnabled -> Color.White.copy(alpha = 0.4f)
+                                !crashEnabled || oomModeActive -> Color.White.copy(alpha = 0.4f)
                                 fastCrashEnabled -> Color(0xFFAB47BC)
                                 else -> Color.White
                             }
@@ -521,10 +548,38 @@ fun StartupConfigScreen(
                     Switch(
                         checked = fastCrashEnabled,
                         onCheckedChange = onToggleFastCrash,
-                        enabled = crashEnabled,
+                        enabled = crashEnabled && !oomModeActive,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = Color(0xFFAB47BC)
+                        )
+                    )
+                }
+
+                // Restricts the crash loop (fast or normal) to Crashes.oomOnly instead of
+                // the full catalog -- only meaningful with Crash mode on.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "OOM crashes only",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            color = when {
+                                !crashEnabled -> Color.White.copy(alpha = 0.4f)
+                                oomOnlyEnabled -> Color(0xFFFF9800)
+                                else -> Color.White
+                            }
+                        )
+                    )
+                    Switch(
+                        checked = oomOnlyEnabled,
+                        onCheckedChange = onToggleOomOnly,
+                        enabled = crashEnabled,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFFFF9800)
                         )
                     )
                 }
@@ -537,12 +592,17 @@ fun StartupConfigScreen(
                     Text(
                         text = "Auto ∞ sim",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            color = if (autoInfiniteEnabled) Color(0xFF9C27B0) else Color.White
+                            color = when {
+                                oomModeActive -> Color.White.copy(alpha = 0.4f)
+                                autoInfiniteEnabled -> Color(0xFF9C27B0)
+                                else -> Color.White
+                            }
                         )
                     )
                     Switch(
-                        checked = autoInfiniteEnabled,
+                        checked = autoInfiniteEnabled || oomModeActive,
                         onCheckedChange = onToggleAutoInfinite,
+                        enabled = !oomModeActive,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
                             checkedTrackColor = Color(0xFF9C27B0)
