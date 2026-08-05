@@ -1,0 +1,71 @@
+[
+  {
+    "rule_id": "metrics-chart",
+    "metadata": {
+      "title": "Waveform Metrics",
+      "summary": { "description": "Five synthetic waveforms (sine, square, sawtooth, triangle, dc) logged once a second — ported from misc-demos/metricdemo. Useful for validating bitdrift's dashboard aggregation against CloudWatch or another metrics backend side by side." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Sine", "y_axis": { "description": "Value", "unit": "UNSPECIFIED" } },
+          { "title": "Square", "y_axis": { "description": "Value", "unit": "UNSPECIFIED" } },
+          { "title": "Sawtooth", "y_axis": { "description": "Value", "unit": "UNSPECIFIED" } },
+          { "title": "Triangle", "y_axis": { "description": "Value", "unit": "UNSPECIFIED" } },
+          { "title": "DC", "y_axis": { "description": "Value", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "counter-chart",
+    "metadata": {
+      "title": "Counter (Consistency Check)",
+      "summary": { "description": "Emits exactly 1.0 per second — a sum aggregation over any N-second window should read exactly N. Useful as a sanity check that events aren't being dropped or double-counted." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Counter", "y_axis": { "description": "Ticks", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "work-latency-average",
+    "metadata": {
+      "title": "Work Latency by App Version (Average)",
+      "summary": { "description": "Average of metric_work_latency_ms, split by sim_app_version. Toggle the Version button on the Advanced screen to \"ship\" a regression (4.1.0) then a fix (4.2.0) live and watch this line react." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Work latency", "y_axis": { "description": "Duration", "unit": "MILLISECONDS" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "work-latency-histogram",
+    "metadata": {
+      "title": "Work Latency by App Version (p50/p90/p99)",
+      "summary": { "description": "Histogram of metric_work_latency_ms grouped by sim_app_version — one percentile series per version, so a regression (or its fix) shows up as a shifted distribution, not just a moved average." },
+      "metric_chart_metadata": {
+        "histogram_bar_chart_display_mode": {},
+        "metadata": [
+          { "title": "Work latency", "y_axis": { "description": "Duration", "unit": "MILLISECONDS" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "work-latency-table",
+    "metadata": {
+      "title": "Work Latency by App Version (Table)",
+      "summary": { "description": "Same data as the average chart, in table view for a side-by-side per-version comparison." },
+      "metric_chart_metadata": {
+        "table_display_mode": {},
+        "metadata": [
+          { "title": "Work latency", "y_axis": { "description": "Duration", "unit": "MILLISECONDS" } }
+        ]
+      }
+    }
+  }
+]

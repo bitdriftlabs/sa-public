@@ -25,7 +25,9 @@ A full-stack e-commerce demo that generates realistic mobile shopping traffic to
 exercise the bitdrift Capture SDK. It includes SDK-instrumented apps for
 **Android**, **React Native** (Android + iOS), and **Kotlin Multiplatform**
 (Android + iOS), all backed by a shared locally run Docker based **FastAPI** server with a built-in
-journey simulator and chaos-testing mode.
+journey simulator and chaos-testing mode. The Android app also includes a synthetic metrics demo
+(waveforms + a work-latency-by-app-version grouping example) — see
+[bitdrift-shop/android/metric-demo.md](bitdrift-shop/android/metric-demo.md).
 
 ### [instrumentation-guide/](instrumentation-guide/)
 
@@ -50,8 +52,6 @@ Standalone demos and reference artifacts from customer engagements and internal 
 - **[manualtracing/](misc-demos/manualtracing/)** — Android app demonstrating manual vs automatic OkHttp network instrumentation with the bitdrift Capture SDK. Shows how both approaches produce identical span structure in the timeline and how `_trace_id` appears on response logs when a tracing workflow is active.
 
 - **[shoppingdemo-oteldemo/](misc-demos/shoppingdemo-oteldemo/)** — Android shopping demo backed by the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store microservices. Demonstrates OpenTelemetry tracing as well as B3 multi-header trace propagation end-to-end: bitdrift SDK on mobile → OTel Demo backend → Zipkin for visual trace inspection.
-
-- **[metricdemo/](misc-demos/metricdemo/)** — Android app that emits five synthetic waveforms (sine, square, sawtooth, triangle, DC, counter) to bitdrift every second. Used to validate bitdrift chart accuracy against CloudWatch and other metric backends.
 
 - **[pii/](misc-demos/pii/)** — Reference regex configuration and validation artifacts for PII scrubbing via bitdrift's `regex_match_and_substitute_field` filter. Includes the regex YAML, change documentation, and validation test results.
 

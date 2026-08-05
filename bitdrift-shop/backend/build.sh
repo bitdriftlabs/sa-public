@@ -3,6 +3,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+"$SCRIPT_DIR/ensure-docker.sh"
 
 IMAGE="stevelerner/bitdrift-shop-backend"
 VERSION=${1:-"latest"}

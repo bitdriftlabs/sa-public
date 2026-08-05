@@ -50,7 +50,7 @@
             "match_id": "injected-anr",
             "generic_match": {
               "base_matcher": {
-                "log_field": "message",
+                "log_body": true,
                 "operator": "EQUAL",
                 "string_value": "guest_anr_injected"
               }
@@ -66,7 +66,7 @@
             "match_id": "force-quit",
             "generic_match": {
               "base_matcher": {
-                "log_field": "message",
+                "log_body": true,
                 "operator": "EQUAL",
                 "string_value": "force_quit_injected"
               }

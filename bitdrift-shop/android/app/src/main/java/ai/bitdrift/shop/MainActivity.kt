@@ -88,6 +88,7 @@ private fun destinationToScreenName(route: String): String = when (route) {
 fun ShoppingDemoContent() {
     val navController = rememberNavController()
     val simulationManager: SimulationManager = viewModel()
+    val metricsDemoManager: MetricsDemoManager = viewModel()
 
     DisposableEffect(navController) {
         val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
@@ -188,7 +189,7 @@ fun ShoppingDemoContent() {
                     startDestination = Screen.Welcome.route
                 ) {
                     composable(Screen.Advanced.route) {
-                        AdvancedScreen(navController, simulationManager)
+                        AdvancedScreen(navController, simulationManager, metricsDemoManager)
                     }
 
                     composable(Screen.Welcome.route) {
