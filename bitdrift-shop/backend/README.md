@@ -6,6 +6,28 @@ Server runs on `http://localhost:5173`.
 
 ---
 
+## Prerequisites (macOS)
+
+All the scripts below just wrap `docker compose` — they need a running Docker daemon, but **do
+not require Docker Desktop**. On macOS, this repo uses [Colima](https://github.com/abiquo/colima)
+instead:
+
+```bash
+brew install colima docker docker-compose
+colima start
+```
+
+`colima start` provisions a lightweight Linux VM and points the `docker` CLI at it automatically
+(no `DOCKER_HOST` exporting needed). Verify it's up before running any script here:
+
+```bash
+docker ps   # should return an empty table, not a connection error
+```
+
+If you see `Cannot connect to the Docker daemon` from any script below, Colima either isn't
+running (`colima start`) or was stopped/reset — `colima status` shows current state. Docker
+Desktop still works if you have it, but isn't what this repo is set up/tested against.
+
 ## Workshop Quick Start
 
 If you're here for the workshop, this is all you need:

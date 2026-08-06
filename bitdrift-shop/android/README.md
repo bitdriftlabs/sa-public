@@ -1,6 +1,6 @@
 # Bitdrift Shop (Android — SDK)
 
-**Version 4.1**
+**Version 4.3**
 
 Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.23.10` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
 
@@ -40,12 +40,19 @@ Every build prints which one is active, e.g. `bitdrift capture dependency: LOCAL
 
 ### Step 1: Start the backend
 
+Needs a running Docker daemon — on macOS this repo uses [Colima](https://github.com/abiquo/colima)
+rather than Docker Desktop; see [backend/README.md](backend/README.md#prerequisites-macos) if
+`docker ps` isn't already working.
+
 ```bash
 cd backend
 ./start-backend-docker.sh
 ```
 
 Want to correlate this app's bitdrift sessions with server-side Datadog APM traces for the same requests? Swap in the Datadog-instrumented backend variant instead — see [misc-demos/backend-ddtrace/](../../misc-demos/backend-ddtrace/).
+
+> Only here for the **metrics/grouping demo**? Skip this step — it talks to bitdrift directly and
+> never touches the backend. See [metric-demo.md](metric-demo.md#setup).
 
 ### Step 2: Run the app
 
@@ -70,12 +77,13 @@ Every Capture SDK feature below is wired up in this app, mapped to the call used
 | **User identity** | `Logger.setEntityId("demo")` on launch, then rotated per simulated user | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt), [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt) |
 | **Network capture** | `CaptureOkHttpEventListenerFactory` on OkHttp | [ApiClient.kt](app/src/main/java/ai/bitdrift/shop/ApiClient.kt) |
 | **Structured logs** | `Logger.logInfo/logWarning/logError` (`add_to_cart`, `checkout_started`, `payment_completed`, …) | [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt), [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt) |
-| **Global fields** | `Logger.addField()` + `FieldProvider` — `user_id`, `app_variant`, `ff_*`, `supportlog` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt), [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt) |
+| **Global fields** | `Logger.addField()` + `FieldProvider` — `user_id`, `app_variant`, `ff_*`, `supportlog`, `sim_app_version` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt), [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) |
+| **Custom metrics** | `Logger.logInfo()` ticking once/sec (`metric_values`) — ported from misc-demos/metricdemo | [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) — see [metric-demo.md](metric-demo.md) |
 | **App launch TTI** | `Logger.logAppLaunchTTI()` after first frame | [MainActivity.kt](app/src/main/java/ai/bitdrift/shop/MainActivity.kt) |
 | **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`), `Logger.trackSpan("score_products")` | [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt) |
 | **Support tooling** | `Logger.createTemporaryDeviceCode()`, Support-Mode toggle | [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt) |
 | **Crash symbolication** | ProGuard mapping upload via `bdUpload*` tasks | [build.gradle.kts](build.gradle.kts) |
-| **Session boundaries** | `Logger.startNewSession()` per simulated journey | [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt) |
+| **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) |
 
 Fault scenarios built on top of this instrumentation: ANR, force-quit, crash loop (see [Crash Loop](README-refs.md#crash-loop), [foreground-background-crashes.md](workflows/foreground-background-crashes.md)) and a feature-flag-gated slow-rendering demo (see [demo-slow-rendering.md](demo-slow-rendering.md)).
 
@@ -113,6 +121,7 @@ Once the app is generating data, use the **bd-cli** skill to deploy the twelve s
 | `bd-shop-10-attribution-rate.json` | issue-match BDRL, `rate` chart | % of crashes attributable to a known cause — see [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md) |
 | `bd-shop-11-slow-rendering.json` | on-device frame detection, feature flag exposure | Zero-instrumentation dropped-frame count/histogram split by `recommendations_v2` exposure and by screen; alert on frame-drop spikes — see [demo-slow-rendering.md](demo-slow-rendering.md) |
 | `bd-shop-11b-slow-rendering-manual-span.json` | custom span, feature flag exposure | Same shape as bd-shop-11, matched on a manually-instrumented span instead — illustrative comparison, no alert — see [demo-slow-rendering.md](demo-slow-rendering.md) |
+| `bd-shop-12-metric-grouping.json` | custom metric log, custom field | Waveform + counter metrics ported from misc-demos/metricdemo; work-latency average/histogram/table grouped by simulated `sim_app_version` — see [metric-demo.md](metric-demo.md) |
 
 ## Issue (Crash) Analytics
 
@@ -129,6 +138,19 @@ Business/engineering framing for each: [foreground-background-crashes.md](workfl
 
 > **Prompt:** *"Deploy the bd-shop-*.json workflows to bitdrift using bd CLI and verify they transition to LIVE status."* See [`workflows/README.md`](workflows/README.md) for deploy instructions.
 
+## Deploy dashboards
+
+Once the relevant workflows are deployed, compose their charts into curated dashboard views from
+[`dashboards/`](dashboards/) — see [`dashboards/README.md`](dashboards/README.md) for why these
+need one extra step versus workflows (a dashboard chart references an already-deployed workflow's
+ID, so the placeholder in each file needs resolving first) and the exact deploy commands.
+
+| Dashboard | Composes | Focus |
+|-----------|----------|-------|
+| `bd-shop-01-metric-grouping.json` | `bd-shop-12-metric-grouping.json` | Two tabs: work-latency average/histogram/table grouped by `sim_app_version`, and the ported waveform + CloudWatch consistency charts — see [metric-demo.md](metric-demo.md) |
+
+> **Prompt:** *"Deploy the bd-shop-*.json dashboards to bitdrift using bd CLI, resolving each workflow ID placeholder first."* See [`dashboards/README.md`](dashboards/README.md) for deploy instructions.
+
 ---
 
 ## Reference
@@ -136,11 +158,13 @@ Business/engineering framing for each: [foreground-background-crashes.md](workfl
 - **[README-refs.md](README-refs.md)** — screens (18), emulator setup, local config, simulation modes, entity list, project structure
 - **[../../instrumentation-guide/](../../instrumentation-guide/)** — how to instrument **any** app (prompt-driven), plus a cleanup guide
 - **[workflows/README.md](workflows/README.md)** — deploy and monitor workflows via bd CLI
+- **[dashboards/README.md](dashboards/README.md)** — deploy dashboards that compose workflow charts via bd CLI
 - **[workflows/foreground-background-crashes.md](workflows/foreground-background-crashes.md)** — foreground vs. background crash workflows: why they're separate, the BDRL behind each, and how to cross-check the split against real data
 - **[workflows/advanced-crash-attribution.md](workflows/advanced-crash-attribution.md)** — blocking-thread and vendor-SDK crash attribution workflows, plus the attribution-rate chart that ties them together
 - **[demo-slow-rendering.md](demo-slow-rendering.md)** — feature-flag-gated slow-rendering bug: setup, live trigger, dashboard/alert walkthrough, and how to diagnose + fix the offending code using bitdrift's output
+- **[metric-demo.md](metric-demo.md)** — synthetic waveform metrics ported from misc-demos/metricdemo, plus a work-latency-by-app-version demo showing how to group/break down a custom metric by a dimension
 
-**Simulation features:** [ANR-A](README-refs.md#anr-a-guest-journey-testing) · [Force Quit](README-refs.md#force-quit-journey-testing) · [Crash Loop](README-refs.md#crash-loop) · [Slow Rendering](demo-slow-rendering.md)
+**Simulation features:** [ANR-A](README-refs.md#anr-a-guest-journey-testing) · [Force Quit](README-refs.md#force-quit-journey-testing) · [Crash Loop](README-refs.md#crash-loop) · [Slow Rendering](demo-slow-rendering.md) · [Metric Grouping](metric-demo.md)
 
 ## Architecture
 

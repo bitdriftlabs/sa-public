@@ -192,7 +192,11 @@ private val SIM_VARIANTS = listOf(SimVariant.CONTROL, SimVariant.VARIANT_A, SimV
 // MARK: - Advanced Controls
 
 @Composable
-fun AdvancedScreen(navController: NavController, simulationManager: SimulationManager) {
+fun AdvancedScreen(
+    navController: NavController,
+    simulationManager: SimulationManager,
+    metricsDemoManager: MetricsDemoManager
+) {
     val localContext = androidx.compose.ui.platform.LocalContext.current
     val anrAPrefs = remember {
         localContext.getSharedPreferences(SimulationManager.ANR_PREFS_NAME, android.content.Context.MODE_PRIVATE)
@@ -451,6 +455,36 @@ fun AdvancedScreen(navController: NavController, simulationManager: SimulationMa
                 },
                 modifier = Modifier.padding(top = 6.dp)
             )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            Text(
+                text = "Metrics Demo",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+
+            // bitdrift SDK: once a second, logs a single metric_values event with the
+            // waveform + counter fields ported from misc-demos/metricdemo, plus
+            // metric_work_latency_ms whose distribution auto-rotates across sim_app_version
+            // on its own (see MetricsDemoManager.VERSION_ROTATION_SECONDS) -- no manual
+            // version control needed. See metric-demo.md for the workflow that charts these.
+            Button(
+                onClick = { metricsDemoManager.toggle() },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (metricsDemoManager.isRunning) Color(0xFF00BCD4) else Color(0xFF795548)
+                ),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+            ) {
+                Text(
+                    text = if (metricsDemoManager.isRunning) "Metrics: ON" else "Metrics",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    textAlign = TextAlign.Center
+                )
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 

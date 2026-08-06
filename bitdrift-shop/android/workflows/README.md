@@ -32,6 +32,8 @@ bd workflow create workflows/bd-shop-11-slow-rendering.json \
   --chart-metadata-file workflows/chart-metadata/bd-shop-11-slow-rendering.chart.json
 bd workflow create workflows/bd-shop-11b-slow-rendering-manual-span.json \
   --chart-metadata-file workflows/chart-metadata/bd-shop-11b-slow-rendering-manual-span.chart.json
+bd workflow create workflows/bd-shop-12-metric-grouping.json \
+  --chart-metadata-file workflows/chart-metadata/bd-shop-12-metric-grouping.chart.json
 ```
 
 **`create` does not deploy.** A newly created workflow sits in `IDLE` state — it won't
@@ -60,6 +62,24 @@ So these scripts only ever define what to *reject*; the chart automatically coun
 complement. See [foreground-background-crashes.md](foreground-background-crashes.md) for a
 worked example of why that reads backwards if you're not expecting it.
 
+**Matching a custom log by its name/message — `log_body`, not `log_field`.** A silent-zero-matches
+bug that shipped in `bd-shop-02` and `bd-shop-05` (fixed alongside `bd-shop-12`): `Logger.logInfo(fields)
+{ "payment_failed" }` sets the log's *body/message*, not a custom field named `message` — the
+fields map never contains a key literally called `message`. Matching with
+`"generic_match": {"base_matcher": {"log_field": "message", "operator": "EQUAL", "string_value": "payment_failed"}}`
+therefore matches nothing, forever, with no error — the workflow deploys fine and just never fires.
+The correct matcher for "the log's name/message equals X" is `log_body`, a boolean flag on the same
+`base_matcher`, not a field-name lookup:
+```json
+{ "base_matcher": { "log_body": true, "operator": "EQUAL", "string_value": "payment_failed" } }
+```
+`log_field: "<name>"` is only for matching an actual key in the fields map (e.g. `checkout_type`,
+`_screen_name`, `_span_name` — real emitted fields). Confirmed live: `bd-shop-12`'s workflow chart
+stayed empty for ~50 minutes with 1000+ matching events already sitting in the raw session
+timeline (`bd timeline logs <session-id>`) before this was caught — an Instant Insight
+(`csaK` Logs by Level) confirmed the ingestion pipeline itself was current and healthy the whole
+time, which is what pointed at the match rule instead of a platform delay.
+
 ## Workflows
 
 | File | Name | What it shows |
@@ -76,6 +96,7 @@ worked example of why that reads backwards if you're not expecting it.
 | `bd-shop-10-attribution-rate.json` | Crash Attribution Rate | `rate` chart: % of all crashes attributable to a known blocking thread or vendor SDK, ties bd-shop-08/09 together. See [advanced-crash-attribution.md](advanced-crash-attribution.md). |
 | `bd-shop-11-slow-rendering.json` | Slow Rendering (Recommendations v2) | **Primary.** OOTB dropped-frame count (alert target); count/duration split by `recommendations_v2` exposure and by `_screen_name`. Zero app instrumentation. See [../demo-slow-rendering.md](../demo-slow-rendering.md). |
 | `bd-shop-11b-slow-rendering-manual-span.json` | Slow Rendering — Manual Span Example | **Secondary/illustrative, no alert.** Same shape, matched on a custom `score_products` span instead of OOTB — shows what manual instrumentation looks like when you need to pinpoint an exact function. See [../demo-slow-rendering.md](../demo-slow-rendering.md). |
+| `bd-shop-12-metric-grouping.json` | Metric Grouping | Waveform + counter metrics ported from misc-demos/metricdemo; work-latency average/histogram/table grouped by simulated `sim_app_version` — shows a regression and its fix as a shifted distribution. See [../metric-demo.md](../metric-demo.md). |
 
 See [foreground-background-crashes.md](foreground-background-crashes.md) for why bd-shop-06/07 are
 separate workflows, the platform constraint that shapes both BDRL scripts, and how to
@@ -97,9 +118,15 @@ These workflows match the following log events emitted by the app:
 | `checkout_abandoned` | SimulationManager.kt | `checkout_type` |
 | `guest_anr_injected` | SimulationManager.kt | `force_quit_enabled` |
 | `force_quit_injected` | SimulationManager.kt | `force_quit_screen` |
+| `metric_values` | MetricsDemo.kt | `metric_sine`, `metric_square`, `metric_sawtooth`, `metric_triangle`, `metric_dc`, `metric_counter`, `metric_work_latency_ms` |
 
 Span names: `journey`, `checkout`, `product_discovery` — all emit `_duration_ms` and `_span_type: "end"`. `score_products` (recommendations_v2 flag only) also emits `_duration_ms`.
 
 OOTB match used by `bd-shop-11`: `DROPPED_FRAME` / `_frame_issue_type == "Slow"` — bitdrift's built-in Android frame-rendering detection, no app instrumentation required.
 
-Feature flag keys used in `group_by`: `checkout_flow`, `payment_ui`, `cart_abandon_rate`, `anr_a`, `force_quit`, `recommendations_v2`.
+Feature flag keys used in `group_by` (`state_value` / `FEATURE_FLAG_EXPOSURE`): `checkout_flow`, `payment_ui`, `cart_abandon_rate`, `anr_a`, `force_quit`, `recommendations_v2`.
+
+`bd-shop-12` groups by `sim_app_version` instead — a plain `Logger.addField()` value, not a feature
+flag exposure, so its `group_by` uses `field_key` rather than `state_value`. Use `field_key` for any
+regular log/global field; reserve `state_value`/`FEATURE_FLAG_EXPOSURE` for values set via
+`Logger.setFeatureFlagExposure()`.

@@ -19,7 +19,7 @@
             "match_id": "payment-failed",
             "generic_match": {
               "base_matcher": {
-                "log_field": "message",
+                "log_body": true,
                 "operator": "EQUAL",
                 "string_value": "payment_failed"
               }
@@ -35,7 +35,7 @@
             "match_id": "checkout-failed",
             "generic_match": {
               "base_matcher": {
-                "log_field": "message",
+                "log_body": true,
                 "operator": "EQUAL",
                 "string_value": "checkout_failed"
               }

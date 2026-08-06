@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+"$(dirname "${BASH_SOURCE[0]}")/ensure-docker.sh"
 # Clear port 5173 first
 CID=$(docker ps -q --filter "publish=5173")
 [ -n "$CID" ] && docker rm -f $CID
