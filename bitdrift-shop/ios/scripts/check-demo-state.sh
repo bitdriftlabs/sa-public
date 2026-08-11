@@ -36,25 +36,24 @@ if ! app_installed; then
 fi
 
 if [[ "$RESET" -eq 1 ]]; then
-  if [[ "$TARGET_KIND" != "sim" ]]; then
-    # devicectl can copy files off a device but not delete them, and the app's
-    # UserDefaults plist isn't reachable at all.
-    echo "--reset only works on the Simulator."
-    echo "On a device, clear flags from the app's Advanced screen, or reinstall:"
-    echo "  xcrun devicectl device uninstall app --device $TARGET_ID $BUNDLE_ID"
-    exit 2
+  echo "Disarming all fault flags on $(target_label)…"
+  if [[ "$TARGET_KIND" == "sim" ]]; then
+    container="$(xcrun simctl get_app_container "$TARGET_ID" "$BUNDLE_ID" data 2>/dev/null)"
+    # Order matters. The app has to be dead first, or cfprefsd writes its cached
+    # copy straight back over the deleted plist; bouncing the daemon afterwards
+    # makes it re-read (now-absent) state from disk.
+    terminate_app
+    sleep 1
+    rm -f "$container/Library/Preferences/$BUNDLE_ID.plist"
+    rm -f "$container/Library/Application Support/bitdrift-demo-state.json"
+    restart_prefs_daemon
+    sleep 1
+  else
+    # A device's plist can't be deleted, so disarm by relaunching with every flag
+    # explicitly off — the app persists whatever it resolves at startup.
+    disarm_flags
   fi
-  container="$(xcrun simctl get_app_container "$TARGET_ID" "$BUNDLE_ID" data 2>/dev/null)"
-  # Order matters. The app has to be dead first, or cfprefsd writes its cached
-  # copy straight back over the deleted plist; bouncing the daemon afterwards
-  # makes it re-read (now-absent) state from disk.
-  terminate_app
-  sleep 1
-  rm -f "$container/Library/Preferences/$BUNDLE_ID.plist"
-  rm -f "$container/Library/Application Support/bitdrift-demo-state.json"
-  restart_prefs_daemon
-  sleep 1
-  echo "All demo flags cleared on $(target_label) (app terminated)."
+  echo "Done."
   echo
 fi
 

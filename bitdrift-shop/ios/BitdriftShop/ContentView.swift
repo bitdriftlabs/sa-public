@@ -144,6 +144,12 @@ struct ContentView: View {
         Prefs.appHang.set(Prefs.keyActive, sim.appHangEnabled)
         Prefs.forceQuit.set(Prefs.keyActive, sim.forceQuitEnabled)
         Prefs.autoInfinite.set(Prefs.keyActive, Prefs.autoInfinite.bool(Prefs.keyActive))
+
+        // A pending background crash lives in memory (`pendingBackgroundCrash`),
+        // so it cannot survive a process restart. Clearing the persisted flag here
+        // stops a stale `true` from outliving the process that armed it and making
+        // the watchdog background the app for a crash that will never fire.
+        Prefs.crashLoop.set(Prefs.keyAwaitingBackground, false)
         Prefs.crashLoop.flush()
 
         // These flags persist across launches and silently change what the app

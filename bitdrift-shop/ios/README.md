@@ -270,16 +270,25 @@ Both work against a Simulator or a physical device:
 | `--simulator [UDID]` | Force the simulator (`simctl`) |
 | `--device [UDID]` | Force a physical device (`devicectl`) |
 
-Two device-mode limits, both from iOS rather than the scripts:
+Both work on a device too:
 
-- **Background crashes need a manual Home press.** There is no remote "go to
-  background" for a real device the way launching SpringBoard works on the
-  Simulator, so the watchdog prints a prompt and waits. Foreground crashes and
-  hang/force-quit relaunches are fully automatic.
-- **`--reset` is simulator-only.** `devicectl` can copy files off a device but
-  not delete them, and the app's `UserDefaults` plist isn't reachable at all.
-  Clear flags from the Advanced screen, or
-  `xcrun devicectl device uninstall app --device <UDID> ai.bitdrift.shop.ios`.
+- **Backgrounding** for the background half of the crash sweep. The Simulator gets
+  there by launching SpringBoard; a device has no equivalent, so the watchdog
+  launches **Settings** to take the foreground instead. Expect the phone to flip
+  to Settings periodically during a crash loop.
+- **`--reset`** can't delete a device's `UserDefaults` plist, so it disarms by
+  relaunching the app with every flag explicitly `0`. Launch arguments land in
+  `NSArgumentDomain`, and the app persists whatever it resolves at startup, so one
+  disarmed launch sticks.
+
+**Stuck in Fast Crash Mode?** That's what `--reset` is for:
+
+```bash
+./scripts/check-demo-state.sh --device --reset
+```
+
+Fast crash mode fires before you can reach the UI, so the on-screen "Stop crash
+loop" button is unusable — this is the way out.
 
 The app publishes its fault state to
 `<container>/Library/Application Support/bitdrift-demo-state.json`, and the

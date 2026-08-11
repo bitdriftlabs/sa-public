@@ -151,6 +151,37 @@ background_app() {
   return 0
 }
 
+# Turns every fault flag off by relaunching the app with them all set to 0.
+#
+# Works on a device, where the plist cannot be deleted: launch arguments land in
+# NSArgumentDomain, and the app promotes whatever it resolves at startup into its
+# persistent store — so one disarmed launch sticks. Note the `--` before the app's
+# own arguments, without which devicectl claims them as its own flags.
+DISARM_ARGS=(
+  -crash_loop.active 0
+  -crash_loop.fast_mode 0
+  -crash_loop.oom_only 0
+  -crash_loop.resume_infinite_with_crash 0
+  -crash_loop.awaiting_background 0
+  -app_hang.active 0
+  -app_hang.restart_pending 0
+  -force_quit.active 0
+  -force_quit.restart_pending 0
+  -auto_infinite.active 0
+)
+
+disarm_flags() {
+  terminate_app
+  sleep 2
+  case "$TARGET_KIND" in
+    sim) xcrun simctl launch "$TARGET_ID" "$BUNDLE_ID" "${DISARM_ARGS[@]}" >/dev/null 2>&1 ;;
+    device) xcrun devicectl device process launch --device "$TARGET_ID" "$BUNDLE_ID" \
+              -- "${DISARM_ARGS[@]}" >/dev/null 2>&1 ;;
+  esac
+  # Give the app time to start, resolve, persist and republish its state.
+  sleep 8
+}
+
 # Bounces the Simulator's preferences daemon so it drops its cached copy of the
 # app's domain and re-reads from disk. Needed after deleting the plist from the
 # host, otherwise the daemon just writes its stale values back.
