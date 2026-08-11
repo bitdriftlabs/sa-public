@@ -1310,6 +1310,11 @@ fun PaymentApplePayScreen(navController: NavController, checkoutSession: String?
             title = "Complete Purchase",
             icon = Icons.Default.CheckCircle
         ) {
+            // bitdrift SDK: logInfo() records payment completion. Needed on every
+            // payment method, not just card -- the checkout-funnel workflow keys on
+            // this event, so omitting it here silently excluded these completions
+            // from the conversion numbers.
+            Logger.logInfo(mapOf("payment_method" to "apple_pay", "order_id" to orderId)) { "payment_completed" }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }
@@ -1352,6 +1357,11 @@ fun PaymentPayPalScreen(navController: NavController, checkoutSession: String?) 
             title = "Complete Purchase",
             icon = Icons.Default.CheckCircle
         ) {
+            // bitdrift SDK: logInfo() records payment completion. Needed on every
+            // payment method, not just card -- the checkout-funnel workflow keys on
+            // this event, so omitting it here silently excluded these completions
+            // from the conversion numbers.
+            Logger.logInfo(mapOf("payment_method" to "paypal", "order_id" to orderId)) { "payment_completed" }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }
@@ -1392,6 +1402,11 @@ fun PaymentAndroidPayScreen(navController: NavController, checkoutSession: Strin
             title = "Complete Purchase",
             icon = Icons.Default.CheckCircle
         ) {
+            // bitdrift SDK: logInfo() records payment completion. Needed on every
+            // payment method, not just card -- the checkout-funnel workflow keys on
+            // this event, so omitting it here silently excluded these completions
+            // from the conversion numbers.
+            Logger.logInfo(mapOf("payment_method" to "android_pay", "order_id" to orderId)) { "payment_completed" }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }

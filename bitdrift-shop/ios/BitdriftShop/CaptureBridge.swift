@@ -87,9 +87,19 @@ enum CaptureBridge {
     /// Must run before any new screen view is logged, or the persisted value has
     /// already been overwritten with this launch's first screen.
     private static func reportPreviousRun() {
-        guard let info = Logger.previousRunInfo else { return }
-
+        // Snapshot and clear before doing anything else, whether or not there is a
+        // previous run to report.
+        //
+        // The value describes the run that just ended. Leaving it in place means a
+        // launch that dies *before* reaching its first screen — precisely the
+        // scene-create watchdog case — inherits the previous process's screen on
+        // the launch after that, instead of correctly reporting `unknown`. Clearing
+        // it here is what makes the pre-screen bucket honest.
         let lastScreen = Prefs.screen.string(Prefs.keyLastScreen) ?? "unknown"
+        Prefs.screen.remove(Prefs.keyLastScreen)
+        Prefs.screen.flush()
+
+        guard let info = Logger.previousRunInfo else { return }
         let fields = [
             "termination_reason": info.terminationReason.rawValue,
             "fatal": String(info.hasFatallyTerminated),

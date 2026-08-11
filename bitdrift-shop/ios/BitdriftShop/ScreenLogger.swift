@@ -31,7 +31,13 @@ enum ScreenLogger {
         // Persisted for the next launch: an out-of-session termination (watchdog
         // hang, jetsam kill) carries no field at all, so the only way to attribute
         // it is to remember where we were and report it after the restart.
+        //
+        // Flushed, unlike an ordinary preference write. This value exists purely to
+        // survive the process dying abruptly, so an unflushed write can lose the
+        // newest screen and attribute the next launch to a stale one — the same
+        // reason every crash-state write in DemoPrefs flushes.
         Prefs.screen.set(Prefs.keyLastScreen, screenName)
+        Prefs.screen.flush()
     }
 
     static func logInfo(_ message: String, _ fields: [String: String] = [:]) {

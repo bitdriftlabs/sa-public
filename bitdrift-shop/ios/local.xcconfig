@@ -23,7 +23,8 @@ BITDRIFT_API_HOST = api.bitdrift.io
 SHOP_BACKEND_URL =
 
 // Bundle identifier. Override in .local.xcconfig if you need a unique ID for
-// your own signing team.
+// your own signing team. The scripts in scripts/ cannot read xcconfig, so export
+// the same value for them:  export BUNDLE_ID=<your-id>
 BITDRIFT_SHOP_BUNDLE_ID = ai.bitdrift.shop.ios
 
 // Signing team for device builds. Leave blank for Simulator-only work; set it in

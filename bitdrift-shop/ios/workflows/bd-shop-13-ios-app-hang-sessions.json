@@ -1,0 +1,53 @@
+{
+  "name": "bd-shop — iOS App Hang Sessions",
+  "platform_targets": [
+    {
+      "apple": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop.ios"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "app-hang",
+            "ootb_match": {
+              "apple_condition": "APP_IOS_BUILT_IN_ANR"
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "hang-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "app-hang"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "capture-hang-session",
+      "flush_rule": {
+        "applied_daily_limit": 100,
+        "match_id": "app-hang"
+      }
+    }
+  ]
+}

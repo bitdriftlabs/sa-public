@@ -81,10 +81,19 @@ The **iOS Simulator shares the host's network stack**, so the app reaches the
 backend at plain `http://localhost:5173` with no aliasing — unlike the Android
 emulator, which needs the `10.0.2.2` alias.
 
-The URL is hardcoded in [ApiClient.swift](BitdriftShop/ApiClient.swift), exactly
-as it is in Android's `ApiClient.kt` — it is not a build setting. To run against
-a **physical device**, edit that constant to your Mac's LAN IP, the same one-line
-change you would make on Android.
+On a **physical device** `localhost` means the phone, which has no route to your
+Mac's loopback — so set `SHOP_BACKEND_URL` in `.local.xcconfig` to your Mac's LAN
+address. No source changes needed:
+
+```
+SHOP_BACKEND_URL = http:/$()/192.168.1.20:5173
+```
+
+`ipconfig getifaddr en0` prints the address. Keep the `$()` between the slashes:
+`//` starts a comment in xcconfig, so without it the value truncates to `http:`.
+
+(A physical *Android* device has the same problem — its `10.0.2.2` alias is
+emulator-only. The emulator hides it rather than solving it.)
 
 ### Step 2: Run the app
 
@@ -200,8 +209,11 @@ launches.
 
 ### Crash catalog
 
-[`Crashes.swift`](BitdriftShop/Crashes.swift) defines 32 variants, each with its
-own `@inline(never)` top frame so bitdrift's issue grouper keeps them apart:
+[`Crashes.swift`](BitdriftShop/Crashes.swift) defines 36 variants, each with its
+own `@inline(never)` top frame so bitdrift's issue grouper keeps them apart.
+
+**30 run in the default sweep** — the 6 memory variants are excluded unless
+`ENABLE_OOM_CRASHES = YES`, since each blocks for ~35s and needs a 45s restart.
 
 - **Swift language traps** (13) — force-unwrap nil, array index, force cast,
   divide by zero, number format, arithmetic overflow, precondition, assertion,
@@ -210,6 +222,13 @@ own `@inline(never)` top frame so bitdrift's issue grouper keeps them apart:
 - **Standard-library traps** (3) — missing dictionary key, invalid `Range`
   (upperBound < lowerBound), `try!` decode of a mismatched payload
 - **Off-main-thread** (2) — background `DispatchQueue`, detached `Task`
+- **Watchdog terminations** (3) — `0x8BADF00D`, reported as **App Hang**:
+  `scene-create` (blocks during launch), `scene-update` (blocks on resume),
+  `process-exit` (blocks on SIGTERM). Not exceptions — the OS killing a process
+  that overran a lifecycle budget. These arm a flag and `scripts/watchdog.sh`
+  drives the transition, since an app cannot launch, resume or terminate itself
+- **Memory access faults** (1) — `exc_bad_access_null`, a real bad dereference, so
+  the report carries a faulting address (a raised `SIGSEGV` carries none)
 - **Lock contention** (1) — three genuinely uncorrelated thread states captured
 - **Vendor SDK attribution** (2) — frames from `AdSDKFake` / `AnalyticsSDKFake`,
   standing in for Android's `com.adsdk.fake` / `com.analytics.fake`
@@ -251,6 +270,8 @@ are all places where the platform left no choice:
 | **Frame jank** | OOTB `DROPPED_FRAME` detection | Not available on iOS — use the `score_products` span |
 | **Preferences** | `SharedPreferences` + `commit()` | `UserDefaults` + `synchronize()`, namespaced by suite in [DemoPrefs.swift](BitdriftShop/DemoPrefs.swift) |
 | **Android Pay screen** | Native to the platform | Kept as-is. The route, `_screen_name`, and `payment_method` values stay `PaymentAndroidPay` / `android_pay` so the shared funnel and payment-error workflows line up across platforms |
+| **`payment_completed`** | Emitted only on the card screen | Emitted for **every** payment method. Android's omission silently drops Apple Pay / PayPal / Android Pay from the checkout-funnel conversion numbers — an Android bug worth fixing there, not a behaviour worth copying. Expect iOS completion counts to exceed Android's until it is |
+| **`user_id` on member checkout** | Reads `user.id`, which the backend never returns — so it is never set | Falls back to `user.email`, the only stable identifier `/api/checkout/signin` actually provides. Android has the same latent bug |
 
 ## Scripts
 

@@ -10,7 +10,12 @@
 # caches the domain in memory, so a host-side read can return values the app
 # abandoned minutes ago. On a device the plist isn't reachable at all.
 
-BUNDLE_ID="ai.bitdrift.shop.ios"
+# Must match BITDRIFT_SHOP_BUNDLE_ID in .local.xcconfig. These scripts cannot read
+# xcconfig, so if you override the bundle identifier there, export it here too or
+# every script will look for an app that is not installed:
+#
+#   export BUNDLE_ID=com.example.bitdriftshop
+BUNDLE_ID="${BUNDLE_ID:-ai.bitdrift.shop.ios}"
 
 # Set by resolve_target: "sim" or "device", plus the identifier.
 TARGET_KIND=""
@@ -184,8 +189,10 @@ DISARM_ARGS=(
   -crash_loop.awaiting_background 0
   -app_hang.active 0
   -app_hang.restart_pending 0
+  -app_hang.resume_infinite 0
   -force_quit.active 0
   -force_quit.restart_pending 0
+  -force_quit.resume_infinite 0
   -auto_infinite.active 0
 )
 

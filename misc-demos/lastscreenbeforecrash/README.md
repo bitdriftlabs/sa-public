@@ -34,6 +34,7 @@ func onScreen(_ name: String) {
     Logger.logScreenView(screenName: name)
     Logger.addField(withKey: "last_screen", value: name)          // rides along on crashes
     UserDefaults.standard.set(name, forKey: "last_screen")        // survives the process dying
+    UserDefaults.standard.synchronize()                           // flush — a crash may be imminent
 }
 ```
 
@@ -42,7 +43,7 @@ func onScreen(_ name: String) {
 fun onScreen(name: String) {
     Logger.logScreenView(name)
     Logger.addField("last_screen", name)
-    prefs.edit().putString("last_screen", name).apply()
+    prefs.edit().putString("last_screen", name).commit()   // commit, not apply — must survive a crash
 }
 ```
 
@@ -57,15 +58,27 @@ behind, so you report them *after* the restart.
 **before** logging your first screen view:
 
 ```swift
+// Snapshot and clear first — this value describes the run that just ended.
+let previousScreen = UserDefaults.standard.string(forKey: "last_screen") ?? "unknown"
+UserDefaults.standard.removeObject(forKey: "last_screen")
+UserDefaults.standard.synchronize()
+
 if let info = Logger.previousRunInfo {
     Logger.logError("previous_run_terminated", fields: [
         "termination_reason": info.terminationReason.rawValue,   // fatalCrash, cleanExit, ...
-        "crashed_on_screen": UserDefaults.standard.string(forKey: "last_screen") ?? "unknown",
+        "crashed_on_screen": previousScreen,
     ])
 }
 ```
 
-Order matters: read the saved value before the new session overwrites it.
+Two details that matter:
+
+- **Read it before your first screen view**, or it has already been overwritten
+  with this launch's screen.
+- **Clear it after reading.** Otherwise a launch that dies *before* reaching any
+  screen inherits the previous run's screen on the launch after that, instead of
+  correctly reporting `unknown` — which is exactly the pre-screen case the `other`
+  bucket is supposed to surface.
 
 ## Step 3 — deploy the workflow
 

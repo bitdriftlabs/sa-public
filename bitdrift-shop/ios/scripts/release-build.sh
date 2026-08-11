@@ -123,22 +123,28 @@ echo
 echo "app:  ${APP:-not found}"
 echo "dSYM: ${DSYM:-not found}"
 
-# ── Did the upload actually land? ────────────────────────────────────────
-if [[ "$HAVE_BD" -eq 0 ]]; then
-  echo "bd CLI not on PATH — could not verify the upload."
-elif [[ -z "$BEFORE" ]]; then
-  echo "Could not read the debug-file count from bd — skipping verification."
-  echo "Check manually: bd debug-files list"
-else
+# ── Upload reporting ────────────────────────────────────────────────────
+#
+# Deliberately NOT a pass/fail check on the debug-file count. An unchanged count
+# does not mean failure: rebuilding unchanged source produces the same dSYM UUID,
+# which the platform deduplicates, so a perfectly successful upload leaves the
+# total flat. The reverse is true too — an unrelated concurrent upload can raise
+# it. `bd debug-files list` exposes only a content hash, not the dSYM UUID, so the
+# listing cannot be matched against this build either.
+#
+# The authoritative signal is the build phase above: upload-symbols.sh keys off
+# bd's explicit "File uploaded" line and warns per-dSYM when it is absent. The
+# count is printed here only as context.
+if [[ "$HAVE_BD" -eq 1 && -n "$BEFORE" ]]; then
   AFTER="$(debug_file_count)"
-  echo "debug files on the platform: ${BEFORE} -> ${AFTER}"
   if [[ "$AFTER" == "$BEFORE" ]]; then
-    echo "WARNING: the count did not change — the dSYM upload did not land."
-    echo "         Usual cause is a missing or rejected BITDRIFT_API_KEY."
-    echo "         bd exits 0 even when the key is rejected, so check the key first."
+    echo "debug files on the platform: ${AFTER} (unchanged — same dSYM UUID is deduplicated)"
   else
-    echo "Symbols uploaded."
+    echo "debug files on the platform: ${BEFORE} -> ${AFTER} (new dSYM stored)"
   fi
+  echo "See the [bitdrift] lines above for whether this build's upload was accepted."
+else
+  echo "bd CLI not on PATH — no upload reporting."
 fi
 
 # ── Optional install ────────────────────────────────────────────────────

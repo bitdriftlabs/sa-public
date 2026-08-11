@@ -895,7 +895,15 @@ struct CheckoutSignInScreen: View {
                 // UserDefaults so UserIDFieldProvider survives startNewSession().
                 // POC: per-user debugging — user_id appears in the Timeline
                 // session header for instant identification.
-                let userID = data["user"].str("id")
+                // `/api/checkout/signin` returns name, email, member_since and
+                // loyalty_points — but no `id` (see backend/shopping_server.py).
+                // Reading `id` alone left user_id permanently unset, so manual
+                // sign-in never tagged the session despite the code claiming to.
+                // Email is the only stable identifier the contract actually
+                // provides. Fixed here rather than by adding a field to the
+                // backend, which is shared with the other platform apps.
+                let user = data["user"]
+                let userID = user.str("id").isEmpty ? user.str("email") : user.str("id")
                 if !userID.isEmpty {
                     Prefs.userSession.set(Prefs.keyUserID, userID)
                     Logger.addField(withKey: "user_id", value: userID)
@@ -1011,6 +1019,15 @@ struct PaymentScreen: View {
                 cardOption(label: "Amex ending 1001", brand: "amex", last4: "1001", primary: false)
             } else {
                 PrimaryButton(title: "Complete Purchase", systemImage: "checkmark.circle") {
+                    // bitdrift SDK: logInfo() records payment completion. Emitted
+                    // for every method, not just card — the shared checkout-funnel
+                    // workflow keys on this event, so omitting it here silently
+                    // excluded every Apple Pay / PayPal / Android Pay completion
+                    // from the conversion numbers.
+                    ScreenLogger.logInfo("payment_completed", [
+                        "payment_method": method.fieldValue,
+                        "order_id": orderID,
+                    ])
                     nav.navigate(to: .confirmation(orderID: orderID))
                 }
             }

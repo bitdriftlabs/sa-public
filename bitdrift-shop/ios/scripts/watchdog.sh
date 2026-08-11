@@ -38,23 +38,35 @@ for arg in ${PARSED_REST[@]+"${PARSED_REST[@]}"}; do
   esac
 done
 
+# --stop is handled before target resolution, and unconditionally. A watchdog
+# whose device has since disconnected is exactly when you most need to stop it —
+# and it holds a *global* macOS CrashReporter preference that only its EXIT trap
+# restores, so failing to reach it would leave crash dialogs disabled machine-wide.
+if [[ "$STOP" -eq 1 ]]; then
+  if [[ -f "$PIDFILE" ]]; then
+    kill "$(cat "$PIDFILE")" 2>/dev/null || true
+    rm -f "$PIDFILE"
+    echo "Stopped running watchdog."
+  else
+    echo "No watchdog was running."
+  fi
+  # Terminating the app is best-effort: it needs a live target, which stopping
+  # the watchdog does not.
+  if resolve_target "$PARSED_KIND" "$PARSED_ID" 2>/dev/null; then
+    terminate_app
+    echo "Terminated $BUNDLE_ID on $(target_label)."
+  else
+    echo "No reachable target — skipped terminating the app."
+  fi
+  exit 0
+fi
+
 if ! resolve_target "$PARSED_KIND" "$PARSED_ID"; then
   # resolve_target already explained itself when the choice was ambiguous.
   if [[ "${RESOLVE_ERROR:-none}" == "none" ]]; then
     echo "No target found. Boot a simulator, or connect a device and pass --device." >&2
   fi
   exit 1
-fi
-
-if [[ "$STOP" -eq 1 ]]; then
-  if [[ -f "$PIDFILE" ]]; then
-    kill "$(cat "$PIDFILE")" 2>/dev/null || true
-    rm -f "$PIDFILE"
-    echo "Stopped running watchdog."
-  fi
-  terminate_app
-  echo "Terminated $BUNDLE_ID on $(target_label)."
-  exit 0
 fi
 
 if ! app_installed; then

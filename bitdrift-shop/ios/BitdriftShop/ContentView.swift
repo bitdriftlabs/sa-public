@@ -145,6 +145,18 @@ struct ContentView: View {
         Prefs.forceQuit.set(Prefs.keyActive, sim.forceQuitEnabled)
         Prefs.autoInfinite.set(Prefs.keyActive, Prefs.autoInfinite.bool(Prefs.keyActive))
 
+        // These also have to be promoted, or a disarm that clears them via launch
+        // arguments lasts exactly one launch and the fault returns on the next.
+        // `pending_watchdog` is a string, so an empty override means "not armed"
+        // and should be removed rather than stored.
+        if let pending = Prefs.crashLoop.string(Prefs.keyPendingWatchdog), !pending.isEmpty {
+            Prefs.crashLoop.set(Prefs.keyPendingWatchdog, pending)
+        } else {
+            Prefs.crashLoop.remove(Prefs.keyPendingWatchdog)
+        }
+        Prefs.appHang.set(Prefs.keyResumeInfinite, Prefs.appHang.bool(Prefs.keyResumeInfinite))
+        Prefs.forceQuit.set(Prefs.keyResumeInfinite, Prefs.forceQuit.bool(Prefs.keyResumeInfinite))
+
         // The restart delay is written per-crash, so a long one left over from an
         // OOM run would otherwise outlive the config change that disabled OOM
         // crashes and keep the watchdog waiting 45s between fast crashes. Reset it
