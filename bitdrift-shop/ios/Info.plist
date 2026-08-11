@@ -53,8 +53,6 @@
 	<string>$(BITDRIFT_SDK_KEY)</string>
 	<key>BITDRIFT_API_HOST</key>
 	<string>$(BITDRIFT_API_HOST)</string>
-	<key>BITDRIFT_BACKEND_URL</key>
-	<string>$(BITDRIFT_BACKEND_URL)</string>
 	<key>SHOW_CARDINALITY</key>
 	<string>$(SHOW_CARDINALITY)</string>
 	<key>SHOW_SIM_AB</key>

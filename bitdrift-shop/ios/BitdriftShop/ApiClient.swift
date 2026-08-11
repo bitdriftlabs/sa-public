@@ -8,11 +8,16 @@ import Foundation
 /// in the bitdrift session timeline automatically — the iOS equivalent of the
 /// Android app's automatic OkHttp instrumentation.
 ///
-/// The Simulator shares the host's network stack, so the default base URL is
-/// plain `http://localhost:5173` (the Android emulator needs the `10.0.2.2`
-/// alias instead). See `AppConfig.backendURL` to point at a LAN address for a
-/// physical device.
 enum ApiClient {
+
+    private static let port = 5173
+
+    /// The Simulator shares the host's network stack, so `localhost` reaches the
+    /// backend directly — the Android app needs the `10.0.2.2` emulator alias
+    /// here instead. Hardcoded rather than configurable, matching `ApiClient.kt`.
+    /// To run against a physical device, point this at your Mac's LAN IP (the
+    /// same edit you would make on Android).
+    private static let baseURL = "http://localhost:\(port)/api"
 
     private static let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -38,7 +43,7 @@ enum ApiClient {
         body: [String: Any]? = nil,
         pathTemplate: String? = nil
     ) async throws -> JSON {
-        guard let url = URL(string: AppConfig.apiBaseURL + path) else {
+        guard let url = URL(string: baseURL + path) else {
             throw URLError(.badURL)
         }
         var req = URLRequest(url: url)

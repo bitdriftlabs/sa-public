@@ -54,9 +54,8 @@ Without a key the app still runs and the UI works; the SDK logs
 `failed to authenticate with the backend` and the Device Code button returns
 `⚠ needs_sdk_key`.
 
-> **xcconfig gotcha:** `//` starts a comment in xcconfig files, so a literal URL
-> needs the empty-variable break `http:/$()/host:5173`. Only relevant if you set
-> `BITDRIFT_BACKEND_URL` (see below).
+These two settings are the whole configuration surface — the same pair the
+Android app reads from `.local.properties`.
 
 ### Step 1: Start the backend
 
@@ -74,12 +73,12 @@ cd ../backend && python3 -m uvicorn shopping_server:app --host 0.0.0.0 --port 51
 
 The **iOS Simulator shares the host's network stack**, so the app reaches the
 backend at plain `http://localhost:5173` with no aliasing — unlike the Android
-emulator, which needs `10.0.2.2`. To run on a **physical device**, set the base
-URL to your Mac's LAN address in `.local.xcconfig`:
+emulator, which needs the `10.0.2.2` alias.
 
-```
-BITDRIFT_BACKEND_URL = http:/$()/192.168.1.20:5173
-```
+The URL is hardcoded in [ApiClient.swift](BitdriftShop/ApiClient.swift), exactly
+as it is in Android's `ApiClient.kt` — it is not a build setting. To run against
+a **physical device**, edit that constant to your Mac's LAN IP, the same one-line
+change you would make on Android.
 
 ### Step 2: Run the app
 
@@ -95,6 +94,41 @@ xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop \
 The app opens on a 5-second **startup config** screen (crash mode, fast crash,
 OOM-only, auto ∞ sim), then goes to Welcome. **Skip → Normal App** bypasses it and
 clears the crash flags.
+
+### Optional: run on a physical device, without opening Xcode
+
+Build, install, and launch are all CLI. Signing is the only catch — the account
+credential has to exist locally first, either from one Xcode → Settings →
+Accounts sign-in, or from an App Store Connect API key
+(`-authenticationKeyPath`/`-authenticationKeyID`/`-authenticationKeyIssuerID`,
+which needs Account Holder rights to create).
+
+```bash
+DEV=<device-udid>        # xcrun devicectl list devices
+TEAM=<your-team-id>      # developer.apple.com -> Account -> Membership details
+
+xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop -configuration Debug \
+  -destination "id=$DEV" -allowProvisioningUpdates DEVELOPMENT_TEAM=$TEAM \
+  -derivedDataPath build/dev build
+
+xcrun devicectl device install app --device $DEV \
+  build/dev/Build/Products/Debug-iphoneos/BitdriftShop.app
+xcrun devicectl device process launch --device $DEV ai.bitdrift.shop.ios
+```
+
+Things that will stop you the first time:
+
+- **"Untrusted Developer" on first launch.** Expected for *any* development-signed
+  build, paid team or free — Xcode's Run button shows it too. Trust the
+  certificate once per signing identity: Settings → General → VPN & Device
+  Management → Developer App → Trust.
+- **"Device isn't registered in your developer account."** `-allowProvisioningUpdates`
+  can only auto-register if your role on that team allows it. Otherwise an Admin
+  adds the UDID at developer.apple.com → Devices. A free personal team
+  auto-registers, but its profile expires after **7 days**.
+- **Product screens will be empty.** The backend URL is hardcoded to `localhost`,
+  which on a phone means the phone. Point `ApiClient.swift` at your Mac's LAN IP.
+  bitdrift reporting is unaffected — that goes to `api.bitdrift.io`.
 
 ### Step 3: Generate data
 
@@ -201,7 +235,7 @@ are all places where the platform left no choice:
 | Area | Android | iOS |
 |------|---------|-----|
 | **Backend host** | `10.0.2.2:5173` (emulator alias) | `localhost:5173` (Simulator shares the host network stack) |
-| **Relaunch after a fault** | `AlarmManager` armed before the crash; the app restarts itself | **Not possible.** `scripts/watchdog.sh` polls the simulator and relaunches |
+| **Relaunch after a fault** | `AlarmManager` armed before the crash; the app restarts itself | **Not possible.** `scripts/watchdog.sh` polls and relaunches, on a Simulator (`simctl`) or a device (`devicectl`) |
 | **ANR** | Real ANR + system dialog | No such concept. A blocked main thread is reported through MetricKit hang diagnostics. Event/field names keep the `anr_*` spelling so `bd-shop-05` matches both platforms; the UI calls it **Hang-A** |
 | **Hang duration** | Unbounded freeze until the watchdog dismisses the dialog | Bounded (15s), then exits — nothing host-side can detect or clear a hung iOS app, so the alternative is a permanently frozen simulator |
 | **Backgrounding for background crashes** | `Activity.moveTaskToBack()` | No public API exists, and the private `suspend` selector is useless anyway — a *suspended* app's main queue is frozen, so a crash scheduled on it never runs. Instead the crash is **armed** and fires once the app genuinely backgrounds (Home button, or the watchdog), held alive by a `beginBackgroundTask` assertion long enough to land while `running_state` reads background. This is what `bd-shop-06`/`07` chart |
@@ -214,21 +248,40 @@ are all places where the platform left no choice:
 ## Scripts
 
 ```bash
-./scripts/watchdog.sh              # relaunch on death; background the app when a background crash is armed
-./scripts/watchdog.sh --stop       # stop the watchdog and terminate the app
-./scripts/check-demo-state.sh      # show which fault flags are armed
-./scripts/check-demo-state.sh --reset
+./scripts/watchdog.sh                     # relaunch on death; background the app when a background crash is armed
+./scripts/watchdog.sh --stop              # stop the watchdog and terminate the app
+./scripts/check-demo-state.sh             # show which fault flags are armed
+./scripts/check-demo-state.sh --reset     # simulator only
 ```
 
-Both accept `--device UDID`; without it they use the booted simulator.
+Both work against a Simulator or a physical device:
+
+| Flag | Target |
+|------|--------|
+| *(none)* | Auto — booted simulator if there is one, else a connected device |
+| `--simulator [UDID]` | Force the simulator (`simctl`) |
+| `--device [UDID]` | Force a physical device (`devicectl`) |
+
+Two device-mode limits, both from iOS rather than the scripts:
+
+- **Background crashes need a manual Home press.** There is no remote "go to
+  background" for a real device the way launching SpringBoard works on the
+  Simulator, so the watchdog prints a prompt and waits. Foreground crashes and
+  hang/force-quit relaunches are fully automatic.
+- **`--reset` is simulator-only.** `devicectl` can copy files off a device but
+  not delete them, and the app's `UserDefaults` plist isn't reachable at all.
+  Clear flags from the Advanced screen, or
+  `xcrun devicectl device uninstall app --device <UDID> ai.bitdrift.shop.ios`.
 
 The app publishes its fault state to
 `<container>/Library/Application Support/bitdrift-demo-state.json`, and the
 scripts read that rather than the app's `UserDefaults` plist. On the Simulator
 that plist is owned by `cfprefsd`, which caches the domain in memory — a
 host-side read can return values the app abandoned minutes ago, and a host-side
-write is silently overwritten on the daemon's next flush. `--reset` works around
-it by terminating the app, deleting the plist, and bouncing the daemon.
+write is silently overwritten on the daemon's next flush. On a device the plist
+isn't reachable at all, but the JSON file can be pulled with
+`devicectl device copy from`. `--reset` works around the daemon by terminating
+the app, deleting the plist, and bouncing it.
 
 ### Arming a demo from the command line
 

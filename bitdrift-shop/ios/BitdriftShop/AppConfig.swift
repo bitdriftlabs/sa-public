@@ -19,16 +19,6 @@ enum AppConfig {
         URL(string: "https://\(apiHost)") ?? URL(string: "https://api.bitdrift.io")!
     }
 
-    /// Base URL of the bitdrift-shop FastAPI backend.
-    ///
-    /// The iOS Simulator shares the host's network stack, so `localhost` reaches
-    /// the backend directly — unlike the Android emulator, which needs the
-    /// `10.0.2.2` alias. Override for a physical device (set it to the Mac's LAN
-    /// address) via `BITDRIFT_BACKEND_URL` in `.local.xcconfig`.
-    static let backendURL = value(for: "BITDRIFT_BACKEND_URL") ?? "http://localhost:5173"
-
-    static var apiBaseURL: String { backendURL.trimmingCharacters(in: .init(charactersIn: "/")) + "/api" }
-
     /// Optional demo toggles, mirroring the Android BuildConfig flags.
     static let showCardinality = flag("SHOW_CARDINALITY")
     static let showSimAB = flag("SHOW_SIM_AB")

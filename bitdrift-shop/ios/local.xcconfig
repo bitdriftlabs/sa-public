@@ -5,18 +5,12 @@
 //
 //   BITDRIFT_SDK_KEY    Your SDK key from bitdrift dashboard -> Settings -> SDK Keys.
 //   BITDRIFT_API_HOST   bitdrift API host. Defaults to api.bitdrift.io.
-//   BITDRIFT_BACKEND_URL Base URL of the bitdrift-shop FastAPI backend. The iOS
-//                       Simulator shares the host's network stack, so localhost
-//                       works directly (Android needs 10.0.2.2). On a physical
-//                       device set this to your Mac's LAN IP, e.g.
-//                       http:/$()/192.168.1.20:5173
 //
-// Note on `//` in URLs: xcconfig treats `//` as a comment. Break it with the
-// empty-variable trick `$()` as shown above, or keep URLs in .local.xcconfig.
+// The shop backend URL is not configurable here — it is hardcoded in
+// ApiClient.swift, exactly as it is in the Android app's ApiClient.kt.
 
 BITDRIFT_SDK_KEY =
 BITDRIFT_API_HOST = api.bitdrift.io
-BITDRIFT_BACKEND_URL =
 
 // Bundle identifier. Override in .local.xcconfig if you need a unique ID for
 // your own signing team.
