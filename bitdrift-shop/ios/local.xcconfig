@@ -21,6 +21,11 @@ BITDRIFT_API_KEY =
 // your own signing team.
 BITDRIFT_SHOP_BUNDLE_ID = ai.bitdrift.shop.ios
 
+// Signing team for device builds. Leave blank for Simulator-only work; set it in
+// .local.xcconfig to avoid passing --team to scripts/release-build.sh every time.
+// Find it at developer.apple.com -> Account -> Membership details.
+DEVELOPMENT_TEAM =
+
 // Optional demo toggles (mirror the Android BuildConfig flags of the same name).
 // Set to YES to surface the Cardinality and SIM A/B buttons on the Advanced screen.
 SHOW_CARDINALITY = NO

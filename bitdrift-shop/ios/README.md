@@ -249,6 +249,7 @@ are all places where the platform left no choice:
 ## Scripts
 
 ```bash
+./scripts/release-build.sh                # Release build + dSYM upload (see below)
 ./scripts/watchdog.sh                     # relaunch on death; background the app when a background crash is armed
 ./scripts/watchdog.sh --stop              # stop the watchdog and terminate the app
 ./scripts/check-demo-state.sh             # show which fault flags are armed
@@ -303,15 +304,43 @@ The phase skips quietly and never fails the build when there's no key, no `bd`,
 or no dSYM. **Debug builds produce no dSYM** (`DEBUG_INFORMATION_FORMAT = dwarf`),
 so symbols only upload from Release.
 
+#### Doing a Release build
+
 ```bash
-# manual / CI
-BITDRIFT_API_KEY=<key> ./scripts/upload-symbols.sh <path-to-dSYMs>
+./scripts/release-build.sh --simulator            # no signing needed
+./scripts/release-build.sh --device              # signed, matches phone crashes
+./scripts/release-build.sh --device --install     # ...and install it
+./scripts/release-build.sh --device --team ABCDE12345
 ```
 
-> **`bd` reports upload failures silently.** Verified against bd 0.2.18: a
-> deliberately invalid API key printed no error and exited 0, while
-> `bd debug-files list` stayed empty. The script therefore says "submitted"
-> rather than claiming success — confirm with `bd debug-files list`.
+With no flag it targets a booted simulator, else a connected device. A **device**
+build needs a signing team — pass `--team`, or put it in `.local.xcconfig` once:
+
+```
+DEVELOPMENT_TEAM = <your-team-id>
+```
+
+The script warns up front if `BITDRIFT_API_KEY` is missing, then prints the app
+and dSYM paths and **verifies the upload actually landed** by counting debug files
+before and after:
+
+```
+debug files on the platform: 0 -> 1
+Symbols uploaded.
+```
+
+That check exists because **`bd` reports upload failures silently** — verified
+against bd 0.2.18, a deliberately invalid API key printed no error and exited 0
+while `bd debug-files list` stayed empty. If the count doesn't move, the key is
+missing or rejected.
+
+For a device build, prefer the device dSYM: it's the one whose UUID matches
+crashes coming off the phone.
+
+```bash
+# manual / CI equivalent
+BITDRIFT_API_KEY=<key> ./scripts/upload-symbols.sh <path-to-dSYMs>
+```
 
 ### Arming a demo from the command line
 
