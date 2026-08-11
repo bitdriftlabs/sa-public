@@ -1,0 +1,79 @@
+[
+  {
+    "rule_id": "crash-rate-by-screen",
+    "metadata": {
+      "title": "Crash rate by screen (start here)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {}
+      }
+    }
+  },
+  {
+    "rule_id": "journey-funnel",
+    "metadata": {
+      "title": "Checkout funnel — step-to-step conversion",
+      "funnel_chart_metadata": {
+        "steps": [
+          {
+            "name": "Welcome"
+          },
+          {
+            "name": "Discovery"
+          },
+          {
+            "name": "ProductDetail"
+          },
+          {
+            "name": "Cart"
+          },
+          {
+            "name": "Checkout"
+          },
+          {
+            "name": "Payment"
+          },
+          {
+            "name": "Confirmation"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "journey-sankey",
+    "metadata": {
+      "title": "User journey — full paths and where they drop off",
+      "metric_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "conversions",
+    "metadata": {
+      "title": "Journeys that reached Confirmation (successes)",
+      "metric_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "crashes-by-last-screen",
+    "metadata": {
+      "title": "Crashes by last screen before termination",
+      "metric_chart_metadata": {
+        "table_display_mode": {}
+      }
+    }
+  },
+  {
+    "rule_id": "terminations-by-reason",
+    "metadata": {
+      "title": "Terminations by reason (fatalCrash vs clean exit)",
+      "metric_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "screen-visits-by-name",
+    "metadata": {
+      "title": "Screen visits by name (denominator for crash rate)",
+      "metric_chart_metadata": {}
+    }
+  }
+]

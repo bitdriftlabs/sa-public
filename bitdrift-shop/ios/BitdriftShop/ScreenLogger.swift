@@ -28,6 +28,21 @@ enum ScreenLogger {
         // be grouped by `last_screen`.
         Logger.addField(withKey: "last_screen", value: screenName)
 
+        // A plain log carrying the screen under a key that the termination log
+        // also uses (`screen`). This exists purely so a workflow can compute a
+        // *rate* — crashes on a screen divided by visits to that screen.
+        //
+        // A grouped `rate` needs its numerator and denominator bucketed by the
+        // same field key, and the two sides otherwise disagree: screen views
+        // carry the SDK-owned `_screen_name`, while `previous_run_terminated`
+        // carries `crashed_on_screen`. Neither can be renamed, so this emits a
+        // third log whose key matches both sides deliberately.
+        //
+        // Without it the crash *rate* per screen cannot be charted natively and
+        // a reader has to divide two charts by hand — which buries the one
+        // number that distinguishes a risky screen from a merely popular one.
+        logInfo("screen_visit", ["screen": screenName])
+
         // Persisted for the next launch: an out-of-session termination (watchdog
         // hang, jetsam kill) carries no field at all, so the only way to attribute
         // it is to remember where we were and report it after the restart.

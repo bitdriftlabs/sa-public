@@ -1,0 +1,344 @@
+{
+  "name": "iOS — Journey vs Crashes by Screen (guided)",
+  "tabs": [
+    {
+      "name": "Guided analysis",
+      "stylistic_components": [
+        {
+          "id": "t-intro-h",
+          "text_component": {
+            "text": "iOS — which journeys lead to crashes?",
+            "variant": "h2"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 0,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-intro-p",
+          "text_component": {
+            "text": "A crash can't be the final node of a Sankey on iOS, so this dashboard splits the question in two and joins it on screen name: the funnel and Sankey show where journeys die, the rate chart shows where the app dies.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 3,
+            "column_span": 12,
+            "row_span": 4
+          }
+        },
+        {
+          "id": "t-s1-h",
+          "text_component": {
+            "text": "Start here — which screen is actually risky?",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 7,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-s1-p",
+          "text_component": {
+            "text": "Crash rate per screen: terminations on a screen divided by visits to it. Read the top bar, then find that screen in the Sankey and follow its inbound bands — those are the journeys leading into the crash. That is the whole analysis. Raw counts (section 3) mostly rank popularity: Cart and Confirmation can show similar counts while Cart has several times the rate.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 10,
+            "column_span": 12,
+            "row_span": 5
+          }
+        },
+        {
+          "id": "t-s2-h",
+          "text_component": {
+            "text": "Where journeys drop off",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 28,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-s2-p",
+          "text_component": {
+            "text": "Read these two together: the funnel bars are the Sankey columns, left to right. The funnel tells you how many survive each stage; the Sankey tells you which routes they took and where they branched. A stage that loses volume in the funnel AND has a high crash rate above is a crash-driven leak; losing volume with a near-zero crash rate is UX, not crashes.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 31,
+            "column_span": 12,
+            "row_span": 5
+          }
+        },
+        {
+          "id": "t-s3-h",
+          "text_component": {
+            "text": "Raw crash detail",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 62,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-s3-p",
+          "text_component": {
+            "text": "Counts by the screen the user was on when the previous run died, reported next launch from a persisted field — which is how it catches hangs and OOM kills. Filter reason to fatalCrash for real crashes. 'other' means the app died before reaching any screen.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 65,
+            "column_span": 12,
+            "row_span": 4
+          }
+        },
+        {
+          "id": "t-how-h",
+          "text_component": {
+            "text": "Caveats",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 81,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-how-p",
+          "text_component": {
+            "text": "Correlational, not causal. Attribution is to the last screen reached, so a background crash still lands on whatever was visible. Session rotation is on (one per journey), so treat per-session rates as a demo artifact.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 84,
+            "column_span": 12,
+            "row_span": 4
+          }
+        }
+      ],
+      "charts": [
+        {
+          "id": "12017",
+          "chart_component_layout": {
+            "chart_id": {
+              "sankey_chart": {
+                "workflow_id": "DVE2",
+                "rule_id": "journey-sankey"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 36,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "User journey — full paths and where they drop off",
+              "summary": {
+                "description": "Welcome to Confirmation. Middle node loops once per screen view, so the full inbound path to any screen is readable. Thick in, thin out = drop-off."
+              },
+              "sankey_chart_metadata": {}
+            }
+          }
+        },
+        {
+          "id": "12018",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "DVE2",
+                "chart_rule_id": "conversions"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 50,
+              "column_span": 6,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Journeys that reached Confirmation (successes)",
+              "summary": {
+                "description": "Completed journeys. Your success baseline — compare against crash counts over the same window."
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "id": "12019",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "DVE2",
+                "chart_rule_id": "screen-visits-by-name"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 50,
+              "column_span": 6,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Screen visits by name (denominator for crash rate)",
+              "summary": {
+                "description": "Visits per screen. Divide crash counts by these to rank real risk instead of popularity. Empty here means no traffic — check before trusting any other chart."
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "id": "12020",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "DVE2",
+                "chart_rule_id": "crashes-by-last-screen"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 69,
+              "column_span": 6,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Crashes by last screen before termination",
+              "summary": {
+                "description": "Raw counts by screen at time of death. Ranks popularity as much as risk — use the rate chart at the top to rank risk."
+              },
+              "metric_chart_metadata": {
+                "table_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "id": "12021",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "DVE2",
+                "chart_rule_id": "terminations-by-reason"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 69,
+              "column_span": 6,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Terminations by reason (fatalCrash vs clean exit)",
+              "summary": {
+                "description": "Filter to fatalCrash for real crashes. Most terminations are clean exits, so an unfiltered count overstates instability."
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "DVE2",
+                "chart_rule_id": "crash-rate-by-screen"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 15,
+              "column_span": 12,
+              "row_span": 13
+            },
+            "chart_metadata": {
+              "title": "Crash rate by screen  <- start here",
+              "summary": {
+                "description": "Terminations on a screen / visits to that screen. Top bar is your riskiest screen. This is the number raw counts hide."
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow_funnel_chart": {
+                "workflow_id": "DVE2",
+                "funnel_rule_id": "journey-funnel"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 36,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Checkout funnel — step-to-step conversion",
+              "summary": {
+                "description": "Steps line up with the Sankey columns left to right, so each funnel bar is one Sankey stage. Discovery collapses Browse/Search/Categories/CategoryBrowse/Featured; Checkout and Payment collapse their variants."
+              },
+              "funnel_chart_metadata": {
+                "steps": [
+                  {
+                    "name": "Welcome"
+                  },
+                  {
+                    "name": "Discovery"
+                  },
+                  {
+                    "name": "ProductDetail"
+                  },
+                  {
+                    "name": "Cart"
+                  },
+                  {
+                    "name": "Checkout"
+                  },
+                  {
+                    "name": "Payment"
+                  },
+                  {
+                    "name": "Confirmation"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "id": "1107"
+    }
+  ],
+  "dashboard_variables": []
+}

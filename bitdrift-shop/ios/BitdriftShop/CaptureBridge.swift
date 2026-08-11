@@ -107,6 +107,12 @@ enum CaptureBridge {
             // Named distinctly from the live `last_screen` global field so a query
             // can tell "where the user is now" from "where the previous run died".
             "crashed_on_screen": lastScreen,
+            // Same value again under the key `screen_visit` logs use, so a
+            // workflow can compute crashes-per-visit as a grouped `rate`. A
+            // grouped rate requires both sides bucketed by an identical field
+            // key; `crashed_on_screen` is kept for existing charts that already
+            // group by it.
+            "screen": lastScreen,
         ]
 
         if info.hasFatallyTerminated {

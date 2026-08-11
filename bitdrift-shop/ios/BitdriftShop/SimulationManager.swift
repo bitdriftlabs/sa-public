@@ -99,6 +99,21 @@ final class SimulationManager: ObservableObject {
     /// Delay between navigation steps.
     private let stepDelay: TimeInterval = 0.05
 
+    /// Suppresses the per-journey `startNewSession()` in `runSingleJourney`, so a
+    /// journey's screen views and its crash land in one session.
+    ///
+    /// Normally `false`. Flip to `true` only to investigate flow/Sankey matching:
+    /// `startNewSession()` resets every in-progress workflow ("when a session
+    /// ends, all active workflows are reset"), so with rotation on, a flow that
+    /// anchors on an early screen view is already dead by the time a later event
+    /// fires — which masks whether the later event was matchable at all.
+    ///
+    /// Used 2026-08-11 to establish that multi-step flows and looping Sankeys do
+    /// work on iOS (`capture-ios 0.23.11`), but that `APP_IOS_BUILT_IN_CRASH` and
+    /// `APP_IOS_BUILT_IN_ANR` match only as a standalone first step and never
+    /// advance a multi-step flow in either direction.
+    static let diagSuppressSessionRotation = false
+
     /// Infinite simulation mode (`-1` means infinite).
     var isInfiniteMode: Bool { totalRuns == -1 }
 
@@ -647,7 +662,9 @@ final class SimulationManager: ObservableObject {
         // with SDK configuration and end with app termination match in a single
         // session.
         if !forceQuitEnabled {
-            Logger.startNewSession()
+            if !Self.diagSuppressSessionRotation {
+                Logger.startNewSession()
+            }
             ScreenLogger.logInfo("journey_started", [
                 "run": String(currentRun),
                 "variant": activeVariant.label,
