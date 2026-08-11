@@ -60,10 +60,8 @@ trap 'rm -f "$PIDFILE" "$STATE_CACHE"' EXIT
 
 echo "Watching $BUNDLE_ID on $(target_label). Ctrl-C to stop (or --stop)."
 if [[ "$TARGET_KIND" == "device" ]]; then
-  echo "NOTE: on a physical device the background half of the crash sweep cannot be"
-  echo "      automated — iOS has no remote 'go to background'. When the log says a"
-  echo "      background crash is armed, press Home on the phone. Foreground crashes"
-  echo "      and hang/force-quit relaunches are fully automatic."
+  echo "NOTE: background-half crashes are fired by launching Settings to take the"
+  echo "      foreground, so expect the phone to flip to Settings periodically."
 fi
 
 # The app records how long to wait before relaunching. OOM crashes take tens of
@@ -80,24 +78,17 @@ restart_delay_seconds() {
 
 relaunches=0
 backgrounded=0
-warned_background=0
 
 while true; do
   pid="$(app_pid)"
   refresh_state || true
 
   if [[ -n "$pid" ]] && [[ "$(state_value awaiting_background false)" == "true" ]]; then
-    if background_app; then
-      echo "$(date '+%H:%M:%S')  background crash armed — sent app to the background"
-      backgrounded=$((backgrounded + 1))
-      sleep 5
-      continue
-    elif [[ "$warned_background" -eq 0 ]]; then
-      echo "$(date '+%H:%M:%S')  background crash armed — PRESS HOME on the device to let it fire"
-      warned_background=1
-    fi
-  else
-    warned_background=0
+    background_app
+    echo "$(date '+%H:%M:%S')  background crash armed — sent app to the background"
+    backgrounded=$((backgrounded + 1))
+    sleep 5
+    continue
   fi
 
   if [[ -z "$pid" ]]; then

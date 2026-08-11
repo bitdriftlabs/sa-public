@@ -136,14 +136,19 @@ state_value() {
 }
 
 # Sends the app to the background so a background-half crash can fire.
-# Simulator only: launching SpringBoard backgrounds the foreground app. There is
-# no devicectl equivalent, so on a device the background half needs a human
-# pressing Home (see watchdog.sh's warning).
+#
+# Neither platform lets the app background itself, so this is done from outside
+# by giving something else the foreground:
+#   - Simulator: launching SpringBoard returns to the home screen.
+#   - Device: there is no SpringBoard equivalent over devicectl, but launching
+#     any other app has the same effect. Settings is used because it is present
+#     on every device, harmless to open, and cheap to launch.
 background_app() {
   case "$TARGET_KIND" in
-    sim) xcrun simctl launch "$TARGET_ID" com.apple.springboard >/dev/null 2>&1 || true; return 0 ;;
-    device) return 1 ;;
+    sim) xcrun simctl launch "$TARGET_ID" com.apple.springboard >/dev/null 2>&1 || true ;;
+    device) xcrun devicectl device process launch --device "$TARGET_ID" com.apple.Preferences >/dev/null 2>&1 || true ;;
   esac
+  return 0
 }
 
 # Bounces the Simulator's preferences daemon so it drops its cached copy of the

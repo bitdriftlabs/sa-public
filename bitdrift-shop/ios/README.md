@@ -157,6 +157,7 @@ the dashboard in real time.
 | **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`) and a `trackSpan` helper wrapping `score_products` | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Support tooling** | `Logger.createTemporaryDeviceCode()`, Support Log toggle | [Screens.swift](BitdriftShop/Screens.swift) |
 | **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
+| **Crash symbolication** | dSYM upload via `bd debug-files upload` in a post-build phase | [scripts/upload-symbols.sh](scripts/upload-symbols.sh) |
 | **Lifecycle events** | `app_open` / `app_close` from SwiftUI `scenePhase`; `memory_pressure` from the UIKit memory-warning notification | [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
 
 `Logger.trackSpan { }` exists in the Kotlin API but not the Swift one, so
@@ -282,6 +283,35 @@ write is silently overwritten on the daemon's next flush. On a device the plist
 isn't reachable at all, but the JSON file can be pulled with
 `devicectl device copy from`. `--reset` works around the daemon by terminating
 the app, deleting the plist, and bouncing it.
+
+### Crash symbolication (dSYM upload)
+
+The **Upload bitdrift Symbols** post-build phase runs
+[scripts/upload-symbols.sh](scripts/upload-symbols.sh), the counterpart of the
+Android app's `bdUpload*` Gradle tasks. It needs the `bd` CLI on `PATH` and a
+platform API key:
+
+```
+BITDRIFT_API_KEY = <platform-api-key>
+```
+
+`BITDRIFT_API_KEY` is **not** the SDK key — it's an upload credential, and it is
+deliberately never written into `Info.plist` so it cannot ship inside the app.
+It's read from the build environment only.
+
+The phase skips quietly and never fails the build when there's no key, no `bd`,
+or no dSYM. **Debug builds produce no dSYM** (`DEBUG_INFORMATION_FORMAT = dwarf`),
+so symbols only upload from Release.
+
+```bash
+# manual / CI
+BITDRIFT_API_KEY=<key> ./scripts/upload-symbols.sh <path-to-dSYMs>
+```
+
+> **`bd` reports upload failures silently.** Verified against bd 0.2.18: a
+> deliberately invalid API key printed no error and exited 0, while
+> `bd debug-files list` stayed empty. The script therefore says "submitted"
+> rather than claiming success — confirm with `bd debug-files list`.
 
 ### Arming a demo from the command line
 
