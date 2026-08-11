@@ -17,7 +17,8 @@ from urllib.parse import quote_plus
 from PIL import Image
 
 # Output directory
-OUT_DIR = os.path.join(os.path.dirname(__file__) or ".", "images")
+# images/ lives in the backend root, one level up from tools/
+OUT_DIR = os.path.join(os.path.dirname(__file__) or ".", "..", "images")
 
 SIZE = 400
 

@@ -1,0 +1,9 @@
+{
+  "description": "Answers \"which screen were users on when the app died\" using fields rather than a flow, so it works even when the crash and the screen views land in different sessions — app hangs and out-of-memory kills are reported on the next launch, in a new session.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "previous-run-terminated",
+      "title": "Previous run terminated"
+    }
+  ]
+}

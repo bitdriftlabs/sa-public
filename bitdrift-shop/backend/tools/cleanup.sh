@@ -4,7 +4,7 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # backend root, not tools/
 pushd "$SCRIPT_DIR" > /dev/null
 
 echo "Cleaning up backend..."

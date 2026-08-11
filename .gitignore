@@ -66,6 +66,26 @@ xcuserdata/
 Pods/
 Podfile.lock
 vendor/bundle/
+# Test/coverage bundles — an .xcresult can run to hundreds of MB
+*.xcresult
+*.profraw
+*.profdata
+*.xcappdata
+# Crash logs pulled off a device (this repo's demos generate a lot of them)
+*.crash
+*.ips
+*.ips.synced
+# Signing material and credentials — must never be committed. AuthKey_*.p8 is an
+# App Store Connect API key, which Apple lets you download exactly once.
+*.mobileprovision
+*.provisionprofile
+*.p12
+*.pem
+*.cer
+*.certSigningRequest
+AuthKey_*.p8
+# NOTE: do NOT ignore Package.resolved. It pins the Capture SDK version, so
+# committing it is what makes another machine resolve the same build.
 
 # ── React Native ──────────────────────────────────────────────────────────
 node_modules/

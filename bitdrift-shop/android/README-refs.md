@@ -516,7 +516,7 @@ app/src/main/java/ai/bitdrift/shop/
 ## Product Images
 
 ```bash
-cd backend && source venv/bin/activate && pip install Pillow && python generate_images.py
+cd backend/tools && source .venv/bin/activate && pip install Pillow && python generate_images.py
 ```
 
 Creates 400×400 color-coded PNGs for all 18 products in `backend/images/`.

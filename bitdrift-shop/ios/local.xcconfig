@@ -1,0 +1,61 @@
+// Blank template — committed. Put your real values in `.local.xcconfig`
+// (gitignored), which this file includes at the bottom and which overrides
+// everything here. Mirrors the android/ app's local.properties/.local.properties
+// split.
+//
+//   BITDRIFT_API_KEY    Your bitdrift API key. Used for both jobs it authorizes:
+//                       Logger.start(withAPIKey:) at runtime, and the dSYM upload
+//                       for crash symbolication at build time.
+//   BITDRIFT_API_HOST   bitdrift API host. Defaults to api.bitdrift.io.
+//
+//   SHOP_BACKEND_URL    Optional. Base URL of the bitdrift-shop demo backend —
+//                       the FastAPI store server, NOT anything to do with the
+//                       bitdrift platform. Blank uses localhost, which is correct
+//                       for the Simulator. REQUIRED on a physical device: set it
+//                       to your Mac's LAN address, since localhost on the phone
+//                       means the phone. `ipconfig getifaddr en0` prints it.
+//
+// xcconfig treats `//` as a comment, so a URL has to break it with the
+// empty-variable trick:  SHOP_BACKEND_URL = http:/$()/192.168.1.20:5173
+
+BITDRIFT_API_KEY =
+BITDRIFT_API_HOST = api.bitdrift.io
+SHOP_BACKEND_URL =
+
+// Bundle identifier. Override in .local.xcconfig if you need a unique ID for
+// your own signing team. The scripts in scripts/ cannot read xcconfig, so export
+// the same value for them:  export BUNDLE_ID=<your-id>
+BITDRIFT_SHOP_BUNDLE_ID = ai.bitdrift.shop.ios
+
+// Signing team for device builds. Leave blank for Simulator-only work; set it in
+// .local.xcconfig to avoid passing --team to scripts/release-build.sh every time.
+// Find it at developer.apple.com -> Account -> Membership details.
+DEVELOPMENT_TEAM =
+
+// Optional demo toggles (mirror the Android BuildConfig flags of the same name).
+// Set to YES to surface the Cardinality and SIM A/B buttons on the Advanced screen.
+SHOW_CARDINALITY = NO
+SHOW_SIM_AB = NO
+
+// Half the crash sweep is meant to land while the app is backgrounded, which
+// needs something else to take the foreground — the watchdog launches
+// SpringBoard or Settings to do it. That handoff is unreliable, particularly on
+// the Simulator, and a crash that never fires stalls the whole loop.
+//
+// Off by default: every crash fires in the foreground, and the sweep is half as
+// long. Set to YES to restore the foreground/background split that the
+// bd-shop-06 / bd-shop-07 workflows chart.
+ENABLE_BACKGROUND_CRASHES = NO
+
+// The memory-exhaustion variants are slow by construction: each paces its
+// allocation loop for ~35s so the memory graph has enough capture ticks to be a
+// curve rather than a dot, and the caller blocks for that whole window. Add the
+// 45s restart delay they need and six OOM variants cost ~8 minutes per sweep,
+// most of it with the UI frozen — which reads as a hung app, and on iOS is long
+// enough to trip the watchdog and report as an App Hang instead of an OOM.
+//
+// Off by default, leaving 30 fast crashes that cycle in seconds. Set to YES when
+// specifically demoing memory exhaustion.
+ENABLE_OOM_CRASHES = NO
+
+#include? ".local.xcconfig"

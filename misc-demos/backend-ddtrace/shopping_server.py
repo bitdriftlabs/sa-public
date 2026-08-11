@@ -1049,6 +1049,9 @@ def checkout_signin(body: CheckoutSignInRequest = CheckoutSignInRequest()):
     return {
         "checkout_session": _random_id("cs"),
         "user": {
+            # Every client app reads user.id to tag the session with a user
+            # identity; without it that field was silently never set.
+            "id": _random_id("usr"),
             "name": name,
             "email": email,
             "member_since": f"20{random.randint(20, 25)}-{random.randint(1,12):02d}-{random.randint(1,28):02d}",
