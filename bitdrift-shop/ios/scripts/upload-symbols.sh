@@ -16,9 +16,9 @@ log() { echo "note: [bitdrift] $*"; }
 warn() { echo "warning: [bitdrift] $*"; }
 
 # ── API key ──────────────────────────────────────────────────────────────
-# Deliberately NOT read from Info.plist: this is an upload credential for the
-# bitdrift platform, not the SDK key, and it must never end up inside the app
-# bundle. Build-time environment only.
+# The same bitdrift API key the app starts the SDK with. Xcode exports build
+# settings into script phases, so defining BITDRIFT_API_KEY in .local.xcconfig is
+# enough; the environment also works for CI.
 API_KEY="${BITDRIFT_API_KEY:-}"
 if [[ -z "$API_KEY" ]]; then
   log "BITDRIFT_API_KEY not set — skipping symbol upload."

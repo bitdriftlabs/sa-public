@@ -38,21 +38,27 @@ Create `.local.xcconfig` in this directory (gitignored — your real values go h
 overlaying the blank `local.xcconfig` template that it is `#include?`d from):
 
 ```
-BITDRIFT_SDK_KEY = <your-sdk-key>
+BITDRIFT_API_KEY = <your-api-key>
 BITDRIFT_API_HOST = api.bitdrift.io
 ```
 
-Get the SDK key from **bitdrift dashboard → Settings → SDK Keys**. The key
-determines which project your data lands in — crashes, sessions, and workflows
-only appear in the project that owns this key.
+Get the API key from the **bitdrift dashboard → Settings**. It determines which
+project your data lands in — crashes, sessions, and workflows only appear in the
+project that owns this key. The same key authorizes both jobs it's needed for:
+`Logger.start(withAPIKey:)` at runtime, and the dSYM upload for crash
+symbolication at build time.
+
+> Named `BITDRIFT_API_KEY` to match what bitdrift calls it — the SDK's own
+> parameter is `withAPIKey:` and the CLI's flag is `--api-key`. The Android app
+> calls the same credential `BITDRIFT_SDK_KEY` in its `local.properties`.
 
 For bitdrift-internal testing against a non-production environment, point
 `BITDRIFT_API_HOST` at that environment instead (e.g. `api.bitdrift.dev`), making
-sure the SDK key was issued by that same environment's dashboard.
+sure the key was issued by that same environment's dashboard.
 
 Without a key the app still runs and the UI works; the SDK logs
 `failed to authenticate with the backend` and the Device Code button returns
-`⚠ needs_sdk_key`.
+`⚠ needs_api_key`.
 
 These two settings are the whole configuration surface — the same pair the
 Android app reads from `.local.properties`.
@@ -296,9 +302,9 @@ platform API key:
 BITDRIFT_API_KEY = <platform-api-key>
 ```
 
-`BITDRIFT_API_KEY` is **not** the SDK key — it's an upload credential, and it is
-deliberately never written into `Info.plist` so it cannot ship inside the app.
-It's read from the build environment only.
+It reuses `BITDRIFT_API_KEY` — the same key the app starts the SDK with. Xcode
+exports build settings into script phases, so defining it in `.local.xcconfig` is
+all that's needed.
 
 The phase skips quietly and never fails the build when there's no key, no `bd`,
 or no dSYM. **Debug builds produce no dSYM** (`DEBUG_INFORMATION_FORMAT = dwarf`),

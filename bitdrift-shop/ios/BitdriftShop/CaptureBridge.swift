@@ -49,7 +49,7 @@ enum CaptureBridge {
         // instrumentation via the Gradle plugin.
         // POC: network monitoring — unsampled latency, error rates, throughput per endpoint.
         Logger.start(
-            withAPIKey: AppConfig.sdkKey,
+            withAPIKey: AppConfig.apiKey,
             sessionStrategy: .fixed(),
             configuration: .init(apiURL: AppConfig.apiURL),
             fieldProviders: [UserIDFieldProvider()]

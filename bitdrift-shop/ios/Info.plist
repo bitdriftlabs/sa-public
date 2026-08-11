@@ -49,8 +49,8 @@
 
 	<!-- Populated from local.xcconfig / .local.xcconfig (see ios/README.md).
 	     Read back at runtime by BitdriftShopApp to start the Capture SDK. -->
-	<key>BITDRIFT_SDK_KEY</key>
-	<string>$(BITDRIFT_SDK_KEY)</string>
+	<key>BITDRIFT_API_KEY</key>
+	<string>$(BITDRIFT_API_KEY)</string>
 	<key>BITDRIFT_API_HOST</key>
 	<string>$(BITDRIFT_API_HOST)</string>
 	<key>SHOW_CARDINALITY</key>

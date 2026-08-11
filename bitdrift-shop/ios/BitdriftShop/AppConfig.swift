@@ -8,9 +8,13 @@ import Foundation
 /// CI and `xcodebuild`-driven runs can override without editing a file.
 enum AppConfig {
 
-    /// bitdrift SDK key. Empty means the SDK still starts but never uploads —
-    /// the Welcome screen's Device Code button surfaces that as `needs_sdk_key`.
-    static let sdkKey = value(for: "BITDRIFT_SDK_KEY") ?? ""
+    /// bitdrift API key — what the platform calls this credential, and the name
+    /// the SDK itself uses (`Logger.start(withAPIKey:)`). The same key authorizes
+    /// the build-time dSYM upload in `scripts/upload-symbols.sh`.
+    ///
+    /// Empty means the SDK still starts but never uploads — the Welcome screen's
+    /// Device Code button surfaces that as `needs_api_key`.
+    static let apiKey = value(for: "BITDRIFT_API_KEY") ?? ""
 
     /// bitdrift API host, e.g. `api.bitdrift.io`.
     static let apiHost = value(for: "BITDRIFT_API_HOST") ?? "api.bitdrift.io"

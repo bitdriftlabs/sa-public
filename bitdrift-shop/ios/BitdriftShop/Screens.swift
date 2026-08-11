@@ -101,7 +101,7 @@ struct WelcomeScreen: View {
                                 deviceCode = code
                                 UIPasteboard.general.string = code
                             case .failure:
-                                deviceCode = "⚠ needs_sdk_key"
+                                deviceCode = "⚠ needs_api_key"
                             }
                         }
                     }

@@ -3,19 +3,16 @@
 // everything here. Mirrors the android/ app's local.properties/.local.properties
 // split.
 //
-//   BITDRIFT_SDK_KEY    Your SDK key from bitdrift dashboard -> Settings -> SDK Keys.
+//   BITDRIFT_API_KEY    Your bitdrift API key. Used for both jobs it authorizes:
+//                       Logger.start(withAPIKey:) at runtime, and the dSYM upload
+//                       for crash symbolication at build time.
 //   BITDRIFT_API_HOST   bitdrift API host. Defaults to api.bitdrift.io.
-//   BITDRIFT_API_KEY    Platform API key used ONLY at build time, to upload dSYMs
-//                       for crash symbolication. This is not the SDK key, and it
-//                       is deliberately never written into Info.plist so it
-//                       cannot ship inside the app. Leave blank to skip uploads.
 //
 // The shop backend URL is not configurable here — it is hardcoded in
 // ApiClient.swift, exactly as it is in the Android app's ApiClient.kt.
 
-BITDRIFT_SDK_KEY =
-BITDRIFT_API_HOST = api.bitdrift.io
 BITDRIFT_API_KEY =
+BITDRIFT_API_HOST = api.bitdrift.io
 
 // Bundle identifier. Override in .local.xcconfig if you need a unique ID for
 // your own signing team.
