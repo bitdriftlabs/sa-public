@@ -25,12 +25,12 @@ struct WelcomeScreen: View {
 
     private var nextCrashLabel: String {
         let oomOnly = Prefs.crashLoop.bool(Prefs.keyOomOnly)
-        let crashes = oomOnly ? Crashes.oomOnly : Crashes.all
-        let comboIdx = Prefs.crashLoop.int(Prefs.keyNextComboIndex) % (crashes.count * 2)
-        let name = crashes[comboIdx / 2].name
-        let context = comboIdx % 2 == 1 ? "background" : "foreground"
+        let combo = Crashes.combo(
+            atIndex: Prefs.crashLoop.int(Prefs.keyNextComboIndex), oomOnly: oomOnly
+        )
+        let context = combo.fireInBackground ? "background" : "foreground"
         let fast = Prefs.crashLoop.bool(Prefs.keyFastMode) ? " (fast)" : ""
-        return "\(oomOnly ? "OOM loop" : "Crash loop") ACTIVE\(fast) — next: \(name)/\(context)"
+        return "\(oomOnly ? "OOM loop" : "Crash loop") ACTIVE\(fast) — next: \(combo.name)/\(context)"
     }
 
     var body: some View {
@@ -152,11 +152,12 @@ struct AdvancedScreen: View {
     private var statusLine: String {
         var crashText = "disabled"
         if crashLoopOn {
-            let crashes = oomOnlyOn ? Crashes.oomOnly : Crashes.all
-            let comboIdx = Prefs.crashLoop.int(Prefs.keyNextComboIndex) % (crashes.count * 2)
+            let combo = Crashes.combo(
+                atIndex: Prefs.crashLoop.int(Prefs.keyNextComboIndex), oomOnly: oomOnlyOn
+            )
             let fastTag = Prefs.crashLoop.bool(Prefs.keyFastMode) ? "fast, " : ""
-            let context = comboIdx % 2 == 1 ? "background" : "foreground"
-            crashText = "\(oomOnlyOn ? "OOMs only, " : "")enabled (\(fastTag)next: \(crashes[comboIdx / 2].name)/\(context))"
+            let context = combo.fireInBackground ? "background" : "foreground"
+            crashText = "\(oomOnlyOn ? "OOMs only, " : "")enabled (\(fastTag)next: \(combo.name)/\(context))"
         }
         let hangText = !isVariantASelected
             ? "unavailable (select Variant A)"

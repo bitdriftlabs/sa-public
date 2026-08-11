@@ -64,6 +64,15 @@ enum Crashes {
         // Vendor SDK attribution — two distinct fake-vendor namespaces
         ("vendor_sdk_ads", crashVendorAdSDK),
         ("vendor_sdk_analytics", crashVendorAnalyticsSDK),
+        // Watchdog terminations (0x8BADF00D, reported as App Hang) — the largest
+        // class of real-world iOS crashes, and impossible to produce with a trap.
+        // These arm a lifecycle hang rather than crashing inline; see WatchdogHangs.
+        ("watchdog_scene_create", { WatchdogHangs.arm(.sceneCreate) }),
+        ("watchdog_scene_update", { WatchdogHangs.arm(.sceneUpdate) }),
+        ("watchdog_process_exit", { WatchdogHangs.arm(.processExit) }),
+        // A genuine bad dereference, with a real fault address in the report —
+        // unlike the raise()-based signals below, which carry none.
+        ("exc_bad_access_null", crashExcBadAccessNull),
         // Native signals — each calls raise() directly so frames stay distinct
         ("native_sigsegv", crashNativeSigsegv),
         ("native_sigbus", crashNativeSigbus),
@@ -73,7 +82,41 @@ enum Crashes {
     ] + oomCrashes
 
     /// Subset used by the "OOMs" crash-loop mode to cycle only memory crashes.
+    /// Always available here, regardless of `ENABLE_OOM_CRASHES` — that flag only
+    /// governs whether they appear in the *default* sweep.
     static let oomOnly: [Entry] = oomCrashes
+
+    /// The default sweep. Excludes the memory variants unless explicitly enabled:
+    /// each costs ~35s of blocked caller plus a 45s restart, so six of them turn a
+    /// seconds-per-crash loop into minutes of apparently-hung app.
+    static var defaultSweep: [Entry] {
+        AppConfig.oomCrashesEnabled ? all : all.filter { !$0.name.hasPrefix("oom_") }
+    }
+
+    // MARK: - Combo indexing
+
+    /// Combos per crash kind: foreground only, or foreground + background.
+    ///
+    /// Background crashes need an external actor to take the foreground first, so
+    /// they are opt-in via `ENABLE_BACKGROUND_CRASHES` — see `AppConfig`.
+    static var slotsPerCrash: Int { AppConfig.backgroundCrashesEnabled ? 2 : 1 }
+
+    /// Decodes a persisted combo index into the crash it selects and which half
+    /// of the sweep it belongs to.
+    ///
+    /// Centralised because the Welcome screen, the Advanced screen, and the
+    /// simulator all decode this index. When they each did their own `/ 2` and
+    /// `% 2` arithmetic, changing the number of slots would have quietly desynced
+    /// the "next crash" the UI advertises from the one that actually fires.
+    static func combo(atIndex index: Int, oomOnly useOomOnly: Bool)
+        -> (name: String, fire: () -> Void, fireInBackground: Bool, totalCombos: Int) {
+        let list = useOomOnly ? Crashes.oomOnly : Crashes.defaultSweep
+        let slots = slotsPerCrash
+        let total = max(list.count * slots, 1)
+        let idx = ((index % total) + total) % total
+        let entry = list[idx / slots]
+        return (entry.name, entry.fire, slots > 1 && idx % slots == 1, total)
+    }
 
     // MARK: - Main-thread Swift runtime traps
 
@@ -265,6 +308,24 @@ enum Crashes {
     private static func crashVendorAnalyticsSDK() {
         let url = URL(string: "https://ping.fake-analytics.example/batch")!
         AnalyticsSDKFake.AnalyticsPingInterceptor().flushBatch(to: url)
+    }
+
+    // MARK: - Memory access faults
+
+    /// A real bad dereference, rather than `raise(SIGSEGV)`.
+    ///
+    /// The distinction matters in a crash report: this produces a genuine
+    /// `EXC_BAD_ACCESS` carrying the faulting address, which is what an engineer
+    /// actually reads to work out *what* was dereferenced. A raised signal has no
+    /// fault address at all — it only proves the signal handler works.
+    ///
+    /// Writes to a deliberately invalid low address rather than exactly 0, since
+    /// `UnsafeMutableRawPointer(bitPattern: 0)` is nil and would trap as a Swift
+    /// force-unwrap — a different crash entirely, and one already in the catalog.
+    @inline(never)
+    private static func crashExcBadAccessNull() {
+        let pointer = UnsafeMutableRawPointer(bitPattern: opaque(0x10))!
+        pointer.storeBytes(of: opaque(42), as: Int.self)
     }
 
     // MARK: - Native signals (no shared helper — distinct top frames)

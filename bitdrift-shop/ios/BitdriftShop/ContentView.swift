@@ -145,6 +145,12 @@ struct ContentView: View {
         Prefs.forceQuit.set(Prefs.keyActive, sim.forceQuitEnabled)
         Prefs.autoInfinite.set(Prefs.keyActive, Prefs.autoInfinite.bool(Prefs.keyActive))
 
+        // The restart delay is written per-crash, so a long one left over from an
+        // OOM run would otherwise outlive the config change that disabled OOM
+        // crashes and keep the watchdog waiting 45s between fast crashes. Reset it
+        // to the default at startup; the next crash overwrites it with its own.
+        Prefs.crashLoop.set("restart_delay_ms", SimulationManager.defaultRestartDelayMs)
+
         // A pending background crash lives in memory (`pendingBackgroundCrash`),
         // so it cannot survive a process restart. Clearing the persisted flag here
         // stops a stale `true` from outliving the process that armed it and making

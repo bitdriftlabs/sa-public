@@ -58,6 +58,9 @@ struct Prefs {
     static let autoInfinite = Prefs(suite: "auto_infinite")
     /// Signed-in user, read back by `UserIDFieldProvider` on every log.
     static let userSession = Prefs(suite: "user_session")
+    /// Last screen the user reached. Persisted so it survives the process dying,
+    /// which is what lets the *next* launch report where a crash happened.
+    static let screen = Prefs(suite: "screen")
 
     // MARK: - Keys (shared across stores, as on Android)
 
@@ -70,8 +73,13 @@ struct Prefs {
     static let keyResumeInfiniteWithCrash = "resume_infinite_with_crash"
     static let keyRestartVariant = "restart_variant"
     static let keyUserID = "user_id"
+    static let keyLastScreen = "last_screen"
     /// Set while a background-half crash is armed; polled by `scripts/watchdog.sh`.
     static let keyAwaitingBackground = "awaiting_background"
+    /// Which `WatchdogHang` is armed, if any. The app cannot launch, resume or
+    /// terminate itself, so the watchdog script reads this to drive the matching
+    /// transition.
+    static let keyPendingWatchdog = "pending_watchdog"
 
     /// Clears every demo-fault flag. Backs `scripts/check-demo-state.sh --reset`
     /// and the Welcome screen's "Stop crash loop" button.

@@ -12,12 +12,32 @@ enum ApiClient {
 
     private static let port = 5173
 
-    /// The Simulator shares the host's network stack, so `localhost` reaches the
-    /// backend directly — the Android app needs the `10.0.2.2` emulator alias
-    /// here instead. Hardcoded rather than configurable, matching `ApiClient.kt`.
-    /// To run against a physical device, point this at your Mac's LAN IP (the
-    /// same edit you would make on Android).
-    private static let baseURL = "http://localhost:\(port)/api"
+    /// Host running the bitdrift-shop backend.
+    ///
+    /// Hardcoded to `localhost`, matching `ApiClient.kt`'s hardcoded host. The
+    /// Simulator shares the Mac's network stack so this works directly — Android
+    /// needs its `10.0.2.2` emulator alias for the same reason.
+    ///
+    /// **On a physical device this will not work**: `localhost` there means the
+    /// phone, which has no route to your Mac's loopback. Set `SHOP_BACKEND_URL`
+    /// in `.local.xcconfig` to your Mac's LAN address instead:
+    ///
+    ///     SHOP_BACKEND_URL = http:/$()/192.168.1.20:5173
+    ///
+    /// (`ipconfig getifaddr en0` prints it. The `$()` is required — `//` starts a
+    /// comment in xcconfig.) A physical *Android* device has exactly this problem
+    /// too; the emulator alias is what hides it.
+    private static let host = "localhost"
+
+    /// `SHOP_BACKEND_URL` wins when set; otherwise the per-environment default
+    /// above. The override exists because the device default is a LAN IP, which
+    /// changes with the network — editing source for that is a poor trade.
+    private static let baseURL: String = {
+        if let override = AppConfig.shopBackendURL {
+            return override.trimmingCharacters(in: .init(charactersIn: "/")) + "/api"
+        }
+        return "http://\(host):\(port)/api"
+    }()
 
     private static let session: URLSession = {
         let config = URLSessionConfiguration.default

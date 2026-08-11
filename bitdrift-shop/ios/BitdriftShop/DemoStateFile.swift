@@ -43,6 +43,10 @@ enum DemoStateFile {
             "restart_delay_ms": Prefs.crashLoop.int("restart_delay_ms", 2000),
             "awaiting_background": awaitingBackground
                 ?? Prefs.crashLoop.bool(Prefs.keyAwaitingBackground),
+            // Which lifecycle transition the watchdog script must drive to fire an
+            // armed watchdog hang: "" (none), scene_create, scene_update, or
+            // process_exit. The app cannot launch, resume or terminate itself.
+            "pending_watchdog": Prefs.crashLoop.string(Prefs.keyPendingWatchdog) ?? "",
         ]
 
         guard let data = try? JSONSerialization.data(

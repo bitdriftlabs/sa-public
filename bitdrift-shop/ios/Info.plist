@@ -53,6 +53,12 @@
 	<string>$(BITDRIFT_API_KEY)</string>
 	<key>BITDRIFT_API_HOST</key>
 	<string>$(BITDRIFT_API_HOST)</string>
+	<key>SHOP_BACKEND_URL</key>
+	<string>$(SHOP_BACKEND_URL)</string>
+	<key>ENABLE_BACKGROUND_CRASHES</key>
+	<string>$(ENABLE_BACKGROUND_CRASHES)</string>
+	<key>ENABLE_OOM_CRASHES</key>
+	<string>$(ENABLE_OOM_CRASHES)</string>
 	<key>SHOW_CARDINALITY</key>
 	<string>$(SHOW_CARDINALITY)</string>
 	<key>SHOW_SIM_AB</key>

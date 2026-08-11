@@ -1,0 +1,16 @@
+[
+  {
+    "rule_id": "terminations-by-screen",
+    "metadata": {
+      "title": "Terminations by final screen",
+      "metric_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "terminations-by-reason",
+    "metadata": {
+      "title": "Terminations by reason",
+      "metric_chart_metadata": {}
+    }
+  }
+]

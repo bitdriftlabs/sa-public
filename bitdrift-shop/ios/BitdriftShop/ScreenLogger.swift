@@ -16,6 +16,22 @@ enum ScreenLogger {
     static func logScreenView(_ screenName: String) {
         printLog("SCREEN", "_screen_name: \(screenName)", [:])
         Logger.logScreenView(screenName: screenName)
+
+        // Also carry the screen as a *global field*, not just a breadcrumb.
+        //
+        // `logScreenView` writes one event into the session timeline, which is
+        // fine to read by hand but cannot be aggregated: answering "which screen
+        // were users on when we crashed" would mean correlating two events across
+        // a session, and a crash report frequently is not in the same session as
+        // the screen views preceding it. A global field rides along on every
+        // subsequent log *and on the crash report itself*, so crashes can simply
+        // be grouped by `last_screen`.
+        Logger.addField(withKey: "last_screen", value: screenName)
+
+        // Persisted for the next launch: an out-of-session termination (watchdog
+        // hang, jetsam kill) carries no field at all, so the only way to attribute
+        // it is to remember where we were and report it after the restart.
+        Prefs.screen.set(Prefs.keyLastScreen, screenName)
     }
 
     static func logInfo(_ message: String, _ fields: [String: String] = [:]) {

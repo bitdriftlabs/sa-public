@@ -1,0 +1,78 @@
+{
+  "name": "Crashes by Final Screen",
+  "platform_targets": [
+    {
+      "apple": {
+        "apps": [
+          {
+            "app_id": "<YOUR_IOS_APP_ID>"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "previous-run-terminated",
+            "generic_match": {
+              "base_matcher": {
+                "log_body": true,
+                "operator": "EQUAL",
+                "string_value": "previous_run_terminated"
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "terminations-by-screen",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "previous-run-terminated"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "crashed_on_screen"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "terminations-by-reason",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "previous-run-terminated"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "termination_reason"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

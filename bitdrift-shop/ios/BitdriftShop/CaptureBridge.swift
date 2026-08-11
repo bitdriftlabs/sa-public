@@ -67,6 +67,43 @@ enum CaptureBridge {
         // by global field value.
         Logger.addField(withKey: "app_variant", value: "ios-sdk-demo")
         Logger.addField(withKey: "platform", value: "ios")
+
+        reportPreviousRun()
+    }
+
+    /// Reports how the previous run ended, and where the user was when it did.
+    ///
+    /// This closes the gap that no in-session field can. A watchdog hang or a
+    /// jetsam kill produces no log at the moment it happens — the process is
+    /// simply gone, and the OS's report arrives on the *next* launch. So the
+    /// screen views leading up to it live in one session and the termination is
+    /// attributed to another, which is exactly why a crash-terminated Sankey
+    /// cannot close for those classes.
+    ///
+    /// Pairing `Logger.previousRunInfo` with the last screen persisted by
+    /// `ScreenLogger.logScreenView` turns an unattributable out-of-session
+    /// termination into an ordinary, groupable log line in *this* session.
+    ///
+    /// Must run before any new screen view is logged, or the persisted value has
+    /// already been overwritten with this launch's first screen.
+    private static func reportPreviousRun() {
+        guard let info = Logger.previousRunInfo else { return }
+
+        let lastScreen = Prefs.screen.string(Prefs.keyLastScreen) ?? "unknown"
+        let fields = [
+            "termination_reason": info.terminationReason.rawValue,
+            "fatal": String(info.hasFatallyTerminated),
+            "clean": String(info.wasCleanTermination),
+            // Named distinctly from the live `last_screen` global field so a query
+            // can tell "where the user is now" from "where the previous run died".
+            "crashed_on_screen": lastScreen,
+        ]
+
+        if info.hasFatallyTerminated {
+            ScreenLogger.logError("previous_run_terminated", fields)
+        } else {
+            ScreenLogger.logInfo("previous_run_terminated", fields)
+        }
     }
 
     /// Kotlin's `Logger.trackSpan { … }` has no Swift counterpart — `startSpan`

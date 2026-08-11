@@ -103,17 +103,25 @@ fi
 # The app records how long to wait before relaunching. OOM crashes take tens of
 # seconds to actually kill the process, and relaunching early leaves the previous
 # attempt's leaked allocation thread accumulating alongside the new one.
+# Capped: only the OOM variants legitimately need tens of seconds, and a value
+# left over from an OOM run would otherwise stall a fast-crash loop for 45s a
+# time. MAX_RESTART_DELAY raises the ceiling when actually demoing OOMs.
+MAX_RESTART_DELAY="${MAX_RESTART_DELAY:-5}"
+
 restart_delay_seconds() {
-  local ms; ms="$(state_value restart_delay_ms 2000)"
+  local ms secs; ms="$(state_value restart_delay_ms 2000)"
   if [[ "$ms" =~ ^[0-9]+$ ]] && [[ "$ms" -gt 0 ]]; then
-    echo $(( (ms + 999) / 1000 ))
+    secs=$(( (ms + 999) / 1000 ))
   else
-    echo 2
+    secs=2
   fi
+  [[ "$secs" -gt "$MAX_RESTART_DELAY" ]] && secs="$MAX_RESTART_DELAY"
+  echo "$secs"
 }
 
 relaunches=0
 backgrounded=0
+hangs=0
 
 while true; do
   pid="$(app_pid)"
@@ -127,9 +135,21 @@ while true; do
     continue
   fi
 
+  # A watchdog hang cannot fire on its own: the app can't launch, resume or
+  # terminate itself, so drive whichever transition it is waiting on.
+  if [[ -n "$pid" ]]; then
+    if driven="$(drive_pending_watchdog)"; then
+      echo "$(date '+%H:%M:%S')  watchdog hang armed ($driven) — drove the transition"
+      hangs=$((hangs + 1))
+      # Blocks the main thread for its whole budget before the OS steps in.
+      sleep 15
+      continue
+    fi
+  fi
+
   if [[ -z "$pid" ]]; then
     delay="$(restart_delay_seconds)"
-    echo "$(date '+%H:%M:%S')  app not running — relaunching in ${delay}s (relaunch #$((relaunches + 1)), backgrounded ${backgrounded}x)"
+    echo "$(date '+%H:%M:%S')  app not running — relaunching in ${delay}s (relaunch #$((relaunches + 1)), bg ${backgrounded}x, hangs ${hangs}x)"
     sleep "$delay"
     if launch_app; then
       relaunches=$((relaunches + 1))

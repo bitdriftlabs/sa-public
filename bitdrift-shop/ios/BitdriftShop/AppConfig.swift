@@ -23,9 +23,30 @@ enum AppConfig {
         URL(string: "https://\(apiHost)") ?? URL(string: "https://api.bitdrift.io")!
     }
 
+    /// Optional override for the demo shop's backend, e.g. when the Mac's LAN IP
+    /// changes or several devices share one backend. Nil unless set, in which
+    /// case `ApiClient` falls back to its compiled-in per-environment defaults.
+    ///
+    /// Nothing to do with the bitdrift platform — that is `BITDRIFT_API_HOST`.
+    static let shopBackendURL = value(for: "SHOP_BACKEND_URL")
+
     /// Optional demo toggles, mirroring the Android BuildConfig flags.
     static let showCardinality = flag("SHOW_CARDINALITY")
     static let showSimAB = flag("SHOW_SIM_AB")
+
+    /// Whether the crash sweep includes background-half crashes.
+    ///
+    /// Those need an external actor to take the foreground before they can fire,
+    /// which is unreliable — and a crash that never fires stalls the sweep. Off
+    /// by default so every crash lands in the foreground.
+    static let backgroundCrashesEnabled = flag("ENABLE_BACKGROUND_CRASHES")
+
+    /// Whether the memory-exhaustion variants are in the default sweep.
+    ///
+    /// They block the caller for ~35s each and need a 45s restart delay, so six
+    /// of them dominate a sweep and leave the app looking hung. Off by default;
+    /// the "OOMs" mode on the Advanced screen still reaches them explicitly.
+    static let oomCrashesEnabled = flag("ENABLE_OOM_CRASHES")
 
     static var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"

@@ -68,6 +68,28 @@ final class SimulationManager: ObservableObject {
     private var pendingBackgroundCrash: (() -> Void)?
     private var backgroundObserver: NSObjectProtocol?
 
+    /// Where in a journey a crash is allowed to fire.
+    ///
+    /// Firing every crash at Confirmation — as this used to — makes crash data
+    /// useless for the question teams actually ask, which is *where in the funnel
+    /// are we losing people*. Every issue would report the same last screen, and
+    /// the Sankey would show a single crash point that says nothing.
+    ///
+    /// All the points sit in the back half deliberately: a crash on the Welcome
+    /// screen is not a realistic e-commerce failure and would drown out the
+    /// checkout-and-payment region that matters. The chosen point is recorded on
+    /// the crash as `crash_journey_point`, so issues can be grouped by it.
+    private enum JourneyCrashPoint: String, CaseIterable {
+        case cart
+        case checkout
+        case payment
+        case paymentFailed = "payment_failed"
+        case confirmation
+    }
+
+    private var journeyCrashPoint: JourneyCrashPoint = .confirmation
+    private var crashFiredThisJourney = false
+
     private var eligibleForceQuitJourneysSinceInject = 0
     private var eligibleHangGuestJourneysSinceInject = 0
 
@@ -453,14 +475,15 @@ final class SimulationManager: ObservableObject {
     /// and background exactly once per full sweep, rather than relying on
     /// independent coin flips to eventually cover every combination.
     private func pickNextCrashCombo() -> (name: String, fire: () -> Void, fireInBackground: Bool) {
-        let crashes = Prefs.crashLoop.bool(Prefs.keyOomOnly) ? Crashes.oomOnly : Crashes.all
-        let totalCombos = crashes.count * 2
-        let comboIdx = Prefs.crashLoop.int(Prefs.keyNextComboIndex) % totalCombos
+        let combo = Crashes.combo(
+            atIndex: Prefs.crashLoop.int(Prefs.keyNextComboIndex),
+            oomOnly: Prefs.crashLoop.bool(Prefs.keyOomOnly)
+        )
         // Flush — the process dies moments later.
-        Prefs.crashLoop.set(Prefs.keyNextComboIndex, (comboIdx + 1) % totalCombos)
+        let next = (Prefs.crashLoop.int(Prefs.keyNextComboIndex) + 1) % combo.totalCombos
+        Prefs.crashLoop.set(Prefs.keyNextComboIndex, next)
         Prefs.crashLoop.flush()
-        let entry = crashes[comboIdx / 2]
-        return (entry.name, entry.fire, comboIdx % 2 == 1)
+        return (combo.name, combo.fire, combo.fireInBackground)
     }
 
     /// Fires `fire()`, either immediately after the `crashFlush` SDK-flush window
@@ -536,9 +559,23 @@ final class SimulationManager: ObservableObject {
         }
     }
 
-    /// If the crash loop is enabled, picks the next crash combo, logs it, then
-    /// dispatches the crash. Called once per completed shopping journey.
-    private func maybeFireCrash() {
+    /// Fires the next crash if `point` is this journey's chosen crash point.
+    ///
+    /// `.confirmation` doubles as the fallback: a journey that picked, say,
+    /// `.paymentFailed` but whose payment succeeded would otherwise complete
+    /// without crashing, and the deterministic sweep would stall.
+    @discardableResult
+    private func maybeFireCrash(at point: JourneyCrashPoint) -> Bool {
+        guard crashLoopEnabled, !crashFiredThisJourney else { return false }
+        guard point == journeyCrashPoint || point == .confirmation else { return false }
+        crashFiredThisJourney = true
+        Logger.addField(withKey: "crash_journey_point", value: point.rawValue)
+        fireCrashNow()
+        return true
+    }
+
+    /// Picks the next crash combo, logs it, then dispatches it.
+    private func fireCrashNow() {
         guard crashLoopEnabled else { return }
         let combo = pickNextCrashCombo()
         let crashContext = combo.fireInBackground ? "background" : "foreground"
@@ -624,6 +661,11 @@ final class SimulationManager: ObservableObject {
             setVariant(activeVariant)
             await sleep(0.2)
         }
+
+        // Pick where in the back half of this journey a crash may fire, so crash
+        // data spreads across the funnel instead of piling up on Confirmation.
+        journeyCrashPoint = JourneyCrashPoint.allCases.randomElement() ?? .confirmation
+        crashFiredThisJourney = false
 
         // Rotate through the fixed entity list so each journey appears as a
         // different user in the bitdrift Entities view. `currentRun` is 1-indexed.
@@ -813,6 +855,8 @@ final class SimulationManager: ObservableObject {
         _ = try? await ApiClient.getCart()
         await sleep(stepDelay)
 
+        if maybeFireCrash(at: .cart) { return }
+
         // ── Cart abandonment — A: 15%, Control: 5%, B: 0% ────────────────
         let cartAbandonProb: Double
         switch activeVariant {
@@ -868,6 +912,8 @@ final class SimulationManager: ObservableObject {
             session = (try? await ApiClient.checkoutSignIn())?.str("checkout_session") ?? ""
         }
 
+        if maybeFireCrash(at: .checkout) { return }
+
         // ── Checkout dropout — A: 35%, B: 5%, Control: 0% ────────────────
         let checkoutDropoutProb: Double
         switch activeVariant {
@@ -922,6 +968,8 @@ final class SimulationManager: ObservableObject {
 
         let orderID = await runPayment(navigator, choice: paymentChoice, session: session)
 
+        if maybeFireCrash(at: .payment) { return }
+
         if willPaymentFail {
             ScreenLogger.logError("payment_failed", [
                 "payment_method": paymentMethod,
@@ -932,6 +980,8 @@ final class SimulationManager: ObservableObject {
             // Navigate to the PaymentFailed screen so it appears in the Sankey.
             await nav(navigator, .paymentFailed(paymentMethod: paymentMethod, checkoutSession: session))
             await sleep(0.2)
+
+            if maybeFireCrash(at: .paymentFailed) { return }
 
             // ── Payment retry: 50% chance to retry with a different method
             if Double.random(in: 0..<1) < 0.50 {
@@ -960,7 +1010,7 @@ final class SimulationManager: ObservableObject {
                     "payment_method": retryMethod, "retried": "true",
                 ]))
                 journeySpan?.end(.success)
-                maybeFireCrash()
+                maybeFireCrash(at: .confirmation)
             }
             return
         }
@@ -986,7 +1036,7 @@ final class SimulationManager: ObservableObject {
         await sleep(0.2)
         checkoutSpan?.end(.success, fields: ScreenLogger.encode(["payment_method": paymentMethod]))
         journeySpan?.end(.success)
-        maybeFireCrash()
+        maybeFireCrash(at: .confirmation)
     }
 
     /// Navigates to the payment screen for `choice` and calls its endpoint,
@@ -1020,6 +1070,10 @@ final class SimulationManager: ObservableObject {
     // MARK: - Constants
 
     private static let crashRestartDelay: TimeInterval = 2
+
+    /// Published to the state file at startup so a stale per-crash value cannot
+    /// outlive the run that wrote it.
+    static let defaultRestartDelayMs = Int(crashRestartDelay * 1000)
     /// OOM crashes materialise on their own schedule (a background allocation
     /// loop running until the OS kills the process) instead of failing
     /// synchronously, so a short delay would have the watchdog relaunch the

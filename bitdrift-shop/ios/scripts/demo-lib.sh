@@ -176,6 +176,7 @@ background_app() {
 # persistent store — so one disarmed launch sticks. Note the `--` before the app's
 # own arguments, without which devicectl claims them as its own flags.
 DISARM_ARGS=(
+  -crash_loop.pending_watchdog ""
   -crash_loop.active 0
   -crash_loop.fast_mode 0
   -crash_loop.oom_only 0
@@ -198,6 +199,40 @@ disarm_flags() {
   esac
   # Give the app time to start, resolve, persist and republish its state.
   sleep 8
+}
+
+# Sends SIGTERM — a *graceful* termination request, which is what makes the
+# 0x8BADF00D "Failed to terminate gracefully after 5.0s" watchdog fire when the
+# app blocks its main thread instead of exiting. SIGKILL would just kill it with
+# no report at all, so the default (SIGTERM) is exactly what is wanted here.
+request_graceful_terminate() {
+  local pid; pid="$(app_pid)"
+  [[ -z "$pid" ]] && return 1
+  case "$TARGET_KIND" in
+    sim) xcrun simctl spawn "$TARGET_ID" kill -TERM "$pid" >/dev/null 2>&1 ;;
+    device) xcrun devicectl device process terminate --device "$TARGET_ID" --pid "$pid" >/dev/null 2>&1 ;;
+  esac
+}
+
+# Drives the lifecycle transition an armed watchdog hang is waiting on. Returns
+# non-zero when there is nothing armed.
+#
+#   scene_create  relaunch, so the hang lands in the launch window
+#   scene_update  background then foreground, so it lands on resume
+#   process_exit  graceful SIGTERM, so it lands in the 5s exit budget
+drive_pending_watchdog() {
+  local kind; kind="$(state_value pending_watchdog "")"
+  [[ -z "$kind" || "$kind" == "null" ]] && return 1
+  case "$kind" in
+    scene_create)
+      terminate_app; sleep 1; launch_app ;;
+    scene_update)
+      background_app; sleep 3; launch_app ;;
+    process_exit)
+      request_graceful_terminate ;;
+    *) return 1 ;;
+  esac
+  echo "$kind"
 }
 
 # Bounces the Simulator's preferences daemon so it drops its cached copy of the
