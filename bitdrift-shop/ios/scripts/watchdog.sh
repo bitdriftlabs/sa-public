@@ -17,6 +17,10 @@
 #
 # Ctrl-C stops watching. `--stop` also terminates the app itself, which is the
 # only practical way out of Fast Crash Mode.
+#
+# While watching, macOS's "app quit unexpectedly" dialogs are suppressed — a
+# crash loop otherwise buries the screen in them. The previous setting is
+# restored on exit, including on Ctrl-C.
 set -uo pipefail
 
 # shellcheck source=demo-lib.sh
@@ -35,7 +39,10 @@ for arg in ${PARSED_REST[@]+"${PARSED_REST[@]}"}; do
 done
 
 if ! resolve_target "$PARSED_KIND" "$PARSED_ID"; then
-  echo "No target found. Boot a simulator, or connect a device and pass --device." >&2
+  # resolve_target already explained itself when the choice was ambiguous.
+  if [[ "${RESOLVE_ERROR:-none}" == "none" ]]; then
+    echo "No target found. Boot a simulator, or connect a device and pass --device." >&2
+  fi
   exit 1
 fi
 
@@ -55,8 +62,37 @@ if ! app_installed; then
   exit 1
 fi
 
+# ── macOS crash dialogs ──────────────────────────────────────────────────
+# A crash loop triggers one "app quit unexpectedly" dialog per crash, which
+# quickly buries the screen. Suppress them for the duration and put the previous
+# setting back on exit — this is a global macOS preference, so leaving it flipped
+# would silently disable crash dialogs for everything else on the machine.
+#
+# Deliberately done here, after --help and --stop have already returned: neither
+# needs it, and neither should mutate a system setting on the way past.
+CRASH_DIALOG_PREV=""
+CRASH_DIALOG_CHANGED=0
+
+suppress_crash_dialogs() {
+  CRASH_DIALOG_PREV="$(defaults read com.apple.CrashReporter DialogType 2>/dev/null || true)"
+  defaults write com.apple.CrashReporter DialogType none 2>/dev/null || return 0
+  CRASH_DIALOG_CHANGED=1
+}
+
+restore_crash_dialogs() {
+  [[ "$CRASH_DIALOG_CHANGED" -eq 1 ]] || return 0
+  if [[ -n "$CRASH_DIALOG_PREV" ]]; then
+    defaults write com.apple.CrashReporter DialogType "$CRASH_DIALOG_PREV" 2>/dev/null || true
+  else
+    # Was unset before, so delete rather than write a value macOS never had.
+    defaults delete com.apple.CrashReporter DialogType 2>/dev/null || true
+  fi
+}
+
+suppress_crash_dialogs
+
 echo "$$" > "$PIDFILE"
-trap 'rm -f "$PIDFILE" "$STATE_CACHE"' EXIT
+trap 'rm -f "$PIDFILE" "$STATE_CACHE"; restore_crash_dialogs' EXIT
 
 echo "Watching $BUNDLE_ID on $(target_label). Ctrl-C to stop (or --stop)."
 if [[ "$TARGET_KIND" == "device" ]]; then

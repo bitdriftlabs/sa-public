@@ -39,7 +39,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 if ! resolve_target "$PARSED_KIND" "$PARSED_ID"; then
-  echo "No target found. Boot a simulator, or connect a device and pass --device." >&2
+  # resolve_target already explained itself when the choice was ambiguous.
+  if [[ "${RESOLVE_ERROR:-none}" == "none" ]]; then
+    echo "No target found. Boot a simulator, or connect a device and pass --device." >&2
+  fi
   exit 1
 fi
 

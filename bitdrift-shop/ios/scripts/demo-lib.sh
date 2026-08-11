@@ -26,14 +26,23 @@ booted_simulator() {
 }
 
 connected_device() {
+  # The State column wording varies — "connected" when actively attached,
+  # "available (paired)" when known but idle — so match either rather than the
+  # literal "connected", and skip the header and separator rows.
   xcrun devicectl list devices 2>/dev/null \
-    | awk '/connected/ { for (i=1;i<=NF;i++) if ($i ~ /^[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}$/) { print $i; exit } }'
+    | awk '$0 !~ /^(Name|-+[[:space:]])/ && /connected|available/ {
+             for (i=1;i<=NF;i++)
+               if ($i ~ /^[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}$/) { print $i; exit }
+           }'
 }
 
 # resolve_target <kind|auto> <id|"">
 # kind: sim | device | auto
 resolve_target() {
   local kind="${1:-auto}" id="${2:-}"
+  # "ambiguous" when both targets are live, "none" when neither is. Callers use
+  # this to avoid printing a "boot a simulator" hint at someone who has two.
+  RESOLVE_ERROR="none"
 
   case "$kind" in
     sim)
@@ -45,12 +54,21 @@ resolve_target() {
       TARGET_ID="${id:-$(connected_device)}"
       ;;
     auto)
-      # Prefer a booted simulator (the common case), fall back to a device.
-      local sim; sim="$(booted_simulator)"
-      if [[ -n "$sim" ]]; then
+      # Refuse to guess when both are live. Silently preferring one meant a bare
+      # `watchdog.sh` could sit watching an idle Simulator while the phone you were
+      # actually testing waited, armed, forever.
+      local sim dev; sim="$(booted_simulator)"; dev="$(connected_device)"
+      if [[ -n "$sim" && -n "$dev" ]]; then
+        RESOLVE_ERROR="ambiguous"
+        echo "Both a booted simulator and a connected device are available:" >&2
+        echo "  --simulator $sim" >&2
+        echo "  --device    $dev" >&2
+        echo "Pass one explicitly." >&2
+        return 1
+      elif [[ -n "$sim" ]]; then
         TARGET_KIND="sim"; TARGET_ID="$sim"
       else
-        TARGET_KIND="device"; TARGET_ID="$(connected_device)"
+        TARGET_KIND="device"; TARGET_ID="$dev"
       fi
       ;;
   esac
