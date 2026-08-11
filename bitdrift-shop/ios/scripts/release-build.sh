@@ -86,12 +86,19 @@ case "$TARGET_KIND" in
     ;;
 esac
 
+# `bd debug-files list` prints its "INFO: returned=N total=N" summary on stderr,
+# not stdout — so this has to merge them. Discarding stderr silently yields an
+# empty count and makes the verification below look like it could not run.
 debug_file_count() {
-  bd debug-files list 2>/dev/null | grep -oE 'total=[0-9]+' | head -1 | cut -d= -f2
+  bd debug-files list 2>&1 | grep -oE 'total=[0-9]+' | head -1 | cut -d= -f2
 }
 
+HAVE_BD=0
 BEFORE=""
-if command -v bd >/dev/null 2>&1; then BEFORE="$(debug_file_count)"; fi
+if command -v bd >/dev/null 2>&1; then
+  HAVE_BD=1
+  BEFORE="$(debug_file_count)"
+fi
 
 echo "Release build for $(target_label)${TEAM:+ (team $TEAM)}"
 rm -rf "$DERIVED"
@@ -114,7 +121,12 @@ echo "app:  ${APP:-not found}"
 echo "dSYM: ${DSYM:-not found}"
 
 # ── Did the upload actually land? ────────────────────────────────────────
-if [[ -n "$BEFORE" ]]; then
+if [[ "$HAVE_BD" -eq 0 ]]; then
+  echo "bd CLI not on PATH — could not verify the upload."
+elif [[ -z "$BEFORE" ]]; then
+  echo "Could not read the debug-file count from bd — skipping verification."
+  echo "Check manually: bd debug-files list"
+else
   AFTER="$(debug_file_count)"
   echo "debug files on the platform: ${BEFORE} -> ${AFTER}"
   if [[ "$AFTER" == "$BEFORE" ]]; then
@@ -124,8 +136,6 @@ if [[ -n "$BEFORE" ]]; then
   else
     echo "Symbols uploaded."
   fi
-else
-  echo "bd CLI not found — could not verify the upload."
 fi
 
 # ── Optional install ────────────────────────────────────────────────────

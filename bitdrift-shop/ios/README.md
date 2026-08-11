@@ -335,10 +335,15 @@ debug files on the platform: 0 -> 1
 Symbols uploaded.
 ```
 
-That check exists because **`bd` reports upload failures silently** — verified
-against bd 0.2.18, a deliberately invalid API key printed no error and exited 0
-while `bd debug-files list` stayed empty. If the count doesn't move, the key is
-missing or rejected.
+That check exists because **`bd` exits 0 whether or not the upload worked** —
+verified against bd 0.2.18, a deliberately invalid API key printed no error and
+still exited 0, uploading nothing. The exit code is useless, so both layers key
+off other signals: the build phase looks for `bd`'s explicit "File uploaded"
+line, and this script diffs the platform's debug-file count. If the count doesn't
+move, the key is missing or rejected.
+
+Note that `bd debug-files list` prints its `total=N` summary on **stderr**, not
+stdout — discarding stderr when scripting it silently yields no count.
 
 For a device build, prefer the device dSYM: it's the one whose UUID matches
 crashes coming off the phone.

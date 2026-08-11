@@ -61,20 +61,28 @@ if [[ -n "$HOST" && "$HOST" != "api.bitdrift.io" ]]; then
   log "uploading to ${HOST#api.}"
 fi
 
-# NOTE: `bd debug-files upload` exits 0 even when the API key is rejected, and
-# prints no error — verified against bd 0.2.18 with a deliberately bogus key,
-# which reported nothing and uploaded nothing (`bd debug-files list` stayed
-# empty). So a zero exit here does NOT mean the symbols landed, and this script
-# deliberately does not claim success. Confirm with:
-#
-#   bd debug-files list
-#
+# `bd debug-files upload` exits 0 whether or not the upload worked — verified
+# against bd 0.2.18, where a bogus API key printed nothing beyond the base domain
+# and uploaded nothing, while still exiting 0. The exit code is therefore useless
+# here. What it does emit on success is an explicit "File uploaded" line, so key
+# off that instead.
+uploaded=0
 for dsym in "${DSYMS[@]}"; do
   log "submitting $(basename "$dsym")"
-  bd debug-files upload "$dsym" --api-key "$API_KEY" "${BASE_DOMAIN_ARGS[@]+"${BASE_DOMAIN_ARGS[@]}"}" 2>&1 \
-    | sed 's/^/note: [bitdrift]   /'
+  out="$(bd debug-files upload "$dsym" --api-key "$API_KEY" \
+          "${BASE_DOMAIN_ARGS[@]+"${BASE_DOMAIN_ARGS[@]}"}" 2>&1)"
+  echo "$out" | sed 's/^/note: [bitdrift]   /'
+  if echo "$out" | grep -qiE "file uploaded"; then
+    uploaded=$((uploaded + 1))
+  else
+    warn "no upload confirmation for $(basename "$dsym") — check BITDRIFT_API_KEY."
+  fi
 done
 
-log "submitted ${#DSYMS[@]} dSYM(s). Verify with: bd debug-files list"
+if [[ "$uploaded" -eq ${#DSYMS[@]} ]]; then
+  log "uploaded $uploaded/${#DSYMS[@]} dSYM(s)."
+else
+  warn "uploaded $uploaded/${#DSYMS[@]} dSYM(s) — verify with: bd debug-files list"
+fi
 # Always exit 0 — a symbolication upload is not worth breaking a build over.
 exit 0
