@@ -37,7 +37,7 @@ connected_device() {
   xcrun devicectl list devices 2>/dev/null \
     | awk '$0 !~ /^(Name|-+[[:space:]])/ && /connected|available/ {
              for (i=1;i<=NF;i++)
-               if ($i ~ /^[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}$/) { print $i; exit }
+              if ($i ~ /^([0-9A-Fa-f]{8}-([0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}|[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16})$/) { print $i; exit }
            }'
 }
 
