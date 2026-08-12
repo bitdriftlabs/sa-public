@@ -203,21 +203,28 @@ implementation, so cross-platform comparisons in a dashboard are apples to apple
 ### Simplified journey
 
 `SIMPLIFIED_JOURNEY_ENABLED = YES` in `.local.xcconfig` replaces the randomized
-funnel above with a fixed, non-random 5-step path:
+funnel above with a fixed, non-random 7-step path, matching
+[`bd-shop-17`](workflows/bd-shop-17-ios-journey-vs-crashes.json)'s funnel stages
+1:1 so the funnel chart reads as a clean staircase:
 
 ```
-Welcome → Browse → ProductDetail → Cart → CheckoutGuest
+Welcome → Browse → ProductDetail → Cart → CheckoutGuest → PaymentCard → Confirmation
 ```
 
 Built for a concrete before/after test of whether a workflow's Sankey or flow
 actually closes on a crash, rather than reasoning about it against a randomized
 journey with a probabilistic crash point. With the crash loop **off**, every
-journey completes all 5 steps — a clean baseline proving the path itself
+journey completes all 7 steps — a clean baseline proving the path itself
 populates a Sankey/funnel end to end. With it **on**, every journey crashes
-**unconditionally right after step 3** (`ProductDetail`) — no random branching,
-no probabilistic crash-point selection, so there is never any ambiguity about
+**unconditionally at step 5** (`CheckoutGuest`) — no random branching, no
+probabilistic crash-point selection, so there is never any ambiguity about
 which step a workflow's flow died at. See
 [`SimulationManager.runSimplifiedJourney`](BitdriftShop/SimulationManager.swift).
+
+Step 5 is chosen deliberately: it is exactly where `ScreenLogger`'s 5-deep
+screen shift register fills, so a crash report carries `screen_current` plus
+four real `screen_prev_N` values with no `none` padding — the full path from
+Welcome to the crash, readable straight off the report's Custom Fields.
 
 A few things behave differently in this mode, all deliberately:
 
@@ -457,6 +464,24 @@ event names, field names, screen names, and span names all match. Two caveats:
 Use the **bd-cli** skill to deploy them, then filter by `platform == "ios"` (a
 global field set at startup) to separate the two apps, or leave it off to compare
 them.
+
+iOS-specific workflows live in [`workflows/`](workflows/) and the dashboard
+payload in [`dashboards/`](dashboards/). Everything is re-deployable as code:
+
+```bash
+./scripts/deploy-workflows.sh
+```
+
+That creates and deploys every `bd-shop-*` iOS workflow plus the two-tab
+**Journey vs Crashes** dashboard. See [`workflows/README.md`](workflows/README.md)
+for what each one shows, the `stop`/`update`/`deploy` rule for editing a live
+workflow, and — measured, not inferred — why a crash cannot be the terminal node
+of a Sankey on iOS and what `bd-shop-18` does instead.
+
+Two API quirks the committed payloads work around: `bd dashboard get` returns
+neither `layout_settings` nor row positions, so the checked-in dashboard JSON is
+the only complete record of its layout; and multi-entry chart-metadata files must
+be sent alongside `--workflow-file`, never on their own.
 
 ## Project layout
 

@@ -58,12 +58,17 @@ ENABLE_BACKGROUND_CRASHES = NO
 // specifically demoing memory exhaustion.
 ENABLE_OOM_CRASHES = NO
 
-// Replaces the randomized shopping journey with a fixed 5-step path (Welcome →
-// Browse → ProductDetail → Cart → CheckoutGuest). With the crash loop off,
-// every journey completes all 5 steps — a clean "before" baseline. With the
-// crash loop on, every journey crashes unconditionally right after step 3
-// (ProductDetail) — a clean "after" comparison, with no random branching and
-// no probabilistic crash-point selection to blur which step the flow died at.
+// Replaces the randomized shopping journey with a fixed 7-step path (Welcome →
+// Browse → ProductDetail → Cart → CheckoutGuest → PaymentCard → Confirmation),
+// matching bd-shop-17's funnel stages 1:1. With the crash loop off, every
+// journey completes all 7 steps — a clean "before" baseline. With the crash
+// loop on, every journey crashes unconditionally at step 5 (CheckoutGuest) —
+// a clean "after" comparison, with no random branching and no probabilistic
+// crash-point selection to blur which step the flow died at.
+//
+// Step 5 is deliberate: it is the point at which ScreenLogger's 5-deep screen
+// shift register is exactly full, so a crash report carries screen_current
+// plus four real screen_prev_N values with no "none" padding.
 //
 // Off by default; set to YES to run the before/after workflow-closure test.
 SIMPLIFIED_JOURNEY_ENABLED = YES

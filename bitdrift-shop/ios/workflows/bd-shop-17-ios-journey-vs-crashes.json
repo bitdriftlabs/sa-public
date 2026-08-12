@@ -210,9 +210,75 @@
           "save_fields": []
         }
       ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "cs-start",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "_screen_name",
+                "operator": "EQUAL",
+                "string_value": "Welcome"
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        },
+        {
+          "match_rule": {
+            "match_id": "cs-mid",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "_screen_name",
+                "operator": "NOT_EQUAL",
+                "string_value": "CheckoutGuest"
+              }
+            }
+          },
+          "exit_conditions": [],
+          "loop_match_id": "cs-mid",
+          "save_fields": []
+        },
+        {
+          "match_rule": {
+            "match_id": "cs-end",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "_screen_name",
+                "operator": "EQUAL",
+                "string_value": "CheckoutGuest"
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
     }
   ],
   "actions": [
+    {
+      "rule_id": "crash-screen-sankey",
+      "sankey_diagram_rule": {
+        "nodes": [
+          {
+            "id": "cs-start",
+            "fixed": "Welcome"
+          },
+          {
+            "id": "cs-mid",
+            "extract_field": "_screen_name"
+          },
+          {
+            "id": "cs-end",
+            "fixed": "CheckoutGuest"
+          }
+        ]
+      }
+    },
     {
       "rule_id": "journey-sankey",
       "sankey_diagram_rule": {

@@ -287,7 +287,8 @@
                 "time_series_display_mode": {}
               }
             }
-          }
+          },
+          "id": "12024"
         },
         {
           "chart_component_layout": {
@@ -334,10 +335,247 @@
                 ]
               }
             }
-          }
+          },
+          "id": "12025"
         }
       ],
       "id": "1107"
+    },
+    {
+      "name": "Crash attribution",
+      "stylistic_components": [
+        {
+          "id": "c-h",
+          "text_component": {
+            "text": "Which journeys end in a crash?",
+            "variant": "h2"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 0,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "c-p",
+          "text_component": {
+            "text": "Everything on this tab is read straight off the crash report itself, by a Ripsaw script inspecting the report's custom fields — not assembled from a flow. That distinction matters: a crash cannot be the terminal node of a Sankey on iOS, so the journey has to arrive already attached to the report. The app maintains a 5-deep shift register of screens as global fields, and global fields ride onto the crash report, so every crash carries the path that led to it.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 3,
+            "column_span": 12,
+            "row_span": 6
+          }
+        },
+        {
+          "id": "c-h1",
+          "text_component": {
+            "text": "Start here — where did they come from?",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 9,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "c-p1",
+          "text_component": {
+            "text": "The screen immediately before the one that crashed. If a single screen dominates this table, that transition is where to look first — it is the last thing the user did before the app died.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 12,
+            "column_span": 12,
+            "row_span": 4
+          }
+        },
+        {
+          "id": "c-h2",
+          "text_component": {
+            "text": "The path, and where it ended",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 28,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "c-p2",
+          "text_component": {
+            "text": "Left: the last three screens joined, so the most common route into a crash is readable as one row. Right: the screen the crash actually happened on. Three deep rather than the full five on purpose — as a chart dimension the full path goes high-cardinality and silently collapses into an 'other' bucket. All five are still readable per-report under Custom Fields.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 31,
+            "column_span": 12,
+            "row_span": 6
+          }
+        },
+        {
+          "id": "c-h3",
+          "text_component": {
+            "text": "Which crashes can carry a path at all?",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 53,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "c-p3",
+          "text_component": {
+            "text": "Not every crash class can. Kinds caught in-process carry the global fields; kinds the OS reports on the next launch arrive in a fresh process where no fields are set yet, and attribute as 'unknown'. The left table splits screen attribution by error kind so you can see which is which — 'unknown' concentrated on one error kind is expected behaviour, not a broken register.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 56,
+            "column_span": 12,
+            "row_span": 6
+          }
+        }
+      ],
+      "charts": [
+        {
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "55Um",
+                "chart_rule_id": "crashes-by-came-from"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 16,
+              "column_span": 12,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Screen BEFORE the crash (came_from)",
+              "summary": {
+                "description": "Most common predecessor of the crash screen. Your first lead."
+              },
+              "metric_chart_metadata": {
+                "table_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "55Um",
+                "chart_rule_id": "crashes-by-path"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 37,
+              "column_span": 6,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Crash path — last 3 screens",
+              "summary": {
+                "description": "prev2 > came_from > crashed_on. One row per route into a crash."
+              },
+              "metric_chart_metadata": {
+                "table_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "55Um",
+                "chart_rule_id": "crashes-by-last-screen-live"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 37,
+              "column_span": 6,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Screen the crash happened on",
+              "summary": {
+                "description": "Read from the crash report's own fields, not a next-launch breadcrumb."
+              },
+              "metric_chart_metadata": {
+                "table_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "55Um",
+                "chart_rule_id": "screen-attribution-by-error"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 62,
+              "column_span": 6,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Screen attribution by crash kind",
+              "summary": {
+                "description": "Shows which error kinds can carry the journey and which arrive as 'unknown'."
+              },
+              "metric_chart_metadata": {
+                "table_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "55Um",
+                "chart_rule_id": "crashes-by-error-name"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 62,
+              "column_span": 6,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Crashes by error name",
+              "summary": {
+                "description": "Raw crash-kind volume."
+              },
+              "metric_chart_metadata": {
+                "table_display_mode": {}
+              }
+            }
+          }
+        }
+      ]
     }
   ],
   "dashboard_variables": []

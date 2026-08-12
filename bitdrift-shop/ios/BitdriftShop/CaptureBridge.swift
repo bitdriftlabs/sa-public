@@ -96,7 +96,12 @@ enum CaptureBridge {
         // the launch after that, instead of correctly reporting `unknown`. Clearing
         // it here is what makes the pre-screen bucket honest.
         let lastScreen = Prefs.screen.string(Prefs.keyLastScreen) ?? "unknown"
+        // Cleared for the same reason as `keyLastScreen`: a stale trail carried
+        // into a later launch would misattribute the path just as badly as a
+        // stale final screen.
+        let screenTrail = Prefs.screen.string(Prefs.keyScreenTrail) ?? "unknown"
         Prefs.screen.remove(Prefs.keyLastScreen)
+        Prefs.screen.remove(Prefs.keyScreenTrail)
         Prefs.screen.flush()
 
         guard let info = Logger.previousRunInfo else { return }
@@ -113,6 +118,12 @@ enum CaptureBridge {
             // key; `crashed_on_screen` is kept for existing charts that already
             // group by it.
             "screen": lastScreen,
+            // The path the dead run took, newest first, joined by `>`. An
+            // in-process crash carries this on the report itself via the
+            // `screen_prev_N` global fields; a hang or jetsam kill leaves no
+            // report at all, so this persisted copy is the only way those
+            // terminations get a journey rather than just a final screen.
+            "crashed_on_trail": screenTrail,
         ]
 
         if info.hasFatallyTerminated {

@@ -8,6 +8,28 @@ enum ScreenLogger {
 
     private static let osLogger = os.Logger(subsystem: "ai.bitdrift.shop.ios", category: "ScreenLogger")
 
+    /// Depth of the screen shift register — the current screen plus
+    /// `screenTrailDepth - 1` previous ones.
+    ///
+    /// **Five is a deliberate ceiling, not a default to tune upward.** Every
+    /// entry becomes a *global field*, and global fields attach to EVERY
+    /// subsequent log, not just the crash report. Five means five extra
+    /// key-values on every log line the app emits — already a real cost at
+    /// production volume. Anyone reading this pattern as "capture the whole
+    /// journey" and raising it to 100 would multiply the size of their entire
+    /// telemetry stream to answer a question that only needs the tail of it.
+    ///
+    /// The recent path is what makes a crash actionable; the full journey is a
+    /// different problem with a different tool — session timelines, or the
+    /// single joined `keyScreenTrail` breadcrumb, which costs one field no
+    /// matter how long it gets. If you need more history, lengthen that string
+    /// rather than adding more fields.
+    private static let screenTrailDepth = 5
+
+    /// The most recent screens, newest first. Backs the `screen_current` /
+    /// `screen_prev_N` global fields.
+    private static var recentScreens: [String] = []
+
     /// bitdrift SDK: logScreenView() records the transition so it appears as a
     /// breadcrumb in session timelines and powers Sankey diagrams in the
     /// dashboard. Called centrally from `Navigator` for every navigation, so it
@@ -27,6 +49,45 @@ enum ScreenLogger {
         // subsequent log *and on the crash report itself*, so crashes can simply
         // be grouped by `last_screen`.
         Logger.addField(withKey: "last_screen", value: screenName)
+
+        // Shift register of the last `screenTrailDepth` screens, newest first.
+        //
+        // `last_screen` above answers "where were they when it died"; this
+        // answers "how did they get there". Because global fields ride on the
+        // crash report itself, a crash arrives already carrying the path the
+        // user took — no workflow has to reassemble it from a flow, which on
+        // iOS is not possible anyway: APP_IOS_BUILT_IN_CRASH matches as a
+        // standalone step but never advances a multi-step flow, so a
+        // crash-terminal Sankey cannot close. Reading `screen_prev_N` straight
+        // off the report sidesteps that limitation entirely.
+        //
+        // Each field holds one screen name from a bounded set, so nothing here
+        // is high-cardinality on its own. Which of them get promoted to chart
+        // dimensions is a separate, server-side decision in the Ripsaw script —
+        // keeping the composition there means the analysis can change without
+        // shipping a new build.
+        // Collapse consecutive repeats of the same screen. `Navigator` legitimately
+        // logs the same screen twice in a row — `logInitialScreen()` on launch and
+        // `popToWelcome()` at journey start both emit Welcome — and a user
+        // bouncing on one screen does the same. Without this, duplicates consume
+        // slots in a fixed-depth register and push real history off the end, so a
+        // crash report shows `Welcome/Welcome/none/none/none` instead of the path
+        // actually taken. The screen is still re-registered as a global field
+        // below either way; only the trail skips the redundant entry.
+        if recentScreens.first != screenName {
+            recentScreens.insert(screenName, at: 0)
+            if recentScreens.count > screenTrailDepth {
+                recentScreens.removeLast()
+            }
+        }
+        Logger.addField(withKey: "screen_current", value: screenName)
+        for offset in 1 ..< screenTrailDepth {
+            // "none" rather than omitting the key: a stable field set makes a
+            // report from early in a session (genuinely fewer screens) legible
+            // as such, instead of looking like the register failed to populate.
+            let value = offset < recentScreens.count ? recentScreens[offset] : "none"
+            Logger.addField(withKey: "screen_prev_\(offset)", value: value)
+        }
 
         // A plain log carrying the screen under a key that the termination log
         // also uses (`screen`). This exists purely so a workflow can compute a
@@ -52,6 +113,10 @@ enum ScreenLogger {
         // newest screen and attribute the next launch to a stale one — the same
         // reason every crash-state write in DemoPrefs flushes.
         Prefs.screen.set(Prefs.keyLastScreen, screenName)
+        // Same reasoning for the trail: in-memory global fields die with the
+        // process, so a watchdog hang or jetsam kill would otherwise arrive on
+        // the next launch with no path at all. Stored newest-first, joined.
+        Prefs.screen.set(Prefs.keyScreenTrail, recentScreens.joined(separator: ">"))
         Prefs.screen.flush()
     }
 

@@ -74,6 +74,10 @@ struct Prefs {
     static let keyRestartVariant = "restart_variant"
     static let keyUserID = "user_id"
     static let keyLastScreen = "last_screen"
+    /// The last N screens, newest first, joined by `>`. Persisted alongside
+    /// `keyLastScreen` so an out-of-session termination can still report the
+    /// path the user took, not just the final screen.
+    static let keyScreenTrail = "screen_trail"
     /// Set while a background-half crash is armed; polled by `scripts/watchdog.sh`.
     static let keyAwaitingBackground = "awaiting_background"
     /// Which `WatchdogHang` is armed, if any. The app cannot launch, resume or
