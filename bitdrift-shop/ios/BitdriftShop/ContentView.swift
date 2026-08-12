@@ -27,6 +27,12 @@ struct ContentView: View {
     /// Fast crash mode restarts through the same startup flow as every other
     /// crash — skip the splash/countdown for it too, or every fast-mode restart
     /// would pay a mandatory 5s delay, defeating the point of "fast".
+    ///
+    /// The simplified journey skips it unconditionally: it exists for a clean,
+    /// repeatable before/after test, and every relaunch paying a 5s countdown
+    /// (plus a manual "Skip -> Normal App" tap) would slow that loop for no
+    /// benefit — there is nothing to configure in this mode, the path and crash
+    /// point are both fixed by the build flag, not by anything on this screen.
     private static func initialPhase() -> StartupPhase {
         let resumeRequested = Prefs.appHang.bool(Prefs.keyRestartPending)
             || Prefs.forceQuit.bool(Prefs.keyRestartPending)
@@ -34,7 +40,7 @@ struct ContentView: View {
             || Prefs.forceQuit.bool(Prefs.keyResumeInfinite)
         let fastCrashActive = Prefs.crashLoop.bool(Prefs.keyActive)
             && Prefs.crashLoop.bool(Prefs.keyFastMode)
-        return resumeRequested || fastCrashActive ? .app : .config
+        return resumeRequested || fastCrashActive || AppConfig.simplifiedJourneyEnabled ? .app : .config
     }
 
     private var appBody: some View {
@@ -49,6 +55,24 @@ struct ContentView: View {
                 .toolbar(.hidden, for: .navigationBar)
         }
         .environmentObject(nav)
+        .overlay(alignment: .topTrailing) {
+            // Always-visible, read-only indicator of which journey shape this
+            // build runs. Lives here rather than on the startup config screen
+            // because that screen is skipped entirely in simplified-journey
+            // mode (see `initialPhase()`) — this is now the only place it's
+            // possible to see which mode is actually installed.
+            Text(AppConfig.simplifiedJourneyEnabled ? "MIN JOURNEY" : "FULL JOURNEY")
+                .font(.caption2.bold())
+                .foregroundStyle(AppConfig.simplifiedJourneyEnabled ? Palette.orange : .white.opacity(0.6))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    (AppConfig.simplifiedJourneyEnabled ? Palette.orange : Color.white).opacity(0.15),
+                    in: Capsule()
+                )
+                .padding(.top, 4)
+                .padding(.trailing, 8)
+        }
         .overlay(alignment: .bottom) {
             // Floating simulation overlay — visible on all screens during a run.
             if sim.isSimulating {
@@ -224,6 +248,17 @@ struct ContentView: View {
                 "pending_flag": String(quitRestartPending),
             ])
             quitResumeInfinite ? sim.scheduleAutoStartInfinite() : sim.scheduleAutoStart()
+        }
+
+        // Simplified-journey mode skips `StartupConfigScreen` entirely (see
+        // `initialPhase()`), so on a plain fresh launch — not one of the resume
+        // branches above — nothing else arms the sim loop: that screen's own
+        // countdown-completion `.task` is the only other caller of
+        // `scheduleAutoStartInfinite()` for a non-resume launch, and it never
+        // runs in this mode. Without this, the app opens straight to Welcome
+        // and just sits there — no crash, no hang, no simulation, ever.
+        if AppConfig.simplifiedJourneyEnabled && !hadResumeRequest {
+            sim.scheduleAutoStartInfinite()
         }
 
         // Relaunch timing can race with SwiftUI readiness. Retry auto-start a few

@@ -108,9 +108,23 @@ enum Crashes {
     /// simulator all decode this index. When they each did their own `/ 2` and
     /// `% 2` arithmetic, changing the number of slots would have quietly desynced
     /// the "next crash" the UI advertises from the one that actually fires.
-    static func combo(atIndex index: Int, oomOnly useOomOnly: Bool)
+    /// `excludeHangs` strips every combo that is hang-shaped before it becomes
+    /// a crash, rather than crashing synchronously:
+    ///  - the `watchdog_*` entries, which ARM a hang the OS itself detects
+    ///  - `lock_contention`, which deliberately blocks the main thread for
+    ///    `watchdogDelay` before a separate thread converts it to a crash
+    /// Both make the app appear to "start and hang" instead of crashing
+    /// outright. Used by the simplified-journey test, whose whole point is a
+    /// deterministic crash at a known step: the crash *kind* is free to rotate
+    /// through the catalog, but the class (crash vs. hang) must not. Default
+    /// `false` leaves every other caller (Welcome screen, Advanced screen, the
+    /// normal random sweep) unchanged.
+    static func combo(atIndex index: Int, oomOnly useOomOnly: Bool, excludeHangs: Bool = false)
         -> (name: String, fire: () -> Void, fireInBackground: Bool, totalCombos: Int) {
-        let list = useOomOnly ? Crashes.oomOnly : Crashes.defaultSweep
+        var list = useOomOnly ? Crashes.oomOnly : Crashes.defaultSweep
+        if excludeHangs {
+            list = list.filter { !$0.name.hasPrefix("watchdog_") && $0.name != "lock_contention" }
+        }
         let slots = slotsPerCrash
         let total = max(list.count * slots, 1)
         let idx = ((index % total) + total) % total

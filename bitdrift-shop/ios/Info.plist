@@ -59,6 +59,8 @@
 	<string>$(ENABLE_BACKGROUND_CRASHES)</string>
 	<key>ENABLE_OOM_CRASHES</key>
 	<string>$(ENABLE_OOM_CRASHES)</string>
+	<key>SIMPLIFIED_JOURNEY_ENABLED</key>
+	<string>$(SIMPLIFIED_JOURNEY_ENABLED)</string>
 	<key>SHOW_CARDINALITY</key>
 	<string>$(SHOW_CARDINALITY)</string>
 	<key>SHOW_SIM_AB</key>

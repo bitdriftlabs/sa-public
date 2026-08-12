@@ -1,6 +1,6 @@
 # Bitdrift Shop (iOS — SDK)
 
-**Version 1.0**
+**Version 2.0**
 
 Native SwiftUI demo app simulating an e-commerce shopping experience, **already
 instrumented with the bitdrift Capture SDK** (`capture-ios` 0.23.11 via Swift
@@ -91,6 +91,13 @@ SHOP_BACKEND_URL = http:/$()/192.168.1.20:5173
 
 `ipconfig getifaddr en0` prints the address. Keep the `$()` between the slashes:
 `//` starts a comment in xcconfig, so without it the value truncates to `http:`.
+
+`en0` is Wi-Fi on most Macs, but not all — a Mac connected via a USB-Ethernet
+adapter or dock can have `en0` come back empty while the real address sits on
+`en5`/`en6`/etc. If `ipconfig getifaddr en0` prints nothing, run
+`ifconfig | awk '/^[a-z]/{i=$1} /inet /{print i, $2}'` to see every interface's
+address and pick the one matching your LAN's subnet (check `networksetup
+-listnetworkserviceorder` if more than one looks plausible).
 
 (A physical *Android* device has the same problem — its `10.0.2.2` alias is
 emulator-only. The emulator hides it rather than solving it.)
@@ -192,6 +199,43 @@ decision point. Three persona presets bias those choices, exactly as on Android:
 
 Every probability, event name, field name, and span name matches the Android
 implementation, so cross-platform comparisons in a dashboard are apples to apples.
+
+### Simplified journey
+
+`SIMPLIFIED_JOURNEY_ENABLED = YES` in `.local.xcconfig` replaces the randomized
+funnel above with a fixed, non-random 5-step path:
+
+```
+Welcome → Browse → ProductDetail → Cart → CheckoutGuest
+```
+
+Built for a concrete before/after test of whether a workflow's Sankey or flow
+actually closes on a crash, rather than reasoning about it against a randomized
+journey with a probabilistic crash point. With the crash loop **off**, every
+journey completes all 5 steps — a clean baseline proving the path itself
+populates a Sankey/funnel end to end. With it **on**, every journey crashes
+**unconditionally right after step 3** (`ProductDetail`) — no random branching,
+no probabilistic crash-point selection, so there is never any ambiguity about
+which step a workflow's flow died at. See
+[`SimulationManager.runSimplifiedJourney`](BitdriftShop/SimulationManager.swift).
+
+A few things behave differently in this mode, all deliberately:
+
+- **The startup config splash is skipped.** There is nothing to configure —
+  the path and crash point are both fixed by the build flag — so every
+  relaunch goes straight to the app instead of paying a 5s countdown. A small
+  "MIN JOURNEY" / "FULL JOURNEY" pill floats over the top-right corner of every
+  screen so it's still obvious at a glance which build is installed.
+- **The crash draw excludes every hang-shaped combo**, not just the ones
+  targeted at the crash catalog's `watchdog_*` entries. `lock_contention` is
+  also excluded — it deliberately blocks the main thread for a fixed delay
+  before a separate thread converts it to a crash, which is exactly the kind
+  of hang this mode exists to rule out. The crash *kind* still rotates through
+  the rest of the catalog on every firing; only the hang-shaped ones are
+  removed. See `Crashes.combo(excludeHangs:)`.
+- **`app_hang` and `force_quit` modes are unaffected** — this flag only
+  changes which screens the simulator walks and how its own crash draw is
+  filtered, not the other fault-injection toggles below.
 
 ## Fault injection
 

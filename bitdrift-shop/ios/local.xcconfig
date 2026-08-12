@@ -58,4 +58,14 @@ ENABLE_BACKGROUND_CRASHES = NO
 // specifically demoing memory exhaustion.
 ENABLE_OOM_CRASHES = NO
 
+// Replaces the randomized shopping journey with a fixed 5-step path (Welcome →
+// Browse → ProductDetail → Cart → CheckoutGuest). With the crash loop off,
+// every journey completes all 5 steps — a clean "before" baseline. With the
+// crash loop on, every journey crashes unconditionally right after step 3
+// (ProductDetail) — a clean "after" comparison, with no random branching and
+// no probabilistic crash-point selection to blur which step the flow died at.
+//
+// Off by default; set to YES to run the before/after workflow-closure test.
+SIMPLIFIED_JOURNEY_ENABLED = YES
+
 #include? ".local.xcconfig"
