@@ -1,16 +1,31 @@
 # What journey led to the crash?
 
-Crash reports tell you *what* broke, not *how the user got there*. This attaches
-the path to the report itself.
+Crash reports tell you *what* broke, not *how the user got there*. Two
+independent ways to get the path attached to the crash, with different
+trade-offs:
+
+| | Depends on session strategy? | Depends on relaunch timing? | Shows branching? |
+|---|---|---|---|
+| **Sankey** (below) | Yes — needs `.activityBased()` | Yes — must land within `inactivityThresholdMins` | Yes |
+| **Shift register** (below) | No | No | No — path only, per report |
+
+Use the Sankey to see *where journeys branch and how many crash at each point*.
+Use the register when you need every crash attributed regardless of session
+strategy or how long the relaunch takes — it rides on the crash report
+directly and has no timing dependency.
 
 Reference implementation: [`bitdrift-shop/ios`](../../bitdrift-shop/ios) —
-`ScreenLogger.swift` (the register), `CaptureBridge.swift` (the next-launch
-path), `workflows/bd-shop-18-*` (the Ripsaw script).
+`CaptureBridge.swift` (session strategy, the next-launch path),
+`ScreenLogger.swift` (the register), `workflows/bd-shop-19-*` (the Sankey),
+`workflows/bd-shop-18-*` (the Ripsaw script).
 
-## Why not just build a Sankey ending in a crash?
+## A crash-terminal Sankey — it depends entirely on session strategy
 
-Because on iOS it cannot close. This was measured on device
-(`capture-ios` 0.23.11), not inferred:
+This section has been wrong twice, so the current answer is stated with the
+evidence attached.
+
+**Under `sessionStrategy: .fixed()`, it cannot close.** Measured on device
+(`capture-ios` 0.23.11):
 
 | Flow shape | Result |
 |---|---|
@@ -20,19 +35,61 @@ Because on iOS it cannot close. This was measured on device
 | screen view → loop → crash (3 steps) | **0** |
 | screen view → loop → a normal screen (3 steps) | 122 matches, 22 links |
 
-Multi-step flows and looping Sankeys work fine. Per-journey `startNewSession()`
-is fine too — a 3-step Sankey was verified populating with rotation on. The one
-thing that does not work is `APP_IOS_BUILT_IN_CRASH` / `APP_IOS_BUILT_IN_ANR`
-advancing a multi-step flow, in either direction. They match only as a
-standalone first step.
+Multi-step flows and looping Sankeys work fine — the one thing that doesn't is
+the fatal-issue events advancing a flow, under `.fixed()`.
 
-> An earlier version of this document blamed session attribution and
-> `startNewSession()`. Both were tested and neither is the cause. The blocker is
-> narrower and more specific: the fatal-issue events themselves.
+**Under `sessionStrategy: .activityBased()`, it closes.** Same account, same
+app, one line changed in `CaptureBridge.swift`:
 
-A Sankey with an unreachable terminal renders **empty rather than erroring**, so
-this fails silently. If you need a Sankey during a crash run, terminate it on the
-*screen where crashes happen* instead of on the crash.
+```
+Welcome → Browse            26
+Browse → ProductDetail       22
+Browse → Fatal Issue-Crash    4
+ProductDetail → Cart         11
+ProductDetail → Fatal Issue-Crash 11
+Cart → CheckoutGuest         11
+CheckoutGuest → Fatal Issue-Crash 11
+```
+
+`flow-closed-count` = 26, matching the sankey's incoming-crash links exactly.
+
+**Why:** the SDK's built-in fatal issue handler reads the crash report on the
+*next* launch, and injects it into the timeline carrying a snapshot of the
+global-field state from the moment of death — confirmed on a real captured
+session, where the replayed log showed `_logged_at` three seconds after the
+crash's real timestamp, `_fatal_issue_mechanism: BUILT_IN`, and the full
+`screen_current`/`screen_prev_N` register from crash time. Under `.fixed()`,
+that replay lands in a **brand-new session**, so the flow that was mid-progress
+when the process died has no way to see it. Under `.activityBased()`, the
+relaunch **resumes the same session** (provided it lands within
+`inactivityThresholdMins`, 30 min by default), so the replayed crash log
+arrives inside the exact session whose `Welcome → loop` steps already matched
+— and the flow closes.
+
+**The caveat that matters for a real app:** this depends on the relaunch
+landing inside that window. A slow relaunch, or a device that stays off
+Wi-Fi/power long enough, ages the session out — at which point you're back to
+the `.fixed()`-shaped empty Sankey with no visible change in configuration.
+Don't promise this unconditionally; test the boundary for your own relaunch
+latency before relying on it.
+
+A Sankey with an unreachable terminal renders **empty rather than erroring**,
+which is exactly what made this so easy to misdiagnose as a hard limitation
+instead of a session-strategy dependency.
+
+Deploy it — one flow (`Welcome → loop SCREEN_VIEW → APP_IOS_BUILT_IN_CRASH`)
+plus a standalone crash count as a control:
+[`bd-shop-19-ios-crash-terminal-sankey.json`](../../bitdrift-shop/ios/workflows/bd-shop-19-ios-crash-terminal-sankey.json)
+(+ `.metadata.json` / `chart-metadata/*.chart.json`), or just:
+
+```bash
+cd ../../bitdrift-shop/ios && ./scripts/deploy-workflows.sh
+```
+
+Read `flow-closed-count` against `crash-alone-count`: if the standalone count
+keeps climbing while the flow-closed count is flat, crashes are firing but not
+closing — check that `.activityBased()` is actually the configured strategy
+and that relaunches are landing inside the inactivity window.
 
 ## The approach: put the path on the report
 
@@ -190,6 +247,7 @@ reports directly — no metric emission, so no cardinality ceiling. Prompt:
 
 | File | What it is |
 |---|---|
+| [`bd-shop-19-ios-crash-terminal-sankey.json`](../../bitdrift-shop/ios/workflows/bd-shop-19-ios-crash-terminal-sankey.json) | The Sankey — needs `.activityBased()`, see above |
 | [`crash-journey-ripsaw.workflow.json`](crash-journey-ripsaw.workflow.json) | Step 3 — Ripsaw `issue_match`, charts the paths (+ `.metadata` / `.chart-metadata`) |
 | [`crash-journey-agent-prompt.md`](crash-journey-agent-prompt.md) | Step 4 — agent prompt for full-depth analysis |
 | [`last-screen-before-crash.workflow.json`](last-screen-before-crash.workflow.json) | Step 2 — charts `previous_run_terminated`, the hang/OOM path (+ metadata) |

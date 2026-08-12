@@ -20,25 +20,25 @@
         {
           "id": "t-intro-p",
           "text_component": {
-            "text": "A crash can't be the final node of a Sankey on iOS, so this dashboard splits the question in two and joins it on screen name: the funnel and Sankey show where journeys die, the rate chart shows where the app dies.",
+            "text": "A crash CAN be the terminal node of a Sankey on iOS — but only with sessionStrategy .activityBased(). Under the default .fixed() it never closes: the crash is read on the next launch into a brand-new session, disconnected from whatever flow was mid-progress when the process died. activityBased resumes the same session across the relaunch (if it lands within inactivityThresholdMins of the crash), so the replayed crash log arrives inside the session that was already walking the flow, and it closes. See CaptureBridge.swift.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
             "x": 0,
             "y": 3,
             "column_span": 12,
-            "row_span": 4
+            "row_span": 7
           }
         },
         {
           "id": "t-s1-h",
           "text_component": {
-            "text": "Start here — which screen is actually risky?",
+            "text": "Start here — paths that end in a crash",
             "variant": "h3"
           },
           "dashboard_layout_settings": {
             "x": 0,
-            "y": 7,
+            "y": 10,
             "column_span": 12,
             "row_span": 3
           }
@@ -46,14 +46,14 @@
         {
           "id": "t-s1-p",
           "text_component": {
-            "text": "Crash rate per screen: terminations on a screen divided by visits to it. Read the top bar, then find that screen in the Sankey and follow its inbound bands — those are the journeys leading into the crash. That is the whole analysis. Raw counts (section 3) mostly rank popularity: Cart and Confirmation can show similar counts while Cart has several times the rate.",
+            "text": "The Sankey below terminates at the actual crash, not a proxy screen. Each node's outgoing links show, for real, how many journeys through that screen continued versus crashed — read that ratio as the crash rate for that screen; it needs no separate numerator/denominator chart, and it can't go stale between windows the way a rate metric can. flow-closed-count below it is a control: if it stops moving while crashes are still happening, sessions are aging out before the relaunch lands.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
             "x": 0,
-            "y": 10,
+            "y": 13,
             "column_span": 12,
-            "row_span": 5
+            "row_span": 7
           }
         },
         {
@@ -64,7 +64,7 @@
           },
           "dashboard_layout_settings": {
             "x": 0,
-            "y": 28,
+            "y": 48,
             "column_span": 12,
             "row_span": 3
           }
@@ -77,7 +77,7 @@
           },
           "dashboard_layout_settings": {
             "x": 0,
-            "y": 31,
+            "y": 51,
             "column_span": 12,
             "row_span": 5
           }
@@ -90,7 +90,7 @@
           },
           "dashboard_layout_settings": {
             "x": 0,
-            "y": 62,
+            "y": 82,
             "column_span": 12,
             "row_span": 3
           }
@@ -103,7 +103,7 @@
           },
           "dashboard_layout_settings": {
             "x": 0,
-            "y": 65,
+            "y": 85,
             "column_span": 12,
             "row_span": 4
           }
@@ -116,7 +116,7 @@
           },
           "dashboard_layout_settings": {
             "x": 0,
-            "y": 81,
+            "y": 101,
             "column_span": 12,
             "row_span": 3
           }
@@ -124,18 +124,128 @@
         {
           "id": "t-how-p",
           "text_component": {
-            "text": "Correlational, not causal. Attribution is to the last screen reached, so a background crash still lands on whatever was visible. Session rotation is on (one per journey), so treat per-session rates as a demo artifact.",
+            "text": "Correlational, not causal. Attribution is to the last screen reached, so a background crash still lands on whatever was visible. The Sankey closing depends on the relaunch landing within inactivityThresholdMins (30 min default) of the crash — a slow relaunch ages the session out and you're back to the .fixed()-style empty Sankey.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
             "x": 0,
-            "y": 84,
+            "y": 104,
             "column_span": 12,
             "row_span": 4
           }
         }
       ],
       "charts": [
+        {
+          "id": "12128",
+          "chart_component_layout": {
+            "chart_id": {
+              "sankey_chart": {
+                "workflow_id": "yhl5",
+                "rule_id": "crash-terminal-sankey"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 20,
+              "column_span": 12,
+              "row_span": 16
+            },
+            "chart_metadata": {
+              "title": "Paths that end in a crash",
+              "summary": {
+                "description": "Terminates at the real crash, not a proxy screen. Works because CaptureBridge.swift uses sessionStrategy .activityBased() — see the note above."
+              },
+              "sankey_chart_metadata": {}
+            }
+          }
+        },
+        {
+          "id": "12129",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "yhl5",
+                "chart_rule_id": "flow-closed-count"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 36,
+              "column_span": 6,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Crashes attributed to a journey (flow closed)",
+              "summary": {
+                "description": "Should track crash-alone-count below within a few percent. A growing gap means relaunches are landing outside the session-resume window."
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "id": "12130",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "yhl5",
+                "chart_rule_id": "crash-alone-count"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 36,
+              "column_span": 6,
+              "row_span": 12
+            },
+            "chart_metadata": {
+              "title": "Crashes total (control)",
+              "summary": {
+                "description": "Every crash, regardless of whether the flow above closed. Compare against flow-closed-count."
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {}
+              }
+            }
+          }
+        },
+        {
+          "id": "12025",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow_funnel_chart": {
+                "workflow_id": "DVE2",
+                "funnel_rule_id": "journey-funnel"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 56,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Checkout funnel — step-to-step conversion",
+              "summary": {
+                "description": "Steps line up with the Sankey columns left to right, so each funnel bar is one Sankey stage. Discovery collapses Browse/Search/Categories/CategoryBrowse/Featured; Checkout and Payment collapse their variants."
+              },
+              "funnel_chart_metadata": {
+                "steps": [
+                  { "name": "Welcome" },
+                  { "name": "Discovery" },
+                  { "name": "ProductDetail" },
+                  { "name": "Cart" },
+                  { "name": "Checkout" },
+                  { "name": "Payment" },
+                  { "name": "Confirmation" }
+                ]
+              }
+            }
+          }
+        },
         {
           "id": "12017",
           "chart_component_layout": {
@@ -147,14 +257,14 @@
             },
             "layout_settings": {
               "x": 6,
-              "y": 36,
+              "y": 56,
               "column_span": 6,
               "row_span": 14
             },
             "chart_metadata": {
               "title": "User journey — full paths and where they drop off",
               "summary": {
-                "description": "Welcome to Confirmation. Middle node loops once per screen view, so the full inbound path to any screen is readable. Thick in, thin out = drop-off."
+                "description": "Welcome to Confirmation. Middle node loops once per screen view, so the full inbound path to any screen is readable. Thick in, thin out = drop-off. Blank during a crash run by design — it needs Confirmation, which a crash run never reaches; see the crash-terminal Sankey above for that case."
               },
               "sankey_chart_metadata": {}
             }
@@ -171,7 +281,7 @@
             },
             "layout_settings": {
               "x": 0,
-              "y": 50,
+              "y": 70,
               "column_span": 6,
               "row_span": 12
             },
@@ -197,14 +307,14 @@
             },
             "layout_settings": {
               "x": 6,
-              "y": 50,
+              "y": 70,
               "column_span": 6,
               "row_span": 12
             },
             "chart_metadata": {
-              "title": "Screen visits by name (denominator for crash rate)",
+              "title": "Screen visits by name",
               "summary": {
-                "description": "Visits per screen. Divide crash counts by these to rank real risk instead of popularity. Empty here means no traffic — check before trusting any other chart."
+                "description": "Visits per screen — the denominator behind the crash-terminal Sankey's link ratios above."
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {}
@@ -223,14 +333,14 @@
             },
             "layout_settings": {
               "x": 0,
-              "y": 69,
+              "y": 89,
               "column_span": 6,
               "row_span": 12
             },
             "chart_metadata": {
               "title": "Crashes by last screen before termination",
               "summary": {
-                "description": "Raw counts by screen at time of death. Ranks popularity as much as risk — use the rate chart at the top to rank risk."
+                "description": "Raw counts by screen at time of death. Ranks popularity as much as risk — use the crash-terminal Sankey's link ratios above to rank risk."
               },
               "metric_chart_metadata": {
                 "table_display_mode": {}
@@ -249,7 +359,7 @@
             },
             "layout_settings": {
               "x": 6,
-              "y": 69,
+              "y": 89,
               "column_span": 6,
               "row_span": 12
             },
@@ -263,80 +373,6 @@
               }
             }
           }
-        },
-        {
-          "chart_component_layout": {
-            "chart_id": {
-              "workflow": {
-                "workflow_id": "DVE2",
-                "chart_rule_id": "crash-rate-by-screen"
-              }
-            },
-            "layout_settings": {
-              "x": 0,
-              "y": 15,
-              "column_span": 12,
-              "row_span": 13
-            },
-            "chart_metadata": {
-              "title": "Crash rate by screen  <- start here",
-              "summary": {
-                "description": "Terminations on a screen / visits to that screen. Top bar is your riskiest screen. This is the number raw counts hide."
-              },
-              "metric_chart_metadata": {
-                "time_series_display_mode": {}
-              }
-            }
-          },
-          "id": "12024"
-        },
-        {
-          "chart_component_layout": {
-            "chart_id": {
-              "workflow_funnel_chart": {
-                "workflow_id": "DVE2",
-                "funnel_rule_id": "journey-funnel"
-              }
-            },
-            "layout_settings": {
-              "x": 0,
-              "y": 36,
-              "column_span": 6,
-              "row_span": 14
-            },
-            "chart_metadata": {
-              "title": "Checkout funnel — step-to-step conversion",
-              "summary": {
-                "description": "Steps line up with the Sankey columns left to right, so each funnel bar is one Sankey stage. Discovery collapses Browse/Search/Categories/CategoryBrowse/Featured; Checkout and Payment collapse their variants."
-              },
-              "funnel_chart_metadata": {
-                "steps": [
-                  {
-                    "name": "Welcome"
-                  },
-                  {
-                    "name": "Discovery"
-                  },
-                  {
-                    "name": "ProductDetail"
-                  },
-                  {
-                    "name": "Cart"
-                  },
-                  {
-                    "name": "Checkout"
-                  },
-                  {
-                    "name": "Payment"
-                  },
-                  {
-                    "name": "Confirmation"
-                  }
-                ]
-              }
-            }
-          },
-          "id": "12025"
         }
       ],
       "id": "1107"
@@ -360,7 +396,7 @@
         {
           "id": "c-p",
           "text_component": {
-            "text": "Everything on this tab is read straight off the crash report itself, by a Ripsaw script inspecting the report's custom fields — not assembled from a flow. That distinction matters: a crash cannot be the terminal node of a Sankey on iOS, so the journey has to arrive already attached to the report. The app maintains a 5-deep shift register of screens as global fields, and global fields ride onto the crash report, so every crash carries the path that led to it.",
+            "text": "Everything on this tab is read straight off the crash report itself, by a Ripsaw script inspecting the report's custom fields — not assembled from a flow. Unlike the crash-terminal Sankey on the other tab, this has no dependency on session strategy or relaunch timing: the app maintains a 5-deep shift register of screens as global fields, and global fields ride onto the crash report, so every crash carries the path that led to it regardless of what happens after.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
@@ -451,6 +487,7 @@
       ],
       "charts": [
         {
+          "id": "12131",
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
@@ -476,6 +513,7 @@
           }
         },
         {
+          "id": "12132",
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
@@ -501,6 +539,7 @@
           }
         },
         {
+          "id": "12133",
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
@@ -526,6 +565,7 @@
           }
         },
         {
+          "id": "12134",
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
@@ -551,6 +591,7 @@
           }
         },
         {
+          "id": "12135",
           "chart_component_layout": {
             "chart_id": {
               "workflow": {

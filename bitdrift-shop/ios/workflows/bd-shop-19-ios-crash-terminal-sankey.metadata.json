@@ -1,0 +1,21 @@
+{
+  "description": "The crash-terminal Sankey previously believed impossible on iOS. APP_IOS_BUILT_IN_CRASH cannot advance a multi-step flow under sessionStrategy .fixed() -- 0 closures across every flow shape tried on device. It CAN under .activityBased(): the crash report is read on the next launch and injected into the timeline with a snapshot of field state from crash time, but stamped with when it was read. Under .fixed() that landing session is always new. Under .activityBased() the relaunch resumes the SAME session (if within inactivityThresholdMins), so the replayed log lands inside the session whose Welcome-then-loop steps already matched, and the flow closes. crash-alone-count is a control: nonzero there with flat flow-closed-count means the crash fires but something blocks closure -- check session strategy and the relaunch gap first.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "journey-start",
+      "title": "Journey start (Welcome)"
+    },
+    {
+      "rule_id": "screen-view",
+      "title": "Screen views (loop)"
+    },
+    {
+      "rule_id": "fatal-crash",
+      "title": "Fatal crash (flow terminal)"
+    },
+    {
+      "rule_id": "crash-alone",
+      "title": "Fatal crash (standalone control)"
+    }
+  ]
+}

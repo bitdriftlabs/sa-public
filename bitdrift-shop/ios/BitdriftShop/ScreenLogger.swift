@@ -55,11 +55,13 @@ enum ScreenLogger {
         // `last_screen` above answers "where were they when it died"; this
         // answers "how did they get there". Because global fields ride on the
         // crash report itself, a crash arrives already carrying the path the
-        // user took — no workflow has to reassemble it from a flow, which on
-        // iOS is not possible anyway: APP_IOS_BUILT_IN_CRASH matches as a
-        // standalone step but never advances a multi-step flow, so a
-        // crash-terminal Sankey cannot close. Reading `screen_prev_N` straight
-        // off the report sidesteps that limitation entirely.
+        // user took — no workflow has to reassemble it from a flow. That
+        // matters even though a crash-terminal Sankey *can* close on iOS now
+        // (`CaptureBridge.start()` / `bd-shop-19`): the Sankey needs
+        // `sessionStrategy: .activityBased()` and a relaunch inside
+        // `inactivityThresholdMins`. This register has neither dependency —
+        // it is on the report regardless of session strategy or relaunch
+        // timing, which is what makes it the one that should never break.
         //
         // Each field holds one screen name from a bounded set, so nothing here
         // is high-cardinality on its own. Which of them get promoted to chart

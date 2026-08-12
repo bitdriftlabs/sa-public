@@ -1,21 +1,5 @@
 [
   {
-    "rule_id": "crash-screen-sankey",
-    "metadata": {
-      "title": "Paths to the crash screen (populates during crashes)",
-      "metric_chart_metadata": {}
-    }
-  },
-  {
-    "rule_id": "crash-rate-by-screen",
-    "metadata": {
-      "title": "Crash rate by screen (use a 24h+ window — see note)",
-      "metric_chart_metadata": {
-        "time_series_display_mode": {}
-      }
-    }
-  },
-  {
     "rule_id": "journey-funnel",
     "metadata": {
       "title": "Checkout funnel — step-to-step conversion",

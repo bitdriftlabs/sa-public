@@ -59,6 +59,7 @@ deploy_workflow bd-shop-14-ios-paths-to-force-quit      "Paths to force quit"
 deploy_workflow bd-shop-15-crashes-by-final-screen      "Crashes by final screen"
 deploy_workflow bd-shop-17-ios-journey-vs-crashes       "Journey vs crashes by screen"
 deploy_workflow bd-shop-18-ios-crashes-by-last-screen-live "Crashes by last screen (Ripsaw)"
+deploy_workflow bd-shop-19-ios-crash-terminal-sankey    "Crash-terminal Sankey (needs .activityBased())"
 
 if [[ "$DEPLOY_DASH" -eq 1 ]]; then
   echo

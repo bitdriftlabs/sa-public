@@ -166,7 +166,7 @@ the dashboard in real time.
 |---------|-------------|----------------|
 | **SDK dependency** | `capture-ios` 0.23.11 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
 | **Logger startup** | `Logger.start(withAPIKey:sessionStrategy:configuration:fieldProviders:)` in `App.init()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
-| **Session strategy** | `.fixed()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
+| **Session strategy** | `.activityBased()` — resumes the same session across a crash + relaunch if it lands within `inactivityThresholdMins`, which is what lets `bd-shop-19`'s crash-terminal Sankey close | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Network capture** | `.enableIntegrations([.urlSession()])` — automatic, no per-call code | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Path templates** | `x-capture-path-template` header on parameterised routes | [ApiClient.swift](BitdriftShop/ApiClient.swift) |
 | **Screen views** | `Logger.logScreenView(screenName:)`, centrally from `Navigator` | [Navigator.swift](BitdriftShop/Navigator.swift), [ScreenLogger.swift](BitdriftShop/ScreenLogger.swift) |
