@@ -1,0 +1,9 @@
+{
+  "description": "Reads the screen shift register (screen_current / screen_prev_N global fields) off uploaded crash reports via a Ripsaw issue_match script, and charts the paths users took into a crash. Needs no flow, so it is unaffected by the fact that APP_IOS_BUILT_IN_CRASH cannot advance a multi-step flow on iOS. Paths are charted 3 deep deliberately: as a metric dimension each distinct path is a tag combination, and overflow past the cardinality budget silently folds into an 'other' bucket rather than erroring. attribution-by-error exists to separate crashes that carry the register from those the OS reports on the next launch, which arrive with no global fields and attribute as 'unknown'.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "issue-step",
+      "title": "Uploaded crash report"
+    }
+  ]
+}

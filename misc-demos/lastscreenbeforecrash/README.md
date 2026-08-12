@@ -1,141 +1,198 @@
-# Which screen were users on when the app died?
+# What journey led to the crash?
 
-Crash reports tell you *what* broke, not *where the user was*. This adds that, in
-two small code changes and one workflow.
+Crash reports tell you *what* broke, not *how the user got there*. This attaches
+the path to the report itself.
 
-## Why the obvious approach doesn't work
+Reference implementation: [`bitdrift-shop/ios`](../../bitdrift-shop/ios) —
+`ScreenLogger.swift` (the register), `CaptureBridge.swift` (the next-launch
+path), `workflows/bd-shop-18-*` (the Ripsaw script).
 
-The intuitive answer is a Sankey ending in a crash: screen views in, crash out.
-It usually comes back empty, for one reason:
+## Why not just build a Sankey ending in a crash?
 
-**The crash is often not in the same session as the screen views.**
+Because on iOS it cannot close. This was measured on device
+(`capture-ios` 0.23.11), not inferred:
 
-- App hangs (`0x8BADF00D`) and out-of-memory kills produce no log at the moment
-  they happen — the process is simply gone. The OS report arrives on the **next
-  launch**, in a **new session**.
-- Any app that calls `startNewSession()` splits its own screen views away from
-  whatever happens later.
-- A launch anchor like `SDK_CONFIGURATION` fires once per *process*, so it isn't
-  in the session that eventually crashes either.
+| Flow shape | Result |
+|---|---|
+| `APP_IOS_BUILT_IN_CRASH` alone | 37 matches |
+| screen view → crash (2 steps) | **0** |
+| crash → screen view (2 steps) | **0** |
+| screen view → loop → crash (3 steps) | **0** |
+| screen view → loop → a normal screen (3 steps) | 122 matches, 22 links |
 
-A workflow step can only match events it can see in one session, so the flow
-never reaches its final step. Fields don't have that problem — so use fields.
+Multi-step flows and looping Sankeys work fine. Per-journey `startNewSession()`
+is fine too — a 3-step Sankey was verified populating with rotation on. The one
+thing that does not work is `APP_IOS_BUILT_IN_CRASH` / `APP_IOS_BUILT_IN_ANR`
+advancing a multi-step flow, in either direction. They match only as a
+standalone first step.
 
----
+> An earlier version of this document blamed session attribution and
+> `startNewSession()`. Both were tested and neither is the cause. The blocker is
+> narrower and more specific: the fatal-issue events themselves.
 
-## Step 1 — tag every screen view with a field
+A Sankey with an unreachable terminal renders **empty rather than erroring**, so
+this fails silently. If you need a Sankey during a crash run, terminate it on the
+*screen where crashes happen* instead of on the crash.
 
-Wherever you already call `logScreenView`, also set a global field. Global fields
-attach to every later log **and to the crash report itself**.
+## The approach: put the path on the report
 
-**iOS**
+Global fields ride onto the crash report. So keep a small shift register of
+recent screens as global fields, and every crash arrives already carrying the
+path — no flow, no session correlation, nothing to close.
+
+### Step 1 — the shift register
+
+Wherever you already call `logScreenView`:
+
 ```swift
+private static let trailDepth = 5          // hard ceiling, see below
+private static var recent: [String] = []
+
 func onScreen(_ name: String) {
     Logger.logScreenView(screenName: name)
-    Logger.addField(withKey: "last_screen", value: name)          // rides along on crashes
-    UserDefaults.standard.set(name, forKey: "last_screen")        // survives the process dying
-    UserDefaults.standard.synchronize()                           // flush — a crash may be imminent
+
+    // Collapse consecutive repeats — navigation often logs the same screen
+    // twice (initial + explicit), which would burn slots and push real
+    // history off the end.
+    if recent.first != name {
+        recent.insert(name, at: 0)
+        if recent.count > trailDepth { recent.removeLast() }
+    }
+
+    Logger.addField(withKey: "screen_current", value: name)
+    for i in 1 ..< trailDepth {
+        // "none" rather than omitting: a stable field set distinguishes
+        // "early in the session" from "the register failed".
+        Logger.addField(withKey: "screen_prev_\(i)",
+                        value: i < recent.count ? recent[i] : "none")
+    }
+
+    // Survives the process dying — see Step 2.
+    prefs.set(recent.joined(separator: ">"), forKey: "screen_trail")
+    prefs.set(name, forKey: "last_screen")
+    prefs.synchronize()
 }
 ```
 
-**Android**
-```kotlin
-fun onScreen(name: String) {
-    Logger.logScreenView(name)
-    Logger.addField("last_screen", name)
-    prefs.edit().putString("last_screen", name).commit()   // commit, not apply — must survive a crash
-}
-```
+**Five is a ceiling, not a default to tune up.** Every entry is a global field,
+and global fields attach to *every* log the app emits — not just the crash
+report. Five means five extra key-values on every log line, which is already a
+real cost at production volume. Reading this as "capture the whole journey" and
+setting it to 100 multiplies your entire telemetry stream to answer a question
+that only needs the tail of it.
 
-That alone makes crashes groupable by `last_screen`.
+### Step 2 — the next-launch path, for hangs and OOM
 
-## Step 2 — report the previous run at startup
-
-This is what catches hangs and OOM kills, which Step 1 can't: they leave no log
-behind, so you report them *after* the restart.
-
-**iOS** — in `application(_:didFinishLaunchingWithOptions:)` or `App.init()`,
-**before** logging your first screen view:
+Hangs (`0x8BADF00D`) and jetsam kills produce no report at the moment they
+happen; the process is simply gone. Nothing in Step 1 can help, because in-memory
+global fields die with the process. Report them after the restart instead:
 
 ```swift
-// Snapshot and clear first — this value describes the run that just ended.
-let previousScreen = UserDefaults.standard.string(forKey: "last_screen") ?? "unknown"
-UserDefaults.standard.removeObject(forKey: "last_screen")
-UserDefaults.standard.synchronize()
+let trail = prefs.string(forKey: "screen_trail") ?? "unknown"
+let last  = prefs.string(forKey: "last_screen")  ?? "unknown"
+prefs.removeObject(forKey: "screen_trail")       // clear, or a later launch
+prefs.removeObject(forKey: "last_screen")        // inherits a stale path
+prefs.synchronize()
 
 if let info = Logger.previousRunInfo {
     Logger.logError("previous_run_terminated", fields: [
-        "termination_reason": info.terminationReason.rawValue,   // fatalCrash, cleanExit, ...
-        "crashed_on_screen": previousScreen,
+        "termination_reason": info.terminationReason.rawValue,
+        "crashed_on_screen": last,
+        "crashed_on_trail": trail,
     ])
 }
 ```
 
-Two details that matter:
+Read it **before** the first screen view of the new launch, or it has already
+been overwritten. Clear it after reading, or a launch that dies before reaching
+any screen inherits the previous run's path.
 
-- **Read it before your first screen view**, or it has already been overwritten
-  with this launch's screen.
-- **Clear it after reading.** Otherwise a launch that dies *before* reaching any
-  screen inherits the previous run's screen on the launch after that, instead of
-  correctly reporting `unknown` — which is exactly the pre-screen case the `other`
-  bucket is supposed to surface.
+Note this is a plain log, not a global field, so it has no per-log budget — the
+persisted trail here can be much deeper than five if you want it.
 
-## Step 3 — deploy the workflow
+### Step 3 — chart it (Ripsaw)
 
-Edit [`last-screen-before-crash.workflow.json`](last-screen-before-crash.workflow.json),
-replace `<YOUR_IOS_APP_ID>`, then:
+A server-side `issue_match` step reads the register straight off the report:
+
+```ripsaw
+cur = .fields.screen_current
+last_screen = if is_string(cur) { to_string(cur) } else { "unknown" }
+p1 = .fields.screen_prev_1
+came_from = if is_string(p1) { to_string(p1) } else { "unknown" }
+p2 = .fields.screen_prev_2
+prev2 = if is_string(p2) { to_string(p2) } else { "none" }
+crash_path = prev2 + ">" + came_from + ">" + last_screen
+[
+  add_field("last_screen", last_screen),
+  add_field("came_from", came_from),
+  add_field("crash_path", crash_path)
+]
+```
+
+Live output from the reference app:
+
+| `crash_path` | count |
+|---|---|
+| `Welcome>Browse>ProductDetail` | 22 |
+| `ProductDetail>Cart>CheckoutGuest` | 4 |
+| `Browse>ProductDetail>Cart` | 2 |
+
+**Three deep, not five, on purpose.** As a chart dimension each distinct path is
+a tag combination, and the budget is 500 per metric per interval. Overflow does
+not error — it silently folds into an `other` bucket, which reads as "most
+crashes come from `other`" rather than "this dimension overflowed."
+
+Deploy it:
 
 ```bash
-bd workflow create last-screen-before-crash.workflow.json \
-  --metadata-file       last-screen-before-crash.metadata.json \
-  --chart-metadata-file last-screen-before-crash.chart-metadata.json
-# returns an id
+bd workflow create crash-journey-ripsaw.workflow.json \
+  --metadata-file       crash-journey-ripsaw.metadata.json \
+  --chart-metadata-file crash-journey-ripsaw.chart-metadata.json
 bd workflow deploy <id>
 ```
 
-Pass all three files. The two metadata files only carry titles and a description —
-skip them and every chart renders with the same fallback label, which looks like
-duplicate charts.
+Creating compiles the Ripsaw program, so `create` doubles as the syntax check —
+a bad script is rejected with the full compiler diagnostic.
 
-You get two charts:
+### Step 4 — analyse it (agent)
 
-| Chart | Grouped by | Answers |
-|-------|-----------|---------|
-| Terminations by screen | `crashed_on_screen` | **which screen users were on when the app died** |
-| Terminations by reason | `termination_reason` | crash vs. clean exit vs. OS update |
+For the full five-deep paths, joins against feature flags and app version, and an
+honest count of the reports that carry no path at all, use an agent reading
+reports directly — no metric emission, so no cardinality ceiling. Prompt:
+[`crash-journey-agent-prompt.md`](crash-journey-agent-prompt.md).
 
-![Terminations by final screen](crashesbylastscreen.png)
+## What you will see, and what it means
 
-One series per screen, counted over time — so you can see both the overall
-distribution and whether a particular screen starts spiking after a release.
-
-The **`other`** bucket is worth watching: it means the app died before reaching
-any screen, which is usually a crash or hang during launch.
-
----
+- **Not every crash carries the path.** Kinds the OS reports on the next launch
+  (often `EXC_CRASH`) arrive in a fresh process where no global fields are set,
+  and attribute as `unknown`. In the reference app `EXC_CRASH` was ~67% unknown
+  while `EXC_BREAKPOINT` was ~15%. This is a property of iOS crash capture, not a
+  broken register — chart screen attribution split by error kind and it is
+  obvious which is which.
+- **`none` in the later slots** means the crash fired before the register filled,
+  i.e. a short journey. Working as intended.
+- **Consecutive duplicates** will quietly eat your depth if you skip the collapse
+  in Step 1.
 
 ## Notes
 
-- **Workflows only evaluate sessions that start after deployment.** Relaunch the
-  app before judging whether it works.
-- **Results are one launch behind.** A crash now is reported on the next start,
-  so allow a couple of crash/relaunch cycles before data appears.
-- **`termination_reason` matters.** Most terminations are clean exits. Filter to
-  `fatalCrash` for real crashes, or keep them all to see a crash *rate*.
-- **Add your own dimension.** If you have a notion of funnel stage — checkout,
-  payment, onboarding — set it as a second field and group by that too. Screen
-  names tell you where; a funnel stage tells you what it cost.
-- **Step 1 alone is enough** if you only care about ordinary crashes. Step 2 is
-  what buys you hangs and OOM kills, which for many iOS apps are the largest
-  crash class by volume.
-- **Renaming charts later** needs the workflow resent alongside them —
-  `--chart-metadata-file` accepts only one entry on its own:
-  ```bash
-  bd workflow update --workflow-id <id> \
-    --workflow-file       last-screen-before-crash.workflow.json \
-    --metadata-file       last-screen-before-crash.metadata.json \
-    --chart-metadata-file last-screen-before-crash.chart-metadata.json
-  ```
+- Workflows only evaluate sessions that start **after** deployment. Relaunch
+  before judging whether something works.
+- Editing a deployed workflow needs `stop` → `update` → `deploy`; its config is
+  locked while live. Metadata-only edits (titles, display mode) apply without a
+  stop and without resetting the evaluation window — prefer those.
+- Multi-entry chart-metadata files must be sent alongside `--workflow-file`; the
+  API rejects them alone.
+- Step 1 alone covers ordinary crashes. Step 2 is what buys you hangs and OOM
+  kills, which for many iOS apps are the largest crash class by volume.
 
-Reference implementation: [`bitdrift-shop/ios`](../../bitdrift-shop/ios) —
-`ScreenLogger.swift` (Step 1) and `CaptureBridge.swift` (Step 2).
+## Files
+
+| File | What it is |
+|---|---|
+| [`crash-journey-ripsaw.workflow.json`](crash-journey-ripsaw.workflow.json) | Step 3 — Ripsaw `issue_match`, charts the paths (+ `.metadata` / `.chart-metadata`) |
+| [`crash-journey-agent-prompt.md`](crash-journey-agent-prompt.md) | Step 4 — agent prompt for full-depth analysis |
+| [`last-screen-before-crash.workflow.json`](last-screen-before-crash.workflow.json) | Step 2 — charts `previous_run_terminated`, the hang/OOM path (+ metadata) |
+
+The Step 2 workflow is still the only way to see hangs and jetsam kills, which
+never produce an in-process report for Step 3 to read. Deploy both.
