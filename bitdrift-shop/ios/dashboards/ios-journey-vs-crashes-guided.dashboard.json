@@ -46,7 +46,7 @@
         {
           "id": "t-s1-p",
           "text_component": {
-            "text": "The Sankey below terminates at the actual crash, not a proxy screen. Each node's outgoing links show, for real, how many journeys through that screen continued versus crashed — read that ratio as the crash rate for that screen; it needs no separate numerator/denominator chart, and it can't go stale between windows the way a rate metric can. flow-closed-count below it is a control: if it stops moving while crashes are still happening, sessions are aging out before the relaunch lands.",
+            "text": "The Sankey below terminates at the actual crash, not a proxy screen. Read it as the shape of the crashes, not as a rate: only a crash closes this flow, so every journey in the diagram is one that crashed, and successful journeys are absent by construction. A node's outgoing links therefore split the crashed journeys that reached that screen into the ones that died right there and the ones that carried on and died later — that is where crashes land, not how often a visit to that screen ends badly. For an actual per-screen rate, take the crash counts here over the screen-visits-by-name chart further down, which is the only denominator on this dashboard that includes journeys that survived. flow-closed-count below is a control: if it stops moving while crashes are still happening, sessions are aging out before the relaunch lands.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
@@ -72,7 +72,7 @@
         {
           "id": "t-s2-p",
           "text_component": {
-            "text": "Read these two together: the funnel bars are the Sankey columns, left to right. The funnel tells you how many survive each stage; the Sankey tells you which routes they took and where they branched. A stage that loses volume in the funnel AND has a high crash rate above is a crash-driven leak; losing volume with a near-zero crash rate is UX, not crashes.",
+            "text": "Read these two together: the funnel bars are the Sankey columns, left to right. The funnel tells you how many survive each stage; the Sankey tells you which routes they took and where they branched. A stage that loses volume in the funnel AND takes a large share of the crash Sankey's terminal crashes above — large relative to its own visit count — is a crash-driven leak; losing volume while barely appearing as a crash terminal is UX, not crashes.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
@@ -314,7 +314,7 @@
             "chart_metadata": {
               "title": "Screen visits by name",
               "summary": {
-                "description": "Visits per screen — the denominator behind the crash-terminal Sankey's link ratios above."
+                "description": "Visits per screen, crashed journeys and successful ones alike — the denominator to divide the crash-terminal Sankey's per-screen crash counts by. The Sankey's own link ratios cannot supply it: they contain crash-closed flows only."
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {}
@@ -340,7 +340,7 @@
             "chart_metadata": {
               "title": "Crashes by last screen before termination",
               "summary": {
-                "description": "Raw counts by screen at time of death. Ranks popularity as much as risk — use the crash-terminal Sankey's link ratios above to rank risk."
+                "description": "Raw counts by screen at time of death. Ranks popularity as much as risk — to rank risk, divide these counts by the same screen's visits in Screen visits by name. The crash-terminal Sankey's link ratios are not that rate: they only describe journeys that crashed."
               },
               "metric_chart_metadata": {
                 "table_display_mode": {}
@@ -396,7 +396,7 @@
         {
           "id": "c-p",
           "text_component": {
-            "text": "Everything on this tab is read straight off the crash report itself, by a Ripsaw script inspecting the report's custom fields — not assembled from a flow. Unlike the crash-terminal Sankey on the other tab, this has no dependency on session strategy or relaunch timing: the app maintains a 5-deep shift register of screens as global fields, and global fields ride onto the crash report, so every crash carries the path that led to it regardless of what happens after.",
+            "text": "Everything on this tab is read straight off the crash report itself, by a Ripsaw script inspecting the report's custom fields — not assembled from a flow. Unlike the crash-terminal Sankey on the other tab, this has no dependency on session strategy or relaunch timing: the app maintains a 5-deep shift register of screens as global fields, and global fields ride onto the crash report, so any crash captured in-process carries the path that led to it regardless of what happens after. The exception is the crash classes the OS reports on the next launch (often EXC_CRASH): those arrive in a fresh process with no global fields set and attribute as unknown, which the cross-tab below breaks out by error kind.",
             "variant": "p"
           },
           "dashboard_layout_settings": {

@@ -72,8 +72,8 @@ fatal-issue-handler family, not verified.
 shift register of screens as **global fields**, which ride onto the crash
 report regardless of session strategy or relaunch timing, and a Ripsaw
 `issue_match` script reads the path straight off the report. No flow involved.
-Use the Sankey (`bd-shop-19`) to see *where journeys branch and how much
-crashes at each point*; use the register (`bd-shop-18`) when every crash needs
+Use the Sankey (`bd-shop-19`) to see *where journeys branch and how many
+crash at each point*; use the register (`bd-shop-18`) when every crash needs
 attribution regardless of timing.
 
 Two consequences worth knowing about `bd-shop-18`:

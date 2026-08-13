@@ -475,8 +475,10 @@ payload in [`dashboards/`](dashboards/). Everything is re-deployable as code:
 That creates and deploys every `bd-shop-*` iOS workflow plus the two-tab
 **Journey vs Crashes** dashboard. See [`workflows/README.md`](workflows/README.md)
 for what each one shows, the `stop`/`update`/`deploy` rule for editing a live
-workflow, and — measured, not inferred — why a crash cannot be the terminal node
-of a Sankey on iOS and what `bd-shop-18` does instead.
+workflow, and — measured, not inferred — the conditions under which a crash
+*can* be the terminal node of a Sankey on iOS (`.activityBased()` sessions plus
+a relaunch inside `inactivityThresholdMins`, which is what `bd-shop-19` needs)
+and what `bd-shop-18` does instead when those conditions do not hold.
 
 Two API quirks the committed payloads work around: `bd dashboard get` returns
 neither `layout_settings` nor row positions, so the checked-in dashboard JSON is

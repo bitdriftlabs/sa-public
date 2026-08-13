@@ -610,8 +610,9 @@ final class SimulationManager: ObservableObject {
         return (combo.name, combo.fire)
     }
 
-    /// The simplified journey's step-3 crash. Mirrors `fireCrashNow()`'s
-    /// dispatch mechanics exactly, but draws from `pickNextCrashOnlyCombo()` so
+    /// The simplified journey's step-5 crash, on CheckoutGuest. Mirrors
+    /// `fireCrashNow()`'s dispatch mechanics exactly, but draws from
+    /// `pickNextCrashOnlyCombo()` so
     /// a hang can never fire here in either of the catalog's two hang-shaped
     /// forms — `watchdog_scene_create`/`_scene_update`/`_process_exit`, which
     /// arm an OS-detected hang, and `lock_contention`, which deliberately
@@ -1141,6 +1142,16 @@ final class SimulationManager: ObservableObject {
         await nav(navigator, .productDetail(source: "browse", productID: pid))
         _ = try? await ApiClient.getProduct(pid)
 
+        // Force-quit injection, same placement as the full journey: after
+        // ProductDetail renders and its API call completes. Kept here so the
+        // persisted force-quit toggle behaves identically in both modes — and
+        // so `runSingleJourney`'s force-quit session suppression is never
+        // applied to a mode that can't actually inject the quit.
+        if maybeInjectForceQuit() {
+            journeySpan?.end(.canceled, fields: ScreenLogger.encode(["reason": "force_quit_injected"]))
+            return
+        }
+
         // ── Step 4: Cart ─────────────────────────────────────────────────
         await nav(navigator, .cart(productID: pid))
         _ = try? await ApiClient.addToCart(pid)
@@ -1148,6 +1159,14 @@ final class SimulationManager: ObservableObject {
         // ── Step 5: CheckoutGuest — the crash point ──────────────────────
         await nav(navigator, .checkoutGuest(productID: pid))
         let session = (try? await ApiClient.checkoutGuest())?.str("checkout_session") ?? ""
+
+        // Hang injection, same placement as the full journey: after the guest
+        // checkout API call, before anything else can terminate the journey.
+        // This mode is always a guest checkout, so `isGuest` is fixed true.
+        if maybeInjectGuestHang(isGuest: true) {
+            journeySpan?.end(.canceled, fields: ScreenLogger.encode(["reason": "guest_hang_injected"]))
+            return
+        }
 
         if crashLoopEnabled {
             // Distinct value from the random sweep's `crash_journey_point`

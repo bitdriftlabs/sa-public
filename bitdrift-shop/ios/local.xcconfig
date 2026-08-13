@@ -70,7 +70,10 @@ ENABLE_OOM_CRASHES = NO
 // shift register is exactly full, so a crash report carries screen_current
 // plus four real screen_prev_N values with no "none" padding.
 //
-// Off by default; set to YES to run the before/after workflow-closure test.
-SIMPLIFIED_JOURNEY_ENABLED = YES
+// Off by default; set it to YES in .local.xcconfig to run the before/after
+// workflow-closure test. Leave the committed template at NO — with YES here,
+// every build skips the startup config screen and auto-starts an infinite
+// simulation.
+SIMPLIFIED_JOURNEY_ENABLED = NO
 
 #include? ".local.xcconfig"

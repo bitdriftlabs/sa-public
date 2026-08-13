@@ -72,6 +72,9 @@ struct ContentView: View {
                 )
                 .padding(.top, 4)
                 .padding(.trailing, 8)
+                // Read-only badge: it must never eat taps aimed at the
+                // navigation or actions it floats over.
+                .allowsHitTesting(false)
         }
         .overlay(alignment: .bottom) {
             // Floating simulation overlay — visible on all screens during a run.
