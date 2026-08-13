@@ -30,8 +30,14 @@ Steps:
 
 1. `bd issue group list --app-id <APP_ID> --platform apple --last <RANGE> -ojson`
    to get the crash groups.
-2. For each group, `bd issue list <GROUP_ID> -ojson --limit <N>` to get the
-   individual issue IDs and their `session_id`.
+2. For each group, `bd issue list <GROUP_ID> --last <RANGE> --all --sort-by
+   occurred-at --desc -ojson` to get the individual issue IDs and their
+   `session_id`. Pass the same `<RANGE>` you passed to the group listing:
+   without it you get whichever issues the API returns first, which can be
+   outside the window while reports inside it are missed. `--all` follows
+   `next_page_token` to the end of the window; if you paginate by hand with
+   `--limit`/`--page-token`, keep going until no token comes back rather than
+   stopping at the first batch.
 3. For each issue, `bd issue describe <GROUP_ID> <ISSUE_ID> -ojson`. The
    register is at `.issue.report.fields`, which is a LIST of `{key, value}`
    objects — not a map. Parse accordingly.
@@ -59,6 +65,9 @@ Constraints — please respect these, they are easy to get wrong:
   is lifetime, and group listing can return groups whose activity falls entirely
   outside the requested range. Check `first_seen` / `last_seen` before claiming
   something is current.
+- Every issue in the ranking must fall inside <TIME RANGE>. A group being active
+  in the window does not put all of its issues in the window — check each
+  issue's own occurrence timestamp, and say how many you excluded.
 - Do not present a path ranking without also reporting the no-register count.
   Omitting it silently overstates how much of the crash volume you explained.
 - If a build changed the journey during the window, paths from before and after

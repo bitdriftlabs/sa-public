@@ -10,9 +10,12 @@ trade-offs:
 | **Shift register** (below) | No | No | No — path only, per report |
 
 Use the Sankey to see *where journeys branch and how many crash at each point*.
-Use the register when you need every crash attributed regardless of session
-strategy or how long the relaunch takes — it rides on the crash report
-directly and has no timing dependency.
+Use the register when attribution must not depend on session strategy or on how
+long the relaunch takes — it rides on the crash report directly, so it has no
+timing dependency. It is not universal coverage, though: only crashes captured
+in-process carry the fields. Classes the OS reports on the *next* launch arrive
+in a fresh process with none set and attribute as `unknown` (see
+[What you will see](#what-you-will-see-and-what-it-means)).
 
 Reference implementation: [`bitdrift-shop/ios`](../../bitdrift-shop/ios) —
 `CaptureBridge.swift` (session strategy, the next-launch path),
