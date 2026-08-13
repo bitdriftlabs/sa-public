@@ -3,31 +3,89 @@
 Deploy with the **bd CLI**. Each file is a `Workflow` payload:
 
 ```bash
+../scripts/deploy-workflows.sh          # all of them, plus the dashboard
+```
+
+Or one at a time:
+
+```bash
 bd workflow create bd-shop-15-crashes-by-final-screen.json   # returns an id
 bd workflow deploy <id>
 ```
+
+Editing a deployed workflow requires `stop` → `update` → `deploy`; its config is
+locked while live. Metadata-only changes (titles, descriptions, display mode) are
+the exception and apply without a stop — worth preferring, since a stop/deploy
+cycle resets the evaluation window and discards accumulated data.
 
 | File | What it shows |
 |------|---------------|
 | `bd-shop-13-ios-app-hang-sessions.json` | App Hang (`0x8BADF00D`) count, with session capture on each |
 | `bd-shop-14-ios-paths-to-force-quit.json` | Sankey: launch → screens → force quit |
 | `bd-shop-15-crashes-by-final-screen.json` | Crashes grouped by the screen the user was last on |
+| `bd-shop-17-ios-journey-vs-crashes.json` | Journey Sankey to `Confirmation` + 7-step funnel + crash counts by screen |
+| `bd-shop-18-ios-crashes-by-last-screen-live.json` | Ripsaw: reads the screen trail off the crash report itself |
+| `bd-shop-19-ios-crash-terminal-sankey.json` | Sankey ending at the crash — needs `sessionStrategy: .activityBased()` |
 
-## Why there is no "journey to crash" Sankey
+## Journey-to-crash Sankey: it depends on session strategy
 
-The obvious workflow — screen views looping into a crash step — cannot complete
-for the crash classes that matter most on iOS.
+This was investigated twice with opposite conclusions, so state both, with the
+evidence attached, rather than pick one.
 
-A flow only matches events it can see **in one session**. App hangs and
-out-of-memory kills produce no log at the moment they happen; the OS reports them
-on the **next launch**, in a new session. The simulator also calls
-`startNewSession()` per journey. So the screen views and the termination end up in
-different sessions and the final step never fires — the Sankey silently stays
-empty rather than erroring.
+**Under `sessionStrategy: .fixed()`, it never closes.** Measured on device
+(`capture-ios` 0.23.11):
 
-`bd-shop-14` works because force-quit journeys deliberately keep the startup
-session, so `APP_TERMINATION` lands alongside the screen views that preceded it.
+| Flow shape | Result |
+|---|---|
+| `APP_IOS_BUILT_IN_CRASH` alone | 37 matches |
+| screen view → crash (2 steps) | **0** |
+| crash → screen view (2 steps) | **0** |
+| screen view → loop → crash (3 steps) | **0** |
+| screen view → loop → `Confirmation` (3 steps) | 122 matches, 22 links |
 
-For crashes, attribution is done with **fields instead of a flow** — see
-`bd-shop-15`, and [misc-demos/lastscreenbeforecrash](../../../misc-demos/lastscreenbeforecrash)
+Multi-step flows and looping Sankeys work fine on iOS; per-journey
+`startNewSession()` is fine too. The one thing that doesn't work under
+`.fixed()` is `APP_IOS_BUILT_IN_CRASH` (and `APP_IOS_BUILT_IN_ANR`) advancing a
+multi-step flow, in either direction.
+
+**Under `sessionStrategy: .activityBased()`, it closes.** `bd-shop-19`, same
+account: `flow-closed-count` = 26, matching the Sankey's incoming-crash links
+exactly (`Browse→Crash` 4 + `ProductDetail→Crash` 11 + `CheckoutGuest→Crash`
+11 = 26). Mechanism, confirmed on a captured session: the SDK's fatal issue
+handler reads the crash report on the *next* launch and replays it into the
+timeline carrying a snapshot of the global-field state from the moment of
+death. Under `.fixed()` that replay lands in a brand-new session, so the flow
+that was mid-progress when the process died can't see it. Under
+`.activityBased()` the relaunch resumes the *same* session (if it lands
+within `inactivityThresholdMins`, 30 min default), so the replay arrives
+inside the session whose `Welcome → loop` steps already matched, and the flow
+closes.
+
+**The dependency this creates:** if the relaunch is slow enough to age the
+session out, you're back to the `.fixed()`-shaped empty Sankey with no visible
+change in config. Test your own relaunch latency against the threshold before
+promising this unconditionally. Untested altogether: whether the same
+mechanism closes a flow for `APP_IOS_BUILT_IN_ANR` (hangs) — plausible, same
+fatal-issue-handler family, not verified.
+
+`bd-shop-18` doesn't have this dependency at all — the app keeps a 5-deep
+shift register of screens as **global fields**, which ride onto the crash
+report regardless of session strategy or relaunch timing, and a Ripsaw
+`issue_match` script reads the path straight off the report. No flow involved.
+Use the Sankey (`bd-shop-19`) to see *where journeys branch and how much
+crashes at each point*; use the register (`bd-shop-18`) when every crash needs
+attribution regardless of timing.
+
+Two consequences worth knowing about `bd-shop-18`:
+
+- Crash classes the OS reports on the *next* launch (often `EXC_CRASH`) arrive
+  in a fresh process with no global fields set, and attribute as `unknown`.
+  Expected, not a broken register — the error cross-tab shows which is which.
+- A Sankey whose terminal is unreachable renders empty rather than erroring.
+  `bd-shop-17`'s `journey-sankey` needs `Confirmation`, which a crash run never
+  reaches — so during a crash run that particular Sankey is blank by design,
+  not broken. `bd-shop-19` is the one that stays populated during crashes.
+
+For crashes, `bd-shop-15` and `bd-shop-18` attribute with **fields instead of a
+flow** — see [misc-demos/lastscreenbeforecrash](../../../misc-demos/lastscreenbeforecrash)
 for the generic write-up.

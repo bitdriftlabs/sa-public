@@ -48,9 +48,49 @@ enum CaptureBridge {
         // per-call code. Equivalent to the Android app's automatic OkHttp
         // instrumentation via the Gradle plugin.
         // POC: network monitoring — unsampled latency, error rates, throughput per endpoint.
+        // `.activityBased` persists the session ID to disk and resumes it on the
+        // next launch if the gap is under `inactivityThresholdMins`, where
+        // `.fixed()` mints a fresh one on every process start.
+        //
+        // The reason to care: a crash the OS reports on the *next* launch is
+        // emitted into whatever session is current at that moment. Under
+        // `.fixed()` that is always a brand-new session, so the crash is
+        // permanently divorced from the screen views that preceded it. Under
+        // `.activityBased` the relaunch resumes the session that died, so the
+        // crash report and the journey land together and a session timeline
+        // reads as one continuous story.
+        //
+        // This DOES make a crash-terminal Sankey close (bd-shop-19,
+        // ai.bitdrift.shop.ios: 26/26 flow completions matched exactly against
+        // a standalone crash count). The fatal issue handler reads the crash
+        // report on the next launch and replays it into the timeline carrying
+        // a snapshot of the field state from the moment of death; under
+        // .fixed() that replay lands in a brand-new session, disconnected from
+        // whatever flow was mid-progress when the process died, and the flow
+        // can never see it. Under .activityBased() the replay lands inside the
+        // SAME session the flow was already walking, and it closes.
+        //
+        // The dependency this creates: it only works if the relaunch lands
+        // within `inactivityThresholdMins` of the crash. A slow relaunch ages
+        // the session out and you are back to a `.fixed()`-shaped empty Sankey
+        // with no visible change in configuration — test your own relaunch
+        // latency against the default 30 min before relying on this.
+        //
+        // Untested: whether the same mechanism closes a flow for
+        // APP_IOS_BUILT_IN_ANR (hangs) — plausible, since it is the same
+        // fatal-issue-handler family, but not verified. `unknown` screen
+        // attribution in bd-shop-18's Ripsaw script is a separate,
+        // field-existence question, not a session one: OOM/jetsam kills have
+        // no distinct ExitReason on iOS at all (PreviousRunInfo's enum has no
+        // memory-pressure value), so they may never get this treatment
+        // regardless of session strategy.
+        //
+        // 30 minutes is the SDK default. During a crash loop that merges many
+        // journeys into one long session, which is good for testing continuity
+        // and worse for reading any single journey in isolation.
         Logger.start(
             withAPIKey: AppConfig.apiKey,
-            sessionStrategy: .fixed(),
+            sessionStrategy: .activityBased(),
             configuration: .init(apiURL: AppConfig.apiURL),
             fieldProviders: [UserIDFieldProvider()]
         )?.enableIntegrations([.urlSession()])
@@ -73,16 +113,20 @@ enum CaptureBridge {
 
     /// Reports how the previous run ended, and where the user was when it did.
     ///
-    /// This closes the gap that no in-session field can. A watchdog hang or a
+    /// This closes a gap the shift register alone cannot: a watchdog hang or a
     /// jetsam kill produces no log at the moment it happens — the process is
-    /// simply gone, and the OS's report arrives on the *next* launch. So the
-    /// screen views leading up to it live in one session and the termination is
-    /// attributed to another, which is exactly why a crash-terminated Sankey
-    /// cannot close for those classes.
+    /// simply gone, and the OS's report arrives on the *next* launch, with no
+    /// in-process field snapshot to fall back on. Under `.activityBased()`
+    /// that report can still land in the resumed session (same as the crash
+    /// case in `start()`), but whether the OOTB `APP_IOS_BUILT_IN_ANR`
+    /// condition replays a field snapshot the way `APP_IOS_BUILT_IN_CRASH`
+    /// does — and so whether a flow can close on a hang the same way — is
+    /// untested. OOM/jetsam kills have no distinct `ExitReason` on iOS at all,
+    /// so `Logger.previousRunInfo` cannot even distinguish them from `unknown`.
     ///
     /// Pairing `Logger.previousRunInfo` with the last screen persisted by
-    /// `ScreenLogger.logScreenView` turns an unattributable out-of-session
-    /// termination into an ordinary, groupable log line in *this* session.
+    /// `ScreenLogger.logScreenView` gives every termination class an ordinary,
+    /// groupable log line regardless of which of the above is true for it.
     ///
     /// Must run before any new screen view is logged, or the persisted value has
     /// already been overwritten with this launch's first screen.
@@ -96,7 +140,12 @@ enum CaptureBridge {
         // the launch after that, instead of correctly reporting `unknown`. Clearing
         // it here is what makes the pre-screen bucket honest.
         let lastScreen = Prefs.screen.string(Prefs.keyLastScreen) ?? "unknown"
+        // Cleared for the same reason as `keyLastScreen`: a stale trail carried
+        // into a later launch would misattribute the path just as badly as a
+        // stale final screen.
+        let screenTrail = Prefs.screen.string(Prefs.keyScreenTrail) ?? "unknown"
         Prefs.screen.remove(Prefs.keyLastScreen)
+        Prefs.screen.remove(Prefs.keyScreenTrail)
         Prefs.screen.flush()
 
         guard let info = Logger.previousRunInfo else { return }
@@ -107,6 +156,18 @@ enum CaptureBridge {
             // Named distinctly from the live `last_screen` global field so a query
             // can tell "where the user is now" from "where the previous run died".
             "crashed_on_screen": lastScreen,
+            // Same value again under the key `screen_visit` logs use, so a
+            // workflow can compute crashes-per-visit as a grouped `rate`. A
+            // grouped rate requires both sides bucketed by an identical field
+            // key; `crashed_on_screen` is kept for existing charts that already
+            // group by it.
+            "screen": lastScreen,
+            // The path the dead run took, newest first, joined by `>`. An
+            // in-process crash carries this on the report itself via the
+            // `screen_prev_N` global fields; a hang or jetsam kill leaves no
+            // report at all, so this persisted copy is the only way those
+            // terminations get a journey rather than just a final screen.
+            "crashed_on_trail": screenTrail,
         ]
 
         if info.hasFatallyTerminated {

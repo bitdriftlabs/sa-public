@@ -86,6 +86,40 @@ case "$TARGET_KIND" in
       exit 1
     fi
     EXTRA_ARGS=("DEVELOPMENT_TEAM=$TEAM")
+
+    # Auto-detect this Mac's LAN address for SHOP_BACKEND_URL on device builds.
+    #
+    # A phone cannot reach the Mac's `localhost`, so a device build needs a LAN
+    # IP — and that IP drifts. It changed three times in two days here
+    # (.70 -> .63 -> .60) on ordinary DHCP renewals, and every drift silently
+    # broke every API call: ApiClient wraps calls in `try?`, so the journey still
+    # "runs" while every screen falls back to placeholder data and the app sits
+    # for 10-20s per screen waiting on a route that no longer exists. That reads
+    # as the app hanging, which is what it looked like from the outside.
+    #
+    # Detected fresh on every build so it cannot go stale. A value already set in
+    # the environment wins, so `SHOP_BACKEND_URL=... ./scripts/release-build.sh`
+    # still overrides. en0 is NOT assumed — it has no IPv4 on a Mac connected via
+    # USB-Ethernet or a dock, so this walks every interface and takes the first
+    # routable private address.
+    if [[ -z "${SHOP_BACKEND_URL:-}" ]]; then
+      LAN_IP="$(ifconfig 2>/dev/null \
+        | awk '/^[a-z]/{i=$1} /inet /{print $2}' \
+        | grep -vE '^(127\.|169\.254\.)' | head -1)"
+      if [[ -n "$LAN_IP" ]]; then
+        EXTRA_ARGS+=("SHOP_BACKEND_URL=http://$LAN_IP:5173")
+        echo "Backend URL: http://$LAN_IP:5173 (auto-detected)"
+        if command -v curl >/dev/null 2>&1; then
+          if ! curl -s -m 3 "http://$LAN_IP:5173/api/browse" -o /dev/null; then
+            echo "  WARNING: not reachable from this Mac. Is the backend running?" >&2
+            echo "           cd ../backend && ./start-backend-docker.sh" >&2
+          fi
+        fi
+      else
+        echo "  WARNING: no LAN IP found; device build will fall back to localhost" >&2
+        echo "           and every API call will fail. Set SHOP_BACKEND_URL manually." >&2
+      fi
+    fi
     ;;
 esac
 

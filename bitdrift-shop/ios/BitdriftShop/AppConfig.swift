@@ -48,6 +48,24 @@ enum AppConfig {
     /// the "OOMs" mode on the Advanced screen still reaches them explicitly.
     static let oomCrashesEnabled = flag("ENABLE_OOM_CRASHES")
 
+    /// Replaces the randomized shopping journey with a fixed 7-step path
+    /// (Welcome → Browse → ProductDetail → Cart → CheckoutGuest → PaymentCard
+    /// → Confirmation), matching `bd-shop-17`'s funnel stages 1:1, and — when
+    /// the crash loop is also on — an unconditional crash right after step 5
+    /// (CheckoutGuest), every journey, no random branching, no probabilistic
+    /// crash-point selection.
+    ///
+    /// Step 5 is deliberate, not just "the checkout step": it is exactly where
+    /// `ScreenLogger`'s 5-deep screen shift register is full, so a crash report
+    /// carries four real `screen_prev_N` values with no `none` padding.
+    ///
+    /// Built for a concrete before/after test of whether a workflow's flow
+    /// actually closes on a crash: with the crash loop off, every journey
+    /// completes all 7 steps ("before" — proves the path itself is sound). With
+    /// it on, every journey stops at exactly step 5 ("after" — no ambiguity
+    /// about which step). See `SimulationManager.runSimplifiedJourney`.
+    static let simplifiedJourneyEnabled = flag("SIMPLIFIED_JOURNEY_ENABLED")
+
     static var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }

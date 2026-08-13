@@ -16,9 +16,9 @@
       "steps": [
         {
           "match_rule": {
-            "match_id": "sdk-start",
+            "match_id": "journey-start",
             "ootb_match": {
-              "apple_condition": "SDK_CONFIGURATION"
+              "apple_condition": "SCREEN_VIEW"
             }
           },
           "exit_conditions": [],
@@ -54,8 +54,8 @@
       "sankey_diagram_rule": {
         "nodes": [
           {
-            "id": "sdk-start",
-            "fixed": "App Launch"
+            "id": "journey-start",
+            "fixed": "Journey Start"
           },
           {
             "id": "screen-view",

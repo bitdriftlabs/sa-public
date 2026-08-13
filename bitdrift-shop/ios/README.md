@@ -1,6 +1,6 @@
 # Bitdrift Shop (iOS — SDK)
 
-**Version 1.0**
+**Version 2.0**
 
 Native SwiftUI demo app simulating an e-commerce shopping experience, **already
 instrumented with the bitdrift Capture SDK** (`capture-ios` 0.23.11 via Swift
@@ -92,6 +92,13 @@ SHOP_BACKEND_URL = http:/$()/192.168.1.20:5173
 `ipconfig getifaddr en0` prints the address. Keep the `$()` between the slashes:
 `//` starts a comment in xcconfig, so without it the value truncates to `http:`.
 
+`en0` is Wi-Fi on most Macs, but not all — a Mac connected via a USB-Ethernet
+adapter or dock can have `en0` come back empty while the real address sits on
+`en5`/`en6`/etc. If `ipconfig getifaddr en0` prints nothing, run
+`ifconfig | awk '/^[a-z]/{i=$1} /inet /{print i, $2}'` to see every interface's
+address and pick the one matching your LAN's subnet (check `networksetup
+-listnetworkserviceorder` if more than one looks plausible).
+
 (A physical *Android* device has the same problem — its `10.0.2.2` alias is
 emulator-only. The emulator hides it rather than solving it.)
 
@@ -159,7 +166,7 @@ the dashboard in real time.
 |---------|-------------|----------------|
 | **SDK dependency** | `capture-ios` 0.23.11 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
 | **Logger startup** | `Logger.start(withAPIKey:sessionStrategy:configuration:fieldProviders:)` in `App.init()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
-| **Session strategy** | `.fixed()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
+| **Session strategy** | `.activityBased()` — resumes the same session across a crash + relaunch if it lands within `inactivityThresholdMins`, which is what lets `bd-shop-19`'s crash-terminal Sankey close | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Network capture** | `.enableIntegrations([.urlSession()])` — automatic, no per-call code | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Path templates** | `x-capture-path-template` header on parameterised routes | [ApiClient.swift](BitdriftShop/ApiClient.swift) |
 | **Screen views** | `Logger.logScreenView(screenName:)`, centrally from `Navigator` | [Navigator.swift](BitdriftShop/Navigator.swift), [ScreenLogger.swift](BitdriftShop/ScreenLogger.swift) |
@@ -192,6 +199,50 @@ decision point. Three persona presets bias those choices, exactly as on Android:
 
 Every probability, event name, field name, and span name matches the Android
 implementation, so cross-platform comparisons in a dashboard are apples to apples.
+
+### Simplified journey
+
+`SIMPLIFIED_JOURNEY_ENABLED = YES` in `.local.xcconfig` replaces the randomized
+funnel above with a fixed, non-random 7-step path, matching
+[`bd-shop-17`](workflows/bd-shop-17-ios-journey-vs-crashes.json)'s funnel stages
+1:1 so the funnel chart reads as a clean staircase:
+
+```
+Welcome → Browse → ProductDetail → Cart → CheckoutGuest → PaymentCard → Confirmation
+```
+
+Built for a concrete before/after test of whether a workflow's Sankey or flow
+actually closes on a crash, rather than reasoning about it against a randomized
+journey with a probabilistic crash point. With the crash loop **off**, every
+journey completes all 7 steps — a clean baseline proving the path itself
+populates a Sankey/funnel end to end. With it **on**, every journey crashes
+**unconditionally at step 5** (`CheckoutGuest`) — no random branching, no
+probabilistic crash-point selection, so there is never any ambiguity about
+which step a workflow's flow died at. See
+[`SimulationManager.runSimplifiedJourney`](BitdriftShop/SimulationManager.swift).
+
+Step 5 is chosen deliberately: it is exactly where `ScreenLogger`'s 5-deep
+screen shift register fills, so a crash report carries `screen_current` plus
+four real `screen_prev_N` values with no `none` padding — the full path from
+Welcome to the crash, readable straight off the report's Custom Fields.
+
+A few things behave differently in this mode, all deliberately:
+
+- **The startup config splash is skipped.** There is nothing to configure —
+  the path and crash point are both fixed by the build flag — so every
+  relaunch goes straight to the app instead of paying a 5s countdown. A small
+  "MIN JOURNEY" / "FULL JOURNEY" pill floats over the top-right corner of every
+  screen so it's still obvious at a glance which build is installed.
+- **The crash draw excludes every hang-shaped combo**, not just the ones
+  targeted at the crash catalog's `watchdog_*` entries. `lock_contention` is
+  also excluded — it deliberately blocks the main thread for a fixed delay
+  before a separate thread converts it to a crash, which is exactly the kind
+  of hang this mode exists to rule out. The crash *kind* still rotates through
+  the rest of the catalog on every firing; only the hang-shaped ones are
+  removed. See `Crashes.combo(excludeHangs:)`.
+- **`app_hang` and `force_quit` modes are unaffected** — this flag only
+  changes which screens the simulator walks and how its own crash draw is
+  filtered, not the other fault-injection toggles below.
 
 ## Fault injection
 
@@ -413,6 +464,24 @@ event names, field names, screen names, and span names all match. Two caveats:
 Use the **bd-cli** skill to deploy them, then filter by `platform == "ios"` (a
 global field set at startup) to separate the two apps, or leave it off to compare
 them.
+
+iOS-specific workflows live in [`workflows/`](workflows/) and the dashboard
+payload in [`dashboards/`](dashboards/). Everything is re-deployable as code:
+
+```bash
+./scripts/deploy-workflows.sh
+```
+
+That creates and deploys every `bd-shop-*` iOS workflow plus the two-tab
+**Journey vs Crashes** dashboard. See [`workflows/README.md`](workflows/README.md)
+for what each one shows, the `stop`/`update`/`deploy` rule for editing a live
+workflow, and — measured, not inferred — why a crash cannot be the terminal node
+of a Sankey on iOS and what `bd-shop-18` does instead.
+
+Two API quirks the committed payloads work around: `bd dashboard get` returns
+neither `layout_settings` nor row positions, so the checked-in dashboard JSON is
+the only complete record of its layout; and multi-entry chart-metadata files must
+be sent alongside `--workflow-file`, never on their own.
 
 ## Project layout
 

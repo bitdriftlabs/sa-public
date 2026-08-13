@@ -592,6 +592,44 @@ final class SimulationManager: ObservableObject {
         dispatchCrash(combo.fire, fireInBackground: combo.fireInBackground)
     }
 
+    /// Draws the next crash for the simplified journey — same persisted index
+    /// and rotation as `pickNextCrashCombo()`, but excludes every hang-shaped
+    /// combo (`Crashes.combo(excludeHangs:)`: `watchdog_*` and
+    /// `lock_contention`). Foreground only: this mode has no external actor
+    /// backgrounding the app, and the point is a clean, known crash, not
+    /// exercising the background-crash path.
+    private func pickNextCrashOnlyCombo() -> (name: String, fire: () -> Void) {
+        let combo = Crashes.combo(
+            atIndex: Prefs.crashLoop.int(Prefs.keyNextComboIndex),
+            oomOnly: Prefs.crashLoop.bool(Prefs.keyOomOnly),
+            excludeHangs: true
+        )
+        let next = (Prefs.crashLoop.int(Prefs.keyNextComboIndex) + 1) % combo.totalCombos
+        Prefs.crashLoop.set(Prefs.keyNextComboIndex, next)
+        Prefs.crashLoop.flush()
+        return (combo.name, combo.fire)
+    }
+
+    /// The simplified journey's step-3 crash. Mirrors `fireCrashNow()`'s
+    /// dispatch mechanics exactly, but draws from `pickNextCrashOnlyCombo()` so
+    /// a hang can never fire here in either of the catalog's two hang-shaped
+    /// forms — `watchdog_scene_create`/`_scene_update`/`_process_exit`, which
+    /// arm an OS-detected hang, and `lock_contention`, which deliberately
+    /// blocks the main thread before converting itself to a crash. Without
+    /// this exclusion the sweep can land on either and the app appears to
+    /// "start and hang" rather than crash at the known step this mode exists
+    /// to guarantee.
+    private func fireSimplifiedCrashNow() {
+        guard crashLoopEnabled else { return }
+        let combo = pickNextCrashOnlyCombo()
+        Logger.addField(withKey: "crash_kind", value: combo.name)
+        Logger.addField(withKey: "crash_context", value: "foreground")
+        ScreenLogger.logWarning("about_to_crash: \(combo.name) (context=foreground)")
+        persistCrashResumeIntent(restartDelay: restartDelay(for: combo.name))
+        isCancelled = true
+        dispatchCrash(combo.fire, fireInBackground: false)
+    }
+
     /// Fast crash-loop entry point: skips the shopping journey entirely. Picks
     /// the next combo and fires immediately, relying on the host watchdog to
     /// relaunch — the startup config screen is wired to be skipped while fast
@@ -675,6 +713,11 @@ final class SimulationManager: ObservableObject {
         // POC: ad-hoc debugging — search any entity in the dashboard to retrieve
         // all their sessions on demand.
         Logger.setEntityID(entity)
+
+        if AppConfig.simplifiedJourneyEnabled {
+            await runSimplifiedJourney(navigator, entity: entity)
+            return
+        }
 
         // bitdrift SDK: startSpan() opens a root span for the journey. All logs
         // are correlated via _span_id; child spans form a two-level hierarchy in
@@ -1037,6 +1080,102 @@ final class SimulationManager: ObservableObject {
         checkoutSpan?.end(.success, fields: ScreenLogger.encode(["payment_method": paymentMethod]))
         journeySpan?.end(.success)
         maybeFireCrash(at: .confirmation)
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Simplified journey — `AppConfig.simplifiedJourneyEnabled`. A fixed,
+    // non-random 7-step path, built for a concrete before/after test of
+    // whether a workflow's flow actually closes on a crash:
+    //
+    //   1. Welcome
+    //   2. Browse
+    //   3. ProductDetail
+    //   4. Cart
+    //   5. CheckoutGuest  ← crash fires HERE, unconditionally, when the crash
+    //                        loop is on. No random crash-point selection.
+    //   6. PaymentCard
+    //   7. Confirmation
+    //
+    // With the crash loop OFF, every journey reaches step 7 — the "before":
+    // proof the path itself is sound and fully populates a Sankey/funnel.
+    // With it ON, every journey stops at exactly step 5 — the "after": proof
+    // of precisely where the flow died, with no ambiguity about which step.
+    //
+    // Two things fix the shape of this path:
+    //
+    // The steps map 1:1 onto `bd-shop-17`'s funnel stages (Welcome, Discovery,
+    // ProductDetail, Cart, Checkout, Payment, Confirmation), so the funnel
+    // chart reads as a clean 7-bar staircase rather than something that has to
+    // be mentally reconciled against a different set of screens.
+    //
+    // Crashing at step 5 specifically is what exercises `ScreenLogger`'s
+    // 5-deep screen shift register: at crash time the trail holds steps 1-5
+    // exactly, so a crash report carries `screen_current` plus four real
+    // `screen_prev_N` values with no `none` padding. Crashing earlier (step 3,
+    // as this originally did) left `screen_prev_3`/`_4` permanently empty and
+    // never demonstrated the window at all.
+    // ═══════════════════════════════════════════════════════════════════════
+
+    private func runSimplifiedJourney(_ navigator: Navigator, entity: String) async {
+        let journeySpan = Logger.startSpan(
+            name: "journey",
+            level: .info,
+            fields: ScreenLogger.encode([
+                "variant": activeVariant.label,
+                "entity": entity,
+                "mode": "simplified",
+            ])
+        )
+
+        // ── Step 1: Welcome ──────────────────────────────────────────────
+        navigator.popToWelcome()
+        _ = try? await ApiClient.getWelcome()
+        await sleep(stepDelay)
+
+        // ── Step 2: Browse ───────────────────────────────────────────────
+        await nav(navigator, .browse)
+        let productIDs = await fetchBrowseIDs()
+        let pid = productIDs.randomElement() ?? Self.fallbackProductID
+
+        // ── Step 3: ProductDetail ────────────────────────────────────────
+        await nav(navigator, .productDetail(source: "browse", productID: pid))
+        _ = try? await ApiClient.getProduct(pid)
+
+        // ── Step 4: Cart ─────────────────────────────────────────────────
+        await nav(navigator, .cart(productID: pid))
+        _ = try? await ApiClient.addToCart(pid)
+
+        // ── Step 5: CheckoutGuest — the crash point ──────────────────────
+        await nav(navigator, .checkoutGuest(productID: pid))
+        let session = (try? await ApiClient.checkoutGuest())?.str("checkout_session") ?? ""
+
+        if crashLoopEnabled {
+            // Distinct value from the random sweep's `crash_journey_point`
+            // (cart/checkout/payment/...) so this mode's crashes are
+            // unambiguously identifiable in the raw log stream and in any
+            // chart grouped by that field.
+            Logger.addField(withKey: "crash_journey_point", value: "simplified_step_5_checkout_guest")
+            ScreenLogger.logWarning("simplified_journey_crash_point (step 5 of 7): CheckoutGuest")
+            fireSimplifiedCrashNow()
+            journeySpan?.end(.canceled, fields: ScreenLogger.encode(["reason": "simplified_crash_step_5"]))
+            return
+        }
+
+        // ── Step 6: PaymentCard ──────────────────────────────────────────
+        // Card is choice 0 — fixed, not the random payment-method roll the
+        // full journey uses, so this path stays deterministic.
+        let orderID = await runPayment(navigator, choice: 0, session: session)
+
+        // ── Step 7: Confirmation ─────────────────────────────────────────
+        await nav(navigator, .confirmation(orderID: orderID))
+        _ = try? await ApiClient.getConfirmation(orderID)
+
+        ScreenLogger.logInfo("simplified_journey_completed", [
+            "steps_completed": "7",
+            "variant": activeVariant.label,
+        ])
+        await sleep(0.2)
+        journeySpan?.end(.success)
     }
 
     /// Navigates to the payment screen for `choice` and calls its endpoint,

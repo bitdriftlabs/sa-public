@@ -1,0 +1,38 @@
+[
+  {
+    "rule_id": "crash-path",
+    "metadata": {
+      "title": "Crash path — last 3 screens",
+      "metric_chart_metadata": {
+        "table_display_mode": {}
+      }
+    }
+  },
+  {
+    "rule_id": "came-from",
+    "metadata": {
+      "title": "Screen BEFORE the crash screen",
+      "metric_chart_metadata": {
+        "table_display_mode": {}
+      }
+    }
+  },
+  {
+    "rule_id": "crashed-on-screen",
+    "metadata": {
+      "title": "Screen the crash happened on",
+      "metric_chart_metadata": {
+        "table_display_mode": {}
+      }
+    }
+  },
+  {
+    "rule_id": "attribution-by-error",
+    "metadata": {
+      "title": "Screen attribution by crash kind (which kinds carry the path)",
+      "metric_chart_metadata": {
+        "table_display_mode": {}
+      }
+    }
+  }
+]
