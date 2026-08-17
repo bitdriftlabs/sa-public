@@ -12,7 +12,7 @@ The order is tuned for a proof-of-concept: stand up the SDK (1–3), then light 
 
 > **Prefer to run this unattended?** This guide is the *human* reference — you read it and paste prompts in order. For a fully autonomous run (no human in the loop), use the companion **[AGENT_INSTRUMENTATION_GUIDE.md](AGENT_INSTRUMENTATION_GUIDE.md)** runbook, which adds a halt-on-failure preflight, a default for every decision point, and verification gates an agent can check by itself. Point your agent at that file and say *"execute this runbook."*
 
-> **Mapping to your POC.** Every step below lists the **POC criteria** it satisfies, keyed to [bitdrift poc scope V2.0.md](../../bitdrift%20poc%20scope%20V2.0.md): `SC-n` = a *Success Criteria & Use Cases* row, `PRE-n` = a *Required Pre-POC Engineering* row. The [POC coverage matrix](#poc-success-criteria-coverage) at the bottom shows every criterion and the step(s) that cover it.
+> **Mapping to your POC.** Every step below lists the **POC criteria** it satisfies using this guide's own generic legend: `SC-n` = a *Success Criteria & Use Cases* category, `PRE-n` = a *Required Pre-POC Engineering* category. These IDs are self-contained shorthand for this guide, not tied to any specific customer's POC scope document — the [POC coverage matrix](#poc-success-criteria-coverage) at the bottom defines every one and shows the step(s) that cover it. If you're working from your own POC scope document, map its rows to these IDs (they follow bitdrift's standard POC criteria categories: event tracking, network monitoring, crash detection, memory, debugging, session management, insights & visualization, log forwarding, session replay, visual performance, and customer support).
 
 ---
 
@@ -20,9 +20,11 @@ The order is tuned for a proof-of-concept: stand up the SDK (1–3), then light 
 
 These prompts assume your agent (Claude Code, Cursor, Codex, Copilot, or any skills-compatible agent) has bitdrift's skills installed:
 
-- **bd-instrumentation** — installs and instruments the Capture SDK; detects the platform and whether the SDK is already present, then does a fresh install or extends an existing integration. This is the skill every prompt below drives.
+- **bd-instrumentation** — installs and instruments the Capture SDK; detects the platform and whether the SDK is already present, then does a fresh install or extends an existing integration. This is the skill Steps 1–18 drive.
 - **bd-docs** — fetches live bitdrift documentation at query time.
-- **bd-cli** — drives the `bd` CLI for symbol/source-map uploads, workflows, and key management.
+- **bd-cli** — drives the `bd` CLI for symbol/source-map uploads, workflows, keys, and dashboard composition.
+- **bd-issue-match** — writes and deploys server-side crash-classification scripts (Ripsaw/BDRL). Drives the crash-workflow half of Step 19.
+- **bd-cuj** — automates a full critical-user-journey stack (Sankey, funnel, SLO, alerting, session capture, dashboard) for one flow in a single pass. Drives the CUJ half of Step 19.
 
 Install and authenticate the `bd` CLI (macOS, Homebrew):
 
@@ -127,7 +129,7 @@ The skill attaches the network integration to each HTTP client and collapses hig
 
 > ⚠️ **High-cardinality paths are required, not optional.** When a path embeds a dynamic segment (user ID, product ID, UUID), every request becomes a distinct value. The dashboard groups metrics by path and enforces **cardinality limits** (~1,000 group-by dimensions / ~30 min, 20,000 total) — exceed them and metrics are **silently dropped**. The prompt above tells the skill to add a stable path template to every dynamic route.
 
-**POC criteria:** SC-2 (Network Monitoring — unsampled HTTP latency/error-rate/throughput per endpoint), PRE-4 (Networking — wrap okhttp/URLSession; custom networking is handled in Step 10).
+**POC criteria:** SC-2 (Network Monitoring — unsampled HTTP latency/error-rate/throughput per endpoint), PRE-4 (Networking — wrap okhttp/URLSession; custom networking is handled in Step 10), SC-12 (Web views — if the app embeds WebViews, the same network integration extends to them: Android WebView instrumentation is GA, iOS shipped as experimental in SDK 0.23.11; the skill confirms the current API via bd-docs before enabling it since this is a recent addition).
 
 **Docs:** [HTTP Traffic Logs](https://docs.bitdrift.io/sdk/features/http-traffic-logs), [Workflow cardinality limits](https://docs.bitdrift.io/product/workflows/actions)
 
@@ -293,6 +295,52 @@ The skill enables lightweight, wireframe-based replay (no screenshots or video) 
 
 ---
 
+## 18. Cross-link with your existing crash reporter
+
+> **Prompt:** *"Cross-link this app's bitdrift sessions with our existing crash reporter (Crashlytics / Sentry / Bugsnag) by attaching the bitdrift session URL as a custom tag on every crash report."*
+
+The skill reads the session URL (`Logger.sessionUrl` / `Logger.sessionURL` / `getSessionUrl()`) once the logger has started and attaches it to the incumbent crash tool as a custom key or tag, re-reading it whenever the session rotates.
+
+**Unlocks:** Every crash in the existing tool links straight to its matching bitdrift session — full logs, network calls, spans, and device state. Lets bitdrift run alongside an incumbent crash tool during a POC instead of replacing it on day one.
+
+**POC criteria:** SC-3 (Crash Detection — full session context alongside the current tool's reports).
+
+**Docs:** [Fatal Issues](https://docs.bitdrift.io/sdk/features/fatal-issues), [Session Management](https://docs.bitdrift.io/sdk/features/session-management)
+
+---
+
+## 19. Turn crashes and journeys into workflows and dashboards
+
+Every step above is app code, driven by **bd-instrumentation**. This step is different: it's **server-side console configuration**, driven by **bd-issue-match** (crash classification scripting) and **bd-cuj** (critical-user-journey automation), composed into dashboards with **bd-cli**. Run it once data is flowing — after at least Steps 1–10.
+
+> **Prompt:** *"Deploy a bitdrift crash workflow that classifies crashes by [ANR reason / memory-pressure level at crash time / feature-flag exposure] using Issue/Crash Workflows (Ripsaw), then use bd-cuj to build a full critical-user-journey stack for our [checkout / onboarding / login] flow, and compose the results into POC dashboards."*
+
+- **bd-issue-match** writes and deploys a Ripsaw/BDRL script that runs server-side against every crash Report (not on-device), turning raw crash payloads into standing charts — e.g. classify ANRs by blocked reason, tag OOM crashes with the memory-pressure level captured automatically since Step 2, or compute a feature-flag crash differential (does variant B crash more than control?).
+- **bd-cuj** builds the full critical-user-journey stack for one flow in a single pass: a Sankey of the actual path taken, a funnel with step-by-step conversion, a completion-rate SLO alert, a key-step-duration alert, on-demand session capture for drop-offs, and a two-tab dashboard — instead of hand-assembling each piece from raw workflow primitives.
+- **bd-cli** composes the resulting charts (from both of the above, plus Instant Insights) into 2–3 curated POC dashboards: a **Stability** dashboard (crash classification, ANR/OOM breakdown, crash-free % by version), a **Business/UX** dashboard (funnel, TTI, span percentiles, jank/slow-frame rate), and an **Entities/Support** dashboard (per-user profiles, Record Next Online).
+
+**Unlocks:** This is the step that turns instrumented signals into the artifacts a customer actually looks at during an evaluation — crash workflows, CUJ dashboards, and curated POC dashboards — instead of raw Instant Insights and an unclassified Timeline.
+
+**POC criteria:** SC-3 (Crash Detection — root-cause classification, not just raw reports), SC-7 (Insights & Visualization — 2–3 purpose-built dashboards, this is the primary step for SC-7's "build 2–3 dashboards" test plan), SC-11 (Customer Support — a dedicated Entities/Support dashboard).
+
+**Docs:** the **bd-issue-match** and **bd-cuj** skills; [Workflows](https://docs.bitdrift.io/product/workflows/overview), [Ripsaw scripting](https://docs.bitdrift.io/product/workflows/scripting/overview), [Dashboards](https://docs.bitdrift.io/product/dashboards/overview)
+
+---
+
+## 20. Generate the evaluation readout
+
+> **Prompt:** *"Map every in-scope POC criterion to a concrete bitdrift artifact — a chart, a workflow, a dashboard, or a captured session — and produce a readout a business stakeholder can review, with a portal link or screenshot proving each one."*
+
+Walk the [POC coverage matrix](#poc-success-criteria-coverage) below (or your own POC scope document, mapped to these IDs) and for each in-scope criterion capture: which step/workflow/dashboard covers it, a `bd-cli` command or portal link that proves it, and a pass/fail note. Build this incrementally as steps complete rather than reconstructing it at the end.
+
+**Unlocks:** A criterion-by-criterion, evidence-backed readout — the artifact that actually closes a POC evaluation, not just "the SDK is installed." This is the same deliverable a POC's evaluation-readout milestone calls for.
+
+**POC criteria:** All in-scope criteria — this step is the cross-cutting proof layer, not a single capability.
+
+**Docs:** N/A — this step composes the outputs of Steps 1–19.
+
+---
+
 ## Feature coverage summary
 
 | Step | Prompt drives | bitdrift feature | POC criteria | Docs |
@@ -314,12 +362,15 @@ The skill enables lightweight, wireframe-based replay (no screenshots or video) 
 | 15 | Analytics / beacon forwarding | Product-usage events in Timeline | PRE-2, SC-8, SC-7 | [Integrations](https://docs.bitdrift.io/sdk/integrations) |
 | 16 | Feature flag exposures | Slice metrics by flag variant | PRE-5, SC-7 | [Fields](https://docs.bitdrift.io/sdk/features/fields) |
 | 17 | Session replay (wireframe) | Wireframe replay in Timeline | SC-9 | [Session Replay](https://docs.bitdrift.io/product/timeline) |
+| 18 | Cross-link existing crash reporter | Session URL cross-tagged on incumbent tool's crashes | SC-3 | [Fatal Issues](https://docs.bitdrift.io/sdk/features/fatal-issues) |
+| 19 | Crash workflows + CUJ + POC dashboards | Issue/Crash Workflows (Ripsaw), CUJ Sankey/funnel/SLO, curated dashboards | SC-3, SC-7, SC-11 | bd-issue-match, bd-cuj skills |
+| 20 | Evaluation readout | Criterion-by-criterion, evidence-backed readout | All in-scope | — |
 
 ---
 
 ## POC success-criteria coverage
 
-Every criterion in [bitdrift poc scope V2.0.md](../../bitdrift%20poc%20scope%20V2.0.md) and the step(s) that cover it. Use this to confirm the instrumentation plan covers the agreed POC scope before kickoff.
+This guide's own `SC-n` / `PRE-n` legend — what each ID means and the step(s) that cover it — self-contained and not tied to any specific customer's POC scope document. Use this to confirm the instrumentation plan covers whatever POC scope you're working against before kickoff; if you have a signed POC scope doc, map its rows to the IDs below.
 
 ### Success Criteria & Use Cases
 
@@ -327,16 +378,16 @@ Every criterion in [bitdrift poc scope V2.0.md](../../bitdrift%20poc%20scope%20V
 |--------|----------|--------------------|-------|
 | SC-1 | Event Tracking (p50/p90/p99 of key flows) | **10** (primary), 9 | Spans + synthetic metrics give unsampled percentiles; TTI covers launch |
 | SC-2 | Network Monitoring | **6** | Unsampled per-endpoint latency/error/throughput |
-| SC-3 | Crash Detection | **2** (automatic capture) + **12** (readable stacks) | Full session context is automatic; symbols make stacks human-readable |
-| SC-4 | Memory Monitoring | **2** | Automatic — no call sites |
+| SC-3 | Crash Detection | **2** (automatic capture) + **12** (readable stacks) + **18** (cross-linked with existing tool) + **19** (root-cause classification via Issue/Crash Workflows) | Full session context is automatic; symbols make stacks human-readable; 18/19 add cross-tool linking and classification depth |
+| SC-4 | Memory Monitoring | **2** | Automatic — no call sites; crash reports also carry the memory-pressure level at crash time (SDK 0.23.1+), no extra config |
 | SC-5 | Debugging (ad-hoc capture) | **5**, **11** | Record Next Online + device/session lookup |
 | SC-6 | Session Management | **2**, **3**, **13** | Log-everything-on-device, upload on demand |
-| SC-7 | Insights & Visualization | **4, 7, 8, 9, 15, 16** + [Workflows](#turning-signals-into-metrics-and-alerts-workflows) | Dashboards are built from the signals these steps emit |
+| SC-7 | Insights & Visualization | **19** (primary — 2–3 curated dashboards) + 4, 7, 8, 9, 15, 16 | Steps 4–16 emit the signals; Step 19 is what actually builds the dashboards a customer looks at |
 | SC-8 | Log Forwarding & Integration | **7**, **14**, **15** | New logs, framework bridge, analytics bridge |
 | SC-9 | Session Replay | **17** | Wireframe replay |
 | SC-10 | Visual Performance (jank/slowness) | **2** | Automatic JankStats / responsiveness |
-| SC-11 | Customer Support | **5**, **11**, **8** (`user_id`) | Entities + device support tooling |
-| SC-12 | Web views | — | **TBD in the POC template**; revisit once the customer defines scope |
+| SC-11 | Customer Support | **5**, **11**, **8** (`user_id`), **19** (dedicated Entities/Support dashboard) | Entities + device support tooling, curated into its own dashboard |
+| SC-12 | Web views | **6** | Android WebView instrumentation is GA; iOS shipped experimental support in SDK 0.23.11 — confirm the current API via bd-docs before enabling (recent addition, docs may lag) |
 
 ### Required Pre-POC Engineering
 
@@ -350,15 +401,17 @@ Every criterion in [bitdrift poc scope V2.0.md](../../bitdrift%20poc%20scope%20V
 | PRE-5 | Feature flags | **16** |
 | PRE-6 | Entities | **5** |
 
-> **Only gap is SC-12 (Web views)**, which is itself marked *TBD* in the POC template — there is no defined bitdrift solution to instrument yet. Every other POC criterion maps to at least one step above.
+> **Every POC criterion above maps to at least one step**, including SC-12 (Web views) as of Step 6 — Android WebView instrumentation is GA and iOS shipped experimental support in SDK 0.23.11. If a customer's POC scope predates this, it's worth revisiting whether web views are actually in scope now that there's a real solution.
 
 ---
 
 ## Turning signals into metrics and alerts (Workflows)
 
-Some features need **Workflows** — server-side rules configured in the dashboard — to turn raw events into charts, alerts, and metrics. The SDK instrumentation above is the input; Workflows are the configuration. You can drive these from an agent too, via **bd-cli**.
+Some features need **Workflows** — server-side rules configured in the dashboard — to turn raw events into charts, alerts, and metrics. The SDK instrumentation above is the input; Workflows are the configuration. For a one-off metric or alert, drive it directly via **bd-cli**:
 
 > **Prompt:** *"Create a bitdrift workflow that alerts when the `payment_failed` event rate exceeds a threshold."* — or — *"…a custom metric for the p95 of the `checkout` span duration."*
+
+For the full crash-classification, CUJ, and dashboard treatment — the part of a POC that actually delights a customer — see **[Step 19](#19-turn-crashes-and-journeys-into-workflows-and-dashboards)** below, which hands off to the **bd-issue-match** and **bd-cuj** skills.
 
 **Automatic, no Workflow needed:** Instant Insights dashboards (crashes, network, memory, app launches); Session Timeline breadcrumbs; User Journey Sankey; TTI histogram; Spans waterfall; Entities view.
 
