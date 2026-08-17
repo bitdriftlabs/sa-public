@@ -1,6 +1,6 @@
 # Agent Instrumentation Runbook
 
-**Version 1.0 — machine-consumable**
+**Version 1.1 — machine-consumable** — covers the 20-step guide, including Steps 18–20.
 
 This is the **autonomous execution contract** for instrumenting any mobile app with the
 bitdrift Capture SDK. It wraps [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md) (the

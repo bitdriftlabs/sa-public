@@ -1,12 +1,12 @@
 # bitdrift Instrumentation Guide
 
-**Version 1.0**
+**Version 1.1** — adds Steps 18–20 (crash-reporter cross-linking, crash/CUJ workflows and dashboards, evaluation readout) and [worked examples](examples/).
 
-A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt that drives the **bd-instrumentation** skill to do the actual work (write the call sites, wire the build, verify it compiles). You don't write the code; you run the prompts in order and the skill handles the platform-specific details on Android, iOS, or React Native.
+A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt. Steps 1–18 drive the **bd-instrumentation** skill to do the actual app-code work (write the call sites, wire the build, verify it compiles); Steps 19–20 are server-side and drive **bd-issue-match**, **bd-cuj**, and **bd-cli** instead. You don't write the code; you run the prompts in order and the skills handle the platform-specific details on Android, iOS, or React Native.
 
 Each step also lists the bitdrift feature it **unlocks** and the relevant **docs**, so you know what each prompt buys you.
 
-The order is tuned for a proof-of-concept: stand up the SDK (1–3), then light up the timeline with the highest-value signals first — screen views, user identity, and network (4–6) — before layering on logs, performance, and operational features. This follows bitdrift's [Integration first steps](https://docs.bitdrift.io/product/first-steps). The categories are independent, so run only the prompts you need, in any order that suits your app.
+The order is tuned for a proof-of-concept: stand up the SDK (1–3), then light up the timeline with the highest-value signals first — screen views, user identity, and network (4–6) — before layering on logs, performance, and operational features (7–18). This follows bitdrift's [Integration first steps](https://docs.bitdrift.io/product/first-steps). Steps **19–20** then turn that raw signal into the artifacts an evaluation is actually judged on: classified crash workflows, journey dashboards, and a criterion-by-criterion readout. Steps 4–18 are independent of each other, so run only the prompts you need, in any order that suits your app.
 
 > **The prompts are platform-neutral.** Run the same prompt whether the target is Android, iOS, or React Native — the skill detects the platform and applies the right APIs. See [Platform notes](#platform-notes) at the bottom for per-platform specifics the skill handles for you.
 
@@ -419,7 +419,7 @@ Some features need **Workflows** — server-side rules configured in the dashboa
 
 > **Prompt:** *"Create a bitdrift workflow that alerts when the `payment_failed` event rate exceeds a threshold."* — or — *"…a custom metric for the p95 of the `checkout` span duration."*
 
-For the full crash-classification, CUJ, and dashboard treatment — the part of a POC that actually delights a customer — see **[Step 19](#19-turn-crashes-and-journeys-into-workflows-and-dashboards)** below, which hands off to the **bd-issue-match** and **bd-cuj** skills.
+For the full crash-classification, CUJ, and dashboard treatment — the part of a POC that actually delights a customer — see **[Step 19](#19-turn-crashes-and-journeys-into-workflows-and-dashboards)**, which hands off to the **bd-issue-match** and **bd-cuj** skills.
 
 **Automatic, no Workflow needed:** Instant Insights dashboards (crashes, network, memory, app launches); Session Timeline breadcrumbs; User Journey Sankey; TTI histogram; Spans waterfall; Entities view.
 

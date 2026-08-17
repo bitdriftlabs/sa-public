@@ -1,6 +1,6 @@
 # bitdrift Cleanup Guide
 
-**Version 1.0**
+**Version 1.1** — covers removal of all 20 steps, including server-side workflow/dashboard state.
 
 Remove all bitdrift Capture SDK instrumentation from **any** app and return it to its baseline (pre-bitdrift) state — **by prompting an AI coding agent**. Each step is a ready-to-use prompt that drives the **bd-instrumentation** skill to undo the corresponding instrumentation step.
 

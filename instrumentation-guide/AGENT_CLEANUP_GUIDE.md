@@ -1,6 +1,6 @@
 # Agent Cleanup Runbook
 
-**Version 1.0 — machine-consumable**
+**Version 1.1 — machine-consumable** — covers removal of all 20 steps, including server-side workflow/dashboard state.
 
 This is the **autonomous execution contract** for removing all bitdrift Capture SDK
 instrumentation and returning the app to baseline. It wraps
