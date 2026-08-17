@@ -44,6 +44,9 @@ Agent and human versions of both are available- the agent version is a focused c
   with the bitdrift feature each prompt unlocks and links to the docs.
 - **CLEANUP_GUIDE.md** and **AGENT_CLEANUP_GUIDE.md** — the inverse: prompts that drive the skill to remove the
   instrumentation in reverse order and return an app to its baseline state.
+- **[examples/](instrumentation-guide/examples/)** — worked artifacts from running the guide's later
+  steps against a real app: two Ripsaw/BDRL crash-classification scripts, the two mistakes that
+  make a CUJ funnel come out silently empty, and a complete evaluation readout.
 
 ### [misc-demos/](misc-demos/)
 

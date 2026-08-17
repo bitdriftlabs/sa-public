@@ -154,6 +154,13 @@ created but never deployed, or deployed with an empty match rule instead of the 
 script). **FAIL V7** if any workflow this run created is not LIVE, or if a chart returns no
 data after a reasonable wait for traffic.
 
+Check the *deployed definition*, not only the state — `bd workflow describe <ID>` and confirm the
+matchers hold values the app actually emits. A matcher on a screen name that is never logged
+deploys clean and reports LIVE while charting nothing, which presents as 0% conversion rather
+than as an error. Note also that funnel and Sankey charts return `funnel_data` / `sankey_data`,
+**not** `line_data.time_series` — a populated funnel looks empty to a check that only inspects
+metric series.
+
 **V8 — Evaluation readout is evidence-backed.** If Step 20 ran, every in-scope criterion in
 the readout has a concrete artifact (a chart, workflow, dashboard, or session ID) and a
 `bd-cli` command or portal link that proves it — not just a step name. **FAIL V8** on any

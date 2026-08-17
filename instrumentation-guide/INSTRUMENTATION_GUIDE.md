@@ -319,9 +319,13 @@ Every step above is app code, driven by **bd-instrumentation**. This step is dif
 - **bd-cuj** builds the full critical-user-journey stack for one flow in a single pass: a Sankey of the actual path taken, a funnel with step-by-step conversion, a completion-rate SLO alert, a key-step-duration alert, on-demand session capture for drop-offs, and a two-tab dashboard — instead of hand-assembling each piece from raw workflow primitives.
 - **bd-cli** composes the resulting charts (from both of the above, plus Instant Insights) into 2–3 curated POC dashboards: a **Stability** dashboard (crash classification, ANR/OOM breakdown, crash-free % by version), a **Business/UX** dashboard (funnel, TTI, span percentiles, jank/slow-frame rate), and an **Entities/Support** dashboard (per-user profiles, Record Next Online).
 
+**Before building a funnel, confirm the step names against what the app actually emits** — don't trust the names in a journey description. A matcher on a screen that is never logged deploys cleanly, reports LIVE, and charts nothing, which reads as a 0% conversion rate rather than a config error. Grep the source for the real values (`grep -rhoE 'screenName *= *"[^"]*"' --include=*.kt`) or read them off `bd tail`, then verify the *deployed* definition with `bd workflow describe <ID>`. Watch for two specific traps: a step that's really a category with several concrete screens behind it, and mutually exclusive branches listed as if they were sequential — both need an `or_matcher`. See [examples/cuj-funnel-pitfalls.md](examples/cuj-funnel-pitfalls.md).
+
 **Unlocks:** This is the step that turns instrumented signals into the artifacts a customer actually looks at during an evaluation — crash workflows, CUJ dashboards, and curated POC dashboards — instead of raw Instant Insights and an unclassified Timeline.
 
 **POC criteria:** SC-3 (Crash Detection — root-cause classification, not just raw reports), SC-7 (Insights & Visualization — 2–3 purpose-built dashboards, this is the primary step for SC-7's "build 2–3 dashboards" test plan), SC-11 (Customer Support — a dedicated Entities/Support dashboard).
+
+**Worked examples:** [examples/crash-workflow-bdrl-examples.md](examples/crash-workflow-bdrl-examples.md) (two real BDRL classification scripts), [examples/cuj-funnel-pitfalls.md](examples/cuj-funnel-pitfalls.md) (how a funnel comes out silently empty).
 
 **Docs:** the **bd-issue-match** and **bd-cuj** skills; [Workflows](https://docs.bitdrift.io/product/workflows/overview), [Ripsaw scripting](https://docs.bitdrift.io/product/workflows/scripting/overview), [Dashboards](https://docs.bitdrift.io/product/dashboards/overview)
 
@@ -333,9 +337,13 @@ Every step above is app code, driven by **bd-instrumentation**. This step is dif
 
 Walk the [POC coverage matrix](#poc-success-criteria-coverage) below (or your own POC scope document, mapped to these IDs) and for each in-scope criterion capture: which step/workflow/dashboard covers it, a `bd-cli` command or portal link that proves it, and a pass/fail note. Build this incrementally as steps complete rather than reconstructing it at the end.
 
+State what was actually confirmed and how. A row that says "deployed" when nothing has flowed through it yet should say that — the honest gaps are what make the verified rows credible, and an all-green readout on day three invites the wrong kind of scrutiny.
+
 **Unlocks:** A criterion-by-criterion, evidence-backed readout — the artifact that actually closes a POC evaluation, not just "the SDK is installed." This is the same deliverable a POC's evaluation-readout milestone calls for.
 
 **POC criteria:** All in-scope criteria — this step is the cross-cutting proof layer, not a single capability.
+
+**Worked example:** [examples/evaluation-readout-sample.md](examples/evaluation-readout-sample.md) — a real readout from this guide run against a demo app, including the criteria left deliberately open with reasons.
 
 **Docs:** N/A — this step composes the outputs of Steps 1–19.
 
