@@ -7,3 +7,4 @@ of only prose prompts.
 |------|-----------|
 | [crash-workflow-bdrl-examples.md](crash-workflow-bdrl-examples.md) | Two real Ripsaw/BDRL scripts — lock-contention thread attribution and vendor-SDK stack-trace attribution — annotated for reuse, with the cardinality guardrail that matters when copying them. |
 | [evaluation-readout-sample.md](evaluation-readout-sample.md) | A real, deliberately partial evaluation readout (Step 20): rows that were verified say how, and rows that weren't say so. |
+| [cuj-funnel-pitfalls.md](cuj-funnel-pitfalls.md) | Two mistakes that produce a silently-empty funnel — both hit for real while building one — and how to catch them in minutes instead of days. |
