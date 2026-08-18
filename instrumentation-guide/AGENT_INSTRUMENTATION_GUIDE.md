@@ -72,9 +72,11 @@ silently unless the user has already stated a preference this session. Only the 
 
 ## 2. Execution order — sequential, gate after each
 
-Drive each step via the **bd-instrumentation** skill using the prompt from the source guide
-(linked). After every step, run its gate. **HALT on a failed gate** — do not continue to
-the next step on a broken build.
+Dispatch by step: **Steps 1–18** run through the **bd-instrumentation** skill using the prompt
+from the source guide (linked); **Step 19** is server-side and runs through **bd-issue-match**,
+**bd-cuj**, and **bd-cli**; **Step 20** is document generation and uses no skill. After every
+step, run its gate. **HALT on a failed gate** — do not continue to the next step on a broken
+build.
 
 | Order | Step | POC criteria | Prompt source | Gate (must pass before next step) |
 |-------|------|--------------|---------------|-----------------------------------|

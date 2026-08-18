@@ -17,13 +17,15 @@ a strict reverse order, and verification gates phrased as checkable assertions.
 
 | # | Check | How to verify | On failure |
 |---|-------|---------------|------------|
-| P1 | Skills installed | `bd-instrumentation`, `bd-docs` resolvable (`bd-cli` also needed if removing Step 19/20 server-side state) | HALT: `npx skills add bitdriftlabs/bd-skills` |
-| P2 | Platform detected | android / ios / react-native | HALT if undetectable |
-| P3 | bitdrift actually present | V2 grep from §3 returns matches | If matches → continue. If **no** matches, do **not** halt outright: the app code may already be clean while Step 19 account state still exists. Inventory workflows/dashboards via `bd-cli` first; halt with "already baseline" only if that inventory is also empty, otherwise continue on a **server-side-only path** (skip P4/P5 and all app-code orders). |
+| P1 | Skills installed | `bd-instrumentation`, `bd-docs` resolvable. **If Step 19 account state is being removed, also `bd-cli`** | HALT: `npx skills add bitdriftlabs/bd-skills` |
+| P1b | `bd` usable *(only if removing Step 19 account state)* | `bd --version` exits 0 **and** `bd auth status` succeeds | HALT: `brew install bd` / `bd auth`. Checking this upfront avoids completing every local removal and only then failing at account cleanup |
+| P2 | Source state detected | Run the **V1** grep from §3, and check for a local evaluation readout | Establishes what actually needs removing. Never halts on its own |
+| P3 | Something to remove | P2 found SDK references, a readout, **or** `bd-cli` reports Step 19 workflows/dashboards | HALT with "already baseline" only when **all three** are empty |
+| P3b | Platform detected *(only if P2 found SDK references)* | android / ios / react-native | HALT if undetectable **and** app code needs removing. If P2 found no SDK references, skip this and P4/P5 and run the **server-side-and-artifacts-only path** — platform detection is irrelevant when there is no app code to clean |
 | P4 | Clean working tree | `git status --porcelain` empty (or user accepts dirty) | WARN; continue (keeps the removal diff reviewable) |
 | P5 | Baseline build passes | platform build succeeds **before** removal | HALT: a red baseline makes per-step gates meaningless |
 
-Record platform from P2 — it selects the verification commands in §3.
+Record platform from P3b — it selects the verification commands in §3. On a server-side-only run there is no platform to record and §3's build/grep gates do not apply.
 
 ---
 
@@ -34,7 +36,7 @@ Record platform from P2 — it selects the verification commands in §3.
 | Scope | Remove **all** bitdrift instrumentation (full revert). Partial removal only if user named specific categories. |
 | Confirm exact symbols | Have bd-instrumentation confirm SDK symbols via **bd-docs** before deleting call sites — avoids leaving orphaned references. |
 | Server-side workflows/dashboards (Step 19) | **In scope**, but destructive and account-wide — `ASK` for explicit confirmation before deleting any crash workflow, CUJ stack, or dashboard. Never delete silently as part of a "remove everything" pass. If the user doesn't confirm, skip **Step 19** removal only and note it in the run report as intentionally left in place. |
-| Evaluation readout (Step 20) | Remove with the rest of the run — it's a local document with no account-side state, so it is **not** gated on the Step 19 decision. Declining to delete workflows must not leave the readout behind. |
+| Evaluation readout (Step 20) | Remove **only on a full revert, or when Step 20 removal was explicitly requested** — a partial run like "remove screen-view instrumentation" must leave it alone. When it is in scope, removal is **not** gated on the Step 19 decision: declining to delete workflows must not leave the readout behind. |
 
 ---
 
@@ -46,8 +48,15 @@ and the dependency, which comes out last.
 
 | Order | Removal | Prompt source | Gate |
 |-------|---------|---------------|------|
-| 1 | Evaluation readout + generated artifacts | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) | No code — nothing to build |
-| 2 | Crash workflow(s), CUJ stack, POC dashboards *(ASK before deleting — see §1)* | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | No code — confirm via **bd-cli** that each is actually deleted, or explicitly skipped |
+| 1 | Crash workflow(s), CUJ stack, POC dashboards *(ASK before deleting — see §1)* | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | No code — confirm via **bd-cli** that each is actually deleted, or explicitly skipped |
+| 2 | Evaluation readout + generated artifacts *(full revert / explicit request only)* | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) | No code — nothing to build |
+
+⚠️ **Order 1 before order 2 is deliberate.** The readout is usually the only record of which
+workflow and dashboard IDs this run created. Discard it first and the agent is left telling this
+run's resources apart from unrelated account state by name-matching — exactly the guesswork that
+turns a scoped cleanup into a destructive one. Read the IDs out of the readout, delete precisely
+that set, then discard the readout.
+
 | 3 | Crash-reporter session-URL cross-linking | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) | Builds |
 | 4 | Session replay disable + config revert | [Step 17](INSTRUMENTATION_GUIDE.md#17-enable-session-replay-wireframe) | Builds |
 | 5 | Feature-flag exposure calls | [Step 16](INSTRUMENTATION_GUIDE.md#16-record-feature-flag-exposures) | Builds |

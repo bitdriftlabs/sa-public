@@ -8,9 +8,9 @@ This is the inverse of [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md): the
 
 > **Do it in one prompt (app code only):** *"Remove all bitdrift Capture SDK instrumentation from this app, working in reverse order, and confirm the project still builds."* The skill sequences the work for Steps 1–18 (app code). The per-step prompts below are the reference if you want to remove categories selectively.
 >
-> **Step 19 is server-side/account state, not app code** — deleting a crash workflow, a CUJ stack, or a dashboard is destructive to whatever else the account was using them for, and isn't covered by the one-shot prompt above. Confirm explicitly before removing any of it (see order 2 below).
+> **Step 19 is server-side/account state, not app code** — deleting a crash workflow, a CUJ stack, or a dashboard is destructive to whatever else the account was using them for, and isn't covered by the one-shot prompt above. Confirm explicitly before removing any of it (see order 1 below).
 >
-> **Step 20 is just a document.** The evaluation readout has no account-side state — discarding it is an ordinary file deletion needing no special confirmation, and it's independent of whether you keep or delete the Step 19 resources (see order 1 below).
+> **Step 20 is just a document.** The evaluation readout has no account-side state — discarding it is an ordinary file deletion needing no special confirmation, and it's independent of whether you keep or delete the Step 19 resources (see order 2 below — after the Step 19 deletion, since the readout records the IDs that deletion needs).
 
 > **Prefer to run this unattended?** This is the *human* reference. For a fully autonomous run, point your agent at the companion **[AGENT_CLEANUP_GUIDE.md](AGENT_CLEANUP_GUIDE.md)** runbook (preflight, strict reverse order, and build gates the agent checks itself) and say *"execute this runbook."*
 
@@ -30,8 +30,12 @@ Work from the bottom of the instrumentation guide up. Each prompt drives the ski
 
 | Order | Prompt | Reference |
 |-------|--------|-----------|
-| 1 | *"Discard the evaluation readout and any generated summary artifacts."* (no code involved) | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) |
-| 2 | *"Delete the crash workflow(s), the bd-cuj CUJ stack (Sankey/funnel/SLO/alerts), and the POC dashboards — confirm each deletion explicitly, this is destructive account state."* | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) |
+| 1 | *"Using the workflow and dashboard IDs recorded in the evaluation readout, delete the crash workflow(s), the bd-cuj CUJ stack (Sankey/funnel/SLO/alerts), and the POC dashboards — confirm each deletion explicitly, this is destructive account state."* | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) |
+| 2 | *"Discard the evaluation readout and any generated summary artifacts."* (no code involved) | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) |
+
+> **Delete the account resources before discarding the readout.** The readout is usually the only
+> place the created workflow/dashboard IDs are written down — discard it first and you're left
+> identifying them by name against unrelated account state.
 | 3 | *"Remove the bitdrift session-URL cross-linking from our existing crash reporter."* | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) |
 | 4 | *"Disable bitdrift wireframe session replay and revert its configuration."* | [Step 17](INSTRUMENTATION_GUIDE.md#17-enable-session-replay-wireframe) |
 | 5 | *"Remove all bitdrift feature-flag exposure calls."* | [Step 16](INSTRUMENTATION_GUIDE.md#16-record-feature-flag-exposures) |
