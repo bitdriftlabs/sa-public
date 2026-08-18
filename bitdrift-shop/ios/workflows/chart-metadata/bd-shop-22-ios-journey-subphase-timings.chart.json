@@ -1,0 +1,142 @@
+[
+  {
+    "rule_id": "hist-discovery-fetch",
+    "metadata": {
+      "title": "Discovery fetch (browse/search/categories) (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-product-view",
+    "metadata": {
+      "title": "Product view (ProductDetail + maybe Reviews) (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-wishlist-add",
+    "metadata": {
+      "title": "Wishlist add (when taken) (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-cart-assembly",
+    "metadata": {
+      "title": "Cart assembly (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-checkout-payment",
+    "metadata": {
+      "title": "Checkout: payment sub-phase (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-checkout-confirmation",
+    "metadata": {
+      "title": "Checkout: confirmation sub-phase (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-compared",
+    "metadata": {
+      "title": "All phases compared (one line per phase)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  }
+]

@@ -27,6 +27,10 @@ cycle resets the evaluation window and discards accumulated data.
 | `bd-shop-18-ios-crashes-by-last-screen-live.json` | Ripsaw: reads the screen trail off the crash report itself |
 | `bd-shop-19-ios-crash-terminal-sankey.json` | Sankey ending at the crash — needs `sessionStrategy: .activityBased()` |
 | `bd-shop-20-ios-cold-start-span-timings.json` | Cold-start span waterfall (`app_cold_start` root + `sdk_init`/`scene_render`/`state_restore` children): per-phase P50/P90/P99 histograms, plus one chart comparing all three phases |
+| `bd-shop-21-ios-screen-load-timings.json` | Per-screen P50/P90/P99 load histograms: `welcome_screen_load`, `browse_screen_load`, `catalog_serialize`, `product_detail_load`, `cart_screen_load`, `checkout_screen_load`, `payment_screen_load`, `confirmation_screen_load`, `device_code_fetch`, `product_image_load`. No combined chart — 10 series is too cluttered for one comparison line chart |
+| `bd-shop-22-ios-journey-subphase-timings.json` | Per-sub-phase P50/P90/P99 histograms for `discovery_fetch`, `product_view`, `wishlist_add`, `cart_assembly`, `checkout.payment`, `checkout.confirmation`, plus one chart comparing all six |
+| `bd-shop-23-ios-recommendation-engine-timings.json` | `score_products.parse_catalog` vs `score_products.similarity_pass` — isolates whether a slow `score_products` call was parsing or the O(n·m) similarity pass |
+| `bd-shop-24-ios-persistence-timings.json` | `screen_view_persist` (UserDefaults write+flush, fires on every screen transition) vs `demo_state_publish` (JSON file write) |
 
 ## Journey-to-crash Sankey: it depends on session strategy
 
@@ -127,3 +131,35 @@ redeploy `bd-shop-20` to a different account, edit every `workflow_id` in the
 dashboard file first (same caveat `deploy-workflows.sh` works around for the
 guided crash dashboard above, just not automated here since this dashboard
 only has one workflow behind it).
+
+## Span timings beyond cold start (`bd-shop-21` through `bd-shop-24`)
+
+The rest of the spans added throughout the app — see `ColdStartSpans`' sibling
+spans across `CaptureBridge.swift`, `Screens.swift`, `SimulationManager.swift`,
+`RecommendationEngine.swift`, `ScreenLogger.swift`, `DemoStateFile.swift`, and
+`Components.swift`'s `SpannedAsyncImage` — get one workflow per coherent group
+rather than one giant workflow, per the usual "one workflow, one analytic
+question" guidance:
+
+| Workflow | Live id | Covers |
+|---|---|---|
+| `bd-shop-21-ios-screen-load-timings.json` | `t8u9` | Screen-level "time to data ready" spans — standalone root spans, not nested under any journey span (see `welcome_screen_load`'s comment in `Screens.swift` for why) |
+| `bd-shop-22-ios-journey-subphase-timings.json` | `beLW` | Sub-phases of the simulated journey — children of `product_discovery`/`checkout`/`journey`, passed as an explicit `parentSpanID`, not an ambient context stack (see the commit message / `SimulationManager.swift` comments for why) |
+| `bd-shop-23-ios-recommendation-engine-timings.json` | `49io` | `score_products`' own two sub-phases — isolates parse time from the O(n·m) similarity pass |
+| `bd-shop-24-ios-persistence-timings.json` | `qt3D` | UserDefaults and file-write I/O — `screen_view_persist` fires on every screen transition, the highest-frequency span in the app |
+
+Caveats specific to these:
+
+- **`bd-shop-21` has no combined "compared" chart.** 10 series on one line
+  chart is cluttered past the point of being readable; each screen gets its
+  own individual P50/P90/P99 chart instead.
+- **`catalog_serialize` and `product_image_load` are conditional/per-row.**
+  `catalog_serialize` only does real work when `recommendationsV2Enabled` is
+  on; `product_image_load` fires once per visible product thumbnail, so a
+  screen with N rows contributes N samples per load, not one.
+- **`checkout.payment`'s compared chart doesn't split by `retried`.** A retry
+  attempt and a first attempt both feed the same `_span_name` series in
+  `bd-shop-22`'s comparison chart — the field is on the span for ad-hoc
+  filtering, not built into the default chart.
+- Same session-boundary rule as everywhere else here: these only evaluate
+  sessions that start after deployment.

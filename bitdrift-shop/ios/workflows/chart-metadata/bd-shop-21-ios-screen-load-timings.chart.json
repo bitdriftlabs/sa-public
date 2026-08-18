@@ -1,0 +1,202 @@
+[
+  {
+    "rule_id": "hist-welcome-screen",
+    "metadata": {
+      "title": "Welcome screen load (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-browse-screen",
+    "metadata": {
+      "title": "Browse screen load (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-catalog-serialize",
+    "metadata": {
+      "title": "Catalog re-serialize (Browse) (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-product-detail",
+    "metadata": {
+      "title": "Product detail load (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-cart-screen",
+    "metadata": {
+      "title": "Cart screen load (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-checkout-screen",
+    "metadata": {
+      "title": "Checkout screen load (guest+signin) (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-payment-screen",
+    "metadata": {
+      "title": "Payment screen load (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-confirmation-screen",
+    "metadata": {
+      "title": "Confirmation screen load (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-device-code",
+    "metadata": {
+      "title": "Device code fetch (ad-hoc) (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-product-image",
+    "metadata": {
+      "title": "Product image load (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  }
+]

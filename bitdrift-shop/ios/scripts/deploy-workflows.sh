@@ -91,6 +91,10 @@ NEW_ID_18="$DEPLOYED_ID"
 deploy_workflow bd-shop-19-ios-crash-terminal-sankey    "Crash-terminal Sankey (needs .activityBased())"
 NEW_ID_19="$DEPLOYED_ID"
 deploy_workflow bd-shop-20-ios-cold-start-span-timings  "Cold-start span timings"
+deploy_workflow bd-shop-21-ios-screen-load-timings      "Screen load timings"
+deploy_workflow bd-shop-22-ios-journey-subphase-timings "Journey sub-phase timings"
+deploy_workflow bd-shop-23-ios-recommendation-engine-timings "Recommendation engine timings"
+deploy_workflow bd-shop-24-ios-persistence-timings      "Persistence I/O timings"
 
 if [[ "$DEPLOY_DASH" -eq 1 ]]; then
   echo
