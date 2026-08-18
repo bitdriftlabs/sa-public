@@ -1195,27 +1195,55 @@ final class SimulationManager: ObservableObject {
         await sleep(stepDelay)
 
         // ── Step 2: Browse ───────────────────────────────────────────────
-        await nav(navigator, .browse)
-        let productIDs = await fetchBrowseIDs()
+        // bitdrift SDK: trackSpan() — the same discovery_fetch span the full
+        // journey uses (see runSingleJourney), parented directly on journeySpan
+        // since this mode has no separate discoverySpan. Without a call site
+        // here, bd-shop-22's discovery_fetch chart never populates under the
+        // app's default config (SIMPLIFIED_JOURNEY_ENABLED = YES).
+        // POC: event tracking — sub-phase waterfall, populated regardless of
+        // which journey mode is active.
+        let productIDs = await CaptureBridge.trackSpan(
+            "discovery_fetch", parentSpanID: journeySpan?.id
+        ) { _ in
+            await nav(navigator, .browse)
+            return await fetchBrowseIDs()
+        }
         let pid = productIDs.randomElement() ?? Self.fallbackProductID
 
         // ── Step 3: ProductDetail ────────────────────────────────────────
-        await nav(navigator, .productDetail(source: "browse", productID: pid))
-        _ = try? await ApiClient.getProduct(pid)
+        // bitdrift SDK: trackSpan() — same product_view span the full journey
+        // uses; this mode has no Reviews step, so it only covers the
+        // ProductDetail fetch. Force-quit injection aborts the whole journey,
+        // not just this span — same Bool-signal pattern as runSingleJourney's
+        // product_view for why a bare `return` inside the closure won't do.
+        // POC: event tracking — sub-phase waterfall.
+        let forceQuitInjected = await CaptureBridge.trackSpan(
+            "product_view", parentSpanID: journeySpan?.id
+        ) { _ -> Bool in
+            await nav(navigator, .productDetail(source: "browse", productID: pid))
+            _ = try? await ApiClient.getProduct(pid)
 
-        // Force-quit injection, same placement as the full journey: after
-        // ProductDetail renders and its API call completes. Kept here so the
-        // persisted force-quit toggle behaves identically in both modes — and
-        // so `runSingleJourney`'s force-quit session suppression is never
-        // applied to a mode that can't actually inject the quit.
-        if maybeInjectForceQuit() {
+            // Force-quit injection, same placement as the full journey: after
+            // ProductDetail renders and its API call completes. Kept here so the
+            // persisted force-quit toggle behaves identically in both modes — and
+            // so `runSingleJourney`'s force-quit session suppression is never
+            // applied to a mode that can't actually inject the quit.
+            return maybeInjectForceQuit()
+        }
+        if forceQuitInjected {
             journeySpan?.end(.canceled, fields: ScreenLogger.encode(["reason": "force_quit_injected"]))
             return
         }
 
         // ── Step 4: Cart ─────────────────────────────────────────────────
-        await nav(navigator, .cart(productID: pid))
-        _ = try? await ApiClient.addToCart(pid)
+        // bitdrift SDK: trackSpan() — same cart_assembly span the full journey
+        // uses, though this mode only does the one plain addToCart (no extra
+        // items/remove/flip logic).
+        // POC: event tracking — sub-phase waterfall.
+        await CaptureBridge.trackSpan("cart_assembly", parentSpanID: journeySpan?.id) { _ in
+            await nav(navigator, .cart(productID: pid))
+            _ = try? await ApiClient.addToCart(pid)
+        }
 
         // ── Step 5: CheckoutGuest — the crash point ──────────────────────
         await nav(navigator, .checkoutGuest(productID: pid))
