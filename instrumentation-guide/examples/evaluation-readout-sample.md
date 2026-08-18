@@ -11,7 +11,7 @@ Traffic during validation: ~60 simulated checkout journeys against a local demo 
 
 | ID | Category | Status | Evidence |
 |----|----------|--------|----------|
-| SC-1 | Event Tracking (p50/p90/p99) | ✅ Verified | Key-step duration histogram on the checkout funnel (`MMiD` → `histogram_key_step`) returning real percentile series — p10 observed in the 80–145ms range over the traffic window. Span-duration histograms also live (`hy3N`: journey / checkout / product_discovery). |
+| SC-1 | Event Tracking (p50/p90/p99) | ⏳ Partial | Key-step duration histogram (`MMiD` → `histogram_key_step`) is live and returning real percentile series, but only p10 was actually read (80–145ms over the window). The criterion names p50/p90/p99 — those were not inspected, so this stays partial until they are. Span histograms also live (`hy3N`). Prove with `bd workflow charts MMiD --last 1h`. |
 | SC-2 | Network Monitoring | ✅ Verified | OkHttp auto-instrumentation. Purpose-built RED workflow `GEok` returning live data across all 3 series (request count, success rate, latency), grouped by `_path_template`. Plus Instant Insights Network tab (`o4BA`, `gELc`, `esfA`). |
 | SC-3 | Crash Detection | ✅ Verified (config) | Two crash-attribution workflows found **deployed with an empty `issue_match`** — silently matching every JVM crash — and fixed with their real BDRL (`Xutd` blocking-thread, `Z7ED` vendor-SDK; scripts in [crash-workflow-bdrl-examples.md](crash-workflow-bdrl-examples.md)). Four more deployed: `dAYb`, `7bNh`, `PwPo`, `yccO`. Alert `657` on `robk`. 30-day history on `robk` shows 156 classified crashes (~6/day). |
 | SC-4 | Memory Monitoring | ✅ Verified | Memory-pressure captured automatically on every crash (SDK 0.23.1+) and consumed directly inside the blocking-thread BDRL to tag contention crashes occurring under low memory. |
@@ -22,7 +22,7 @@ Traffic during validation: ~60 simulated checkout journeys against a local demo 
 | SC-9 | Session Replay | ⏳ Not evaluated | Out of scope for this pass; no check run. Guide Step 17 covers enablement. |
 | SC-10 | Visual Performance (jank) | ✅ Verified | Slow-rendering workflows `bd-shop-11`/`11b` LIVE, with alert `537` observed firing during the session. |
 | SC-11 | Customer Support | ⏳ Partial | Entity IDs set per simulated user and Entities usable for per-user lookup, but no dedicated Support dashboard was built — the Stability and CUJ dashboards cover the diagnostic need for now. |
-| SC-12 | Web views | n/a | This app embeds no WebViews. General solution in guide Step 6 (Android GA, iOS experimental as of 0.23.11). |
+| SC-12 | Web views | n/a | This app embeds no WebViews. General solution in guide Step 6 — experimental on both platforms, so scope it as a POC risk. |
 
 ## Journey monitoring detail (SC-1 / SC-7)
 

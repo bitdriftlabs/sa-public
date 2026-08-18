@@ -19,7 +19,7 @@ a strict reverse order, and verification gates phrased as checkable assertions.
 |---|-------|---------------|------------|
 | P1 | Skills installed | `bd-instrumentation`, `bd-docs` resolvable (`bd-cli` also needed if removing Step 19/20 server-side state) | HALT: `npx skills add bitdriftlabs/bd-skills` |
 | P2 | Platform detected | android / ios / react-native | HALT if undetectable |
-| P3 | bitdrift actually present | V2 grep from §3 returns matches | HALT (nothing to remove — report "already baseline") |
+| P3 | bitdrift actually present | V2 grep from §3 returns matches | If matches → continue. If **no** matches, do **not** halt outright: the app code may already be clean while Step 19 account state still exists. Inventory workflows/dashboards via `bd-cli` first; halt with "already baseline" only if that inventory is also empty, otherwise continue on a **server-side-only path** (skip P4/P5 and all app-code orders). |
 | P4 | Clean working tree | `git status --porcelain` empty (or user accepts dirty) | WARN; continue (keeps the removal diff reviewable) |
 | P5 | Baseline build passes | platform build succeeds **before** removal | HALT: a red baseline makes per-step gates meaningless |
 
@@ -33,7 +33,8 @@ Record platform from P2 — it selects the verification commands in §3.
 |----------|---------|
 | Scope | Remove **all** bitdrift instrumentation (full revert). Partial removal only if user named specific categories. |
 | Confirm exact symbols | Have bd-instrumentation confirm SDK symbols via **bd-docs** before deleting call sites — avoids leaving orphaned references. |
-| Server-side workflows/dashboards (Step 19) | **In scope**, but destructive and account-wide — `ASK` for explicit confirmation before deleting any crash workflow, CUJ stack, or dashboard. Never delete silently as part of a "remove everything" pass. If the user doesn't confirm, skip Step 19/20 removal and note it in the run report as intentionally left in place. |
+| Server-side workflows/dashboards (Step 19) | **In scope**, but destructive and account-wide — `ASK` for explicit confirmation before deleting any crash workflow, CUJ stack, or dashboard. Never delete silently as part of a "remove everything" pass. If the user doesn't confirm, skip **Step 19** removal only and note it in the run report as intentionally left in place. |
+| Evaluation readout (Step 20) | Remove with the rest of the run — it's a local document with no account-side state, so it is **not** gated on the Step 19 decision. Declining to delete workflows must not leave the readout behind. |
 
 ---
 

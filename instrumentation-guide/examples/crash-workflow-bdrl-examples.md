@@ -10,7 +10,7 @@ instead of this logic — and they were fixed as part of this guide's validation
 That drift is itself the lesson: a workflow can sit in a LIVE state, look healthy in the
 workflow list, and still be matching *every* crash indiscriminately because its script never
 made it to the platform. Verify the deployed script, not just the deployed state — run
-`bd workflow get <ID>` and confirm the `issue_match` body is actually there.
+`bd workflow describe <ID>` and confirm the `issue_match` body is actually there.
 
 One deploy-time detail worth knowing if you copy these: the on-disk JSON key is
 `bdrl_program`, but the current `bd workflow update` schema field is `program` (confirm via

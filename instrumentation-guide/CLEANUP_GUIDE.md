@@ -8,7 +8,9 @@ This is the inverse of [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md): the
 
 > **Do it in one prompt (app code only):** *"Remove all bitdrift Capture SDK instrumentation from this app, working in reverse order, and confirm the project still builds."* The skill sequences the work for Steps 1–18 (app code). The per-step prompts below are the reference if you want to remove categories selectively.
 >
-> **Steps 19–20 are server-side/account state, not app code** — deleting a crash workflow, a CUJ stack, or a dashboard is destructive to whatever the account was using them for and isn't covered by the one-shot prompt above. Confirm explicitly before removing them (see order 1–2 below).
+> **Step 19 is server-side/account state, not app code** — deleting a crash workflow, a CUJ stack, or a dashboard is destructive to whatever else the account was using them for, and isn't covered by the one-shot prompt above. Confirm explicitly before removing any of it (see order 2 below).
+>
+> **Step 20 is just a document.** The evaluation readout has no account-side state — discarding it is an ordinary file deletion needing no special confirmation, and it's independent of whether you keep or delete the Step 19 resources (see order 1 below).
 
 > **Prefer to run this unattended?** This is the *human* reference. For a fully autonomous run, point your agent at the companion **[AGENT_CLEANUP_GUIDE.md](AGENT_CLEANUP_GUIDE.md)** runbook (preflight, strict reverse order, and build gates the agent checks itself) and say *"execute this runbook."*
 

@@ -32,7 +32,7 @@ the exact failing check; do not proceed or attempt repairs unless noted.
 |---|-------|---------------|------------|
 | P1 | `bd` CLI installed | `bd --version` exits 0 | HALT: instruct user to `brew tap bitdriftlabs/bd && brew install bd` |
 | P2 | `bd` authenticated | `bd auth status` (or first authed command) succeeds | HALT: instruct user to run `bd auth`, or set `BD_API_KEY` for CI |
-| P3 | Skills installed | `bd-instrumentation`, `bd-docs`, `bd-cli` resolvable (`bd-issue-match`, `bd-cuj` only needed once Step 19 runs) | HALT: `npx skills add bitdriftlabs/bd-skills` |
+| P3 | Skills installed | `bd-instrumentation`, `bd-docs`, `bd-cli` resolvable. **Also `bd-issue-match` and `bd-cuj` whenever Step 19 is in scope — which the no-scope default in §1 always includes**, so treat them as mandatory unless Step 19 was explicitly excluded | HALT: `npx skills add bitdriftlabs/bd-skills` |
 | P4 | Skills/CLI current | (best-effort) `brew upgrade` + `npx skills update --all` | WARN only; continue |
 | P5 | Target platform detected | bd-instrumentation reports android / ios / react-native | HALT if undetectable |
 | P6 | SDK key available | locate key (Admin → SDK Keys) in env, config, or user-provided | If absent → `ASK` user once for the SDK key; HALT if not supplied |
@@ -151,8 +151,18 @@ Step 2 ran — confirm they appear in the dashboard as part of V4.
 to confirm the crash workflow(s) and the bd-cuj CUJ stack transitioned to **LIVE** status (not
 stuck `IDLE` — this is exactly the drift the account audit found in an earlier run: workflows
 created but never deployed, or deployed with an empty match rule instead of the intended BDRL
-script). **FAIL V7** if any workflow this run created is not LIVE, or if a chart returns no
-data after a reasonable wait for traffic.
+script). **FAIL V7** if any workflow this run created is not LIVE.
+
+For chart data, the bar depends on whether matching traffic actually occurred:
+
+- **CUJ charts** (Sankey, funnel, completion rate, network) — representative journey traffic is
+  something the run can generate, so **FAIL V7** if these return no data after exercising the
+  flow.
+- **Crash workflows** — a valid, correctly-scripted crash workflow legitimately has no data when
+  no matching crash occurred, and this runbook never requires causing one. Do **not** fail on an
+  empty crash chart. Validate on LIVE state plus a correct deployed script, and record
+  *"deployed, no matching crash observed during the run"* in the report. Failing here would
+  reject a working workflow on most fresh POCs, where crashes are rare by design.
 
 Check the *deployed definition*, not only the state — `bd workflow describe <ID>` and confirm the
 matchers hold values the app actually emits. A matcher on a screen name that is never logged

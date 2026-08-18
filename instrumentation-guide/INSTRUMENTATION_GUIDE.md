@@ -2,7 +2,7 @@
 
 **Version 1.1** — adds Steps 18–20 (crash-reporter cross-linking, crash/CUJ workflows and dashboards, evaluation readout) and [worked examples](examples/).
 
-A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt. Steps 1–18 drive the **bd-instrumentation** skill to do the actual app-code work (write the call sites, wire the build, verify it compiles); Steps 19–20 are server-side and drive **bd-issue-match**, **bd-cuj**, and **bd-cli** instead. You don't write the code; you run the prompts in order and the skills handle the platform-specific details on Android, iOS, or React Native.
+A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt. Steps 1–18 drive the **bd-instrumentation** skill to do the actual app-code work (write the call sites, wire the build, verify it compiles); Step 19 is server-side console configuration driven by **bd-issue-match**, **bd-cuj**, and **bd-cli**; Step 20 writes up the result and touches neither. You don't write the code; you run the prompts in order and the skills handle the platform-specific details on Android, iOS, or React Native.
 
 Each step also lists the bitdrift feature it **unlocks** and the relevant **docs**, so you know what each prompt buys you.
 
