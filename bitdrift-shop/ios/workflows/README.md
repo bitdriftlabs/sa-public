@@ -112,3 +112,18 @@ it's deployed — an already-running app instance's cold-start spans (e.g. the
 one that was live while you were writing/testing this) won't retroactively
 show up. Relaunch the app once after deploying to get a session the new
 workflow can actually see.
+
+A dashboard composes its 5 charts into one view:
+[`dashboards/ios-cold-start-span-timings.dashboard.json`](../dashboards/ios-cold-start-span-timings.dashboard.json)
+(live at workflow id `0pTX`, dashboard id `1rik5G13l_cOcZMr_Oxka`). Deploy it
+with:
+
+```bash
+bd dashboard create --request-file ../dashboards/ios-cold-start-span-timings.dashboard.json
+```
+
+The committed payload's chart components reference `0pTX` directly — if you
+redeploy `bd-shop-20` to a different account, edit every `workflow_id` in the
+dashboard file first (same caveat `deploy-workflows.sh` works around for the
+guided crash dashboard above, just not automated here since this dashboard
+only has one workflow behind it).
