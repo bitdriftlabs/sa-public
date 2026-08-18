@@ -59,9 +59,10 @@ Deployed ≠ working. After deploying any funnel, confirm the *deployed* matcher
 intended and that data is actually arriving:
 
 ```bash
-# What screen names did the platform actually accept?
+# What screen names did the platform actually accept? (all flows, all AND children —
+# not just flows[0]/matchers[0], or a later flow or AND child silently goes unchecked)
 bd workflow describe <ID> -o json \
-  --jq '[.workflow.flows[0].steps[].match_rule.ootb_match.generic_match.and_matcher.matchers[0]
+  --jq '[.workflow.flows[].steps[].match_rule.ootb_match.generic_match.and_matcher.matchers[]
          | (.or_matcher.matchers[]?.base_matcher.string_value // .base_matcher.string_value)] | join(" | ")'
 
 # Is anything landing?

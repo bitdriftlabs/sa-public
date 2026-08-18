@@ -28,14 +28,14 @@ This is the inverse of [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md): the
 
 Work from the bottom of the instrumentation guide up. Each prompt drives the skill to remove one category; the reference links back to what that step added.
 
+> **Delete the account resources before discarding the readout.** The readout is usually the only
+> place the created workflow/dashboard IDs are written down — discard it first and you're left
+> identifying them by name against unrelated account state.
+
 | Order | Prompt | Reference |
 |-------|--------|-----------|
 | 1 | *"Using the workflow and dashboard IDs recorded in the evaluation readout, delete the crash workflow(s), the bd-cuj CUJ stack (Sankey/funnel/SLO/alerts), and the POC dashboards — confirm each deletion explicitly, this is destructive account state."* | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) |
 | 2 | *"Discard the evaluation readout and any generated summary artifacts."* (no code involved) | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) |
-
-> **Delete the account resources before discarding the readout.** The readout is usually the only
-> place the created workflow/dashboard IDs are written down — discard it first and you're left
-> identifying them by name against unrelated account state.
 | 3 | *"Remove the bitdrift session-URL cross-linking from our existing crash reporter."* | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) |
 | 4 | *"Disable bitdrift wireframe session replay and revert its configuration."* | [Step 17](INSTRUMENTATION_GUIDE.md#17-enable-session-replay-wireframe) |
 | 5 | *"Remove all bitdrift feature-flag exposure calls."* | [Step 16](INSTRUMENTATION_GUIDE.md#16-record-feature-flag-exposures) |

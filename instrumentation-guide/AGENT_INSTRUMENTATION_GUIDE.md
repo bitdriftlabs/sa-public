@@ -176,7 +176,10 @@ metric series.
 **V8 — Evaluation readout is evidence-backed.** If Step 20 ran, every in-scope criterion in
 the readout has a concrete artifact (a chart, workflow, dashboard, or session ID) and a
 `bd-cli` command or portal link that proves it — not just a step name. **FAIL V8** on any
-criterion listed with no accompanying proof.
+criterion listed with no accompanying proof. If no POC scope was given, "in-scope criterion"
+has no `SC-n`/`PRE-n` set to check against — apply the same evidence bar to each step listed in
+the generic step-coverage summary (§2) instead, so an empty readout can't pass V8 by vacuously
+having nothing to check.
 
 ---
 
