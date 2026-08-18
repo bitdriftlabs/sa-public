@@ -161,5 +161,36 @@ Caveats specific to these:
   attempt and a first attempt both feed the same `_span_name` series in
   `bd-shop-22`'s comparison chart — the field is on the span for ad-hoc
   filtering, not built into the default chart.
+- **`discovery_fetch`, `product_view`, and `cart_assembly` also have call
+  sites in `runSimplifiedJourney`**, not just the full random journey — added
+  after `bd-shop-22` first came up empty for all three under this app's
+  actual default config (`SIMPLIFIED_JOURNEY_ENABLED = YES`, which runs the
+  simplified path exclusively). **`wishlist_add` has no simplified-journey
+  equivalent and stays empty by design** — the simplified journey's fixed
+  7-step path never visits Wishlist at all.
+- **`score_products` (and both `bd-shop-23` spans) only fire when
+  `recommendationsV2Enabled` is on**, an in-memory `@Published` flag on
+  `SimulationManager` toggled by hand on the Advanced screen — not persisted,
+  resets to `false` every launch, and nothing in the automated sim loop turns
+  it on. `bd-shop-23` will read as empty under a default run; toggle "Rec v2"
+  on the Advanced screen before running the sim if you want that workflow
+  populated.
 - Same session-boundary rule as everywhere else here: these only evaluate
   sessions that start after deployment.
+
+## A live example of why the units/labels matter: silent backend drift
+
+Deploying these surfaced a real instance of the exact failure mode
+`.local.xcconfig`'s `SHOP_BACKEND_URL` comment warns about: the configured LAN
+IP had drifted to a different subnet entirely, every API call was failing
+with an identical ~10.1s timeout, and because `ApiClient` swallows errors with
+`try?`, nothing *looked* broken — the app still ran, still navigated, still
+completed journeys. What gave it away was `bd-shop-21`: five unrelated
+screens (`welcome_screen_load`, `browse_screen_load`, `product_detail_load`,
+`payment_screen_load`, `confirmation_screen_load`) all reporting the exact
+same P10 duration to nine significant figures. Different operations do not
+coincidentally take the identical time; that pattern across several
+independently-emitted spans is close to conclusive evidence of one shared
+failure mode (here, a fixed timeout) rather than several real, independent
+measurements. After fixing the IP and getting a fresh session, every screen's
+duration diverged into its own realistic, distinct range.
