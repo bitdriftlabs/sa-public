@@ -169,12 +169,16 @@ Caveats specific to these:
   equivalent and stays empty by design** — the simplified journey's fixed
   7-step path never visits Wishlist at all.
 - **`score_products` (and both `bd-shop-23` spans) only fire when
-  `recommendationsV2Enabled` is on**, an in-memory `@Published` flag on
-  `SimulationManager` toggled by hand on the Advanced screen — not persisted,
-  resets to `false` every launch, and nothing in the automated sim loop turns
-  it on. `bd-shop-23` will read as empty under a default run; toggle "Rec v2"
-  on the Advanced screen before running the sim if you want that workflow
-  populated.
+  `recommendationsV2Enabled` is on** — off by default, and nothing in the
+  automated sim loop turns it on. Toggle "Rec v2" on the Advanced screen, or
+  headlessly via the same launch-argument mechanism every other demo flag
+  uses:
+  ```bash
+  xcrun simctl launch <udid> ai.bitdrift.shop.ios -recommendations.active 1
+  ```
+  Persisted like the others, so it survives subsequent relaunches until
+  cleared (`-recommendations.active 0`, or it's included in a future
+  `check-demo-state.sh --reset`).
 - Same session-boundary rule as everywhere else here: these only evaluate
   sessions that start after deployment.
 
