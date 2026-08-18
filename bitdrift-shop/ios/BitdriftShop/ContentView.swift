@@ -163,6 +163,11 @@ struct ContentView: View {
         sim.fastCrashModeEnabled = Prefs.crashLoop.bool(Prefs.keyFastMode)
         sim.syncAppHangEnabledState()
         sim.syncForceQuitEnabledState()
+        // Headless equivalent of tapping "Rec v2" on the Advanced screen —
+        // `-recommendations.active 1` as a simctl/devicectl launch argument.
+        // Needed to populate bd-shop-23 (score_products.parse_catalog /
+        // .similarity_pass) without a UI tap.
+        sim.recommendationsV2Enabled = Prefs.recommendations.bool(Prefs.keyActive)
 
         // Promote whatever was resolved into the persistent store. Flags supplied
         // as launch arguments land in NSArgumentDomain, which is not persisted —
@@ -176,6 +181,7 @@ struct ContentView: View {
         Prefs.appHang.set(Prefs.keyActive, sim.appHangEnabled)
         Prefs.forceQuit.set(Prefs.keyActive, sim.forceQuitEnabled)
         Prefs.autoInfinite.set(Prefs.keyActive, Prefs.autoInfinite.bool(Prefs.keyActive))
+        Prefs.recommendations.set(Prefs.keyActive, sim.recommendationsV2Enabled)
 
         // These also have to be promoted, or a disarm that clears them via launch
         // arguments lasts exactly one launch and the fault returns on the next.

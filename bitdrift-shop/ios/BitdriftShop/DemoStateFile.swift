@@ -40,6 +40,7 @@ enum DemoStateFile {
             "force_quit": Prefs.forceQuit.bool(Prefs.keyActive),
             "force_quit_restart_pending": Prefs.forceQuit.bool(Prefs.keyRestartPending),
             "auto_infinite": Prefs.autoInfinite.bool(Prefs.keyActive),
+            "recommendations_v2": Prefs.recommendations.bool(Prefs.keyActive),
             "next_combo_index": Prefs.crashLoop.int(Prefs.keyNextComboIndex),
             "restart_delay_ms": Prefs.crashLoop.int("restart_delay_ms", 2000),
             "awaiting_background": awaitingBackground
