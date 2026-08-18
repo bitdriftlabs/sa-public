@@ -1,3 +1,4 @@
+import Capture
 import Foundation
 
 /// "Smart" product recommendation engine — computes relevance scores from
@@ -30,8 +31,22 @@ enum RecommendationEngine {
 
     /// Scores all products against a reference product.
     /// Returns `(product, score)` pairs sorted by score descending.
-    static func scoreProducts(catalogJSON: String, referenceProductID: String) -> [(product: JSON, score: Double)] {
-        let products = JSON.parse(string: catalogJSON).array
+    ///
+    /// `parentSpanID` nests the two sub-spans below under the caller's own
+    /// `score_products` span (see `Screens.swift`'s two call sites), so a slow
+    /// call's P99 tail can be attributed to "parsing was slow" vs "the O(n·m)
+    /// string comparison was slow" instead of one opaque number.
+    static func scoreProducts(
+        catalogJSON: String, referenceProductID: String, parentSpanID: UUID? = nil
+    ) -> [(product: JSON, score: Double)] {
+        // bitdrift SDK: trackSpan() isolates parsing the whole catalog JSON string
+        // back into JSON values, separate from the similarity pass below.
+        // POC: event tracking — sub-phase duration within an already-spanned call.
+        let products = CaptureBridge.trackSpan(
+            "score_products.parse_catalog", parentSpanID: parentSpanID
+        ) { _ in
+            JSON.parse(string: catalogJSON).array
+        }
         guard !products.isEmpty else { return [] }
 
         guard let reference = products.first(where: { $0.str("id") == referenceProductID }) else {
@@ -46,21 +61,30 @@ enum RecommendationEngine {
         // listings still score as related.
         let refProfile = clip(reference.serialized)
 
-        return products
-            .filter { $0.str("id") != referenceProductID }
-            .map { product -> (product: JSON, score: Double) in
-                let desc = product.str("description", product.str("name"))
-                let category = product.str("category")
+        // bitdrift SDK: trackSpan() isolates the O(n·m) Levenshtein pass per
+        // product — the most legitimately interesting perf case in the app (see
+        // the type doc's "slow-rendering trap"), separate from parsing above.
+        // POC: event tracking — sub-phase duration within an already-spanned call.
+        return CaptureBridge.trackSpan(
+            "score_products.similarity_pass", parentSpanID: parentSpanID
+        ) { _ in
+            products
+                .filter { $0.str("id") != referenceProductID }
+                .map { product -> (product: JSON, score: Double) in
+                    let desc = product.str("description", product.str("name"))
+                    let category = product.str("category")
 
-                let descSimilarity = levenshteinSimilarity(refProfile, clip(product.serialized))
-                let categoryBoost = category == refCategory ? 0.3 : 0.0
-                let priceProximity = priceScore(refPrice, product.num("price"))
-                let sharedWords = Double(countSharedWords(refDesc, desc))
+                    let descSimilarity = levenshteinSimilarity(refProfile, clip(product.serialized))
+                    let categoryBoost = category == refCategory ? 0.3 : 0.0
+                    let priceProximity = priceScore(refPrice, product.num("price"))
+                    let sharedWords = Double(countSharedWords(refDesc, desc))
 
-                let score = (descSimilarity * 0.4) + categoryBoost + (priceProximity * 0.2) + (sharedWords * 0.01)
-                return (product, score)
-            }
-            .sorted { $0.score > $1.score }
+                    let score = (descSimilarity * 0.4) + categoryBoost + (priceProximity * 0.2)
+                        + (sharedWords * 0.01)
+                    return (product, score)
+                }
+                .sorted { $0.score > $1.score }
+        }
     }
 
     // MARK: - Scoring primitives

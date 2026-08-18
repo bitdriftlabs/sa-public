@@ -749,8 +749,8 @@ final class SimulationManager: ObservableObject {
         //   A (digital native) — 45% Search, 40% Browse, 15% Categories
         //   B (deliberate)     — 50% Categories, 25% Browse, 25% Search
         //   Control            — equal 33 / 33 / 33
-        var productIDs: [String]
-        var source: String
+        var productIDs: [String] = []
+        var source = ""
         let discoveryRoll = Double.random(in: 0..<1)
         let discoveryChoice: Int
         switch activeVariant {
@@ -759,21 +759,31 @@ final class SimulationManager: ObservableObject {
         case .control:  discoveryChoice = Int.random(in: 0...2)
         }
 
-        switch discoveryChoice {
-        case 0:
-            await nav(navigator, .browse)
-            productIDs = await fetchBrowseIDs()
-            source = "browse"
-        case 1:
-            await nav(navigator, .search)
-            productIDs = await fetchSearchIDs()
-            source = "search"
-        default:
-            await nav(navigator, .categories)
-            let category = (await fetchCategoryNames()).randomElement()!
-            await nav(navigator, .categoryBrowse(category: category))
-            productIDs = await fetchCategoryProductIDs(category)
-            source = "categories"
+        // bitdrift SDK: trackSpan() isolates the discovery-method fetch (whichever
+        // of browse/search/categories was picked this run) as its own sub-phase of
+        // product_discovery, distinct from the ProductDetail/Reviews/Wishlist steps
+        // that follow.
+        // POC: event tracking — sub-phase waterfall within an existing span, not
+        // just a single lump duration. Demo-only caveat: the branch taken is a
+        // randomized per-variant roll, so this reflects whichever backend endpoint
+        // got hit that run, not a stable operation.
+        await CaptureBridge.trackSpan("discovery_fetch", parentSpanID: discoverySpan?.id) { _ in
+            switch discoveryChoice {
+            case 0:
+                await nav(navigator, .browse)
+                productIDs = await fetchBrowseIDs()
+                source = "browse"
+            case 1:
+                await nav(navigator, .search)
+                productIDs = await fetchSearchIDs()
+                source = "search"
+            default:
+                await nav(navigator, .categories)
+                let category = (await fetchCategoryNames()).randomElement()!
+                await nav(navigator, .categoryBrowse(category: category))
+                productIDs = await fetchCategoryProductIDs(category)
+                source = "categories"
+            }
         }
 
         // ── Maybe visit Featured — A skips it (15%), B almost always (75%)
@@ -792,25 +802,38 @@ final class SimulationManager: ObservableObject {
         let pid = productIDs.randomElement()!
 
         // ── Step 3: ProductDetail ────────────────────────────────────────
-        await nav(navigator, .productDetail(source: source, productID: pid))
-        _ = try? await ApiClient.getProduct(pid)
+        // bitdrift SDK: trackSpan() wraps ProductDetail + the maybe-Reviews visit
+        // as one product_discovery sub-phase. `maybeInjectForceQuit()` below aborts
+        // the *whole journey*, not just this span — a bare `return` inside the
+        // closure would only exit the closure, so the abort is signalled back out
+        // via the return value instead, and the actual early return happens after
+        // the span has already closed normally.
+        // POC: event tracking — sub-phase waterfall within product_discovery.
+        let forceQuitInjected = await CaptureBridge.trackSpan(
+            "product_view", parentSpanID: discoverySpan?.id
+        ) { _ -> Bool in
+            await nav(navigator, .productDetail(source: source, productID: pid))
+            _ = try? await ApiClient.getProduct(pid)
 
-        // Force-quit injection: fires after ProductDetail renders and the API
-        // completes. Simulates the user swiping the app away on an uninteresting
-        // product page.
-        if maybeInjectForceQuit() { return }
+            // Force-quit injection: fires after ProductDetail renders and the API
+            // completes. Simulates the user swiping the app away on an uninteresting
+            // product page.
+            if maybeInjectForceQuit() { return true }
 
-        // ── Maybe visit Reviews — A rarely (10%), B almost always (90%)
-        let reviewsProb: Double
-        switch activeVariant {
-        case .control:  reviewsProb = 0.5
-        case .variantA: reviewsProb = 0.10  // trusts the product, skips reviews
-        case .variantB: reviewsProb = 0.90  // reads every review before deciding
+            // ── Maybe visit Reviews — A rarely (10%), B almost always (90%)
+            let reviewsProb: Double
+            switch activeVariant {
+            case .control:  reviewsProb = 0.5
+            case .variantA: reviewsProb = 0.10  // trusts the product, skips reviews
+            case .variantB: reviewsProb = 0.90  // reads every review before deciding
+            }
+            if Double.random(in: 0..<1) < reviewsProb {
+                await nav(navigator, .reviews(source: source, productID: pid))
+                _ = try? await ApiClient.getReviews(pid)
+            }
+            return false
         }
-        if Double.random(in: 0..<1) < reviewsProb {
-            await nav(navigator, .reviews(source: source, productID: pid))
-            _ = try? await ApiClient.getReviews(pid)
-        }
+        if forceQuitInjected { return }
 
         // ── Maybe visit Wishlist — A almost never (5%), B very often (75%)
         let wishlistProb: Double
@@ -820,8 +843,14 @@ final class SimulationManager: ObservableObject {
         case .variantB: wishlistProb = 0.75  // saves many items before committing
         }
         if Double.random(in: 0..<1) < wishlistProb {
-            await nav(navigator, .wishlist(productID: pid))
-            _ = try? await ApiClient.addToWishlist(pid)
+            // bitdrift SDK: trackSpan() wraps the wishlist visit — only opens when
+            // the roll actually adds to wishlist, so it doesn't inflate the
+            // discovery-phase span count on runs that skip it.
+            // POC: event tracking — sub-phase waterfall within product_discovery.
+            await CaptureBridge.trackSpan("wishlist_add", parentSpanID: discoverySpan?.id) { _ in
+                await nav(navigator, .wishlist(productID: pid))
+                _ = try? await ApiClient.addToWishlist(pid)
+            }
         }
 
         // ── Step 4: Cart — A adds just 1, B loads up with 3-5 ────────────
@@ -831,73 +860,86 @@ final class SimulationManager: ObservableObject {
         // Discovery phase complete — first item is in the cart.
         discoverySpan?.end(.success, fields: ScreenLogger.encode(["source": source, "product_id": pid]))
 
-        let extraCount: Int
-        switch activeVariant {
-        case .control:  extraCount = Int.random(in: 1...3)  // 1-3 extra
-        case .variantA: extraCount = Int.random(in: 0...1)  // usually 1 item, occasionally a second
-        case .variantB: extraCount = Int.random(in: 2...4)  // loads up the cart
-        }
-        for _ in 0..<extraCount {
-            let extraPid = productIDs.randomElement()!
-            cartItems.append(extraPid)
-            _ = try? await ApiClient.addToCart(extraPid, quantity: Int.random(in: 1...3))
-            await sleep(stepDelay)
-        }
-
-        // View the cart
-        _ = try? await ApiClient.getCart()
-        await sleep(stepDelay)
-
-        // Maybe remove an item — A almost never (10%), B almost always (90%)
-        let removeProb: Double
-        switch activeVariant {
-        case .control:  removeProb = 0.6
-        case .variantA: removeProb = 0.10  // keeps what they add
-        case .variantB: removeProb = 0.90  // constant second-guessing
-        }
-        if Double.random(in: 0..<1) < removeProb, cartItems.count > 1 {
-            let removePid = cartItems.remove(at: Int.random(in: 0..<cartItems.count))
-            _ = try? await ApiClient.deleteCartItem(removePid)
-            await sleep(stepDelay)
-        }
-
-        // Maybe empty cart and re-add — A almost never (5%), B very often (60%)
-        let emptyCartProb: Double
-        switch activeVariant {
-        case .control:  emptyCartProb = 0.2
-        case .variantA: emptyCartProb = 0.05  // commits to their choice
-        case .variantB: emptyCartProb = 0.60  // starts over frequently
-        }
-        if Double.random(in: 0..<1) < emptyCartProb {
-            for item in cartItems {
-                _ = try? await ApiClient.deleteCartItem(item)
+        // bitdrift SDK: trackSpan() wraps the whole cart-assembly block — extra
+        // items, view, maybe-remove, maybe-empty-and-rebuild, maybe-flip, final
+        // view — as one sibling span alongside product_discovery and checkout,
+        // parented directly off the journey span. Previously this ran inside no
+        // span at all.
+        // POC: event tracking — multi-step cart operations as one measurable
+        // sub-phase. Demo-only caveat: branch counts/probabilities are
+        // variant-driven random walks, and the fixed `sleep(stepDelay)` calls
+        // interspersed below are artificial demo pacing, not real work — they
+        // inflate this span's duration by a constant that has nothing to do with
+        // the underlying API calls.
+        await CaptureBridge.trackSpan("cart_assembly", parentSpanID: journeySpan?.id) { _ in
+            let extraCount: Int
+            switch activeVariant {
+            case .control:  extraCount = Int.random(in: 1...3)  // 1-3 extra
+            case .variantA: extraCount = Int.random(in: 0...1)  // usually 1 item, occasionally a second
+            case .variantB: extraCount = Int.random(in: 2...4)  // loads up the cart
+            }
+            for _ in 0..<extraCount {
+                let extraPid = productIDs.randomElement()!
+                cartItems.append(extraPid)
+                _ = try? await ApiClient.addToCart(extraPid, quantity: Int.random(in: 1...3))
                 await sleep(stepDelay)
             }
-            cartItems.removeAll()
-            // Re-add one product so checkout works
-            let rePid = productIDs.randomElement()!
-            cartItems.append(rePid)
-            _ = try? await ApiClient.addToCart(rePid)
-            await sleep(stepDelay)
-        }
 
-        // Maybe remove and re-add same item — A almost never (5%), B often (70%)
-        let flipProb: Double
-        switch activeVariant {
-        case .control:  flipProb = 0.3
-        case .variantA: flipProb = 0.05  // no quantity dithering
-        case .variantB: flipProb = 0.70  // changes quantity repeatedly
-        }
-        if Double.random(in: 0..<1) < flipProb, let flippedPid = cartItems.randomElement() {
-            _ = try? await ApiClient.deleteCartItem(flippedPid)
+            // View the cart
+            _ = try? await ApiClient.getCart()
             await sleep(stepDelay)
-            _ = try? await ApiClient.addToCart(flippedPid, quantity: Int.random(in: 1...5))
-            await sleep(stepDelay)
-        }
 
-        // View cart one more time before checkout
-        _ = try? await ApiClient.getCart()
-        await sleep(stepDelay)
+            // Maybe remove an item — A almost never (10%), B almost always (90%)
+            let removeProb: Double
+            switch activeVariant {
+            case .control:  removeProb = 0.6
+            case .variantA: removeProb = 0.10  // keeps what they add
+            case .variantB: removeProb = 0.90  // constant second-guessing
+            }
+            if Double.random(in: 0..<1) < removeProb, cartItems.count > 1 {
+                let removePid = cartItems.remove(at: Int.random(in: 0..<cartItems.count))
+                _ = try? await ApiClient.deleteCartItem(removePid)
+                await sleep(stepDelay)
+            }
+
+            // Maybe empty cart and re-add — A almost never (5%), B very often (60%)
+            let emptyCartProb: Double
+            switch activeVariant {
+            case .control:  emptyCartProb = 0.2
+            case .variantA: emptyCartProb = 0.05  // commits to their choice
+            case .variantB: emptyCartProb = 0.60  // starts over frequently
+            }
+            if Double.random(in: 0..<1) < emptyCartProb {
+                for item in cartItems {
+                    _ = try? await ApiClient.deleteCartItem(item)
+                    await sleep(stepDelay)
+                }
+                cartItems.removeAll()
+                // Re-add one product so checkout works
+                let rePid = productIDs.randomElement()!
+                cartItems.append(rePid)
+                _ = try? await ApiClient.addToCart(rePid)
+                await sleep(stepDelay)
+            }
+
+            // Maybe remove and re-add same item — A almost never (5%), B often (70%)
+            let flipProb: Double
+            switch activeVariant {
+            case .control:  flipProb = 0.3
+            case .variantA: flipProb = 0.05  // no quantity dithering
+            case .variantB: flipProb = 0.70  // changes quantity repeatedly
+            }
+            if Double.random(in: 0..<1) < flipProb, let flippedPid = cartItems.randomElement() {
+                _ = try? await ApiClient.deleteCartItem(flippedPid)
+                await sleep(stepDelay)
+                _ = try? await ApiClient.addToCart(flippedPid, quantity: Int.random(in: 1...5))
+                await sleep(stepDelay)
+            }
+
+            // View cart one more time before checkout
+            _ = try? await ApiClient.getCart()
+            await sleep(stepDelay)
+        }
 
         if maybeFireCrash(at: .cart) { return }
 
@@ -1010,7 +1052,9 @@ final class SimulationManager: ObservableObject {
         }
         let willPaymentFail = Double.random(in: 0..<1) < failureProb
 
-        let orderID = await runPayment(navigator, choice: paymentChoice, session: session)
+        let orderID = await runPayment(
+            navigator, choice: paymentChoice, session: session, parentSpanID: checkoutSpan?.id
+        )
 
         if maybeFireCrash(at: .payment) { return }
 
@@ -1031,7 +1075,10 @@ final class SimulationManager: ObservableObject {
             if Double.random(in: 0..<1) < 0.50 {
                 let retryChoice = [0, 1, 2, 3].filter { $0 != paymentChoice }.randomElement()!
                 let retryMethod = Self.paymentMethodName(retryChoice)
-                let retryOrderID = await runPayment(navigator, choice: retryChoice, session: session)
+                let retryOrderID = await runPayment(
+                    navigator, choice: retryChoice, session: session,
+                    parentSpanID: checkoutSpan?.id, retried: true
+                )
 
                 ScreenLogger.logInfo("payment_retry", [
                     "original_method": paymentMethod,
@@ -1048,7 +1095,16 @@ final class SimulationManager: ObservableObject {
                     "payment_retried": "true",
                     "retry_method": retryMethod,
                 ])
-                _ = try? await ApiClient.getConfirmation(retryOrderID)
+                // bitdrift SDK: trackSpan() isolates the confirmation fetch as its
+                // own checkout sub-phase, closing the checkout -> payment ->
+                // confirmation waterfall (checkout_screen_load/payment_screen_load
+                // in Screens.swift cover the first two on the screen side).
+                // POC: event tracking — sub-phase waterfall within checkout.
+                await CaptureBridge.trackSpan(
+                    "checkout.confirmation", parentSpanID: checkoutSpan?.id
+                ) { _ in
+                    _ = try? await ApiClient.getConfirmation(retryOrderID)
+                }
                 await sleep(0.2)
                 checkoutSpan?.end(.success, fields: ScreenLogger.encode([
                     "payment_method": retryMethod, "retried": "true",
@@ -1076,7 +1132,12 @@ final class SimulationManager: ObservableObject {
             "_screen_name": "Confirmation",
             "checkout_flow": checkoutFlow,
         ])
-        _ = try? await ApiClient.getConfirmation(orderID)
+        // bitdrift SDK: trackSpan() isolates the confirmation fetch as its own
+        // checkout sub-phase — see the retry path above for the same pattern.
+        // POC: event tracking — sub-phase waterfall within checkout.
+        await CaptureBridge.trackSpan("checkout.confirmation", parentSpanID: checkoutSpan?.id) { _ in
+            _ = try? await ApiClient.getConfirmation(orderID)
+        }
         await sleep(0.2)
         checkoutSpan?.end(.success, fields: ScreenLogger.encode(["payment_method": paymentMethod]))
         journeySpan?.end(.success)
@@ -1182,12 +1243,18 @@ final class SimulationManager: ObservableObject {
 
         // ── Step 6: PaymentCard ──────────────────────────────────────────
         // Card is choice 0 — fixed, not the random payment-method roll the
-        // full journey uses, so this path stays deterministic.
-        let orderID = await runPayment(navigator, choice: 0, session: session)
+        // full journey uses, so this path stays deterministic. No separate
+        // checkoutSpan exists in this mode — checkout.payment/.confirmation nest
+        // directly under the flat journey span instead.
+        let orderID = await runPayment(
+            navigator, choice: 0, session: session, parentSpanID: journeySpan?.id
+        )
 
         // ── Step 7: Confirmation ─────────────────────────────────────────
         await nav(navigator, .confirmation(orderID: orderID))
-        _ = try? await ApiClient.getConfirmation(orderID)
+        await CaptureBridge.trackSpan("checkout.confirmation", parentSpanID: journeySpan?.id) { _ in
+            _ = try? await ApiClient.getConfirmation(orderID)
+        }
 
         ScreenLogger.logInfo("simplified_journey_completed", [
             "steps_completed": "7",
@@ -1199,20 +1266,37 @@ final class SimulationManager: ObservableObject {
 
     /// Navigates to the payment screen for `choice` and calls its endpoint,
     /// returning the resulting order ID (empty on failure).
-    private func runPayment(_ navigator: Navigator, choice: Int, session: String) async -> String {
-        switch choice {
-        case 0:
-            await nav(navigator, .paymentCard(checkoutSession: session))
-            return (try? await ApiClient.payCard(session))?.str("order_id") ?? ""
-        case 1:
-            await nav(navigator, .paymentApplePay(checkoutSession: session))
-            return (try? await ApiClient.payApplePay(session))?.str("order_id") ?? ""
-        case 2:
-            await nav(navigator, .paymentPayPal(checkoutSession: session))
-            return (try? await ApiClient.payPayPal(session))?.str("order_id") ?? ""
-        default:
-            await nav(navigator, .paymentAndroidPay(checkoutSession: session))
-            return (try? await ApiClient.payAndroidPay(session))?.str("order_id") ?? ""
+    ///
+    /// `parentSpanID` is the caller's checkout-equivalent span (`checkoutSpan` in
+    /// the full journey, `journeySpan` in the simplified one — see call sites).
+    /// `retried` distinguishes a retry attempt from the first one, so the two
+    /// don't get conflated in a `checkout.payment` latency chart.
+    ///
+    /// bitdrift SDK: trackSpan() wraps the single shared call site for all four
+    /// payment variants — this is the actual "payment processing" sub-phase of
+    /// checkout, previously bundled into `checkout`'s own duration along with
+    /// checkout-entry and confirmation.
+    /// POC: event tracking — sub-phase waterfall within checkout.
+    private func runPayment(
+        _ navigator: Navigator, choice: Int, session: String, parentSpanID: UUID?, retried: Bool = false
+    ) async -> String {
+        return await CaptureBridge.trackSpan(
+            "checkout.payment", fields: ["retried": String(retried)], parentSpanID: parentSpanID
+        ) { _ in
+            switch choice {
+            case 0:
+                await nav(navigator, .paymentCard(checkoutSession: session))
+                return (try? await ApiClient.payCard(session))?.str("order_id") ?? ""
+            case 1:
+                await nav(navigator, .paymentApplePay(checkoutSession: session))
+                return (try? await ApiClient.payApplePay(session))?.str("order_id") ?? ""
+            case 2:
+                await nav(navigator, .paymentPayPal(checkoutSession: session))
+                return (try? await ApiClient.payPayPal(session))?.str("order_id") ?? ""
+            default:
+                await nav(navigator, .paymentAndroidPay(checkoutSession: session))
+                return (try? await ApiClient.payAndroidPay(session))?.str("order_id") ?? ""
+            }
         }
     }
 

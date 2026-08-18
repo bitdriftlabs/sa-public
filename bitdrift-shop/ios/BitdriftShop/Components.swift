@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Palette
 
@@ -23,6 +24,50 @@ enum Palette {
     static let crimson = Color(red: 0.96, green: 0.26, blue: 0.21)  // 0xFFF44336
     /// Card background behind the (white) bitdrift logo.
     static let logoBackdrop = Color(red: 0.10, green: 0.10, blue: 0.18) // 0xFF1A1A2E
+}
+
+// MARK: - Spanned async image
+
+/// Drop-in replacement for SwiftUI's `AsyncImage`, wrapping the fetch+decode in a
+/// span. `AsyncImage` exposes no start/end hook of its own — its underlying
+/// request is still visible as a raw HTTP entry via the swizzled URLSession
+/// integration, but there is no way to get "time until this specific product
+/// thumbnail finished loading" as a named, chartable operation without replacing
+/// it with something that owns the fetch itself.
+///
+/// Same call shape as `AsyncImage(url:content:placeholder:)`, so every call site
+/// only needed the type name swapped.
+///
+/// bitdrift SDK: trackSpan() wraps the network fetch (`URLSession.shared.data`)
+/// plus `UIImage` decode as one `product_image_load` span per row.
+/// POC: event tracking — per-image load latency; a screen with N product rows
+/// produces N of these, so a histogram shows the shape of image-loading cost
+/// across a whole list, not just an aggregate page-load number.
+struct SpannedAsyncImage<Content: View, Placeholder: View>: View {
+    let url: URL?
+    @ViewBuilder let content: (Image) -> Content
+    @ViewBuilder let placeholder: () -> Placeholder
+
+    @State private var uiImage: UIImage?
+
+    var body: some View {
+        Group {
+            if let uiImage {
+                content(Image(uiImage: uiImage))
+            } else {
+                placeholder()
+            }
+        }
+        .task(id: url) {
+            guard let url else { return }
+            uiImage = await CaptureBridge.trackSpan(
+                "product_image_load", fields: ["url": url.absoluteString]
+            ) { _ -> UIImage? in
+                guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
+                return UIImage(data: data)
+            }
+        }
+    }
 }
 
 // MARK: - Screen container
@@ -140,7 +185,7 @@ struct ScreenContainer<Content: View>: View {
                     .foregroundStyle(.secondary)
             }
         } else if let imageURL, let url = URL(string: imageURL) {
-            AsyncImage(url: url) { image in
+            SpannedAsyncImage(url: url) { image in
                 image.resizable().scaledToFill()
             } placeholder: {
                 Circle().fill(color.opacity(0.15))
@@ -402,7 +447,7 @@ struct ProductImageRow: View {
                             onProductTap(product.str("id"))
                         } label: {
                             HStack(spacing: 0) {
-                                AsyncImage(url: URL(string: product.str("image_url"))) { image in
+                                SpannedAsyncImage(url: URL(string: product.str("image_url"))) { image in
                                     image.resizable().scaledToFill()
                                 } placeholder: {
                                     Color.gray.opacity(0.2)
@@ -506,7 +551,7 @@ struct RecommendedSection: View {
                         onProductTap(item.product.str("id"))
                     } label: {
                         HStack(spacing: 10) {
-                            AsyncImage(url: URL(string: item.product.str("image_url"))) { image in
+                            SpannedAsyncImage(url: URL(string: item.product.str("image_url"))) { image in
                                 image.resizable().scaledToFill()
                             } placeholder: {
                                 Color.gray.opacity(0.2)

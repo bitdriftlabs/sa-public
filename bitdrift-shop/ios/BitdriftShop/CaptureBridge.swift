@@ -190,6 +190,12 @@ enum CaptureBridge {
     /// returns a `Span` the caller must end by hand. This restores the scoped
     /// form: the span ends SUCCESS on return and FAILURE if the body throws.
     ///
+    /// `parentSpanID` nests this span under a caller-supplied parent (e.g. a
+    /// SimulationManager journey/discovery/checkout span). The body closure
+    /// receives the span itself so *its* children can nest further, in turn,
+    /// by passing `span?.id` down — see `RecommendationEngine.scoreProducts`'s
+    /// `parse_catalog`/`similarity_pass` children for an example.
+    ///
     /// bitdrift SDK: wraps work in a span and records its duration in the session
     /// timeline.
     /// POC: event tracking — unsampled duration histogram (p50/p95) for any operation.
@@ -198,11 +204,39 @@ enum CaptureBridge {
         _ name: String,
         level: LogLevel = .info,
         fields: [String: String] = [:],
-        _ body: () throws -> T
+        parentSpanID: UUID? = nil,
+        _ body: (Span?) throws -> T
     ) rethrows -> T {
-        let span = Logger.startSpan(name: name, level: level, fields: ScreenLogger.encode(fields))
+        let span = Logger.startSpan(
+            name: name, level: level, fields: ScreenLogger.encode(fields), parentSpanID: parentSpanID
+        )
         do {
-            let result = try body()
+            let result = try body(span)
+            span?.end(.success)
+            return result
+        } catch {
+            span?.end(.failure)
+            throw error
+        }
+    }
+
+    /// `async` counterpart of `trackSpan(_:level:fields:parentSpanID:_:)` — for wrapping a
+    /// SwiftUI `.task` body (or any other `await`-ing operation) instead of purely synchronous
+    /// work. Same semantics: SUCCESS on return, FAILURE on throw, span passed into the body for
+    /// further nesting.
+    @discardableResult
+    static func trackSpan<T>(
+        _ name: String,
+        level: LogLevel = .info,
+        fields: [String: String] = [:],
+        parentSpanID: UUID? = nil,
+        _ body: (Span?) async throws -> T
+    ) async rethrows -> T {
+        let span = Logger.startSpan(
+            name: name, level: level, fields: ScreenLogger.encode(fields), parentSpanID: parentSpanID
+        )
+        do {
+            let result = try await body(span)
             span?.end(.success)
             return result
         } catch {

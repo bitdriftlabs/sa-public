@@ -114,12 +114,22 @@ enum ScreenLogger {
         // survive the process dying abruptly, so an unflushed write can lose the
         // newest screen and attribute the next launch to a stale one — the same
         // reason every crash-state write in DemoPrefs flushes.
-        Prefs.screen.set(Prefs.keyLastScreen, screenName)
-        // Same reasoning for the trail: in-memory global fields die with the
-        // process, so a watchdog hang or jetsam kill would otherwise arrive on
-        // the next launch with no path at all. Stored newest-first, joined.
-        Prefs.screen.set(Prefs.keyScreenTrail, recentScreens.joined(separator: ">"))
-        Prefs.screen.flush()
+        //
+        // bitdrift SDK: trackSpan() wraps the write+flush — `flush()` calls the
+        // Apple-deprecated `UserDefaults.synchronize()`, which can block, and this
+        // runs on literally every screen transition (Navigator is @MainActor), so
+        // its P99 tail is exactly the kind of main-thread stall a span histogram
+        // catches that nothing else here would.
+        // POC: event tracking — a high-frequency, main-thread-relevant hotspot,
+        // not just journey/checkout-shaped operations.
+        CaptureBridge.trackSpan("screen_view_persist") { _ in
+            Prefs.screen.set(Prefs.keyLastScreen, screenName)
+            // Same reasoning for the trail: in-memory global fields die with the
+            // process, so a watchdog hang or jetsam kill would otherwise arrive on
+            // the next launch with no path at all. Stored newest-first, joined.
+            Prefs.screen.set(Prefs.keyScreenTrail, recentScreens.joined(separator: ">"))
+            Prefs.screen.flush()
+        }
     }
 
     static func logInfo(_ message: String, _ fields: [String: String] = [:]) {
