@@ -129,7 +129,7 @@ The skill attaches the network integration to each HTTP client and collapses hig
 
 > ⚠️ **High-cardinality paths are required, not optional.** When a path embeds a dynamic segment (user ID, product ID, UUID), every request becomes a distinct value. The dashboard groups metrics by path and enforces **cardinality limits** (~1,000 group-by dimensions / ~30 min, 20,000 total) — exceed them and metrics are **silently dropped**. The prompt above tells the skill to add a stable path template to every dynamic route.
 
-**POC criteria:** SC-2 (Network Monitoring — unsampled HTTP latency/error-rate/throughput per endpoint), PRE-4 (Networking — wrap okhttp/URLSession; custom networking is handled in Step 10), SC-12 (Web views — if the app embeds WebViews, the same network integration extends to them: Android WebView instrumentation is GA, iOS shipped as experimental in SDK 0.23.11; the skill confirms the current API via bd-docs before enabling it since this is a recent addition).
+**POC criteria:** SC-2 (Network Monitoring — unsampled HTTP latency/error-rate/throughput per endpoint), PRE-4 (Networking — wrap okhttp/URLSession; custom networking is handled in Step 10), SC-12 (Web views — if the app embeds WebViews, the same network integration extends to them, though WebView instrumentation is **experimental on both platforms**: Android via the Capture Gradle plugin, iOS as of SDK 0.23.11. The skill confirms the current API via bd-docs before enabling it, and will stop rather than guess if the docs don't cover it).
 
 **Docs:** [HTTP Traffic Logs](https://docs.bitdrift.io/sdk/features/http-traffic-logs), [Workflow cardinality limits](https://docs.bitdrift.io/product/workflows/actions)
 
@@ -395,7 +395,7 @@ This guide's own `SC-n` / `PRE-n` legend — what each ID means and the step(s) 
 | SC-9 | Session Replay | **17** | Wireframe replay |
 | SC-10 | Visual Performance (jank/slowness) | **2** | Automatic JankStats / responsiveness |
 | SC-11 | Customer Support | **5**, **11**, **8** (`user_id`), **19** (dedicated Entities/Support dashboard) | Entities + device support tooling, curated into its own dashboard |
-| SC-12 | Web views | **6** | Android WebView instrumentation is GA; iOS shipped experimental support in SDK 0.23.11 — confirm the current API via bd-docs before enabling (recent addition, docs may lag) |
+| SC-12 | Web views | **6** | Experimental on both platforms — Android via the Capture Gradle plugin, iOS as of SDK 0.23.11. Confirm the current API via bd-docs before enabling, and treat as a POC risk rather than a settled capability |
 
 ### Required Pre-POC Engineering
 
@@ -409,7 +409,7 @@ This guide's own `SC-n` / `PRE-n` legend — what each ID means and the step(s) 
 | PRE-5 | Feature flags | **16** |
 | PRE-6 | Entities | **5** |
 
-> **Every POC criterion above maps to at least one step**, including SC-12 (Web views) as of Step 6 — Android WebView instrumentation is GA and iOS shipped experimental support in SDK 0.23.11. If a customer's POC scope predates this, it's worth revisiting whether web views are actually in scope now that there's a real solution.
+> **Every POC criterion above maps to at least one step**, including SC-12 (Web views) as of Step 6 — though WebView instrumentation is **experimental on both platforms**, so scope it as a POC risk rather than a settled capability, and confirm the current API via bd-docs before committing to it in a scope document.
 
 ---
 
