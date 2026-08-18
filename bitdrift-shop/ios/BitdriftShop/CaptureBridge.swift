@@ -109,6 +109,15 @@ enum CaptureBridge {
         Logger.addField(withKey: "platform", value: "ios")
 
         reportPreviousRun()
+
+        // bitdrift SDK: opens the `app_cold_start` root span plus its `sdk_init`
+        // child. Everything this method did above — Logger.start() itself,
+        // setEntityID, addField, reportPreviousRun — is what `sdk_init` measures,
+        // so this must be the last line of `start()`, not the first.
+        // POC: event tracking — granular per-phase P50/P90/P99 cold-start
+        // histograms plus a Timeline waterfall, instead of one opaque TTI number.
+        // See `ColdStartSpans` below and `bd-shop-20` in workflows/.
+        ColdStartSpans.beginRoot()
     }
 
     /// Reports how the previous run ended, and where the user was when it did.
@@ -200,6 +209,91 @@ enum CaptureBridge {
             span?.end(.failure)
             throw error
         }
+    }
+}
+
+/// Breaks cold start into a span waterfall instead of the single opaque number
+/// `CaptureBridge.timeToInteractive` reports: one root span covering the whole sequence,
+/// with a child span per phase.
+///
+/// bitdrift SDK: `startSpan(parentSpanID:)` nests spans into a hierarchy (Spans docs,
+/// "Spans Hierarchy") so the whole sequence renders as one waterfall in Timeline instead of
+/// unrelated flat spans. `startTimeInterval`/`endTimeInterval` back-date a span's recorded
+/// duration to an instant before the `Span` object itself could exist — used here for `root`
+/// and `sdk_init`, both of which need to start at the real kernel process-start time
+/// (`CaptureBridge.processStart`), which is earlier than `Logger.start()` and therefore
+/// earlier than the first moment any span can be created at all. Per `Span.end(...)`, the
+/// custom-duration math only applies when *both* the start and end times passed to a given
+/// span are custom — passing only one silently falls back to the default (real-time-elapsed)
+/// clock, so `root`'s `.end()` call below must pass `endTimeInterval` explicitly even though
+/// its own creation already carried a custom start time.
+///
+/// POC: event tracking — per-phase P50/P90/P99 histograms (Workflow > Histogram action on
+/// `_duration_ms`, one flow per phase, plus a combined flow grouped by `_span_name` for
+/// side-by-side comparison) instead of a single TTI number, and a Timeline waterfall showing
+/// where a given cold start's time actually went. See `bd-shop-20` in `workflows/`.
+enum ColdStartSpans {
+    private static var root: Span?
+    private static var currentPhase: Span?
+
+    /// Opens `root` and its `sdk_init` child. Must run as the very last line of
+    /// `CaptureBridge.start()` — everything that method did (the `Logger.start()` call
+    /// itself, `setEntityID`, `addField`, `reportPreviousRun`) is what `sdk_init` measures,
+    /// and a span cannot be created before the SDK it will be measuring has started.
+    static func beginRoot() {
+        root = Logger.startSpan(
+            name: "app_cold_start",
+            level: .info,
+            fields: [:],
+            startTimeInterval: CaptureBridge.processStart.timeIntervalSince1970
+        )
+
+        // Both endpoints of `sdk_init` are already known at this point (process start, and
+        // "now"), so it is created and ended in the same call rather than left open like the
+        // phases below.
+        let now = Date().timeIntervalSince1970
+        Logger.startSpan(
+            name: "app_cold_start.sdk_init",
+            level: .info,
+            fields: [:],
+            startTimeInterval: CaptureBridge.processStart.timeIntervalSince1970,
+            parentSpanID: root?.id
+        )?.end(.success, endTimeInterval: now)
+
+        // Opens for real, right now — everything from here (SwiftUI standing up the
+        // WindowGroup, laying out the first frame, dispatching the `.task` that runs
+        // `ContentView.runStartupSequence()`) needs no back-dating.
+        currentPhase = Logger.startSpan(
+            name: "app_cold_start.scene_render",
+            level: .info,
+            parentSpanID: root?.id
+        )
+    }
+
+    /// Ends `scene_render` and opens `state_restore`. Call at the top of
+    /// `ContentView.runStartupSequence()`, right after the existing `logAppLaunchTTI` call —
+    /// everything before that point is scene/render work, everything after is the demo's own
+    /// prefs/flag bookkeeping.
+    static func advanceToStateRestore() {
+        currentPhase?.end(.success)
+        currentPhase = Logger.startSpan(
+            name: "app_cold_start.state_restore",
+            level: .info,
+            parentSpanID: root?.id
+        )
+    }
+
+    /// Ends `state_restore` and `root` together. Call once, right after
+    /// `DemoStateFile.publish()` in `runStartupSequence()` — the point at which the app is
+    /// done restoring persisted demo state and ready to react to input.
+    static func finish() {
+        currentPhase?.end(.success)
+        currentPhase = nil
+        // `root` was created with a custom *start* time, so its `.end()` needs an explicit
+        // custom *end* time too, or the duration silently reverts to the default clock (see
+        // the type doc above).
+        root?.end(.success, endTimeInterval: Date().timeIntervalSince1970)
+        root = nil
     }
 }
 

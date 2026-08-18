@@ -1,0 +1,37 @@
+[
+  {
+    "rule_id": "hist-root",
+    "metadata": {
+      "title": "Cold start — total duration (P50/P90/P99)",
+      "metric_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "hist-sdk-init",
+    "metadata": {
+      "title": "sdk_init — Logger.start() + config (P50/P90/P99)",
+      "metric_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "hist-scene-render",
+    "metadata": {
+      "title": "scene_render — SwiftUI stand-up to first task (P50/P90/P99)",
+      "metric_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "hist-state-restore",
+    "metadata": {
+      "title": "state_restore — demo flag/prefs bookkeeping (P50/P90/P99)",
+      "metric_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "hist-phases-compared",
+    "metadata": {
+      "title": "Cold-start phases compared (one line per phase)",
+      "metric_chart_metadata": {}
+    }
+  }
+]

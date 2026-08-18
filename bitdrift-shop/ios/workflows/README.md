@@ -26,6 +26,7 @@ cycle resets the evaluation window and discards accumulated data.
 | `bd-shop-17-ios-journey-vs-crashes.json` | Journey Sankey to `Confirmation` + 7-step funnel + crash counts by screen |
 | `bd-shop-18-ios-crashes-by-last-screen-live.json` | Ripsaw: reads the screen trail off the crash report itself |
 | `bd-shop-19-ios-crash-terminal-sankey.json` | Sankey ending at the crash — needs `sessionStrategy: .activityBased()` |
+| `bd-shop-20-ios-cold-start-span-timings.json` | Cold-start span waterfall (`app_cold_start` root + `sdk_init`/`scene_render`/`state_restore` children): per-phase P50/P90/P99 histograms, plus one chart comparing all three phases |
 
 ## Journey-to-crash Sankey: it depends on session strategy
 
@@ -89,3 +90,25 @@ Two consequences worth knowing about `bd-shop-18`:
 For crashes, `bd-shop-15` and `bd-shop-18` attribute with **fields instead of a
 flow** — see [misc-demos/lastscreenbeforecrash](../../../misc-demos/lastscreenbeforecrash)
 for the generic write-up.
+
+## Cold-start span timings (`bd-shop-20`)
+
+`app_cold_start` is a root span opened at the very end of `CaptureBridge.start()`,
+back-dated (`startTimeInterval`) to the true kernel process-start time so its
+duration is directly comparable to `CaptureBridge.timeToInteractive`. Three
+child spans (`sdk_init`, `scene_render`, `state_restore`) nest under it via
+`parentSpanID`, so a single cold start renders as one waterfall in Timeline
+instead of four unrelated flat spans — see `ColdStartSpans` in
+`CaptureBridge.swift`.
+
+Each span's *end* log (not start) is what workflow matches on — it's the one
+carrying `_duration_ms`. Matching all three phases in one step and grouping the
+Histogram action by `_span_name` (`hist-phases-compared`) gives one chart with
+a line per phase; matching each phase in its own step gives that phase its own
+full P50/P90/P99 breakdown instead of a single collapsed percentile.
+
+Like every workflow here, this one only evaluates sessions that start *after*
+it's deployed — an already-running app instance's cold-start spans (e.g. the
+one that was live while you were writing/testing this) won't retroactively
+show up. Relaunch the app once after deploying to get a session the new
+workflow can actually see.

@@ -90,6 +90,7 @@ deploy_workflow bd-shop-18-ios-crashes-by-last-screen-live "Crashes by last scre
 NEW_ID_18="$DEPLOYED_ID"
 deploy_workflow bd-shop-19-ios-crash-terminal-sankey    "Crash-terminal Sankey (needs .activityBased())"
 NEW_ID_19="$DEPLOYED_ID"
+deploy_workflow bd-shop-20-ios-cold-start-span-timings  "Cold-start span timings"
 
 if [[ "$DEPLOY_DASH" -eq 1 ]]; then
   echo

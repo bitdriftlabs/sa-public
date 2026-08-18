@@ -154,6 +154,11 @@ struct ContentView: View {
             Logger.logAppLaunchTTI(tti)
         }
 
+        // bitdrift SDK: closes the `scene_render` cold-start span and opens
+        // `state_restore` — see `ColdStartSpans`. Everything below this line is the
+        // demo's own prefs/flag bookkeeping, not real render work.
+        ColdStartSpans.advanceToStateRestore()
+
         sim.crashLoopEnabled = Prefs.crashLoop.bool(Prefs.keyActive)
         sim.fastCrashModeEnabled = Prefs.crashLoop.bool(Prefs.keyFastMode)
         sim.syncAppHangEnabledState()
@@ -209,6 +214,11 @@ struct ContentView: View {
             "auto_infinite": String(Prefs.autoInfinite.bool(Prefs.keyActive)),
         ])
         DemoStateFile.publish()
+
+        // bitdrift SDK: closes `state_restore` and the `app_cold_start` root span —
+        // see `ColdStartSpans`. This is the point at which the app is done restoring
+        // persisted demo state and is ready to react to input.
+        ColdStartSpans.finish()
 
         // Fast crash mode is self-sustaining and bypasses the shopping journey
         // entirely — fire the next combo and skip every other resume path below.
