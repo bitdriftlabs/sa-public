@@ -143,7 +143,7 @@ question" guidance:
 
 | Workflow | Live id | Dashboard | Covers |
 |---|---|---|---|
-| `bd-shop-21-ios-screen-load-timings.json` | `t8u9` | [Screen Load Timings](https://explorations.bitdrift.io/dashboards/w4SCLrdn37bWGiA7Z9btN) | Screen-level "time to data ready" spans — standalone root spans, not nested under any journey span (see `welcome_screen_load`'s comment in `Screens.swift` for why). `device_code_fetch` was removed — no automated path exercises it, so it only ever showed empty |
+| `bd-shop-21-ios-screen-load-timings.json` | `t8u9` | [Screen Load Timings](https://explorations.bitdrift.io/dashboards/6nkAoIli6rgustvUJA2Es) | Screen-level "time to data ready" spans — standalone root spans, not nested under any journey span (see `welcome_screen_load`'s comment in `Screens.swift` for why). `device_code_fetch` was removed — no automated path exercises it, so it only ever showed empty |
 | `bd-shop-22-ios-journey-subphase-timings.json` | `beLW` | [Journey Sub-Phase Timings](https://explorations.bitdrift.io/dashboards/7MS9pgpoxWrdzUabpXkGp) | Sub-phases of the simulated journey — children of `product_discovery`/`checkout`/`journey`, passed as an explicit `parentSpanID`, not an ambient context stack (see the commit message / `SimulationManager.swift` comments for why) |
 | `bd-shop-23-ios-recommendation-engine-timings.json` | `49io` | [Recommendation Engine Timings](https://explorations.bitdrift.io/dashboards/gBqNwTjMdc0KKL4bRD64C) | `score_products`' own two sub-phases — isolates parse time from the O(n·m) similarity pass |
 | `bd-shop-24-ios-persistence-timings.json` | `qt3D` | [Persistence I/O Timings](https://explorations.bitdrift.io/dashboards/GuxEP0btHJDxhTv5TtNrb) | UserDefaults and file-write I/O — `screen_view_persist` fires on every screen transition, the highest-frequency span in the app |
@@ -153,10 +153,12 @@ Caveats specific to these:
 - **`bd-shop-21` has no combined "compared" chart.** 9 series on one line
   chart is cluttered past the point of being readable; each screen gets its
   own individual P50/P90/P99 chart instead.
-- **`catalog_serialize` and `product_image_load` are conditional/per-row.**
-  `catalog_serialize` only does real work when `recommendationsV2Enabled` is
-  on; `product_image_load` fires once per visible product thumbnail, so a
-  screen with N rows contributes N samples per load, not one.
+- **`catalog_serialize` always runs; `product_image_load` is per-row.**
+  `catalog_serialize` isn't gated by `recommendationsV2Enabled` — `BrowseScreen`
+  runs the `.serialized` re-encode on every load regardless; the flag only
+  controls whether `recommendations` (a separate computed property) goes on to
+  *consume* that string. `product_image_load` fires once per visible product
+  thumbnail, so a screen with N rows contributes N samples per load, not one.
 - **`checkout.payment`'s compared chart doesn't split by `retried`.** A retry
   attempt and a first attempt both feed the same `_span_name` series in
   `bd-shop-22`'s comparison chart — the field is on the span for ad-hoc

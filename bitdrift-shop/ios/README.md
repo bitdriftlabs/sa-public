@@ -496,30 +496,49 @@ instrumentation specifically:
 | Dashboard | Live id | What it shows |
 |---|---|---|
 | [Cold-Start Span Timings](https://explorations.bitdrift.io/dashboards/1rik5G13l_cOcZMr_Oxka) | `1rik5G13l_cOcZMr_Oxka` | `app_cold_start` waterfall: `sdk_init` / `scene_render` / `state_restore` |
-| [Screen Load Timings](https://explorations.bitdrift.io/dashboards/w4SCLrdn37bWGiA7Z9btN) | `w4SCLrdn37bWGiA7Z9btN` | Per-screen "time to data ready" for all 9 screens |
+| [Screen Load Timings](https://explorations.bitdrift.io/dashboards/6nkAoIli6rgustvUJA2Es) | `6nkAoIli6rgustvUJA2Es` | 9 spans: "time to data ready" for 7 screens (Welcome, Browse, ProductDetail, Cart, Checkout, Payment, Confirmation — not every screen in the app) plus 2 sub-operations (catalog re-serialize, per-image load) |
 | [Journey Sub-Phase Timings](https://explorations.bitdrift.io/dashboards/7MS9pgpoxWrdzUabpXkGp) | `7MS9pgpoxWrdzUabpXkGp` | `discovery_fetch` / `product_view` / `wishlist_add` / `cart_assembly` / `checkout.payment` / `checkout.confirmation` |
 | [Recommendation Engine Timings](https://explorations.bitdrift.io/dashboards/gBqNwTjMdc0KKL4bRD64C) | `gBqNwTjMdc0KKL4bRD64C` | `score_products`: parse vs. the O(n·m) similarity pass |
 | [Persistence I/O Timings](https://explorations.bitdrift.io/dashboards/GuxEP0btHJDxhTv5TtNrb) | `GuxEP0btHJDxhTv5TtNrb` | `screen_view_persist` vs. `demo_state_publish` |
 
 These links are tied to *this* account's workflow IDs — deploying to a fresh
 account means creating new workflows and dashboards, whose IDs will differ.
-Redeploy everything (workflows first, dashboards reference their IDs):
+Each dashboard file's `chart_id.workflow.workflow_id` fields reference one
+specific workflow (`0pTX`, `t8u9`, `beLW`, `49io`, `qt3D` respectively — same
+IDs as the table above), so **edit those before creating the dashboard, not
+after** — running `bd dashboard create` against the committed files as-is
+produces a dashboard whose charts still point at the *old* account's
+workflows:
 
 ```bash
-./scripts/deploy-workflows.sh --no-dash   # bd-shop-13 through bd-shop-24
+./scripts/deploy-workflows.sh --no-dash   # bd-shop-13 through bd-shop-24, prints each new id
+
 cd workflows
+# Each dashboard file has exactly one workflow_id to replace (grep -o
+# '"workflow_id": "[^"]*"' <file> to confirm which). Substitute the old id
+# for the new one deploy-workflows.sh just printed, THEN create — same as the
+# guided crash dashboard's deploy-workflows.sh substitution, just not
+# automated here since each of these five only has one workflow behind it.
+sed -i '' 's/0pTX/<new-bd-shop-20-id>/' ../dashboards/ios-cold-start-span-timings.dashboard.json
 bd dashboard create --request-file ../dashboards/ios-cold-start-span-timings.dashboard.json
+
+sed -i '' 's/t8u9/<new-bd-shop-21-id>/' ../dashboards/ios-screen-load-timings.dashboard.json
 bd dashboard create --request-file ../dashboards/ios-screen-load-timings.dashboard.json
+
+sed -i '' 's/beLW/<new-bd-shop-22-id>/' ../dashboards/ios-journey-subphase-timings.dashboard.json
 bd dashboard create --request-file ../dashboards/ios-journey-subphase-timings.dashboard.json
+
+sed -i '' 's/49io/<new-bd-shop-23-id>/' ../dashboards/ios-recommendation-engine-timings.dashboard.json
 bd dashboard create --request-file ../dashboards/ios-recommendation-engine-timings.dashboard.json
+
+sed -i '' 's/qt3D/<new-bd-shop-24-id>/' ../dashboards/ios-persistence-timings.dashboard.json
 bd dashboard create --request-file ../dashboards/ios-persistence-timings.dashboard.json
 ```
 
-Each dashboard's chart components reference a specific `workflow_id` (see the
-table above) — after redeploying, edit every `workflow_id` in the relevant
-`dashboards/*.dashboard.json` file to the new one `bd workflow create` printed,
-same as the guided crash dashboard's `deploy-workflows.sh` substitution, just
-not automated here since each of these five only has one workflow behind it.
+Don't run these `sed` commands against *this* account's own copies of the
+files — they're meant for a one-time substitution when standing up a fresh
+account, not for the checked-in files, which must keep referencing this
+account's real IDs.
 
 Before demoing these, two things worth doing first:
 

@@ -1297,8 +1297,10 @@ final class SimulationManager: ObservableObject {
     ///
     /// `parentSpanID` is the caller's checkout-equivalent span (`checkoutSpan` in
     /// the full journey, `journeySpan` in the simplified one — see call sites).
-    /// `retried` distinguishes a retry attempt from the first one, so the two
-    /// don't get conflated in a `checkout.payment` latency chart.
+    /// `retried` distinguishes a retry attempt from the first one on the span
+    /// itself — the shipped `bd-shop-22` charts (per-span and compared) still
+    /// aggregate all `checkout.payment` end spans together regardless of this
+    /// field; it's there for ad-hoc filtering, not built into those charts.
     ///
     /// bitdrift SDK: trackSpan() wraps the single shared call site for all four
     /// payment variants — this is the actual "payment processing" sub-phase of

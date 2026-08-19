@@ -59,6 +59,12 @@ struct SpannedAsyncImage<Content: View, Placeholder: View>: View {
             }
         }
         .task(id: url) {
+            // Clear before fetching the new url, not just on success below — a row
+            // whose view identity gets reused for a different product (ForEach
+            // keys by offset, not product id) would otherwise keep showing the
+            // previous product's image for the duration of the new fetch, and
+            // permanently if the new url is nil or the fetch fails.
+            uiImage = nil
             guard let url else { return }
             uiImage = await CaptureBridge.trackSpan(
                 "product_image_load", fields: ["url": url.absoluteString]

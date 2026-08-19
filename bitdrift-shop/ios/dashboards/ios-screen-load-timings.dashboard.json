@@ -20,7 +20,7 @@
         {
           "id": "t-intro-p",
           "text_component": {
-            "text": "Standalone root spans (not nested under any journey span) wrapping each screen's `.task` data fetch \u2014 see `welcome_screen_load`'s comment in Screens.swift for why they aren't nested. Because workflow matching runs on-device against every span as it's emitted, these are exact per-session numbers, not a sample. `catalog_serialize` only does real work when Rec v2 is on; `product_image_load` fires once per visible product thumbnail, so a screen with N rows contributes N samples. See bd-shop-21 in workflows/.",
+            "text": "Standalone root spans (not nested under any journey span) wrapping each screen's `.task` data fetch \u2014 see `welcome_screen_load`'s comment in Screens.swift for why they aren't nested. Because workflow matching runs on-device against every span as it's emitted, these are exact per-session numbers, not a sample. `catalog_serialize` runs on every Browse load regardless of Rec v2 \u2014 the flag only gates whether the resulting string goes on to be consumed; `product_image_load` fires once per visible product thumbnail, so a screen with N rows contributes N samples. See bd-shop-21 in workflows/.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
@@ -124,7 +124,7 @@
             "chart_metadata": {
               "title": "Catalog re-serialize (Browse)",
               "summary": {
-                "description": "Child of browse_screen_load \u2014 the .serialized re-encode, only real work when Rec v2 is on"
+                "description": "Child of browse_screen_load \u2014 the .serialized re-encode, run on every Browse load; Rec v2 only gates whether the result is consumed"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},

@@ -287,6 +287,13 @@ struct AdvancedScreen: View {
                 onColor: Palette.indigo
             ) {
                 sim.recommendationsV2Enabled.toggle()
+                // Persist immediately — ContentView.runStartupSequence() only
+                // resolves Prefs -> sim once, at launch. Without this, a manual tap
+                // here is invisible to check-demo-state.sh (which reads the
+                // published state file, itself sourced from Prefs) until the next
+                // launch, and the next launch reverts the toggle entirely since
+                // Prefs was never updated.
+                Prefs.recommendations.set(Prefs.keyActive, sim.recommendationsV2Enabled)
                 sim.setVariant(sim.activeVariant)
             }
 
