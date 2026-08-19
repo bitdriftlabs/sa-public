@@ -501,14 +501,15 @@ instrumentation specifically:
 | [Recommendation Engine Timings](https://explorations.bitdrift.io/dashboards/gBqNwTjMdc0KKL4bRD64C) | `gBqNwTjMdc0KKL4bRD64C` | `score_products`: parse vs. the O(n·m) similarity pass |
 | [Persistence I/O Timings](https://explorations.bitdrift.io/dashboards/GuxEP0btHJDxhTv5TtNrb) | `GuxEP0btHJDxhTv5TtNrb` | `screen_view_persist` vs. `demo_state_publish` |
 
-These links are tied to *this* account's workflow IDs — deploying to a fresh
-account means creating new workflows and dashboards, whose IDs will differ.
-Each dashboard file's `chart_id.workflow.workflow_id` fields reference one
-specific workflow (`0pTX`, `t8u9`, `beLW`, `49io`, `qt3D` respectively — same
-IDs as the table above), so **edit those before creating the dashboard, not
-after** — running `bd dashboard create` against the committed files as-is
-produces a dashboard whose charts still point at the *old* account's
-workflows:
+These links are tied to *this* account's dashboard IDs (the table above) *and*
+workflow IDs (`0pTX`, `t8u9`, `beLW`, `49io`, `qt3D` — see the "Live id" column
+in [`workflows/README.md`](workflows/README.md#span-timings-beyond-cold-start-bd-shop-21-through-bd-shop-24)'s
+table, not the dashboard table above). Deploying to a fresh account means
+creating new workflows and dashboards, whose IDs will differ from both. Each
+dashboard file's `chart_id.workflow.workflow_id` fields reference the
+*workflow* id, so **edit those before creating the dashboard, not after** —
+running `bd dashboard create` against the committed files as-is produces a
+dashboard whose charts still point at the *old* account's workflows:
 
 ```bash
 ./scripts/deploy-workflows.sh --no-dash   # bd-shop-13 through bd-shop-24, prints each new id
