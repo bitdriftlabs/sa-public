@@ -160,26 +160,6 @@
     }
   },
   {
-    "rule_id": "hist-device-code",
-    "metadata": {
-      "title": "Device code fetch (ad-hoc) (P50/P90/P99)",
-      "metric_chart_metadata": {
-        "time_series_display_mode": {},
-        "metadata": [
-          {
-            "title": "Duration",
-            "y_axis": {
-              "description": "Duration",
-              "unit": "MILLISECONDS"
-            },
-            "sort_order": "MAX",
-            "connector_export_config": []
-          }
-        ]
-      }
-    }
-  },
-  {
     "rule_id": "hist-product-image",
     "metadata": {
       "title": "Product image load (P50/P90/P99)",

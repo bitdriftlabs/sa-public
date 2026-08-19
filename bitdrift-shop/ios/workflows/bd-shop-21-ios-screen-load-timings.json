@@ -264,37 +264,6 @@
       "steps": [
         {
           "match_rule": {
-            "match_id": "device-code-end",
-            "generic_match": {
-              "and_matcher": {
-                "matchers": [
-                  {
-                    "base_matcher": {
-                      "log_field": "_span_name",
-                      "operator": "EQUAL",
-                      "string_value": "device_code_fetch"
-                    }
-                  },
-                  {
-                    "base_matcher": {
-                      "log_field": "_span_type",
-                      "operator": "EQUAL",
-                      "string_value": "end"
-                    }
-                  }
-                ]
-              }
-            }
-          },
-          "exit_conditions": [],
-          "save_fields": []
-        }
-      ]
-    },
-    {
-      "steps": [
-        {
-          "match_rule": {
             "match_id": "product-image-end",
             "generic_match": {
               "and_matcher": {
@@ -437,21 +406,6 @@
             "histogram": {
               "value": {
                 "match_id": "confirmation-screen-end",
-                "name": "_duration_ms"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
-      "rule_id": "hist-device-code",
-      "metric_chart_rule": {
-        "time_series": [
-          {
-            "histogram": {
-              "value": {
-                "match_id": "device-code-end",
                 "name": "_duration_ms"
               }
             }

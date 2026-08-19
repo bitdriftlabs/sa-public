@@ -94,23 +94,14 @@ struct WelcomeScreen: View {
                 }
 
                 Button {
-                    // bitdrift SDK: startSpan()/end() bracket a completion-handler-based
-                    // async call — CaptureBridge.trackSpan's body is synchronous/async but
-                    // not completion-handler shaped, so this one is opened and ended by
-                    // hand instead.
-                    // POC: event tracking — latency of an ad-hoc support action, distinct
-                    // from any journey/screen-load span.
-                    let deviceCodeSpan = Logger.startSpan(name: "device_code_fetch", level: .info)
                     Logger.createTemporaryDeviceCode { result in
                         Task { @MainActor in
                             switch result {
                             case .success(let code):
                                 deviceCode = code
                                 UIPasteboard.general.string = code
-                                deviceCodeSpan?.end(.success)
                             case .failure:
                                 deviceCode = "⚠ needs_api_key"
-                                deviceCodeSpan?.end(.failure)
                             }
                         }
                     }

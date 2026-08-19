@@ -1,5 +1,5 @@
 {
-  "description": "Per-span P50/P90/P99 duration histograms for ios screen load timings, plus a combined comparison chart grouped by _span_name.",
+  "description": "Per-span P50/P90/P99 duration histograms for ios screen load timings.",
   "per_rule_metadata": [
     {
       "rule_id": "welcome-screen-end",
@@ -32,10 +32,6 @@
     {
       "rule_id": "confirmation-screen-end",
       "title": "Confirmation screen load"
-    },
-    {
-      "rule_id": "device-code-end",
-      "title": "Device code fetch (ad-hoc)"
     },
     {
       "rule_id": "product-image-end",

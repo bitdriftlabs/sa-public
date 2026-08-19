@@ -1,0 +1,323 @@
+{
+  "name": "iOS \u2014 Journey Sub-Phase Timings",
+  "tabs": [
+    {
+      "name": "Journey sub-phases",
+      "stylistic_components": [
+        {
+          "id": "t-intro-h",
+          "text_component": {
+            "text": "iOS \u2014 where does simulated-journey time go, sub-phase by sub-phase?",
+            "variant": "h2"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 0,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-intro-p",
+          "text_component": {
+            "text": "Children of the journey/product_discovery/checkout spans in SimulationManager.swift, passed as an explicit parentSpanID (not an ambient context stack \u2014 see the commit messages for why). discovery_fetch/product_view/cart_assembly have call sites in both the full random journey and the simplified fixed-path journey, since this app defaults to SIMPLIFIED_JOURNEY_ENABLED = YES. wishlist_add has no simplified-journey equivalent and stays sparse by design \u2014 that fixed path never visits Wishlist. See bd-shop-22 in workflows/.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 3,
+            "column_span": 12,
+            "row_span": 8
+          }
+        },
+        {
+          "id": "t-compared-h",
+          "text_component": {
+            "text": "All phases, compared",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 11,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-detail-h",
+          "text_component": {
+            "text": "Per-phase detail (full P50/P90/P99)",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 30,
+            "column_span": 12,
+            "row_span": 3
+          }
+        }
+      ],
+      "charts": [
+        {
+          "id": "c-compared",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "beLW",
+                "chart_rule_id": "hist-compared"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 14,
+              "column_span": 12,
+              "row_span": 16
+            },
+            "chart_metadata": {
+              "title": "Journey sub-phases compared (one line per phase)",
+              "summary": {
+                "description": "Pick a single percentile from the chart dropdown to compare all phases on one axis."
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-0",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "beLW",
+                "chart_rule_id": "hist-discovery-fetch"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 33,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Discovery fetch",
+              "summary": {
+                "description": "Browse/Search/Categories fetch \u2014 whichever the sim picked this run"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-1",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "beLW",
+                "chart_rule_id": "hist-product-view"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 33,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Product view",
+              "summary": {
+                "description": "ProductDetail fetch + maybe-Reviews (full journey only)"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-2",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "beLW",
+                "chart_rule_id": "hist-wishlist-add"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 47,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Wishlist add",
+              "summary": {
+                "description": "Only opens when the roll actually adds to wishlist \u2014 full journey only, sparse by design"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-3",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "beLW",
+                "chart_rule_id": "hist-cart-assembly"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 47,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Cart assembly",
+              "summary": {
+                "description": "Extra items, remove, empty-and-rebuild, flip, final view \u2014 previously ran inside no span at all"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-4",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "beLW",
+                "chart_rule_id": "hist-checkout-payment"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 61,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Checkout: payment sub-phase",
+              "summary": {
+                "description": "The shared runPayment() call site for all four payment methods"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-5",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "beLW",
+                "chart_rule_id": "hist-checkout-confirmation"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 61,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Checkout: confirmation sub-phase",
+              "summary": {
+                "description": "Closes the checkout waterfall: checkout -> payment -> confirmation"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
