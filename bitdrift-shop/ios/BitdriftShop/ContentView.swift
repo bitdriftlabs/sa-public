@@ -143,6 +143,14 @@ struct ContentView: View {
     /// AlarmManager relaunch carries this across the process boundary; on iOS the
     /// relaunch comes from `scripts/watchdog.sh` and the intent is read back here.
     private func runStartupSequence() async {
+        // bitdrift SDK: closes the `scene_render` cold-start span and opens
+        // `state_restore` — see `ColdStartSpans`. Must be the very first line: even
+        // `nav.logInitialScreen()` below does real prefs/flag bookkeeping
+        // (ScreenLogger.logScreenView's screen_view_persist span, a UserDefaults
+        // write+flush) that belongs to state_restore, not scene_render — closing
+        // scene_render any later than this charges that cost to the wrong phase.
+        ColdStartSpans.advanceToStateRestore()
+
         nav.logInitialScreen()
 
         // bitdrift SDK: logAppLaunchTTI() reports time-to-interactive from process
@@ -153,11 +161,6 @@ struct ContentView: View {
         if let tti = CaptureBridge.timeToInteractive {
             Logger.logAppLaunchTTI(tti)
         }
-
-        // bitdrift SDK: closes the `scene_render` cold-start span and opens
-        // `state_restore` — see `ColdStartSpans`. Everything below this line is the
-        // demo's own prefs/flag bookkeeping, not real render work.
-        ColdStartSpans.advanceToStateRestore()
 
         sim.crashLoopEnabled = Prefs.crashLoop.bool(Prefs.keyActive)
         sim.fastCrashModeEnabled = Prefs.crashLoop.bool(Prefs.keyFastMode)
@@ -221,14 +224,13 @@ struct ContentView: View {
         ])
         DemoStateFile.publish()
 
-        // bitdrift SDK: closes `state_restore` and the `app_cold_start` root span —
-        // see `ColdStartSpans`. This is the point at which the app is done restoring
-        // persisted demo state and is ready to react to input.
-        ColdStartSpans.finish()
-
         // Fast crash mode is self-sustaining and bypasses the shopping journey
         // entirely — fire the next combo and skip every other resume path below.
         if sim.crashLoopEnabled && sim.fastCrashModeEnabled {
+            // bitdrift SDK: closes `state_restore` and `app_cold_start` — see
+            // `ColdStartSpans`. This branch returns immediately, so everything
+            // relevant to "restoring persisted demo state" is already done above.
+            ColdStartSpans.finish()
             sim.fireFastCrash()
             return
         }
@@ -279,6 +281,14 @@ struct ContentView: View {
         if AppConfig.simplifiedJourneyEnabled && !hadResumeRequest {
             sim.scheduleAutoStartInfinite()
         }
+
+        // bitdrift SDK: closes `state_restore` and the `app_cold_start` root span —
+        // see `ColdStartSpans`. Placed after the resume-branch restoration above
+        // (reading/clearing pending crash/hang/quit prefs, restoreVariantFromPrefs())
+        // since that's still "restoring persisted demo state" — and before the retry
+        // loop below, since waiting for the sim to actually start is no longer
+        // startup, it's the app running.
+        ColdStartSpans.finish()
 
         // Relaunch timing can race with SwiftUI readiness. Retry auto-start a few
         // times so infinite sim reliably resumes.
