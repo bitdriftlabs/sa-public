@@ -1,3 +1,4 @@
+import Capture
 import Foundation
 
 /// Mirrors the demo's fault-injection state to a plain JSON file inside the app
@@ -39,6 +40,7 @@ enum DemoStateFile {
             "force_quit": Prefs.forceQuit.bool(Prefs.keyActive),
             "force_quit_restart_pending": Prefs.forceQuit.bool(Prefs.keyRestartPending),
             "auto_infinite": Prefs.autoInfinite.bool(Prefs.keyActive),
+            "recommendations_v2": Prefs.recommendations.bool(Prefs.keyActive),
             "next_combo_index": Prefs.crashLoop.int(Prefs.keyNextComboIndex),
             "restart_delay_ms": Prefs.crashLoop.int("restart_delay_ms", 2000),
             "awaiting_background": awaitingBackground
@@ -49,9 +51,20 @@ enum DemoStateFile {
             "pending_watchdog": Prefs.crashLoop.string(Prefs.keyPendingWatchdog) ?? "",
         ]
 
-        guard let data = try? JSONSerialization.data(
-            withJSONObject: state, options: [.prettyPrinted, .sortedKeys]
-        ) else { return }
-        try? data.write(to: url, options: .atomic)
+        // bitdrift SDK: trackSpan() wraps the serialize+write. This is demo-only
+        // bookkeeping (it exists purely for scripts/watchdog.sh and
+        // check-demo-state.sh to read), not representative of production app
+        // behavior — but several call sites run on the main actor
+        // (SimulationManager is @MainActor), so a slow disk write here blocks the
+        // UI thread for real, and it's worth demoing that even boring local I/O has
+        // a latency profile.
+        // POC: event tracking — local file I/O, called from many unrelated sites
+        // (crash/hang/quit arming, variant changes), hence standalone.
+        CaptureBridge.trackSpan("demo_state_publish") { _ in
+            guard let data = try? JSONSerialization.data(
+                withJSONObject: state, options: [.prettyPrinted, .sortedKeys]
+            ) else { return }
+            try? data.write(to: url, options: .atomic)
+        }
     }
 }

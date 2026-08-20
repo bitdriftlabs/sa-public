@@ -1,0 +1,371 @@
+{
+  "name": "iOS \u2014 Screen Load Timings",
+  "tabs": [
+    {
+      "name": "Screen loads",
+      "stylistic_components": [
+        {
+          "id": "t-intro-h",
+          "text_component": {
+            "text": "iOS \u2014 how long does each screen take to load?",
+            "variant": "h2"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 0,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-intro-p",
+          "text_component": {
+            "text": "Standalone root spans (not nested under any journey span) wrapping each screen's `.task` data fetch \u2014 see `welcome_screen_load`'s comment in Screens.swift for why they aren't nested. Because workflow matching runs on-device against every span as it's emitted, these are exact per-session numbers, not a sample. `catalog_serialize` runs on every Browse load regardless of Rec v2 \u2014 the flag only gates whether the resulting string goes on to be consumed; `product_image_load` fires once per visible product thumbnail, so a screen with N rows contributes N samples. See bd-shop-21 in workflows/.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 3,
+            "column_span": 12,
+            "row_span": 8
+          }
+        }
+      ],
+      "charts": [
+        {
+          "id": "c-0",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "t8u9",
+                "chart_rule_id": "hist-welcome-screen"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 11,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Welcome screen load",
+              "summary": {
+                "description": "WelcomeScreen.task \u2014 getWelcome() + fetchLatestSDKVersion()"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-1",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "t8u9",
+                "chart_rule_id": "hist-browse-screen"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 11,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Browse screen load",
+              "summary": {
+                "description": "BrowseScreen.task \u2014 getBrowse() + product list extraction"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-2",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "t8u9",
+                "chart_rule_id": "hist-catalog-serialize"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 25,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Catalog re-serialize (Browse)",
+              "summary": {
+                "description": "Child of browse_screen_load \u2014 the .serialized re-encode, run on every Browse load; Rec v2 only gates whether the result is consumed"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-3",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "t8u9",
+                "chart_rule_id": "hist-product-detail"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 25,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Product detail load",
+              "summary": {
+                "description": "ProductDetailScreen.task \u2014 getProduct() + conditional full catalog fetch when Rec v2 is on"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-4",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "t8u9",
+                "chart_rule_id": "hist-cart-screen"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 39,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Cart screen load",
+              "summary": {
+                "description": "CartScreen.task \u2014 getCart()/addToCart(), FAILURE-ended on error"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-5",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "t8u9",
+                "chart_rule_id": "hist-checkout-screen"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 39,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Checkout screen load (guest+signin)",
+              "summary": {
+                "description": "CheckoutGuestScreen/CheckoutSignInScreen.task \u2014 checkout_type field distinguishes them"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-6",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "t8u9",
+                "chart_rule_id": "hist-payment-screen"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 53,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Payment screen load",
+              "summary": {
+                "description": "PaymentScreen.task \u2014 the actual payment-processing sub-phase"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-7",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "t8u9",
+                "chart_rule_id": "hist-confirmation-screen"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 53,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Confirmation screen load",
+              "summary": {
+                "description": "ConfirmationScreen.task \u2014 getConfirmation()"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-8",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "t8u9",
+                "chart_rule_id": "hist-product-image"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 67,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Product image load",
+              "summary": {
+                "description": "SpannedAsyncImage \u2014 replaces AsyncImage to expose a per-thumbnail load span"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

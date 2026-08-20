@@ -174,7 +174,9 @@ background_app() {
   return 0
 }
 
-# Turns every fault flag off by relaunching the app with them all set to 0.
+# Turns every fault flag (and Rec v2, so a device reset actually matches what
+# check-demo-state.sh reports afterward) off by relaunching the app with them
+# all set to 0.
 #
 # Works on a device, where the plist cannot be deleted: launch arguments land in
 # NSArgumentDomain, and the app promotes whatever it resolves at startup into its
@@ -194,6 +196,7 @@ DISARM_ARGS=(
   -force_quit.restart_pending 0
   -force_quit.resume_infinite 0
   -auto_infinite.active 0
+  -recommendations.active 0
 )
 
 disarm_flags() {

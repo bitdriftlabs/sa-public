@@ -1,0 +1,25 @@
+{
+  "description": "Breaks cold start into a span waterfall (`app_cold_start` root + `sdk_init` / `scene_render` / `state_restore` children — see `ColdStartSpans` in CaptureBridge.swift) instead of the single `logAppLaunchTTI` number. Five flows, one per span end log, feeding five Histogram charts: four give each phase (and the overall root) its own P50/P90/P99 breakdown, the fifth groups all three phases by `_span_name` on one chart for side-by-side comparison. Because workflow matching runs on-device against every span as it's emitted, these are exact per-session numbers, not a sample — unlike Instant Insights aggregates, every cold start any device produces contributes to the histograms. Use the per-phase charts to see if a regression is in SDK init, SwiftUI scene stand-up, or the demo's own prefs bookkeeping; use the compared chart to see which phase dominates overall cold-start time.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "cold-start-root-end",
+      "title": "Cold start complete (app_cold_start)"
+    },
+    {
+      "rule_id": "cold-start-sdk-init-end",
+      "title": "SDK init phase (app_cold_start.sdk_init)"
+    },
+    {
+      "rule_id": "cold-start-scene-render-end",
+      "title": "Scene render phase (app_cold_start.scene_render)"
+    },
+    {
+      "rule_id": "cold-start-state-restore-end",
+      "title": "Demo state restore phase (app_cold_start.state_restore)"
+    },
+    {
+      "rule_id": "cold-start-any-phase-end",
+      "title": "All three phases, compared"
+    }
+  ]
+}

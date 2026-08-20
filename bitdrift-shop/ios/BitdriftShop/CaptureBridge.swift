@@ -109,6 +109,15 @@ enum CaptureBridge {
         Logger.addField(withKey: "platform", value: "ios")
 
         reportPreviousRun()
+
+        // bitdrift SDK: opens the `app_cold_start` root span plus its `sdk_init`
+        // child. Everything this method did above — Logger.start() itself,
+        // setEntityID, addField, reportPreviousRun — is what `sdk_init` measures,
+        // so this must be the last line of `start()`, not the first.
+        // POC: event tracking — granular per-phase P50/P90/P99 cold-start
+        // histograms plus a Timeline waterfall, instead of one opaque TTI number.
+        // See `ColdStartSpans` below and `bd-shop-20` in workflows/.
+        ColdStartSpans.beginRoot()
     }
 
     /// Reports how the previous run ended, and where the user was when it did.
@@ -181,6 +190,12 @@ enum CaptureBridge {
     /// returns a `Span` the caller must end by hand. This restores the scoped
     /// form: the span ends SUCCESS on return and FAILURE if the body throws.
     ///
+    /// `parentSpanID` nests this span under a caller-supplied parent (e.g. a
+    /// SimulationManager journey/discovery/checkout span). The body closure
+    /// receives the span itself so *its* children can nest further, in turn,
+    /// by passing `span?.id` down — see `RecommendationEngine.scoreProducts`'s
+    /// `parse_catalog`/`similarity_pass` children for an example.
+    ///
     /// bitdrift SDK: wraps work in a span and records its duration in the session
     /// timeline.
     /// POC: event tracking — unsampled duration histogram (p50/p95) for any operation.
@@ -189,17 +204,147 @@ enum CaptureBridge {
         _ name: String,
         level: LogLevel = .info,
         fields: [String: String] = [:],
-        _ body: () throws -> T
+        parentSpanID: UUID? = nil,
+        _ body: (Span?) throws -> T
     ) rethrows -> T {
-        let span = Logger.startSpan(name: name, level: level, fields: ScreenLogger.encode(fields))
+        let span = Logger.startSpan(
+            name: name, level: level, fields: ScreenLogger.encode(fields), parentSpanID: parentSpanID
+        )
         do {
-            let result = try body()
+            let result = try body(span)
             span?.end(.success)
             return result
         } catch {
             span?.end(.failure)
             throw error
         }
+    }
+
+    /// `async` counterpart of `trackSpan(_:level:fields:parentSpanID:_:)` — for wrapping a
+    /// SwiftUI `.task` body (or any other `await`-ing operation) instead of purely synchronous
+    /// work. Same semantics: SUCCESS on return, FAILURE on throw, span passed into the body for
+    /// further nesting.
+    @discardableResult
+    static func trackSpan<T>(
+        _ name: String,
+        level: LogLevel = .info,
+        fields: [String: String] = [:],
+        parentSpanID: UUID? = nil,
+        _ body: (Span?) async throws -> T
+    ) async rethrows -> T {
+        let span = Logger.startSpan(
+            name: name, level: level, fields: ScreenLogger.encode(fields), parentSpanID: parentSpanID
+        )
+        do {
+            let result = try await body(span)
+            span?.end(.success)
+            return result
+        } catch {
+            // A cancelled SwiftUI `.task` (view disappeared, or its `id` changed) is not a
+            // failure, and its partial duration would skew a latency histogram if recorded
+            // as one — `SpanResult.canceled` keeps those distinguishable from real errors.
+            // Both spellings matter: URLSession throws `CancellationError` when the Task is
+            // already cancelled before the request starts, but `URLError.cancelled` when an
+            // in-flight request is torn down.
+            span?.end(Self.isCancellation(error) ? .canceled : .failure)
+            throw error
+        }
+    }
+
+    private static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        return false
+    }
+}
+
+/// Breaks cold start into a span waterfall instead of the single opaque number
+/// `CaptureBridge.timeToInteractive` reports: one root span covering the whole sequence,
+/// with a child span per phase.
+///
+/// bitdrift SDK: `startSpan(parentSpanID:)` nests spans into a hierarchy (Spans docs,
+/// "Spans Hierarchy") so the whole sequence renders as one waterfall in Timeline instead of
+/// unrelated flat spans. `startTimeInterval`/`endTimeInterval` back-date a span's recorded
+/// duration to an instant before the `Span` object itself could exist — used here for `root`
+/// and `sdk_init`, both of which need to start at the real kernel process-start time
+/// (`CaptureBridge.processStart`), which is earlier than `Logger.start()` and therefore
+/// earlier than the first moment any span can be created at all. Per `Span.end(...)`, the
+/// custom-duration math only applies when *both* the start and end times passed to a given
+/// span are custom — passing only one silently falls back to the default (real-time-elapsed)
+/// clock, so `root`'s `.end()` call below must pass `endTimeInterval` explicitly even though
+/// its own creation already carried a custom start time.
+///
+/// POC: event tracking — per-phase P50/P90/P99 histograms (Workflow > Histogram action on
+/// `_duration_ms`, one flow per phase, plus a combined flow grouped by `_span_name` for
+/// side-by-side comparison) instead of a single TTI number, and a Timeline waterfall showing
+/// where a given cold start's time actually went. See `bd-shop-20` in `workflows/`.
+enum ColdStartSpans {
+    private static var root: Span?
+    private static var currentPhase: Span?
+
+    /// Opens `root` and its `sdk_init` child. Must run as the very last line of
+    /// `CaptureBridge.start()` — everything that method did (the `Logger.start()` call
+    /// itself, `setEntityID`, `addField`, `reportPreviousRun`) is what `sdk_init` measures,
+    /// and a span cannot be created before the SDK it will be measuring has started.
+    static func beginRoot() {
+        root = Logger.startSpan(
+            name: "app_cold_start",
+            level: .info,
+            fields: [:],
+            startTimeInterval: CaptureBridge.processStart.timeIntervalSince1970
+        )
+
+        // Both endpoints of `sdk_init` are already known at this point (process start, and
+        // "now"), so it is created and ended in the same call rather than left open like the
+        // phases below.
+        let now = Date().timeIntervalSince1970
+        Logger.startSpan(
+            name: "app_cold_start.sdk_init",
+            level: .info,
+            fields: [:],
+            startTimeInterval: CaptureBridge.processStart.timeIntervalSince1970,
+            parentSpanID: root?.id
+        )?.end(.success, endTimeInterval: now)
+
+        // Opens for real, right now — everything from here (SwiftUI standing up the
+        // WindowGroup, laying out the first frame, dispatching the `.task` that runs
+        // `ContentView.runStartupSequence()`) needs no back-dating.
+        currentPhase = Logger.startSpan(
+            name: "app_cold_start.scene_render",
+            level: .info,
+            parentSpanID: root?.id
+        )
+    }
+
+    /// Ends `scene_render` and opens `state_restore`. Must be the **first** statement of
+    /// `ContentView.runStartupSequence()` — before `nav.logInitialScreen()`, and therefore
+    /// before the `logAppLaunchTTI` call too. `logInitialScreen()` reaches
+    /// `ScreenLogger.logScreenView`, which does a UserDefaults write + `synchronize()` (the
+    /// `screen_view_persist` span): that is prefs bookkeeping, so it belongs to
+    /// `state_restore`. Calling this any later charges that cost to `scene_render` instead.
+    static func advanceToStateRestore() {
+        currentPhase?.end(.success)
+        currentPhase = Logger.startSpan(
+            name: "app_cold_start.state_restore",
+            level: .info,
+            parentSpanID: root?.id
+        )
+    }
+
+    /// Ends `state_restore` and `root` together. Call once per launch, on whichever path
+    /// `runStartupSequence()` takes: the fast-crash branch calls it just before returning,
+    /// and the normal path calls it after the resume-branch restoration (pending
+    /// crash/hang/quit prefs, `restoreVariantFromPrefs()`) and the simplified-journey
+    /// auto-start trigger — all still persisted-state restoration — but *before* the
+    /// auto-start retry/sleep loop, which is the app running rather than starting up.
+    static func finish() {
+        currentPhase?.end(.success)
+        currentPhase = nil
+        // `root` was created with a custom *start* time, so its `.end()` needs an explicit
+        // custom *end* time too, or the duration silently reverts to the default clock (see
+        // the type doc above).
+        root?.end(.success, endTimeInterval: Date().timeIntervalSince1970)
+        root = nil
     }
 }
 

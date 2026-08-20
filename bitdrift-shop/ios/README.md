@@ -485,6 +485,82 @@ neither `layout_settings` nor row positions, so the checked-in dashboard JSON is
 the only complete record of its layout; and multi-entry chart-metadata files must
 be sent alongside `--workflow-file`, never on their own.
 
+### Span-timing workflows and dashboards
+
+Beyond the crash/journey workflows above, `workflows/bd-shop-20` through
+`bd-shop-24` cover every span added throughout the app — cold start, screen
+loads, journey sub-phases, the recommendation engine, and local persistence
+I/O — each with its own dashboard. Pull these up when demoing performance
+instrumentation specifically:
+
+| Dashboard | Live id | What it shows |
+|---|---|---|
+| [Cold-Start Span Timings](https://explorations.bitdrift.io/dashboards/1rik5G13l_cOcZMr_Oxka) | `1rik5G13l_cOcZMr_Oxka` | `app_cold_start` waterfall: `sdk_init` / `scene_render` / `state_restore` |
+| [Screen Load Timings](https://explorations.bitdrift.io/dashboards/6nkAoIli6rgustvUJA2Es) | `6nkAoIli6rgustvUJA2Es` | 9 spans: "time to data ready" for 7 screens (Welcome, Browse, ProductDetail, Cart, Checkout, Payment, Confirmation — not every screen in the app) plus 2 sub-operations (catalog re-serialize, per-image load) |
+| [Journey Sub-Phase Timings](https://explorations.bitdrift.io/dashboards/7jSnw6WcGPFxYA3D9YtF8) | `7jSnw6WcGPFxYA3D9YtF8` | `discovery_fetch` / `product_view` / `wishlist_add` / `cart_assembly` / `checkout.payment` / `checkout.confirmation` |
+| [Recommendation Engine Timings](https://explorations.bitdrift.io/dashboards/gBqNwTjMdc0KKL4bRD64C) | `gBqNwTjMdc0KKL4bRD64C` | `score_products`: parse vs. the O(n·m) similarity pass |
+| [Persistence I/O Timings](https://explorations.bitdrift.io/dashboards/GuxEP0btHJDxhTv5TtNrb) | `GuxEP0btHJDxhTv5TtNrb` | `screen_view_persist` vs. `demo_state_publish` |
+
+These links are tied to *this* account's dashboard IDs (the table above) *and*
+workflow IDs (`0pTX`, `t8u9`, `beLW`, `49io`, `qt3D` — see the "Live id" column
+in [`workflows/README.md`](workflows/README.md#span-timings-beyond-cold-start-bd-shop-21-through-bd-shop-24)'s
+table, not the dashboard table above). Deploying to a fresh account means
+creating new workflows and dashboards, whose IDs will differ from both. Each
+dashboard file's `chart_id.workflow.workflow_id` fields reference the
+*workflow* id, so **edit those before creating the dashboard, not after** —
+running `bd dashboard create` against the committed files as-is produces a
+dashboard whose charts still point at the *old* account's workflows:
+
+```bash
+./scripts/deploy-workflows.sh --no-dash   # bd-shop-13 through bd-shop-24, prints each new id
+
+cd workflows
+# Each dashboard file has exactly one workflow_id to replace (grep -o
+# '"workflow_id": "[^"]*"' <file> to confirm which). Substitute the old id
+# for the new one deploy-workflows.sh just printed, THEN create — same as the
+# guided crash dashboard's deploy-workflows.sh substitution, just not
+# automated here since each of these five only has one workflow behind it.
+sed -i '' 's/0pTX/<new-bd-shop-20-id>/' ../dashboards/ios-cold-start-span-timings.dashboard.json
+bd dashboard create --request-file ../dashboards/ios-cold-start-span-timings.dashboard.json
+
+sed -i '' 's/t8u9/<new-bd-shop-21-id>/' ../dashboards/ios-screen-load-timings.dashboard.json
+bd dashboard create --request-file ../dashboards/ios-screen-load-timings.dashboard.json
+
+sed -i '' 's/beLW/<new-bd-shop-22-id>/' ../dashboards/ios-journey-subphase-timings.dashboard.json
+bd dashboard create --request-file ../dashboards/ios-journey-subphase-timings.dashboard.json
+
+sed -i '' 's/49io/<new-bd-shop-23-id>/' ../dashboards/ios-recommendation-engine-timings.dashboard.json
+bd dashboard create --request-file ../dashboards/ios-recommendation-engine-timings.dashboard.json
+
+sed -i '' 's/qt3D/<new-bd-shop-24-id>/' ../dashboards/ios-persistence-timings.dashboard.json
+bd dashboard create --request-file ../dashboards/ios-persistence-timings.dashboard.json
+```
+
+Don't run these `sed` commands against *this* account's own copies of the
+files — they're meant for a one-time substitution when standing up a fresh
+account, not for the checked-in files, which must keep referencing this
+account's real IDs.
+
+Before demoing these, two things worth doing first:
+
+- **Make sure the backend is actually reachable.** Every span behind an API
+  call (most of the Screen Load Timings dashboard) times out identically and
+  silently if `.local.xcconfig`'s `SHOP_BACKEND_URL` has drifted — see the
+  comment there and [`workflows/README.md`](workflows/README.md#a-live-example-of-why-the-unitslabels-matter-silent-backend-drift)
+  for what that looks like on a chart (several unrelated spans reporting the
+  exact same duration) and how it was caught.
+- **Toggle Rec v2** if you want the Recommendation Engine dashboard populated
+  — off by default, and nothing in the automated sim turns it on:
+  ```bash
+  xcrun simctl launch <udid> ai.bitdrift.shop.ios -recommendations.active 1
+  ```
+
+See [`workflows/README.md`](workflows/README.md) for the full per-workflow
+breakdown, caveats (which spans are conditional/per-row, which only populate
+under the full journey vs. the simplified one, session-boundary rules), and
+the `ColdStartSpans`/`SpannedAsyncImage`/`CaptureBridge.trackSpan` source
+pointers for each span.
+
 ## Project layout
 
 ```

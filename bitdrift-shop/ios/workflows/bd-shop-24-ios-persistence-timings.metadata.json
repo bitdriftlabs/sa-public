@@ -1,0 +1,17 @@
+{
+  "description": "Per-span P50/P90/P99 duration histograms for ios persistence i/o timings, plus a combined comparison chart grouped by _span_name.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "screen-view-persist-end",
+      "title": "Screen-view persist (UserDefaults write+flush)"
+    },
+    {
+      "rule_id": "demo-state-publish-end",
+      "title": "Demo state publish (JSON write to disk)"
+    },
+    {
+      "rule_id": "any-phase-end",
+      "title": "All phases, compared"
+    }
+  ]
+}

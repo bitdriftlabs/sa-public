@@ -56,6 +56,11 @@ struct Prefs {
     static let forceQuit = Prefs(suite: "force_quit")
     /// "Auto ∞ sim" startup toggle.
     static let autoInfinite = Prefs(suite: "auto_infinite")
+    /// "Rec v2" toggle — gates `score_products` and its two sub-spans. Not a
+    /// fault flag, but wired through the same Prefs/launch-argument mechanism
+    /// so it can be armed headlessly (`-recommendations.active 1`), the same
+    /// way `crash_loop`/`app_hang`/etc. are — see `scripts/demo-lib.sh`.
+    static let recommendations = Prefs(suite: "recommendations")
     /// Signed-in user, read back by `UserIDFieldProvider` on every log.
     static let userSession = Prefs(suite: "user_session")
     /// Last screen the user reached. Persisted so it survives the process dying,
