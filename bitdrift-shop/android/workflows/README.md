@@ -136,8 +136,17 @@ regular log/global field; reserve `state_value`/`FEATURE_FLAG_EXPOSURE` for valu
 Granular latency spans throughout the app, beyond the three coarse `journey` /
 `product_discovery` / `checkout` spans above. **Numbered to match the iOS app's
 `bd-shop-20`–`23` deliberately: the same number is the same purpose on both
-platforms, and the span names are identical**, so a chart can compare Android and
-iOS directly (filter on `platform` if you need them apart).
+platforms, and the span names are identical**.
+
+To be precise about what that does and doesn't buy: these workflows target the
+Android app only, so each chart shows Android data alone. The shared numbering and
+span names make the two platforms' configs easy to navigate between, and make a real
+cross-platform chart cheap to add — `platform_targets` takes an array, so one
+workflow can list both `ai.bitdrift.shop` and `ai.bitdrift.shop.ios` and group its
+histogram by the `platform` field. They are deliberately kept separate here because
+the platforms' absolute latencies differ enough that merging them ungrouped produces
+a bimodal distribution describing neither, and because separate workflows keep each
+platform's caveats (below) from bleeding into the other's charts.
 
 | Workflow | Live id | Dashboard | Covers |
 |---|---|---|---|

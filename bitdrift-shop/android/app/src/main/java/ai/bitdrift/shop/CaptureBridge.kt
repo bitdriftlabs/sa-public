@@ -76,6 +76,28 @@ object CaptureBridge {
     }
 
     /**
+     * Runs [block], swallowing ordinary failures but letting coroutine cancellation
+     * through.
+     *
+     * Exists because `try { … } catch (_: Exception) {}` — the pattern this demo uses
+     * throughout for best-effort API calls — also catches `CancellationException`,
+     * since that is an `Exception` in Kotlin. Inside a [trackSpanSuspend] body that
+     * silently defeats the whole point of the CANCELED mapping: the cancellation never
+     * reaches the wrapper, so an interrupted operation closes as SUCCESS and its
+     * partial duration lands in the histogram as if it were a real measurement.
+     *
+     * Use this instead of a bare broad catch anywhere inside a span body.
+     */
+    suspend fun <T> bestEffort(block: suspend () -> T): T? =
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+
+    /**
      * Non-suspending variant, for synchronous work that still needs to nest under a
      * parent span (which `Logger.trackSpan` cannot do).
      */

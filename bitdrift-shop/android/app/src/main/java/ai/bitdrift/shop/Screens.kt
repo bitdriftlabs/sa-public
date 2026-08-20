@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import ai.bitdrift.shop.BuildConfig
 import io.bitdrift.capture.Capture.Logger
+import kotlin.coroutines.cancellation.CancellationException
 import io.bitdrift.capture.CaptureResult
 import io.bitdrift.capture.LogLevel
 import kotlinx.coroutines.launch
@@ -50,15 +51,27 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
     var crashLoopOn by remember { mutableStateOf(crashLoopPrefs.getBoolean(ShoppingDemoApp.KEY_ACTIVE, false)) }
 
     LaunchedEffect(Unit) {
-        // bitdrift SDK: trackSpanSuspend() wraps the load. The span sits OUTSIDE the
-        // try so a thrown error reaches it as FAILURE — inside, the existing catch
-        // would swallow it and every span would record SUCCESS regardless of outcome.
+        // bitdrift SDK: trackSpanSuspend() wraps the load, and the span records FAILURE
+        // if either request fails — but the two requests stay independent, as they were
+        // before instrumentation: a failing `getWelcome()` must not stop the SDK-version
+        // indicator from loading. Hence per-call `bestEffort` (which still lets
+        // cancellation reach the span) plus an explicit failure signal, rather than one
+        // try that abandons the second call on the first error.
         // POC: event tracking — screen-level "time to data ready".
+        // The throw below is what marks the span FAILURE; it must not escape the
+        // LaunchedEffect, where an uncaught exception would take the app down.
         try {
             CaptureBridge.trackSpanSuspend("welcome_screen_load") {
-                apiData = ApiClient.getWelcome()
-                latestSdkVersion = ApiClient.fetchLatestSdkVersion()
+                val welcome = CaptureBridge.bestEffort { ApiClient.getWelcome() }
+                val version = CaptureBridge.bestEffort { ApiClient.fetchLatestSdkVersion() }
+                apiData = welcome
+                latestSdkVersion = version
+                if (welcome == null || version == null) {
+                    throw IllegalStateException("welcome_screen_load: partial failure")
+                }
             }
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (_: Exception) {}
     }
 

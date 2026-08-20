@@ -129,9 +129,17 @@ Once the app is generating data, use the **bd-cli** skill to deploy the twelve s
 
 `bd-shop-20` through `bd-shop-23` chart the granular latency spans above. **They're
 numbered to match the iOS app's `bd-shop-20`–`23` deliberately: the same number is the
-same purpose on both platforms, and the span names are identical**, so one chart can
-compare Android and iOS side by side (group or filter by the `platform` global field to
-separate them).
+same purpose on both platforms, and the span names are identical**.
+
+These workflows target the Android app only, so their charts contain Android data
+alone — the matching numbers are for navigating between the two platforms' configs, not
+a live cross-platform view. Because the span names *are* identical (and both apps now
+set a `platform` global field), a genuine side-by-side chart is one extra workflow away:
+`platform_targets` accepts an array, so a workflow listing both `ai.bitdrift.shop`
+(android) and `ai.bitdrift.shop.ios` (apple) matches both apps, and grouping its
+histogram by `platform` gives one line per OS. Worth knowing before you do: the two
+platforms' absolute numbers differ enough (emulator vs simulator especially) that an
+ungrouped chart over both is a bimodal blob describing neither.
 
 | Workflow | Live id | Dashboard | Covers |
 |---|---|---|---|
