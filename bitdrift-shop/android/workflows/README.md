@@ -184,5 +184,11 @@ because the SDK helper has three gaps that all bite here:
   timestamp. `CaptureBridge.processStartEpochMs` converts; passing uptime directly
   would stamp the span's start log in 1970. No iOS equivalent, where the value was
   already a wall-clock `Date`.
+- **`sdk_init` is missing on a fresh install's first launch.** It ends ~570ms
+  into the process — before the on-device workflow engine has fetched and applied
+  its config — so nothing can match it yet, while `scene_render` / `state_restore`
+  (ending ~14s in) match fine. From the second launch config is cached and it
+  lands normally. A first-launch config-arrival artifact, not a span bug, and it
+  affects only the chart: the span is in the Timeline waterfall either way.
 - Same session-boundary rule as every other workflow here: they only evaluate
   sessions that start *after* deployment.
