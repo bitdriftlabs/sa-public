@@ -5,6 +5,15 @@ A single toggle button on the **Advanced** screen. Ports the old standalone `met
 ("latency by app version") with a fake `sim_app_version` dimension that auto-rotates across five
 values on its own — no manual control needed.
 
+> **Applies to both platforms.** The iOS app ships the same demo with identical event and
+> field names (`metric_values`, `metric_work_latency_ms`, `sim_app_version`), so everything
+> below — the workflow, the grouped charts, the CloudWatch comparison — works there too and
+> feeds the same `bd-shop-12` workflow. Only the file paths differ: read
+> [`MetricsDemo.kt`](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) as
+> `ios/BitdriftShop/MetricsDemo.swift`, and the **Metrics** toggle is on the Advanced screen
+> in both. This doc lives under `android/` for historical reasons — it was written when the
+> demo was Android-only.
+
 ## Setup
 
 1. App running — see main [README.md](README.md) Quick Start: Step 0 (bitdrift credentials) and
