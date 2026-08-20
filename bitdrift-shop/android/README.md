@@ -81,6 +81,7 @@ Every Capture SDK feature below is wired up in this app, mapped to the call used
 | **Custom metrics** | `Logger.logInfo()` ticking once/sec (`metric_values`) — ported from misc-demos/metricdemo | [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) — see [metric-demo.md](metric-demo.md) |
 | **App launch TTI** | `Logger.logAppLaunchTTI()` after first frame | [MainActivity.kt](app/src/main/java/ai/bitdrift/shop/MainActivity.kt) |
 | **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`), `Logger.trackSpan("score_products")` | [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt) |
+| **Granular latency spans** | ~18 more spans: cold-start phases, per-screen loads, journey sub-phases, recommendation-engine internals — via `CaptureBridge.trackSpanSuspend`/`trackSpanNested` (the SDK's own `trackSpan` can't nest, suspend, or distinguish cancellation) | [CaptureBridge.kt](app/src/main/java/ai/bitdrift/shop/CaptureBridge.kt), and see [Span-timing workflows and dashboards](#span-timing-workflows-and-dashboards) |
 | **Support tooling** | `Logger.createTemporaryDeviceCode()`, Support-Mode toggle | [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt) |
 | **Crash symbolication** | ProGuard mapping upload via `bdUpload*` tasks | [build.gradle.kts](build.gradle.kts) |
 | **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) |
@@ -98,6 +99,7 @@ With the instrumentation above, the app feeds these bitdrift features — most w
 | **User Journey Sankey** | Screen views | Screen-to-screen flow, dropout points, variant comparison |
 | **TTI histogram** | App launch TTI | p50/p95/p99 app startup times |
 | **Spans waterfall** | Custom spans | Operation durations for journey, discovery, and checkout |
+| **Per-phase latency histograms** | Granular latency spans | Where cold start, each screen load, and each journey sub-phase actually spend time (P50/P90/P99) |
 | **Entities view** | User identity | Per-user session history, crashes, devices, location |
 | **Network tab** | Network capture | Latency, errors, throughput by endpoint |
 
@@ -122,6 +124,43 @@ Once the app is generating data, use the **bd-cli** skill to deploy the twelve s
 | `bd-shop-11-slow-rendering.json` | on-device frame detection, feature flag exposure | Zero-instrumentation dropped-frame count/histogram split by `recommendations_v2` exposure and by screen; alert on frame-drop spikes — see [demo-slow-rendering.md](demo-slow-rendering.md) |
 | `bd-shop-11b-slow-rendering-manual-span.json` | custom span, feature flag exposure | Same shape as bd-shop-11, matched on a manually-instrumented span instead — illustrative comparison, no alert — see [demo-slow-rendering.md](demo-slow-rendering.md) |
 | `bd-shop-12-metric-grouping.json` | custom metric log, custom field | Waveform + counter metrics ported from misc-demos/metricdemo; work-latency average/histogram/table grouped by simulated `sim_app_version` — see [metric-demo.md](metric-demo.md) |
+
+### Span-timing workflows and dashboards
+
+`bd-shop-20` through `bd-shop-23` chart the granular latency spans above. **They're
+numbered to match the iOS app's `bd-shop-20`–`23` deliberately: the same number is the
+same purpose on both platforms, and the span names are identical**, so one chart can
+compare Android and iOS side by side (group or filter by the `platform` global field to
+separate them).
+
+| Workflow | Live id | Dashboard | Covers |
+|---|---|---|---|
+| `bd-shop-20-android-cold-start-span-timings.json` | `RLXS` | [Cold-Start](https://explorations.bitdrift.io/dashboards/cQJTUdHJ3NQsm_H1NVsgf) | `app_cold_start` root + `sdk_init` / `scene_render` / `state_restore` |
+| `bd-shop-21-android-screen-load-timings.json` | `vokX` | [Screen Load](https://explorations.bitdrift.io/dashboards/XpcvEcjfYuZU9GdgvYvtG) | 7 screen loads + per-thumbnail `product_image_load` |
+| `bd-shop-22-android-journey-subphase-timings.json` | `GfJa` | [Journey Sub-Phase](https://explorations.bitdrift.io/dashboards/TdQHRtJe305Xjz4lEVV4h) | `discovery_fetch`, `product_view`, `wishlist_add`, `cart_assembly`, `checkout.payment`, `checkout.confirmation` |
+| `bd-shop-23-android-recommendation-engine-timings.json` | `joJr` | [Recommendation Engine](https://explorations.bitdrift.io/dashboards/b8_b4FFF8xzstrR0b9Psg) | `score_products.parse_catalog` vs `.similarity_pass` |
+
+Deploy them the same way as everything else in [`workflows/`](workflows/); the dashboards
+live in [`dashboards/`](dashboards/) and each references its backing workflow ID above, so
+**edit that ID before running `bd dashboard create`, not after** — otherwise the new
+dashboard's charts point at this account's workflows.
+
+Two things worth doing before demoing these:
+
+- **Toggle "Rec v2"** on the Advanced screen if you want `bd-shop-23` populated — it's off
+  by default and nothing in the automated sim turns it on. It's also the fastest way to see
+  the point of the split: `parse_catalog` lands near 0ms while `similarity_pass` carries
+  seconds.
+- **Relaunch once on a fresh install.** `sdk_init` ends ~570ms into the process, before the
+  on-device workflow engine has applied its config, so on the very first launch after
+  install that one span is missing from its chart while the other phases (ending ~14s in)
+  are fine. From the second launch it lands normally. Chart-only artifact — the span is in
+  the Timeline waterfall either way.
+
+Full per-workflow caveats, the Android-vs-iOS differences (no `catalog_serialize`, no
+`bd-shop-24`, `wishlist_add` behaviour, the `uptimeMillis`→epoch clock conversion) and why
+these don't use the SDK's own `Logger.trackSpan` are in
+[`workflows/README.md`](workflows/README.md#span-timing-workflows-bd-shop-20-through-bd-shop-23).
 
 ## Issue (Crash) Analytics
 
@@ -148,6 +187,10 @@ ID, so the placeholder in each file needs resolving first) and the exact deploy 
 | Dashboard | Composes | Focus |
 |-----------|----------|-------|
 | `bd-shop-01-metric-grouping.json` | `bd-shop-12-metric-grouping.json` | Two tabs: work-latency average/histogram/table grouped by `sim_app_version`, and the ported waveform + CloudWatch consistency charts — see [metric-demo.md](metric-demo.md) |
+| `android-cold-start-span-timings.dashboard.json` | `bd-shop-20` | Cold-start waterfall: total plus `sdk_init` / `scene_render` / `state_restore` |
+| `android-screen-load-timings.dashboard.json` | `bd-shop-21` | Per-screen "time to data ready", plus per-thumbnail image load |
+| `android-journey-subphase-timings.dashboard.json` | `bd-shop-22` | The six journey sub-phases, individually and compared |
+| `android-recommendation-engine-timings.dashboard.json` | `bd-shop-23` | `score_products`: JSON parse vs the O(n*m) similarity pass |
 
 > **Prompt:** *"Deploy the bd-shop-*.json dashboards to bitdrift using bd CLI, resolving each workflow ID placeholder first."* See [`dashboards/README.md`](dashboards/README.md) for deploy instructions.
 
