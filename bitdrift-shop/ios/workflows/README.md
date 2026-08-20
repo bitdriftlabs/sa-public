@@ -144,7 +144,7 @@ question" guidance:
 | Workflow | Live id | Dashboard | Covers |
 |---|---|---|---|
 | `bd-shop-21-ios-screen-load-timings.json` | `t8u9` | [Screen Load Timings](https://explorations.bitdrift.io/dashboards/6nkAoIli6rgustvUJA2Es) | Screen-level "time to data ready" spans — standalone root spans, not nested under any journey span (see `welcome_screen_load`'s comment in `Screens.swift` for why). `device_code_fetch` was removed — no automated path exercises it, so it only ever showed empty |
-| `bd-shop-22-ios-journey-subphase-timings.json` | `beLW` | [Journey Sub-Phase Timings](https://explorations.bitdrift.io/dashboards/7MS9pgpoxWrdzUabpXkGp) | Sub-phases of the simulated journey — children of `product_discovery`/`checkout`/`journey`, passed as an explicit `parentSpanID`, not an ambient context stack (see the commit message / `SimulationManager.swift` comments for why) |
+| `bd-shop-22-ios-journey-subphase-timings.json` | `beLW` | [Journey Sub-Phase Timings](https://explorations.bitdrift.io/dashboards/7jSnw6WcGPFxYA3D9YtF8) | Sub-phases of the simulated journey — children of `product_discovery`/`checkout`/`journey`, passed as an explicit `parentSpanID`, not an ambient context stack (see the commit message / `SimulationManager.swift` comments for why) |
 | `bd-shop-23-ios-recommendation-engine-timings.json` | `49io` | [Recommendation Engine Timings](https://explorations.bitdrift.io/dashboards/gBqNwTjMdc0KKL4bRD64C) | `score_products`' own two sub-phases — isolates parse time from the O(n·m) similarity pass |
 | `bd-shop-24-ios-persistence-timings.json` | `qt3D` | [Persistence I/O Timings](https://explorations.bitdrift.io/dashboards/GuxEP0btHJDxhTv5TtNrb) | UserDefaults and file-write I/O — `screen_view_persist` fires on every screen transition, the highest-frequency span in the app |
 
@@ -153,23 +153,31 @@ Caveats specific to these:
 - **`bd-shop-21` has no combined "compared" chart.** 9 series on one line
   chart is cluttered past the point of being readable; each screen gets its
   own individual P50/P90/P99 chart instead.
-- **`catalog_serialize` always runs; `product_image_load` is per-row.**
-  `catalog_serialize` isn't gated by `recommendationsV2Enabled` — `BrowseScreen`
-  runs the `.serialized` re-encode on every load regardless; the flag only
-  controls whether `recommendations` (a separate computed property) goes on to
-  *consume* that string. `product_image_load` fires once per visible product
-  thumbnail, so a screen with N rows contributes N samples per load, not one.
+- **`catalog_serialize` always runs; `product_image_load` is per-row and
+  excludes cancellations.** `catalog_serialize` isn't gated by
+  `recommendationsV2Enabled` — `BrowseScreen` runs the `.serialized` re-encode on
+  every load regardless; the flag only controls whether `recommendations` (a
+  separate computed property) goes on to *consume* that string.
+  `product_image_load` fires once per visible product thumbnail, so a screen with
+  N rows contributes N samples per load, not one — and because `.task(id:)`
+  cancels routinely (view teardown, or the row's url changing mid-scroll), its
+  match rule carries an extra `_result != canceled` condition so those partial
+  durations don't skew the histogram. The other span histograms here don't filter
+  on `_result`: cancellation is rare enough on them to not be worth resetting
+  their evaluation windows over, so a `.canceled` there would still be counted.
 - **`checkout.payment`'s compared chart doesn't split by `retried`.** A retry
   attempt and a first attempt both feed the same `_span_name` series in
   `bd-shop-22`'s comparison chart — the field is on the span for ad-hoc
   filtering, not built into the default chart.
 - **`discovery_fetch`, `product_view`, and `cart_assembly` also have call
-  sites in `runSimplifiedJourney`**, not just the full random journey — added
-  after `bd-shop-22` first came up empty for all three under this app's
-  actual default config (`SIMPLIFIED_JOURNEY_ENABLED = YES`, which runs the
-  simplified path exclusively). **`wishlist_add` has no simplified-journey
-  equivalent and stays empty by design** — the simplified journey's fixed
-  7-step path never visits Wishlist at all.
+  sites in `runSimplifiedJourney`**, not just the full random journey. The
+  committed default (`local.xcconfig`: `SIMPLIFIED_JOURNEY_ENABLED = NO`) runs
+  the *full* journey, where all six spans populate; these extra call sites
+  exist so the charts still fill in when someone opts into simplified mode via
+  `.local.xcconfig`. **`wishlist_add` is the one exception** — the simplified
+  journey's fixed 7-step path never visits Wishlist, so that chart alone is
+  empty under simplified mode (it populates normally under the default full
+  journey, where the visit is a probability roll).
 - **`score_products` (and both `bd-shop-23` spans) only fire when
   `recommendationsV2Enabled` is on** — off by default, and nothing in the
   automated sim loop turns it on. Toggle "Rec v2" on the Advanced screen, or
@@ -179,8 +187,10 @@ Caveats specific to these:
   xcrun simctl launch <udid> ai.bitdrift.shop.ios -recommendations.active 1
   ```
   Persisted like the others, so it survives subsequent relaunches until
-  cleared (`-recommendations.active 0`, or it's included in a future
-  `check-demo-state.sh --reset`).
+  cleared — either `-recommendations.active 0`, or
+  `./scripts/check-demo-state.sh --reset`, which clears it on both the
+  simulator (deletes the whole prefs plist) and a device (relaunches with
+  every flag, this one included, explicitly off).
 - Same session-boundary rule as everywhere else here: these only evaluate
   sessions that start after deployment.
 

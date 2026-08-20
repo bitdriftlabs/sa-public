@@ -497,7 +497,7 @@ instrumentation specifically:
 |---|---|---|
 | [Cold-Start Span Timings](https://explorations.bitdrift.io/dashboards/1rik5G13l_cOcZMr_Oxka) | `1rik5G13l_cOcZMr_Oxka` | `app_cold_start` waterfall: `sdk_init` / `scene_render` / `state_restore` |
 | [Screen Load Timings](https://explorations.bitdrift.io/dashboards/6nkAoIli6rgustvUJA2Es) | `6nkAoIli6rgustvUJA2Es` | 9 spans: "time to data ready" for 7 screens (Welcome, Browse, ProductDetail, Cart, Checkout, Payment, Confirmation — not every screen in the app) plus 2 sub-operations (catalog re-serialize, per-image load) |
-| [Journey Sub-Phase Timings](https://explorations.bitdrift.io/dashboards/7MS9pgpoxWrdzUabpXkGp) | `7MS9pgpoxWrdzUabpXkGp` | `discovery_fetch` / `product_view` / `wishlist_add` / `cart_assembly` / `checkout.payment` / `checkout.confirmation` |
+| [Journey Sub-Phase Timings](https://explorations.bitdrift.io/dashboards/7jSnw6WcGPFxYA3D9YtF8) | `7jSnw6WcGPFxYA3D9YtF8` | `discovery_fetch` / `product_view` / `wishlist_add` / `cart_assembly` / `checkout.payment` / `checkout.confirmation` |
 | [Recommendation Engine Timings](https://explorations.bitdrift.io/dashboards/gBqNwTjMdc0KKL4bRD64C) | `gBqNwTjMdc0KKL4bRD64C` | `score_products`: parse vs. the O(n·m) similarity pass |
 | [Persistence I/O Timings](https://explorations.bitdrift.io/dashboards/GuxEP0btHJDxhTv5TtNrb) | `GuxEP0btHJDxhTv5TtNrb` | `screen_view_persist` vs. `demo_state_publish` |
 

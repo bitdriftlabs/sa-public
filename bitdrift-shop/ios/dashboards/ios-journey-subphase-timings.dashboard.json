@@ -20,7 +20,7 @@
         {
           "id": "t-intro-p",
           "text_component": {
-            "text": "Children of the journey/product_discovery/checkout spans in SimulationManager.swift, passed as an explicit parentSpanID (not an ambient context stack \u2014 see the commit messages for why). discovery_fetch/product_view/cart_assembly have call sites in both the full random journey and the simplified fixed-path journey, since this app defaults to SIMPLIFIED_JOURNEY_ENABLED = YES. wishlist_add has no simplified-journey equivalent and stays sparse by design \u2014 that fixed path never visits Wishlist. See bd-shop-22 in workflows/.",
+            "text": "Children of the journey/product_discovery/checkout spans in SimulationManager.swift, passed as an explicit parentSpanID (not an ambient context stack \u2014 see the commit messages for why). The committed default is the full random journey (local.xcconfig: SIMPLIFIED_JOURNEY_ENABLED = NO), where all six spans populate. discovery_fetch/product_view/cart_assembly additionally have call sites in the simplified fixed-path journey, so those charts still fill in when someone opts into that mode. wishlist_add is the exception: the simplified path never visits Wishlist, so that one chart alone goes empty under simplified mode. See bd-shop-22 in workflows/.",
             "variant": "p"
           },
           "dashboard_layout_settings": {

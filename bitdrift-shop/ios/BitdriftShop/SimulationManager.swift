@@ -1198,8 +1198,9 @@ final class SimulationManager: ObservableObject {
         // bitdrift SDK: trackSpan() — the same discovery_fetch span the full
         // journey uses (see runSingleJourney), parented directly on journeySpan
         // since this mode has no separate discoverySpan. Without a call site
-        // here, bd-shop-22's discovery_fetch chart never populates under the
-        // app's default config (SIMPLIFIED_JOURNEY_ENABLED = YES).
+        // here, bd-shop-22's discovery_fetch chart is empty for anyone who opts
+        // into this mode (SIMPLIFIED_JOURNEY_ENABLED = YES; the committed
+        // default in local.xcconfig is NO, i.e. the full random journey).
         // POC: event tracking — sub-phase waterfall, populated regardless of
         // which journey mode is active.
         let productIDs = await CaptureBridge.trackSpan(

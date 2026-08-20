@@ -281,6 +281,13 @@
                       "operator": "EQUAL",
                       "string_value": "end"
                     }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_result",
+                      "operator": "NOT_EQUAL",
+                      "string_value": "canceled"
+                    }
                   }
                 ]
               }

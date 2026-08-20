@@ -66,11 +66,22 @@ struct SpannedAsyncImage<Content: View, Placeholder: View>: View {
             // permanently if the new url is nil or the fetch fails.
             uiImage = nil
             guard let url else { return }
-            uiImage = await CaptureBridge.trackSpan(
-                "product_image_load", fields: ["url": url.absoluteString]
-            ) { _ -> UIImage? in
-                guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
-                return UIImage(data: data)
+            // Errors deliberately escape the span body rather than being swallowed by a
+            // `try?`: with `try?` the body returned nil *normally*, so trackSpan ended
+            // every span `.success` — a failed or cancelled load was recorded as a
+            // successful one, with its duration polluting the histogram. Letting the
+            // error propagate lets trackSpan mark it `.failure` (or `.canceled`, which
+            // `.task(id:)` produces routinely on view teardown / url change), and the
+            // catch here keeps the placeholder showing exactly as before.
+            do {
+                uiImage = try await CaptureBridge.trackSpan(
+                    "product_image_load", fields: ["url": url.absoluteString]
+                ) { _ -> UIImage? in
+                    let (data, _) = try await URLSession.shared.data(from: url)
+                    return UIImage(data: data)
+                }
+            } catch {
+                uiImage = nil
             }
         }
     }

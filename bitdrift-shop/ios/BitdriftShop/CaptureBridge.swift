@@ -240,9 +240,21 @@ enum CaptureBridge {
             span?.end(.success)
             return result
         } catch {
-            span?.end(.failure)
+            // A cancelled SwiftUI `.task` (view disappeared, or its `id` changed) is not a
+            // failure, and its partial duration would skew a latency histogram if recorded
+            // as one — `SpanResult.canceled` keeps those distinguishable from real errors.
+            // Both spellings matter: URLSession throws `CancellationError` when the Task is
+            // already cancelled before the request starts, but `URLError.cancelled` when an
+            // in-flight request is torn down.
+            span?.end(Self.isCancellation(error) ? .canceled : .failure)
             throw error
         }
+    }
+
+    private static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        return false
     }
 }
 
@@ -304,10 +316,12 @@ enum ColdStartSpans {
         )
     }
 
-    /// Ends `scene_render` and opens `state_restore`. Call at the top of
-    /// `ContentView.runStartupSequence()`, right after the existing `logAppLaunchTTI` call —
-    /// everything before that point is scene/render work, everything after is the demo's own
-    /// prefs/flag bookkeeping.
+    /// Ends `scene_render` and opens `state_restore`. Must be the **first** statement of
+    /// `ContentView.runStartupSequence()` — before `nav.logInitialScreen()`, and therefore
+    /// before the `logAppLaunchTTI` call too. `logInitialScreen()` reaches
+    /// `ScreenLogger.logScreenView`, which does a UserDefaults write + `synchronize()` (the
+    /// `screen_view_persist` span): that is prefs bookkeeping, so it belongs to
+    /// `state_restore`. Calling this any later charges that cost to `scene_render` instead.
     static func advanceToStateRestore() {
         currentPhase?.end(.success)
         currentPhase = Logger.startSpan(
@@ -317,9 +331,12 @@ enum ColdStartSpans {
         )
     }
 
-    /// Ends `state_restore` and `root` together. Call once, right after
-    /// `DemoStateFile.publish()` in `runStartupSequence()` — the point at which the app is
-    /// done restoring persisted demo state and ready to react to input.
+    /// Ends `state_restore` and `root` together. Call once per launch, on whichever path
+    /// `runStartupSequence()` takes: the fast-crash branch calls it just before returning,
+    /// and the normal path calls it after the resume-branch restoration (pending
+    /// crash/hang/quit prefs, `restoreVariantFromPrefs()`) and the simplified-journey
+    /// auto-start trigger — all still persisted-state restoration — but *before* the
+    /// auto-start retry/sleep loop, which is the app running rather than starting up.
     static func finish() {
         currentPhase?.end(.success)
         currentPhase = nil
