@@ -120,7 +120,7 @@ These workflows match the following log events emitted by the app:
 | `force_quit_injected` | SimulationManager.kt | `force_quit_screen` |
 | `metric_values` | MetricsDemo.kt | `metric_sine`, `metric_square`, `metric_sawtooth`, `metric_triangle`, `metric_dc`, `metric_counter`, `metric_work_latency_ms` |
 
-Span names: `journey`, `checkout`, `product_discovery` — all emit `_duration_ms` and `_span_type: "end"`. `score_products` (recommendations_v2 flag only) also emits `_duration_ms`.
+Span names: `journey`, `checkout`, `product_discovery` — all emit `_duration_ms` and `_span_type: "end"`. `score_products` (recommendations_v2 flag only) also emits `_duration_ms`. See [Span-timing workflows](#span-timing-workflows-bd-shop-20-through-bd-shop-23) below for the ~18 finer-grained spans added on top of these.
 
 OOTB match used by `bd-shop-11`: `DROPPED_FRAME` / `_frame_issue_type == "Slow"` — bitdrift's built-in Android frame-rendering detection, no app instrumentation required.
 
@@ -130,3 +130,59 @@ Feature flag keys used in `group_by` (`state_value` / `FEATURE_FLAG_EXPOSURE`): 
 flag exposure, so its `group_by` uses `field_key` rather than `state_value`. Use `field_key` for any
 regular log/global field; reserve `state_value`/`FEATURE_FLAG_EXPOSURE` for values set via
 `Logger.setFeatureFlagExposure()`.
+
+## Span-timing workflows (`bd-shop-20` through `bd-shop-23`)
+
+Granular latency spans throughout the app, beyond the three coarse `journey` /
+`product_discovery` / `checkout` spans above. **Numbered to match the iOS app's
+`bd-shop-20`–`23` deliberately: the same number is the same purpose on both
+platforms, and the span names are identical**, so a chart can compare Android and
+iOS directly (filter on `platform` if you need them apart).
+
+| Workflow | Live id | Dashboard | Covers |
+|---|---|---|---|
+| `bd-shop-20-android-cold-start-span-timings.json` | `RLXS` | [Cold-Start](https://explorations.bitdrift.io/dashboards/cQJTUdHJ3NQsm_H1NVsgf) | `app_cold_start` root + `sdk_init` / `scene_render` / `state_restore` |
+| `bd-shop-21-android-screen-load-timings.json` | `vokX` | [Screen Load](https://explorations.bitdrift.io/dashboards/XpcvEcjfYuZU9GdgvYvtG) | 8 spans: 7 screen loads + per-thumbnail `product_image_load` |
+| `bd-shop-22-android-journey-subphase-timings.json` | `GfJa` | [Journey Sub-Phase](https://explorations.bitdrift.io/dashboards/TdQHRtJe305Xjz4lEVV4h) | `discovery_fetch`, `product_view`, `wishlist_add`, `cart_assembly`, `checkout.payment`, `checkout.confirmation` |
+| `bd-shop-23-android-recommendation-engine-timings.json` | `joJr` | [Recommendation Engine](https://explorations.bitdrift.io/dashboards/b8_b4FFF8xzstrR0b9Psg) | `score_products.parse_catalog` vs `.similarity_pass` |
+
+### Why these don't use the SDK's own `Logger.trackSpan`
+
+`CaptureBridge.trackSpanSuspend` / `trackSpanNested` (in `CaptureBridge.kt`) exist
+because the SDK helper has three gaps that all bite here:
+
+1. **No `parentSpanId`.** `Logger.startSpan` accepts one, but `trackSpan` doesn't
+   forward it — so nothing wrapped in it can nest under a journey or checkout span.
+2. **Not suspend-capable.** Its block is `() -> T`, and every screen-load and
+   journey-phase span in this app wraps suspending work.
+3. **Maps every throwable to `FAILURE`, including `CancellationException`** — which
+   on Android is the common case, not an edge case: `LaunchedEffect(key)` cancels
+   whenever the key changes or the composable leaves composition, so ordinary
+   scrolling would log a stream of "failed" spans whose partial durations then skew
+   every histogram. The wrappers map cancellation to `CANCELED` instead.
+
+### Android-specific notes (vs. the iOS app)
+
+- **No `catalog_serialize` span.** iOS re-serializes the product list locally
+  (real CPU work worth isolating); Android fetches the catalog over the network
+  instead, so there's nothing local to measure.
+- **No `bd-shop-24` (persistence I/O).** iOS spans a UserDefaults write on every
+  screen transition and an atomic JSON state-file write. Neither exists here:
+  Android's `ScreenLogger.logScreenView` has no shift-register/prefs write, and
+  the demo-state file is iOS-only (it exists so `watchdog.sh` can relaunch an app
+  that can't relaunch itself — Android uses `AlarmManager`).
+- **`wishlist_add` populates normally.** On iOS it's empty whenever the app runs
+  in simplified-journey mode, whose fixed path skips Wishlist. Android has no
+  simplified mode, so the span is just a probability roll on the one journey.
+- **`product_image_load` uses Coil's `onState`** rather than a hand-rolled loader
+  (iOS had to replace `AsyncImage` outright, since SwiftUI exposes no load hook).
+  Its chart filters out `_result == canceled`, since scrolling produces those
+  constantly.
+- **Cold-start back-dating needs a clock conversion.** `appStartUptimeMs` is
+  `SystemClock.uptimeMillis()` (monotonic), but a custom span start time is fed to
+  `LogAttributesOverrides.OccurredAt(occurredAtTimestampMs)` — an *epoch*
+  timestamp. `CaptureBridge.processStartEpochMs` converts; passing uptime directly
+  would stamp the span's start log in 1970. No iOS equivalent, where the value was
+  already a wall-clock `Date`.
+- Same session-boundary rule as every other workflow here: they only evaluate
+  sessions that start *after* deployment.

@@ -94,3 +94,29 @@ bd dashboard delete <DASHBOARD_ID>
 **Note:** `bd dashboard get` does not return `layout_settings` in its response. If you need to
 re-update a dashboard's charts later, start from this repo's JSON (with the workflow ID
 substituted), not from a `get` dump -- reconstructing layout from `get` will drop it.
+
+## Span-timing dashboards
+
+Four dashboards composing the `bd-shop-20`–`23` span-timing workflows (see
+[`../workflows/README.md`](../workflows/README.md#span-timing-workflows-bd-shop-20-through-bd-shop-23)),
+one per coherent question, and deliberately mirroring the iOS app's equivalents:
+
+| File | Live id | Backing workflow |
+|---|---|---|
+| `android-cold-start-span-timings.dashboard.json` | [`cQJTUdHJ3NQsm_H1NVsgf`](https://explorations.bitdrift.io/dashboards/cQJTUdHJ3NQsm_H1NVsgf) | `RLXS` |
+| `android-screen-load-timings.dashboard.json` | [`XpcvEcjfYuZU9GdgvYvtG`](https://explorations.bitdrift.io/dashboards/XpcvEcjfYuZU9GdgvYvtG) | `vokX` |
+| `android-journey-subphase-timings.dashboard.json` | [`TdQHRtJe305Xjz4lEVV4h`](https://explorations.bitdrift.io/dashboards/TdQHRtJe305Xjz4lEVV4h) | `GfJa` |
+| `android-recommendation-engine-timings.dashboard.json` | [`b8_b4FFF8xzstrR0b9Psg`](https://explorations.bitdrift.io/dashboards/b8_b4FFF8xzstrR0b9Psg) | `joJr` |
+
+Each file's chart components reference its backing `workflow_id` above, so on a
+fresh account **edit that id before running `bd dashboard create`, not after** — the
+committed files otherwise produce dashboards pointing at this account's workflows.
+
+Two API quirks worth knowing, both learned the hard way on the iOS side:
+
+- **`bd dashboard update` is not a safe way to edit these.** It requires each chart
+  component's `id` to be the server-assigned *numeric* id rather than the string id
+  used at creation; getting that wrong emptied a dashboard's entire charts array
+  while still reporting `SUCCESS`. Delete and recreate instead.
+- **Set `y_axis.unit` at creation.** Omitting it renders duration charts as bare
+  numbers (`1.4K`) with no unit; these were all created with `MILLISECONDS`.

@@ -1,0 +1,17 @@
+{
+  "description": "score_products' own two sub-phases \u2014 isolates JSON parsing from the O(n*m) Levenshtein similarity pass. Nested via CaptureBridge.trackSpanNested rather than the SDK's Logger.trackSpan, which doesn't forward a parentSpanId and so can't host children.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "parse-catalog-end",
+      "title": "score_products: parse catalog JSON"
+    },
+    {
+      "rule_id": "similarity-pass-end",
+      "title": "score_products: similarity pass"
+    },
+    {
+      "rule_id": "any-phase-end",
+      "title": "All phases, compared"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "description": "Cold-start waterfall: app_cold_start root (back-dated to process start) with sdk_init / scene_render / state_restore children. Mirrors the iOS bd-shop-20 span names exactly, so the two platforms are directly comparable. See ColdStartSpans in CaptureBridge.kt.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "root-end",
+      "title": "Cold start \u2014 total"
+    },
+    {
+      "rule_id": "sdk-init-end",
+      "title": "sdk_init \u2014 Logger.start() + config"
+    },
+    {
+      "rule_id": "scene-render-end",
+      "title": "scene_render \u2014 Compose stand-up to startup effect"
+    },
+    {
+      "rule_id": "state-restore-end",
+      "title": "state_restore \u2014 demo flag/prefs bookkeeping"
+    },
+    {
+      "rule_id": "any-phase-end",
+      "title": "All phases, compared"
+    }
+  ]
+}

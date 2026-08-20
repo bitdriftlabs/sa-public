@@ -43,6 +43,15 @@ class ShoppingDemoApp : Application() {
         Logger.addField("app_variant", "sdk-demo")
 
         installCrashLoopHandler()
+
+        // bitdrift SDK: opens the `app_cold_start` root span plus its `sdk_init` child.
+        // Everything above — Logger.start() itself, setEntityId, addField, the
+        // crash-loop handler install — is what `sdk_init` measures, so this must be
+        // the last statement here, not the first.
+        // POC: event tracking — granular per-phase cold-start histograms plus a
+        // Timeline waterfall, instead of one opaque TTI number. See ColdStartSpans
+        // and bd-shop-20 in workflows/.
+        ColdStartSpans.beginRoot()
     }
 
     private fun installCrashLoopHandler() {

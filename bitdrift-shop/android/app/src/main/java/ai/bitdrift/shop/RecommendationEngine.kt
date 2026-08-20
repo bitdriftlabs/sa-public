@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -12,13 +13,27 @@ object RecommendationEngine {
     /**
      * Scores all products against a reference product.
      * Returns a list of (productJson, score) pairs sorted by score descending.
+     *
+     * [parentSpanId] nests the two sub-spans below under the caller's own
+     * `score_products` span, so a slow call's tail can be attributed to "parsing was
+     * slow" vs. "the O(n*m) similarity pass was slow" instead of one opaque number.
      */
     fun scoreProducts(
         catalogJson: String,
-        referenceProductId: String
+        referenceProductId: String,
+        parentSpanId: UUID? = null
     ): List<Pair<JSONObject, Double>> {
-        val catalog = try { JSONArray(catalogJson) } catch (_: Exception) { return emptyList() }
-        val products = (0 until catalog.length()).map { catalog.getJSONObject(it) }
+        // bitdrift SDK: isolates parsing the catalog JSON string back into JSONObjects,
+        // separate from the similarity pass below.
+        // POC: event tracking — sub-phase duration within an already-spanned call.
+        val products = CaptureBridge.trackSpanNested(
+            "score_products.parse_catalog", parentSpanId = parentSpanId
+        ) {
+            val catalog = try { JSONArray(catalogJson) } catch (_: Exception) { null }
+                ?: return@trackSpanNested emptyList()
+            (0 until catalog.length()).map { catalog.getJSONObject(it) }
+        }
+        if (products.isEmpty()) return emptyList()
 
         val reference = products.find { it.optString("id") == referenceProductId }
             ?: return products.map { it to 0.0 }
@@ -29,7 +44,13 @@ object RecommendationEngine {
         // the description, so similar-but-differently-worded listings still score as related.
         val refProfile = reference.toString()
 
-        return products
+        // bitdrift SDK: isolates the O(n*m) Levenshtein pass per product — the actual
+        // cost centre, and the reason this engine exists as a slow-rendering demo.
+        // POC: event tracking — sub-phase duration within an already-spanned call.
+        return CaptureBridge.trackSpanNested(
+            "score_products.similarity_pass", parentSpanId = parentSpanId
+        ) {
+          products
             .filter { it.optString("id") != referenceProductId }
             .map { product ->
                 val desc = product.optString("description", product.optString("name", ""))
@@ -48,6 +69,7 @@ object RecommendationEngine {
                 product to score
             }
             .sortedByDescending { it.second }
+        }
     }
 
     /**

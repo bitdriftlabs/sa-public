@@ -1,0 +1,175 @@
+{
+  "name": "Android \u2014 Recommendation Engine Timings",
+  "tabs": [
+    {
+      "name": "Recommendation engine",
+      "stylistic_components": [
+        {
+          "id": "t-h",
+          "text_component": {
+            "text": "Android \u2014 is a slow score_products call parsing, or the similarity pass?",
+            "variant": "h2"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 0,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-p",
+          "text_component": {
+            "text": "score_products is the slow-rendering trap: a Levenshtein pass over each product's full JSON profile, run unmemoized from a Composable. These two children isolate which half actually costs. Gated behind recommendationsV2Enabled (the Rec v2 toggle on the Advanced screen) \u2014 off by default, so this dashboard is empty until it's switched on.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 3,
+            "column_span": 12,
+            "row_span": 8
+          }
+        },
+        {
+          "id": "t-c",
+          "text_component": {
+            "text": "All phases, compared",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 11,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-d",
+          "text_component": {
+            "text": "Per-phase detail (full P50/P90/P99)",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 30,
+            "column_span": 12,
+            "row_span": 3
+          }
+        }
+      ],
+      "charts": [
+        {
+          "id": "c-cmp",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "joJr",
+                "chart_rule_id": "hist-compared"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 14,
+              "column_span": 12,
+              "row_span": 16
+            },
+            "chart_metadata": {
+              "title": "All phases compared (one line per phase)",
+              "summary": {
+                "description": "Pick a single percentile from the chart dropdown to compare every phase on one axis."
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-0",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "joJr",
+                "chart_rule_id": "hist-parse-catalog"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 33,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "score_products: parse catalog JSON",
+              "summary": {
+                "description": "JSONArray parse of the catalog string \u2014 typically near-instant"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-1",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "joJr",
+                "chart_rule_id": "hist-similarity-pass"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 33,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "score_products: similarity pass",
+              "summary": {
+                "description": "The O(n*m) Levenshtein comparison per product \u2014 the real cost centre"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
