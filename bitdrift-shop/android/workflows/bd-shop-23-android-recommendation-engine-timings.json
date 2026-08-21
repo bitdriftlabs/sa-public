@@ -1,0 +1,176 @@
+{
+  "name": "bd-shop \u2014 Android Recommendation Engine Timings",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "parse-catalog-end",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_name",
+                      "operator": "EQUAL",
+                      "string_value": "score_products.parse_catalog"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "similarity-pass-end",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_name",
+                      "operator": "EQUAL",
+                      "string_value": "score_products.similarity_pass"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "any-phase-end",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "or_matcher": {
+                      "matchers": [
+                        {
+                          "base_matcher": {
+                            "log_field": "_span_name",
+                            "operator": "EQUAL",
+                            "string_value": "score_products.parse_catalog"
+                          }
+                        },
+                        {
+                          "base_matcher": {
+                            "log_field": "_span_name",
+                            "operator": "EQUAL",
+                            "string_value": "score_products.similarity_pass"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "hist-parse-catalog",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "parse-catalog-end",
+                "name": "_duration_ms"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "hist-similarity-pass",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "similarity-pass-end",
+                "name": "_duration_ms"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "hist-compared",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "any-phase-end",
+                "name": "_duration_ms"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "_span_name"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,323 @@
+{
+  "name": "Android \u2014 Journey Sub-Phase Timings",
+  "tabs": [
+    {
+      "name": "Journey sub-phases",
+      "stylistic_components": [
+        {
+          "id": "t-h",
+          "text_component": {
+            "text": "Android \u2014 where does simulated-journey time go, sub-phase by sub-phase?",
+            "variant": "h2"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 0,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-p",
+          "text_component": {
+            "text": "Children of the journey/product_discovery/checkout spans, nested via explicit parentSpanId \u2014 the SDK's own Logger.trackSpan can't do this, as it never forwards a parent. Android has only the one randomized journey (no simplified fixed-path mode as on iOS), so all six populate from the same path, wishlist_add included. Demo caveat: branch probabilities are variant-driven random walks and the interspersed delay(stepDelay) calls are artificial pacing, so raw durations mix both with real API time.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 3,
+            "column_span": 12,
+            "row_span": 8
+          }
+        },
+        {
+          "id": "t-c",
+          "text_component": {
+            "text": "All phases, compared",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 11,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-d",
+          "text_component": {
+            "text": "Per-phase detail (full P50/P90/P99)",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 30,
+            "column_span": 12,
+            "row_span": 3
+          }
+        }
+      ],
+      "charts": [
+        {
+          "id": "c-cmp",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "GfJa",
+                "chart_rule_id": "hist-compared"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 14,
+              "column_span": 12,
+              "row_span": 16
+            },
+            "chart_metadata": {
+              "title": "All phases compared (one line per phase)",
+              "summary": {
+                "description": "Pick a single percentile from the chart dropdown to compare every phase on one axis."
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-0",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "GfJa",
+                "chart_rule_id": "hist-discovery-fetch"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 33,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Discovery fetch",
+              "summary": {
+                "description": "Browse/Search/Categories \u2014 whichever this run rolled"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-1",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "GfJa",
+                "chart_rule_id": "hist-product-view"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 33,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Product view",
+              "summary": {
+                "description": "ProductDetail + the maybe-Reviews visit"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-2",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "GfJa",
+                "chart_rule_id": "hist-wishlist-add"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 47,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Wishlist add",
+              "summary": {
+                "description": "Only opens when the probability roll adds to wishlist"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-3",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "GfJa",
+                "chart_rule_id": "hist-cart-assembly"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 47,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Cart assembly",
+              "summary": {
+                "description": "Extra items, remove, empty-and-rebuild, flip, final view \u2014 previously in no span at all"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-4",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "GfJa",
+                "chart_rule_id": "hist-checkout-payment"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 61,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Checkout: payment",
+              "summary": {
+                "description": "All four methods; retried=true tags the retry attempt"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-5",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "GfJa",
+                "chart_rule_id": "hist-checkout-confirmation"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 61,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Checkout: confirmation",
+              "summary": {
+                "description": "Closes the checkout waterfall"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

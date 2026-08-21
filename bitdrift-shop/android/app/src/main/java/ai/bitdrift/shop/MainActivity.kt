@@ -195,6 +195,12 @@ fun ShoppingDemoContent() {
                     composable(Screen.Welcome.route) {
                         WelcomeScreen(navController, simulationManager)
                         LaunchedEffect(Unit) {
+                            // bitdrift SDK: closes `scene_render` and opens `state_restore`
+                            // — see ColdStartSpans. First statement deliberately:
+                            // everything below is demo prefs/flag bookkeeping, which
+                            // belongs to state_restore rather than to render time.
+                            ColdStartSpans.advanceToStateRestore()
+
                             simulationManager.crashLoopEnabled = crashPrefs.getBoolean("active", false)
                             simulationManager.fastCrashModeEnabled = crashPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)
                             simulationManager.syncAnrAEnabledState()
@@ -204,6 +210,9 @@ fun ShoppingDemoContent() {
                             // journey entirely -- fire the next combo and skip every other
                             // resume/auto-start path below.
                             if (simulationManager.crashLoopEnabled && simulationManager.fastCrashModeEnabled) {
+                                // Closes state_restore + the root: this branch returns
+                                // immediately, so state restoration is already done.
+                                ColdStartSpans.finish()
                                 simulationManager.fireFastCrash(activity = context as? android.app.Activity)
                                 return@LaunchedEffect
                             }
@@ -264,6 +273,14 @@ fun ShoppingDemoContent() {
                                     simulationManager.scheduleAutoStart()
                                 }
                             }
+                            // bitdrift SDK: closes `state_restore` and the
+                            // `app_cold_start` root — see ColdStartSpans. After the
+                            // resume-branch restoration above (reading/clearing pending
+                            // crash/ANR/quit prefs, restoreVariantFromPrefs()), which is
+                            // still state restoration; before the retry loop below, which
+                            // is the app running rather than starting up.
+                            ColdStartSpans.finish()
+
                             // Relaunch timing can race with Compose/nav readiness.
                             // Retry auto-start a few times so infinite sim reliably resumes.
                             repeat(5) {

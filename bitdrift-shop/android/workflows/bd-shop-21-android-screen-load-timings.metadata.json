@@ -1,0 +1,37 @@
+{
+  "description": "Per-screen 'time to data ready' spans, each wrapping a LaunchedEffect data load. Spans sit OUTSIDE the existing try/catch so a failed load records FAILURE rather than a silent SUCCESS. product_image_load excludes CANCELED, which Compose produces routinely when a row scrolls out or its key changes. No catalog_serialize span here (unlike iOS): Android fetches the catalog over the network rather than re-serializing it locally, so there is no local CPU step to isolate.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "welcome-screen-end",
+      "title": "Welcome screen load"
+    },
+    {
+      "rule_id": "browse-screen-end",
+      "title": "Browse screen load"
+    },
+    {
+      "rule_id": "product-detail-end",
+      "title": "Product detail load"
+    },
+    {
+      "rule_id": "cart-screen-end",
+      "title": "Cart screen load"
+    },
+    {
+      "rule_id": "checkout-screen-end",
+      "title": "Checkout screen load (guest+signin)"
+    },
+    {
+      "rule_id": "payment-screen-end",
+      "title": "Payment screen load (4 methods)"
+    },
+    {
+      "rule_id": "confirmation-screen-end",
+      "title": "Confirmation screen load"
+    },
+    {
+      "rule_id": "product-image-end",
+      "title": "Product image load (excl. canceled)"
+    }
+  ]
+}

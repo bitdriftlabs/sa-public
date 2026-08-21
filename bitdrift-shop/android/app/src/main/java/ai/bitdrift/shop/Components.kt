@@ -22,7 +22,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import io.bitdrift.capture.Capture.Logger
+import io.bitdrift.capture.LogLevel
+import io.bitdrift.capture.events.span.Span
+import io.bitdrift.capture.events.span.SpanResult
 import org.json.JSONObject
 
 private const val CAPTURE_SDK_VERSION = "0.23.10"
@@ -167,7 +175,7 @@ fun ScreenContainer(
                     )
                 }
             } else if (imageUrl != null) {
-                AsyncImage(
+                SpannedAsyncImage(
                     model = imageUrl,
                     contentDescription = title,
                     contentScale = ContentScale.Crop,
@@ -487,7 +495,7 @@ fun ProductImageRow(products: List<JSONObject>, onProductClick: (String) -> Unit
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    AsyncImage(
+                    SpannedAsyncImage(
                         model = product.optString("image_url", ""),
                         contentDescription = product.optString("name", ""),
                         contentScale = ContentScale.Crop,
@@ -589,7 +597,7 @@ fun RecommendedSection(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(8.dp)
                 ) {
-                    AsyncImage(
+                    SpannedAsyncImage(
                         model = product.optString("image_url", ""),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
@@ -617,4 +625,73 @@ fun RecommendedSection(
             }
         }
     }
+}
+
+/**
+ * Coil [AsyncImage] plus a `product_image_load` span around the fetch+decode.
+ *
+ * Unlike iOS — where wrapping `AsyncImage` meant replacing it with a hand-rolled
+ * loader, since SwiftUI exposes no load hook — Coil's `onState` callback reports
+ * Loading/Success/Error directly, so the span can bracket the real load without
+ * giving up Coil's caching, or its request coalescing.
+ *
+ * Started on the first Loading state and ended on Success/Error. A composable that
+ * leaves the composition mid-load never gets a terminal state, so its span is closed
+ * by `DisposableEffect` as CANCELED rather than being left dangling — scrolling a
+ * product list produces that case constantly, and counting those partial durations
+ * as successes would skew the histogram.
+ *
+ * POC: event tracking — per-image load latency; a screen with N product rows emits N
+ * of these, so the histogram shows the shape of image cost across a list rather than
+ * one aggregate page number.
+ */
+@Composable
+fun SpannedAsyncImage(
+    model: Any?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+) {
+    val span = remember(model) { mutableStateOf<Span?>(null) }
+    val settled = remember(model) { mutableStateOf(false) }
+
+    DisposableEffect(model) {
+        onDispose {
+            if (!settled.value) {
+                span.value?.end(SpanResult.CANCELED)
+                span.value = null
+            }
+        }
+    }
+
+    AsyncImage(
+        model = model,
+        contentDescription = contentDescription,
+        contentScale = contentScale,
+        modifier = modifier,
+        onState = { state ->
+            when (state) {
+                is AsyncImagePainter.State.Loading -> {
+                    if (span.value == null && !settled.value) {
+                        span.value = Logger.startSpan(
+                            "product_image_load",
+                            LogLevel.INFO,
+                            mapOf("url" to (model?.toString() ?: "")),
+                        )
+                    }
+                }
+                is AsyncImagePainter.State.Success -> {
+                    settled.value = true
+                    span.value?.end(SpanResult.SUCCESS)
+                    span.value = null
+                }
+                is AsyncImagePainter.State.Error -> {
+                    settled.value = true
+                    span.value?.end(SpanResult.FAILURE)
+                    span.value = null
+                }
+                else -> Unit
+            }
+        },
+    )
 }

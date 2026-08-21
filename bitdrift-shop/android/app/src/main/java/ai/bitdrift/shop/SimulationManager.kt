@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import io.bitdrift.capture.Capture.Logger
+import kotlin.coroutines.cancellation.CancellationException
 import io.bitdrift.capture.LogLevel
 import io.bitdrift.capture.events.span.SpanResult
 import io.bitdrift.capture.experimental.ExperimentalBitdriftApi
@@ -155,7 +156,7 @@ class SimulationManager : ViewModel() {
             }
         }
         if (variantName == null) return
-        val variant = try { SimVariant.valueOf(variantName) } catch (_: Exception) { return }
+        val variant = try { SimVariant.valueOf(variantName) } catch (ce: CancellationException) { throw ce } catch (_: Exception) { return }
         setVariant(variant)
     }
 
@@ -336,7 +337,7 @@ class SimulationManager : ViewModel() {
             while (!isCancelled) {
                 currentRun++
                 val item = searchQueries.random()
-                try { ApiClient.inventoryLookup(item) } catch (_: Exception) {}
+                try { ApiClient.inventoryLookup(item) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
                 delay(stepDelay)
             }
 
@@ -395,31 +396,31 @@ class SimulationManager : ViewModel() {
         val arr = ApiClient.getBrowse().optJSONArray("products")
         if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
         else listOf("prod_a1b2c3")
-    } catch (_: Exception) { listOf("prod_a1b2c3") }
+    } catch (ce: CancellationException) { throw ce } catch (_: Exception) { listOf("prod_a1b2c3") }
 
     private suspend fun fetchSearchIds(): List<String> = try {
         val arr = ApiClient.search(searchQueries.random()).optJSONArray("products")
         if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
         else listOf("prod_a1b2c3")
-    } catch (_: Exception) { listOf("prod_a1b2c3") }
+    } catch (ce: CancellationException) { throw ce } catch (_: Exception) { listOf("prod_a1b2c3") }
 
     private suspend fun fetchFeaturedIds(): List<String> = try {
         val arr = ApiClient.getFeatured().optJSONArray("featured_products")
         if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
         else listOf("prod_a1b2c3")
-    } catch (_: Exception) { listOf("prod_a1b2c3") }
+    } catch (ce: CancellationException) { throw ce } catch (_: Exception) { listOf("prod_a1b2c3") }
 
     private suspend fun fetchCategoryNames(): List<String> = try {
         val arr = ApiClient.getCategories().optJSONArray("categories")
         if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("name", "Electronics") }.ifEmpty { listOf("Electronics") }
         else listOf("Electronics")
-    } catch (_: Exception) { listOf("Electronics") }
+    } catch (ce: CancellationException) { throw ce } catch (_: Exception) { listOf("Electronics") }
 
     private suspend fun fetchCategoryProductIds(cat: String): List<String> = try {
         val arr = ApiClient.getCategoryProducts(cat).optJSONArray("products")
         if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
         else listOf("prod_a1b2c3")
-    } catch (_: Exception) { listOf("prod_a1b2c3") }
+    } catch (ce: CancellationException) { throw ce } catch (_: Exception) { listOf("prod_a1b2c3") }
 
     /**
      * Simulates a force-quit (swipe-up from recents) on the ProductDetail screen.
@@ -655,7 +656,7 @@ class SimulationManager : ViewModel() {
 
         // ── Step 1: Welcome ──────────────────────────────────────────────
         nc.navigate(Screen.Welcome.route) { popUpTo(Screen.Welcome.route) { inclusive = true } }
-        try { ApiClient.getWelcome() } catch (_: Exception) {}
+        try { ApiClient.getWelcome() } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
         delay(stepDelay)
 
         // ── Step 2: Discovery — randomly pick Browse, Search, or Categories
@@ -671,29 +672,39 @@ class SimulationManager : ViewModel() {
             SimVariant.VARIANT_B -> if (discoveryRoll < 0.25) 0 else if (discoveryRoll < 0.50) 1 else 2
             SimVariant.CONTROL   -> (0..2).random()
         }
-        when (discoveryChoice) {
-            0 -> {
-                // Browse
-                nav(nc, Screen.Browse.route)
-                productIds = fetchBrowseIds()
-                source = "browse"
-            }
-            1 -> {
-                // Search
-                nav(nc, Screen.Search.route)
-                productIds = fetchSearchIds()
-                source = "search"
-            }
-            else -> {
-                // Categories → CategoryBrowse
-                nav(nc, Screen.Categories.route)
-                val cats = fetchCategoryNames()
-                val cat = cats.random()
-                nav(nc, Screen.CategoryBrowse(cat).route)
-                productIds = fetchCategoryProductIds(cat)
-                source = "categories"
+        // bitdrift SDK: isolates the discovery-method fetch (whichever of
+        // browse/search/categories this run rolled) as its own sub-phase of
+        // product_discovery, rather than lumping it in with the ProductDetail and
+        // Reviews steps that follow.
+        // POC: event tracking — sub-phase waterfall within an existing span. Demo-only
+        // caveat: the branch is a randomized per-variant roll, so this reflects
+        // whichever endpoint got hit that run, not one stable operation.
+        val discovered = CaptureBridge.trackSpanSuspend(
+            "discovery_fetch", parentSpanId = discoverySpan?.id
+        ) {
+            when (discoveryChoice) {
+                0 -> {
+                    // Browse
+                    nav(nc, Screen.Browse.route)
+                    fetchBrowseIds() to "browse"
+                }
+                1 -> {
+                    // Search
+                    nav(nc, Screen.Search.route)
+                    fetchSearchIds() to "search"
+                }
+                else -> {
+                    // Categories → CategoryBrowse
+                    nav(nc, Screen.Categories.route)
+                    val cats = fetchCategoryNames()
+                    val cat = cats.random()
+                    nav(nc, Screen.CategoryBrowse(cat).route)
+                    fetchCategoryProductIds(cat) to "categories"
+                }
             }
         }
+        productIds = discovered.first
+        source = discovered.second
 
         // ── Maybe visit Featured — A skips it (15%), B always browses (75%)
         val featuredProb = when (activeVariant) {
@@ -711,23 +722,37 @@ class SimulationManager : ViewModel() {
         val pid = productIds.random()
 
         // ── Step 3: ProductDetail ────────────────────────────────────────
-        nav(nc, Screen.ProductDetail(source, pid).route)
-        try { ApiClient.getProduct(pid) } catch (_: Exception) {}
+        // bitdrift SDK: wraps ProductDetail + the maybe-Reviews visit as one
+        // product_discovery sub-phase. maybeInjectForceQuit() aborts the *whole
+        // journey*, not just this span — a bare `return` inside the lambda would only
+        // exit the lambda, so the abort is signalled out via the return value and the
+        // real return happens after the span has closed normally.
+        // POC: event tracking — sub-phase waterfall within product_discovery.
+        val forceQuitInjected = CaptureBridge.trackSpanSuspend(
+            "product_view", parentSpanId = discoverySpan?.id
+        ) {
+            nav(nc, Screen.ProductDetail(source, pid).route)
+            try { ApiClient.getProduct(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
 
-        // Force-quit injection: fires after ProductDetail renders + API completes.
-        // Simulates the user swiping up from recents on an uninteresting product page.
-        if (maybeInjectForceQuit()) return
-
-        // ── Maybe visit Reviews — A rarely does (10%), B almost always does (90%)
-        val reviewsProb = when (activeVariant) {
-            SimVariant.CONTROL   -> 0.5
-            SimVariant.VARIANT_A -> 0.10  // trusts the product, skips reviews
-            SimVariant.VARIANT_B -> 0.90  // reads every review before deciding
+            // Force-quit injection: fires after ProductDetail renders + API completes.
+            // Simulates the user swiping up from recents on an uninteresting product page.
+            if (maybeInjectForceQuit()) {
+                true
+            } else {
+                // ── Maybe visit Reviews — A rarely does (10%), B almost always does (90%)
+                val reviewsProb = when (activeVariant) {
+                    SimVariant.CONTROL   -> 0.5
+                    SimVariant.VARIANT_A -> 0.10  // trusts the product, skips reviews
+                    SimVariant.VARIANT_B -> 0.90  // reads every review before deciding
+                }
+                if (Math.random() < reviewsProb) {
+                    nav(nc, Screen.Reviews(source, pid).route)
+                    try { ApiClient.getReviews(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
+                }
+                false
+            }
         }
-        if (Math.random() < reviewsProb) {
-            nav(nc, Screen.Reviews(source, pid).route)
-            try { ApiClient.getReviews(pid) } catch (_: Exception) {}
-        }
+        if (forceQuitInjected) return
 
         // ── Maybe visit Wishlist — A almost never (5%), B very often (75%)
         val wishlistProb = when (activeVariant) {
@@ -736,17 +761,31 @@ class SimulationManager : ViewModel() {
             SimVariant.VARIANT_B -> 0.75  // saves many items before committing
         }
         if (Math.random() < wishlistProb) {
-            nav(nc, Screen.Wishlist(pid).route)
-            try { ApiClient.addToWishlist(pid) } catch (_: Exception) {}
+            // bitdrift SDK: only opens when the roll actually adds to wishlist, so it
+            // doesn't inflate the discovery-phase span count on runs that skip it.
+            // POC: event tracking — sub-phase waterfall within product_discovery.
+            CaptureBridge.trackSpanSuspend("wishlist_add", parentSpanId = discoverySpan?.id) {
+                nav(nc, Screen.Wishlist(pid).route)
+                try { ApiClient.addToWishlist(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
+            }
         }
 
         // ── Step 4: Cart — add items; A adds just 1, B loads up with 3-5
         val cartItems = mutableListOf(pid)
         nav(nc, Screen.Cart(pid).route)
-        try { ApiClient.addToCart(pid) } catch (_: Exception) {}
+        try { ApiClient.addToCart(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
         // Discovery phase complete — first item is in the cart.
         discoverySpan?.end(SpanResult.SUCCESS, mapOf("source" to source, "product_id" to pid))
 
+        // bitdrift SDK: wraps the whole cart-assembly block — extra items, view,
+        // maybe-remove, maybe-empty-and-rebuild, maybe-flip, final view — as one
+        // sibling span alongside product_discovery and checkout, parented on the
+        // journey span. Previously this ran inside no span at all.
+        // POC: event tracking — multi-step cart operations as one measurable
+        // sub-phase. Demo-only caveat: the branch counts are variant-driven random
+        // walks and the interspersed delay(stepDelay) calls are artificial demo
+        // pacing, so raw duration mixes both with real API time.
+        CaptureBridge.trackSpanSuspend("cart_assembly", parentSpanId = journeySpan?.id) {
         val extraCount = when (activeVariant) {
             SimVariant.CONTROL   -> (1..3).random()   // 1-3 extra
             SimVariant.VARIANT_A -> (0..1).random()   // usually 1 item, occasionally grabs a second
@@ -755,12 +794,12 @@ class SimulationManager : ViewModel() {
         for (i in 0 until extraCount) {
             val extraPid = productIds.random()
             cartItems.add(extraPid)
-            try { ApiClient.addToCart(extraPid, quantity = (1..3).random()) } catch (_: Exception) {}
+            try { ApiClient.addToCart(extraPid, quantity = (1..3).random()) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
             delay(stepDelay)
         }
 
         // View the cart
-        try { ApiClient.getCart() } catch (_: Exception) {}
+        try { ApiClient.getCart() } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
         delay(stepDelay)
 
         // Maybe remove an item — A almost never (10%), B almost always (90%)
@@ -772,7 +811,7 @@ class SimulationManager : ViewModel() {
         if (Math.random() < removeProb && cartItems.size > 1) {
             val removeIdx = cartItems.indices.random()
             val removePid = cartItems.removeAt(removeIdx)
-            try { ApiClient.deleteCartItem(removePid) } catch (_: Exception) {}
+            try { ApiClient.deleteCartItem(removePid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
             delay(stepDelay)
         }
 
@@ -784,14 +823,14 @@ class SimulationManager : ViewModel() {
         }
         if (Math.random() < emptyCartProb) {
             for (item in cartItems.toList()) {
-                try { ApiClient.deleteCartItem(item) } catch (_: Exception) {}
+                try { ApiClient.deleteCartItem(item) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
                 delay(stepDelay)
             }
             cartItems.clear()
             // Re-add one product so checkout works
             val rePid = productIds.random()
             cartItems.add(rePid)
-            try { ApiClient.addToCart(rePid) } catch (_: Exception) {}
+            try { ApiClient.addToCart(rePid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
             delay(stepDelay)
         }
 
@@ -803,15 +842,16 @@ class SimulationManager : ViewModel() {
         }
         if (Math.random() < flipProb && cartItems.isNotEmpty()) {
             val flippedPid = cartItems.random()
-            try { ApiClient.deleteCartItem(flippedPid) } catch (_: Exception) {}
+            try { ApiClient.deleteCartItem(flippedPid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
             delay(stepDelay)
-            try { ApiClient.addToCart(flippedPid, quantity = (1..5).random()) } catch (_: Exception) {}
+            try { ApiClient.addToCart(flippedPid, quantity = (1..5).random()) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
             delay(stepDelay)
         }
 
         // View cart one more time before checkout
-        try { ApiClient.getCart() } catch (_: Exception) {}
+        try { ApiClient.getCart() } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
         delay(stepDelay)
+        }
 
         // ── Cart abandonment — A (impulsive): 15%, Control: 5%, B (deliberate): 0%
         val cartAbandonProb = when (activeVariant) {
@@ -859,14 +899,14 @@ class SimulationManager : ViewModel() {
         val session: String
         if (isGuest) {
             nav(nc, Screen.CheckoutGuest(checkoutPid).route)
-            session = try { ApiClient.checkoutGuest().optString("checkout_session", "") } catch (_: Exception) { "" }
+            session = try { ApiClient.checkoutGuest().optString("checkout_session", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
             // ANR injection: fires after the checkout API call completes, which
             // gives Compose time to render the screen and establish window focus.
             // The Sankey shows CheckoutGuest → (dropout) since Payment is never reached.
             if (maybeInjectGuestAnr(isGuest)) return
         } else {
             nav(nc, Screen.CheckoutSignIn(checkoutPid).route)
-            session = try { ApiClient.checkoutSignIn().optString("checkout_session", "") } catch (_: Exception) { "" }
+            session = try { ApiClient.checkoutSignIn().optString("checkout_session", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
         }
 
         // ── Checkout dropout — Guest (Variant A): 35%, SignIn (Variant B): 5%, Control: 0%
@@ -929,23 +969,32 @@ class SimulationManager : ViewModel() {
         }
         val willPaymentFail = Math.random() < failureProb
 
-        val orderId: String
-        when (paymentChoice) {
-            0 -> {
-                nav(nc, Screen.PaymentCard(session).route)
-                orderId = try { ApiClient.payCard(session).optString("order_id", "") } catch (_: Exception) { "" }
-            }
-            1 -> {
-                nav(nc, Screen.PaymentApplePay(session).route)
-                orderId = try { ApiClient.payApplePay(session).optString("order_id", "") } catch (_: Exception) { "" }
-            }
-            2 -> {
-                nav(nc, Screen.PaymentPayPal(session).route)
-                orderId = try { ApiClient.payPayPal(session).optString("order_id", "") } catch (_: Exception) { "" }
-            }
-            else -> {
-                nav(nc, Screen.PaymentAndroidPay(session).route)
-                orderId = try { ApiClient.payAndroidPay(session).optString("order_id", "") } catch (_: Exception) { "" }
+        // bitdrift SDK: the actual payment-processing sub-phase of checkout —
+        // previously bundled into `checkout`'s own duration along with checkout-entry
+        // and confirmation. `retried` distinguishes this first attempt from the retry
+        // below on the span itself; note the bd-shop-22 charts aggregate both
+        // regardless, the field is for ad-hoc filtering.
+        // POC: event tracking — sub-phase waterfall within checkout.
+        val orderId: String = CaptureBridge.trackSpanSuspend(
+            "checkout.payment", mapOf("retried" to "false"), checkoutSpan?.id
+        ) {
+            when (paymentChoice) {
+                0 -> {
+                    nav(nc, Screen.PaymentCard(session).route)
+                    try { ApiClient.payCard(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
+                }
+                1 -> {
+                    nav(nc, Screen.PaymentApplePay(session).route)
+                    try { ApiClient.payApplePay(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
+                }
+                2 -> {
+                    nav(nc, Screen.PaymentPayPal(session).route)
+                    try { ApiClient.payPayPal(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
+                }
+                else -> {
+                    nav(nc, Screen.PaymentAndroidPay(session).route)
+                    try { ApiClient.payAndroidPay(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
+                }
             }
         }
 
@@ -970,30 +1019,33 @@ class SimulationManager : ViewModel() {
                 // Pick a different payment method for retry
                 val retryMethods = listOf(0, 1, 2, 3).filter { it != paymentChoice }
                 val retryChoice = retryMethods.random()
-                val retryMethod: String
-                val retryOrderId: String
-                when (retryChoice) {
-                    0 -> {
-                        nav(nc, Screen.PaymentCard(session).route)
-                        retryOrderId = try { ApiClient.payCard(session).optString("order_id", "") } catch (_: Exception) { "" }
-                        retryMethod = "card"
-                    }
-                    1 -> {
-                        nav(nc, Screen.PaymentApplePay(session).route)
-                        retryOrderId = try { ApiClient.payApplePay(session).optString("order_id", "") } catch (_: Exception) { "" }
-                        retryMethod = "apple_pay"
-                    }
-                    2 -> {
-                        nav(nc, Screen.PaymentPayPal(session).route)
-                        retryOrderId = try { ApiClient.payPayPal(session).optString("order_id", "") } catch (_: Exception) { "" }
-                        retryMethod = "paypal"
-                    }
-                    else -> {
-                        nav(nc, Screen.PaymentAndroidPay(session).route)
-                        retryOrderId = try { ApiClient.payAndroidPay(session).optString("order_id", "") } catch (_: Exception) { "" }
-                        retryMethod = "android_pay"
+                // Retry gets its own checkout.payment span instance, tagged
+                // retried=true, so a retried attempt's latency isn't silently merged
+                // into the first attempt's.
+                val retried = CaptureBridge.trackSpanSuspend(
+                    "checkout.payment", mapOf("retried" to "true"), checkoutSpan?.id
+                ) {
+                    when (retryChoice) {
+                        0 -> {
+                            nav(nc, Screen.PaymentCard(session).route)
+                            (try { ApiClient.payCard(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }) to "card"
+                        }
+                        1 -> {
+                            nav(nc, Screen.PaymentApplePay(session).route)
+                            (try { ApiClient.payApplePay(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }) to "apple_pay"
+                        }
+                        2 -> {
+                            nav(nc, Screen.PaymentPayPal(session).route)
+                            (try { ApiClient.payPayPal(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }) to "paypal"
+                        }
+                        else -> {
+                            nav(nc, Screen.PaymentAndroidPay(session).route)
+                            (try { ApiClient.payAndroidPay(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }) to "android_pay"
+                        }
                     }
                 }
+                val retryOrderId: String = retried.first
+                val retryMethod: String = retried.second
                 ScreenLogger.logInfo(
                     "payment_retry",
                     mapOf(
@@ -1011,7 +1063,11 @@ class SimulationManager : ViewModel() {
                 Logger.logInfo(
                     mapOf("_screen_name" to "Confirmation", "payment_retried" to "true", "retry_method" to retryMethod)
                 ) { "confirmation_reached" }
-                try { ApiClient.getConfirmation(retryOrderId) } catch (_: Exception) {}
+                // bitdrift SDK: closes the checkout waterfall (entry -> payment ->
+                // confirmation) as its own sub-phase.
+                CaptureBridge.trackSpanSuspend("checkout.confirmation", parentSpanId = checkoutSpan?.id) {
+                    try { ApiClient.getConfirmation(retryOrderId) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
+                }
                 delay(200L)
                 checkoutSpan?.end(SpanResult.SUCCESS, mapOf("payment_method" to retryMethod, "retried" to "true"))
                 journeySpan?.end(SpanResult.SUCCESS)
@@ -1031,7 +1087,10 @@ class SimulationManager : ViewModel() {
                 SimVariant.CONTROL -> "random"; SimVariant.VARIANT_A -> "guest"; SimVariant.VARIANT_B -> "signin"
             })
         ) { "confirmation_reached" }
-        try { ApiClient.getConfirmation(orderId) } catch (_: Exception) {}
+        // bitdrift SDK: closes the checkout waterfall — see the retry path above.
+        CaptureBridge.trackSpanSuspend("checkout.confirmation", parentSpanId = checkoutSpan?.id) {
+            try { ApiClient.getConfirmation(orderId) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
+        }
         // Extra settle time so Compose's DisposableEffect fires logScreenView("Confirmation")
         // before the next journey's startNewSession() clears session-level flag state.
         delay(200L)

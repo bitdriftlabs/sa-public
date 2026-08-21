@@ -41,8 +41,22 @@ class ShoppingDemoApp : Application() {
         // request for the lifetime of this process. Not persisted — re-added on each start.
         // POC: insights & visualization — slice any dashboard, Workflow, or alert by global field value
         Logger.addField("app_variant", "sdk-demo")
+        // Matches the iOS app's `platform` field so a single chart can group or filter
+        // across both apps. The span names are already identical between platforms, so
+        // this field is the missing piece for cross-platform comparison — without it the
+        // only discriminator is `app_id`, which works but reads as an opaque bundle id.
+        Logger.addField("platform", "android")
 
         installCrashLoopHandler()
+
+        // bitdrift SDK: opens the `app_cold_start` root span plus its `sdk_init` child.
+        // Everything above — Logger.start() itself, setEntityId, addField, the
+        // crash-loop handler install — is what `sdk_init` measures, so this must be
+        // the last statement here, not the first.
+        // POC: event tracking — granular per-phase cold-start histograms plus a
+        // Timeline waterfall, instead of one opaque TTI number. See ColdStartSpans
+        // and bd-shop-20 in workflows/.
+        ColdStartSpans.beginRoot()
     }
 
     private fun installCrashLoopHandler() {

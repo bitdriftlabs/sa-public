@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import ai.bitdrift.shop.BuildConfig
 import io.bitdrift.capture.Capture.Logger
+import kotlin.coroutines.cancellation.CancellationException
 import io.bitdrift.capture.CaptureResult
 import io.bitdrift.capture.LogLevel
 import kotlinx.coroutines.launch
@@ -50,8 +51,28 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
     var crashLoopOn by remember { mutableStateOf(crashLoopPrefs.getBoolean(ShoppingDemoApp.KEY_ACTIVE, false)) }
 
     LaunchedEffect(Unit) {
-        try { apiData = ApiClient.getWelcome() } catch (_: Exception) {}
-        latestSdkVersion = try { ApiClient.fetchLatestSdkVersion() } catch (_: Exception) { null }
+        // bitdrift SDK: trackSpanSuspend() wraps the load, and the span records FAILURE
+        // if either request fails — but the two requests stay independent, as they were
+        // before instrumentation: a failing `getWelcome()` must not stop the SDK-version
+        // indicator from loading. Hence per-call `bestEffort` (which still lets
+        // cancellation reach the span) plus an explicit failure signal, rather than one
+        // try that abandons the second call on the first error.
+        // POC: event tracking — screen-level "time to data ready".
+        // The throw below is what marks the span FAILURE; it must not escape the
+        // LaunchedEffect, where an uncaught exception would take the app down.
+        try {
+            CaptureBridge.trackSpanSuspend("welcome_screen_load") {
+                val welcome = CaptureBridge.bestEffort { ApiClient.getWelcome() }
+                val version = CaptureBridge.bestEffort { ApiClient.fetchLatestSdkVersion() }
+                apiData = welcome
+                latestSdkVersion = version
+                if (welcome == null || version == null) {
+                    throw IllegalStateException("welcome_screen_load: partial failure")
+                }
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (_: Exception) {}
     }
 
     val subtitle = apiData?.let {
@@ -560,7 +581,12 @@ fun BrowseScreen(navController: NavController, simulationManager: SimulationMana
     var catalogJson by remember { mutableStateOf("[]") }
 
     LaunchedEffect(Unit) {
+        // bitdrift SDK: trackSpanSuspend() wraps the load. The span sits OUTSIDE the
+        // try so a thrown error reaches it as FAILURE — inside, the existing catch
+        // would swallow it and every span would record SUCCESS regardless of outcome.
+        // POC: event tracking — screen-level "time to data ready".
         try {
+          CaptureBridge.trackSpanSuspend("browse_screen_load") {
             apiData = ApiClient.getBrowse()
             catalogJson = ApiClient.getFullCatalogJson()
             val arr = apiData?.optJSONArray("products")
@@ -568,6 +594,7 @@ fun BrowseScreen(navController: NavController, simulationManager: SimulationMana
                 firstProductId = arr.getJSONObject(0).optString("id", "")
                 products = (0 until arr.length()).map { arr.getJSONObject(it) }
             }
+          }
         } catch (_: Exception) {}
     }
 
@@ -576,8 +603,14 @@ fun BrowseScreen(navController: NavController, simulationManager: SimulationMana
         // bitdrift SDK: trackSpan() wraps the scoring work and records its duration in the session
         // timeline; ends SUCCESS on return, FAILURE on throw.
         // POC: event tracking — unsampled duration histogram (p50/p95) for any operation
-        Logger.trackSpan("score_products", LogLevel.INFO, mapOf("product_id" to pid, "screen_name" to "Browse")) {
-            RecommendationEngine.scoreProducts(catalogJson, pid)
+        // Uses CaptureBridge.trackSpanNested rather than Logger.trackSpan: the SDK
+        // helper doesn't hand the span to its block, so the parse_catalog /
+        // similarity_pass children inside scoreProducts would have no parent to nest
+        // under and would render as unrelated flat spans.
+        CaptureBridge.trackSpanNested(
+            "score_products", mapOf("product_id" to pid, "screen_name" to "Browse")
+        ) { span ->
+            RecommendationEngine.scoreProducts(catalogJson, pid, span?.id)
         }
     } else emptyList()
 
@@ -830,10 +863,19 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
     var catalogJson by remember { mutableStateOf("[]") }
 
     LaunchedEffect(pid) {
+        // bitdrift SDK: trackSpanSuspend() wraps the load. The span sits OUTSIDE the
+        // try so a thrown error reaches it as FAILURE — inside, the existing catch
+        // would swallow it and every span would record SUCCESS regardless of outcome.
+        // POC: event tracking — screen-level "time to data ready".
         try {
-            apiData = ApiClient.getProduct(pid)
-            if (simulationManager?.recommendationsV2Enabled == true) {
-                catalogJson = ApiClient.getFullCatalogJson()
+            CaptureBridge.trackSpanSuspend(
+                "product_detail_load",
+                mapOf("rec_v2" to (simulationManager?.recommendationsV2Enabled == true).toString()),
+            ) {
+                apiData = ApiClient.getProduct(pid)
+                if (simulationManager?.recommendationsV2Enabled == true) {
+                    catalogJson = ApiClient.getFullCatalogJson()
+                }
             }
         } catch (_: Exception) {}
     }
@@ -842,8 +884,14 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
         // bitdrift SDK: trackSpan() wraps the scoring work and records its duration in the session
         // timeline; ends SUCCESS on return, FAILURE on throw.
         // POC: event tracking — unsampled duration histogram (p50/p95) for any operation
-        Logger.trackSpan("score_products", LogLevel.INFO, mapOf("product_id" to pid, "screen_name" to "ProductDetail")) {
-            RecommendationEngine.scoreProducts(catalogJson, pid)
+        // Uses CaptureBridge.trackSpanNested rather than Logger.trackSpan: the SDK
+        // helper doesn't hand the span to its block, so the parse_catalog /
+        // similarity_pass children inside scoreProducts would have no parent to nest
+        // under and would render as unrelated flat spans.
+        CaptureBridge.trackSpanNested(
+            "score_products", mapOf("product_id" to pid, "screen_name" to "ProductDetail")
+        ) { span ->
+            RecommendationEngine.scoreProducts(catalogJson, pid, span?.id)
         }
     } else emptyList()
 
@@ -946,8 +994,14 @@ fun CartScreen(navController: NavController, productId: String?) {
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(pid) {
+        // bitdrift SDK: trackSpanSuspend() wraps the load. The span sits OUTSIDE the
+        // try so a thrown error reaches it as FAILURE — inside, the existing catch
+        // would swallow it and every span would record SUCCESS regardless of outcome.
+        // POC: event tracking — screen-level "time to data ready".
         try {
-            apiData = if (pid.isNotEmpty()) ApiClient.addToCart(pid) else ApiClient.getCart()
+            CaptureBridge.trackSpanSuspend("cart_screen_load") {
+                apiData = if (pid.isNotEmpty()) ApiClient.addToCart(pid) else ApiClient.getCart()
+            }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable captures the exception in the session timeline.
             Logger.logError(mapOf("product_id" to pid), throwable = e) { "cart_failed" }
@@ -1109,9 +1163,15 @@ fun CheckoutGuestScreen(navController: NavController, productId: String?) {
     var checkoutSession by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        // bitdrift SDK: trackSpanSuspend() wraps the load. The span sits OUTSIDE the
+        // try so a thrown error reaches it as FAILURE — inside, the existing catch
+        // would swallow it and every span would record SUCCESS regardless of outcome.
+        // POC: event tracking — screen-level "time to data ready".
         try {
-            apiData = ApiClient.checkoutGuest()
-            checkoutSession = apiData?.optString("checkout_session", "") ?: ""
+            CaptureBridge.trackSpanSuspend("checkout_screen_load", mapOf("checkout_type" to "guest")) {
+                apiData = ApiClient.checkoutGuest()
+                checkoutSession = apiData?.optString("checkout_session", "") ?: ""
+            }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records checkout failures in the session timeline.
             Logger.logError(mapOf("checkout_type" to "guest"), throwable = e) { "checkout_failed" }
@@ -1159,7 +1219,11 @@ fun CheckoutSignInScreen(navController: NavController, productId: String?) {
     val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(Unit) {
+        // bitdrift SDK: trackSpanSuspend() wraps the load, outside the try so a throw
+        // reaches the span as FAILURE rather than being swallowed. See welcome_screen_load.
+        // POC: event tracking — screen-level "time to data ready".
         try {
+          CaptureBridge.trackSpanSuspend("checkout_screen_load", mapOf("checkout_type" to "signin")) {
             apiData = ApiClient.checkoutSignIn()
             checkoutSession = apiData?.optString("checkout_session", "") ?: ""
             // bitdrift SDK: addField() sets user_id on the session so every subsequent log is tagged
@@ -1171,6 +1235,7 @@ fun CheckoutSignInScreen(navController: NavController, productId: String?) {
                     .edit().putString("user_id", userId).apply()
                 Logger.addField("user_id", userId)
             }
+          }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records checkout failures in the session timeline.
             Logger.logError(mapOf("checkout_type" to "signin"), throwable = e) { "checkout_failed" }
@@ -1221,9 +1286,15 @@ fun PaymentCardScreen(navController: NavController, checkoutSession: String?) {
     var orderId by remember { mutableStateOf("") }
 
     LaunchedEffect(session) {
+        // bitdrift SDK: trackSpanSuspend() wraps the payment call, outside the try so a
+        // throw reaches the span as FAILURE. This is the real payment-processing
+        // sub-phase — the one place a processor-style latency distribution shows up.
+        // POC: event tracking — screen-level "time to data ready".
         try {
-            apiData = ApiClient.payCard(session)
-            orderId = apiData?.optString("order_id", "") ?: ""
+            CaptureBridge.trackSpanSuspend("payment_screen_load", mapOf("payment_method" to "card")) {
+                apiData = ApiClient.payCard(session)
+                orderId = apiData?.optString("order_id", "") ?: ""
+            }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records payment failures in the session timeline.
             Logger.logError(mapOf("payment_method" to "card"), throwable = e) { "payment_failed" }
@@ -1281,9 +1352,15 @@ fun PaymentApplePayScreen(navController: NavController, checkoutSession: String?
     var orderId by remember { mutableStateOf("") }
 
     LaunchedEffect(session) {
+        // bitdrift SDK: trackSpanSuspend() wraps the payment call, outside the try so a
+        // throw reaches the span as FAILURE. This is the real payment-processing
+        // sub-phase — the one place a processor-style latency distribution shows up.
+        // POC: event tracking — screen-level "time to data ready".
         try {
-            apiData = ApiClient.payApplePay(session)
-            orderId = apiData?.optString("order_id", "") ?: ""
+            CaptureBridge.trackSpanSuspend("payment_screen_load", mapOf("payment_method" to "apple_pay")) {
+                apiData = ApiClient.payApplePay(session)
+                orderId = apiData?.optString("order_id", "") ?: ""
+            }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records payment failures.
             Logger.logError(mapOf("payment_method" to "apple_pay"), throwable = e) { "payment_failed" }
@@ -1327,9 +1404,15 @@ fun PaymentPayPalScreen(navController: NavController, checkoutSession: String?) 
     var orderId by remember { mutableStateOf("") }
 
     LaunchedEffect(session) {
+        // bitdrift SDK: trackSpanSuspend() wraps the payment call, outside the try so a
+        // throw reaches the span as FAILURE. This is the real payment-processing
+        // sub-phase — the one place a processor-style latency distribution shows up.
+        // POC: event tracking — screen-level "time to data ready".
         try {
-            apiData = ApiClient.payPayPal(session)
-            orderId = apiData?.optString("order_id", "") ?: ""
+            CaptureBridge.trackSpanSuspend("payment_screen_load", mapOf("payment_method" to "paypal")) {
+                apiData = ApiClient.payPayPal(session)
+                orderId = apiData?.optString("order_id", "") ?: ""
+            }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records payment failures.
             Logger.logError(mapOf("payment_method" to "paypal"), throwable = e) { "payment_failed" }
@@ -1374,9 +1457,14 @@ fun PaymentAndroidPayScreen(navController: NavController, checkoutSession: Strin
     var orderId by remember { mutableStateOf("") }
 
     LaunchedEffect(session) {
+        // bitdrift SDK: trackSpanSuspend() wraps the payment call, outside the try so a
+        // throw reaches the span as FAILURE. See payment_screen_load on the card screen.
+        // POC: event tracking — screen-level "time to data ready".
         try {
-            apiData = ApiClient.payAndroidPay(session)
-            orderId = apiData?.optString("order_id", "") ?: ""
+            CaptureBridge.trackSpanSuspend("payment_screen_load", mapOf("payment_method" to "android_pay")) {
+                apiData = ApiClient.payAndroidPay(session)
+                orderId = apiData?.optString("order_id", "") ?: ""
+            }
         } catch (e: Exception) {
             Logger.logError(mapOf("payment_method" to "android_pay"), throwable = e) { "payment_failed" }
         }
@@ -1455,7 +1543,15 @@ fun ConfirmationScreen(navController: NavController, orderId: String?) {
     val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(oid) {
-        try { apiData = ApiClient.getConfirmation(oid) } catch (_: Exception) {}
+        // bitdrift SDK: trackSpanSuspend() wraps the load. The span sits OUTSIDE the
+        // try so a thrown error reaches it as FAILURE — inside, the existing catch
+        // would swallow it and every span would record SUCCESS regardless of outcome.
+        // POC: event tracking — screen-level "time to data ready".
+        try {
+            CaptureBridge.trackSpanSuspend("confirmation_screen_load") {
+                apiData = ApiClient.getConfirmation(oid)
+            }
+        } catch (_: Exception) {}
     }
 
     val crashLoopActive = remember {

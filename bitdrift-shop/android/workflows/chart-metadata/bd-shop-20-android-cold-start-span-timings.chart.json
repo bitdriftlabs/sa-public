@@ -1,0 +1,102 @@
+[
+  {
+    "rule_id": "hist-root",
+    "metadata": {
+      "title": "Cold start \u2014 total (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-sdk-init",
+    "metadata": {
+      "title": "sdk_init \u2014 Logger.start() + config (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-scene-render",
+    "metadata": {
+      "title": "scene_render \u2014 Compose stand-up to startup effect (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-state-restore",
+    "metadata": {
+      "title": "state_restore \u2014 demo flag/prefs bookkeeping (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-compared",
+    "metadata": {
+      "title": "All phases compared (one line per phase)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  }
+]
