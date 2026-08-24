@@ -22,7 +22,7 @@ The order is tuned for a proof-of-concept: stand up the SDK (1–3), then light 
 
 ## Setup — install the skills first
 
-These prompts assume your agent (Claude Code, Cursor, Codex, Copilot, or any skills-compatible agent) has bitdrift's skills installed:
+These prompts assume your agent (Cursor, Codex, Copilot, or any skills-compatible agent) has bitdrift's skills installed:
 
 - **bd-instrumentation** — installs and instruments the Capture SDK; detects the platform and whether the SDK is already present, then does a fresh install or extends an existing integration. This is the skill Steps 1–18 drive.
 - **bd-docs** — fetches live bitdrift documentation at query time.
