@@ -418,22 +418,48 @@ the first run to surface prompt-level ambiguities rather than outright errors. D
   The v1.3 runbook now asks that skill for things it has no guidance on. That is the weakest link
   in the new defaults, and it is a **separate repo** (`bitdriftlabs/bd-skills`), not this branch.
 
-### 11.3 Known gaps in the guides, not yet addressed
+### 11.3 Known gaps in the guides — three of four now closed
 
-Found during the SDK 0.23.12 review and deliberately left alone:
+Found during the SDK 0.23.12 review and deliberately left alone at the time. Worked 2026-08-24;
+outcomes below so none of this research is repeated.
 
-- **Field and log-message scrubbing** (SDK 0.23.4) appears nowhere in the guides. It is not in the
-  platform API surface, so it looks server-side — worth confirming via bd-docs. A PII-scrubbing
+- **Field and log-message scrubbing** (SDK 0.23.4) — **still open, deliberately deferred.** Not in
+  the platform API surface, so it looks server-side; worth confirming via bd-docs. A PII-scrubbing
   step is arguably missing from a guide aimed at customer POCs, where privacy review is often the
   gating item.
-- **`sleepMode`** gets one line in Step 2. If minimal-activity mode matters to POC framing it
-  deserves more.
-- **Span volume vs. log budget** (§9) is still unanswered: is there a documented per-session
-  log-volume ceiling to cite when recommending ~20 spans? High-frequency spans are the concern —
-  a per-transition persistence span, a per-row image-load span.
-- **Open question 3** — whether a future POC scope V2.1 should carry an explicit span /
-  journey-performance criterion, now that the default output supports one. Unlike 1 and 2, the test
-  pass does not answer this; it is a product/scope-template call.
+- **`sleepMode`** — **closed, no change needed.** The premise ("deserves more") turned out to be
+  wrong: there is no more to say that is both true and useful. The docs are near-silent (one ObjC
+  snippet, one changelog rename), but the SDK source settles the two facts that matter, and the
+  guide's existing Step 2 line was already correct on both:
+  - Default is **disabled on both platforms** — Android `Configuration.kt`, `val sleepMode:
+    SleepMode = SleepMode.DISABLED`; iOS swiftinterface, `sleepMode: SleepMode = .disabled` in both
+    `Configuration.init` and the `start(...)` convenience. The docs' `sleepMode:NO` is an *ObjC*
+    artifact — `CAPConfiguration`'s `@objc` inits require the parameter, while Swift and Kotlin
+    default it. Not evidence of a default either way.
+  - It is **runtime-toggleable**, not start-time only — `Capture.setSleepMode()` is public/static on
+    both platforms, forwarding to the core's `setSleepModeEnabled(loggerId, enabled)`.
+  - **What it actually suppresses remains unknown** and is not knowable from either platform's
+    source: the Kotlin/Swift layers forward a boolean to the Rust core. The only prose anywhere is
+    the enum's own doc comment, "Capture will operate in minimal activity mode." Ask bitdrift
+    directly if a customer ever needs specifics; do not assert them.
+- **Span volume vs. log budget** (§9) — **closed, written into Step 10** as a "Span volume"
+  subsection, mirrored into the agent runbook's Step 10 row. Answer: **no documented per-app or
+  per-session emission ceiling and no span-count budget**; the docs actively encourage free
+  emission (the SDK uploads nothing by default). ~20 spans is neither supported nor contradicted —
+  there is no span-count guidance at all. The four real numbers now cited in the guide: a span is
+  **two logs** (confirmed on the Spans page — start/end share a span ID); **Record Session streams
+  up to 100,000 logs** per capture, configurable per action; the ring buffer is **5 MiB disk /
+  2 MiB RAM**, oldest-evicted; **cardinality limits (500 client dims/interval) bite on group-by
+  fields, not span counts**. Backpressure **drops logs rather than blocking**. Note that bitdrift
+  documents *no* warning about high-frequency spans — the guide's caution is arithmetic from their
+  published numbers, and is worded so it does not read as their guidance. This also resolved a
+  live conflict: Step 10 had been recommending per-row image loads and per-transition I/O with no
+  caveat at all.
+- **Open question 3** — **closed as far as this repo can close it.** Recorded in the guide's POC
+  success-criteria section as a recommendation to whoever owns the scope template, with suggested
+  wording ("Per-step latency percentiles across a complete user journey, charted alongside funnel
+  conversion"). The decision itself is a product/scope-template call this repo does not own, and
+  the test pass does not answer it.
 
 ### 11.4 Merge
 

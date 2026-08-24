@@ -224,7 +224,16 @@ This is a change from spanning one hand-picked flow, and the reason is that a si
 
 Naming: stable `snake_case`, dot-separated for children (`app_cold_start.sdk_init`, `score_products.similarity_pass`). Use **identical span names on every platform** so one chart can compare iOS and Android by filtering on a `platform` global field ([Step 8](#8-attach-global-fields)); different names per platform means two charts you can never put side by side.
 
-Beyond screens and phases, span whatever the app's own hot paths are — custom networking (PRE-4), a heavy compute pass, per-row image loads, I/O that runs on every transition.
+Beyond screens and phases, span whatever the app's own hot paths are — custom networking (PRE-4), a heavy compute pass, and — subject to the volume note below — per-row image loads or I/O that runs on every transition.
+
+**Span volume.** There is no documented per-app or per-session emission ceiling and no span-count budget — the SDK uploads nothing by default, so emitting is cheap by design. The ~20 spans this step yields on a typical app is nowhere near any documented limit. Four numbers do constrain you, and only the high-frequency spans above get near them:
+
+- **A span is two logs** — a start and an end sharing one span ID. Double it wherever a log count matters.
+- **Record Session streams up to 100,000 logs** per capture (configurable per action). At two logs a span, a per-row or per-transition span is what exhausts this, not twenty named ones.
+- **The ring buffer is byte-bounded** — 5 MiB disk / 2 MiB RAM by default, oldest-evicted. More logs per session buys a *shorter retained window*, not an error.
+- **Cardinality limits bite on group-by fields, not span counts** — 500 client dimensions per aggregation interval. A span carrying a high-cardinality field is the risk; twenty span names are not.
+
+Under backpressure the SDK **drops logs rather than blocking**, so over-spanning degrades data silently rather than slowing the app. Prefer a sampled or aggregate span to a per-row one.
 
 ### 10b. Span hygiene — check every span against this list
 
@@ -488,6 +497,8 @@ This guide's own `SC-n` / `PRE-n` legend — what each ID means and the step(s) 
 | PRE-6 | Entities | **5** |
 
 > **Every POC criterion above maps to at least one step**, including SC-12 (Web views) as of Step 6 — though WebView instrumentation is **experimental on both platforms**, so scope it as a POC risk rather than a settled capability, and confirm the current API via bd-docs before committing to it in a scope document.
+
+**A gap in the criteria, not in the coverage.** SC-1 asks for p50/p90/p99 of "key flows," and its test plan asks for 2–3 of them. Since v1.2 the Step 10 default produces per-step percentiles for *every* screen and journey phase — so a POC now delivers journey-performance data that no criterion actually asks for. It lands as a bonus under SC-1 rather than as something the customer agreed in advance to be shown. If you own the POC scope template, consider an explicit criterion in a future revision: *"Per-step latency percentiles across a complete user journey, charted alongside funnel conversion."* That is a scope-template call, not a guide one — recorded here so it isn't lost.
 
 ---
 
