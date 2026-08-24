@@ -4,6 +4,10 @@
 
 Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.23.10` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
 
+For the no-SDK comparison target, see [`android-clean/`](../android-clean/). It
+keeps the shopping flow and fault scenarios without Capture SDK configuration or
+generated observability artifacts.
+
 This is community-contributed content provided for educational purposes only.
 
 > ⚠️ **Run `./scripts/watchdog.sh` before enabling Crash Loop, ANR-A, or Force-Quit** (Advanced screen) — these modes deliberately crash, freeze, or kill the app, and without the watchdog relaunching it the emulator gets stuck. Fast Crash Mode fires too fast to stop from the UI — use `adb` instead. Details: [Crash Loop](README-refs.md#crash-loop), [ANR-A](README-refs.md#anr-a-guest-journey-testing), [Force-Quit](README-refs.md#force-quit-journey-testing).

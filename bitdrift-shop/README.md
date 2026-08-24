@@ -2,7 +2,7 @@
 
 **Version 1.0**
 
-A full-stack e-commerce demo that generates realistic mobile shopping traffic — browsing, searching, cart management, checkout, and payment — with built-in journey simulation and chaos testing. It exists to exercise the **bitdrift Capture SDK** across platforms with lifelike sessions.
+A full-stack e-commerce demo that generates realistic mobile shopping traffic — browsing, searching, cart management, checkout, and payment — with built-in journey simulation and chaos testing. It includes both SDK-instrumented apps and cleaned copies for validating the instrumentation guide.
 
 Each app implements the same 16-screen shopping flow and the same probabilistic simulation logic, and all of them talk to one shared backend.
 
@@ -11,12 +11,14 @@ Each app implements the same 16-screen shopping flow and the same probabilistic 
 | App | Folder | Stack | Platforms / minimum OS |
 |-----|--------|-------|------------------------|
 | **Android** | [android/](android/) | Kotlin, Jetpack Compose, Material 3 (Kotlin 2.x, AGP 8.x) | Android — `minSdk 26` (Android 8.0), compiled against SDK 36 |
-| **iOS** | [ios/](ios/) | 100% native Swift + SwiftUI (capture-ios 0.23.11 via SPM; no ObjC, no KMP) | iOS — deployment target 16.0 |
+| **iOS** | [ios/](ios/) | Native Swift + SwiftUI, SDK-instrumented | iOS — deployment target 16.0 |
+| **iOS clean** | [ios-clean/](ios-clean/) | Native Swift + SwiftUI, no observability SDK | iOS — deployment target 16.0 |
+| **Android clean** | [android-clean/](android-clean/) | Kotlin, Jetpack Compose, no observability SDK | Android — `minSdk 26` |
 | **React Native** | [reactnative/](reactnative/) | TypeScript, React Native 0.77, React 18, React Navigation | Android and iOS (iOS deployment target 13.4) |
 | **Kotlin Multiplatform- Work in Process** | [kotlin-multiplatform/](kotlin-multiplatform/) | Kotlin 2.1 shared logic; Jetpack Compose (Android) + SwiftUI (iOS) | Android — `minSdk 26`; iOS app — deployment target 16.0 |
 | **Backend** | [backend/](backend/) | Python 3.10+, FastAPI, Uvicorn | Runs locally (tested on macOS) |
 
-> **iOS** has a native SwiftUI app in [ios/](ios/), and also ships through the React Native app and the Kotlin Multiplatform iOS app. All apps included here are the **SDK-instrumented** variants.
+> **iOS** has an SDK-instrumented native SwiftUI app in [ios/](ios/) and a cleaned counterpart in [ios-clean/](ios-clean/). Android follows the same pattern with [android/](android/) and [android-clean/](android-clean/). React Native and Kotlin Multiplatform remain separate app variants.
 >
 > The native iOS app is a direct port of the Android one — same 19 screens, same probabilistic simulation, and the same event, field, screen, and span names — so both feed the same `bd-shop-*` workflows and can be compared side by side. Where the platform left no choice (self-relaunch after a crash, ANR, frame-jank detection), [ios/README.md](ios/README.md#how-this-differs-from-the-android-app) documents the deviation.
 

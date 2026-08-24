@@ -18,6 +18,9 @@ This is a port of [`android/`](../android/) — same 19 screens, same probabilis
 simulation, same event and field names — so both platforms feed the same
 `bd-shop-*` workflows and dashboards and can be compared side by side.
 
+For the no-SDK comparison target, see [`ios-clean/`](../ios-clean/). It keeps the
+same app flow and backend integration without Capture SDK configuration.
+
 This is community-contributed content provided for educational purposes only.
 
 > ⚠️ **Run `./scripts/watchdog.sh` before enabling Crash, OOMs, Hang-A, or Quit**
