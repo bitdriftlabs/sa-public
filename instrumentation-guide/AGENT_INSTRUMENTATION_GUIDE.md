@@ -21,6 +21,17 @@ execution order, and verification gates phrased as checkable assertions.
 > for input unless a step's decision rule explicitly says `ASK`. Stop immediately on any
 > `HALT` condition and report which gate failed.
 
+> **Execution scopes.** Use `local-only` for app changes and static/runtime SDK
+> validation (Steps 1–18); use `full-poc` for account workflows, CUJ, dashboards,
+> and the evaluation readout (Steps 19–20). If the user does not specify a scope,
+> ask once before accessing account resources. Never infer authorization for
+> account-wide or destructive changes.
+
+> **Build policy.** Builds and tests are recommended evidence, not mandatory gates.
+> If the user asks not to build, do not build: mark the build portion of each gate
+> `DEFERRED` and complete the static and runtime checks that are possible. A build
+> must never be reported as PASS unless it actually ran successfully.
+
 ---
 
 ## 0. Preflight — run first, HALT on any failure
@@ -31,14 +42,15 @@ the exact failing check; do not proceed or attempt repairs unless noted.
 | # | Check | How to verify | On failure |
 |---|-------|---------------|------------|
 | P1 | `bd` CLI installed | `bd --version` exits 0 | HALT: instruct user to `brew tap bitdriftlabs/bd && brew install bd` |
-| P2 | `bd` authenticated | `bd auth status` (or first authed command) succeeds | HALT: instruct user to run `bd auth`, or set `BD_API_KEY` for CI |
-| P3 | Skills installed | `bd-instrumentation`, `bd-docs`, `bd-cli` resolvable. **Also `bd-cuj` whenever Step 19 is in scope — which the no-scope default in §1 always includes**, so treat it as mandatory unless Step 19 was explicitly excluded. There are exactly four bitdrift skills; crash classification lives in **bd-cli**'s IssueMatch recipes, not a separate skill | HALT: `npx skills add bitdriftlabs/bd-skills` |
+| P2 | `bd` authenticated | `bd auth` succeeds interactively, or a harmless authenticated read succeeds when `BD_API_KEY` is already set for automation | HALT: instruct user to run `bd auth`, or set `BD_API_KEY` for CI |
+| P3 | Skills installed | `bd-instrumentation` and `bd-docs` resolvable; add `bd-cli` and `bd-cuj` only for `full-poc` Step 19 work | HALT: `npx skills add bitdriftlabs/bd-skills` |
 | P4 | Skills/CLI current | (best-effort) `brew upgrade` + `npx skills update --all` | WARN only; continue |
 | P5 | Target platform detected | bd-instrumentation reports android / ios / react-native | HALT if undetectable |
-| P6 | SDK key available | locate key (Admin → SDK Keys) in env, config, or user-provided | If absent → `ASK` user once for the SDK key; HALT if not supplied |
+| P6 | SDK key available | required for runtime upload/full POC; local-only static work may use a documented placeholder or skip runtime upload | For full POC, `ASK` user once for the SDK key; HALT if not supplied |
 | P7 | Clean working tree | `git status --porcelain` is empty (or user accepts dirty) | WARN; continue (so changes are reviewable in a clean diff) |
-| P8 | Baseline build passes | platform build succeeds **before** any change | HALT: a red baseline makes later gates meaningless |
+| P8 | Baseline state recorded | inspect source/config and run the platform build if permitted | WARN if the build is skipped; HALT only when the baseline cannot be understood |
 | P9 | Residue from a previous run | `grep -rn "bitdrift SDK:\|POC:\|trackSpan\|CaptureBridge"` and skim the README for a "what's instrumented" section | WARN; continue, **and say so in the run report**. Leftover docs or comments from an earlier instrumentation pass are a *specification*, not a discovery — a run that copies them has not tested this runbook's defaults. Note precisely which decisions were pre-supplied |
+| P10 | Effective local configuration | inspect `.xcconfig`, `local.properties`, environment, and ignored config for backend URLs, SDK keys, recursive includes, and stale host addresses | WARN and record the effective values; never expose secrets in the report |
 
 Record platform from P5 — it selects the verification commands in §3 and the platform notes
 in the human guide.
@@ -69,7 +81,8 @@ silently unless the user has already stated a preference this session. Only the 
 | CUJ flow to automate | 19 | `ASK` once — bd-cuj needs to know which flow is business-critical (e.g. checkout, onboarding, login). Skip this half of Step 19 only if told to stop at raw instrumentation. |
 | POC dashboards to build | 19 | Build the 3 default dashboards (Stability, Business/UX, Entities/Support) unless the scope says otherwise. |
 | Evaluation readout | 20 | Run whenever a POC scope was provided (map to its criteria). If no scope was given, run it anyway as a generic step-coverage summary rather than skipping. |
-| Scope (which steps) | all | If a **POC scope** is provided → instrument exactly the steps whose POC criteria are in scope (see §2 column). If **no scope** given → run the **PoC core: steps 1–10**, plus 14/15/16 where the relevant framework is auto-detected, plus **19** (crash workflows/CUJ/dashboards — the highest-visibility output) and **20** (readout). Steps 11, 12, 13, 18 only on request or when their criterion is in the POC scope. **Step 17 is different** — it is verification of an already-enabled default, so not running it leaves session replay on, which is the wanted state; run it when SC-9 is in scope and you need the overhead measured. |
+| Execution scope | all | Use `local-only` for Steps 1–18; use `full-poc` for Steps 1–20. If unspecified, ask once before Step 19/account access rather than assuming authorization. |
+| Scope (which steps) | all | If a **POC scope** is provided → instrument exactly the steps whose POC criteria are in scope (see §2 column). If scope is `local-only` → run Steps 1–18 and stop before account-side work. If scope is `full-poc` → run Steps 1–20. Steps 11, 12, 13, 18 remain opt-in unless their criterion is in scope. **Step 17 is different** — it verifies the enabled default and must be reported when SC-9 is in scope. |
 
 ---
 
@@ -77,9 +90,9 @@ silently unless the user has already stated a preference this session. Only the 
 
 Dispatch by step: **Steps 1–18** run through the **bd-instrumentation** skill using the prompt
 from the source guide (linked); **Step 19** is server-side and runs through **bd-cli** (IssueMatch
-recipes for crash classification, plus dashboard composition) and **bd-cuj**; **Step 20** is document generation and uses no skill. After every
-step, run its gate. **HALT on a failed gate** — do not continue to the next step on a broken
-build.
+ recipes for crash classification, plus dashboard composition) and **bd-cuj**; **Step 20** is document generation and uses no skill. After every
+step, run its gate. **HALT on a failed mandatory static/runtime gate.** A skipped
+build is recorded as `DEFERRED`, not treated as a failure or a pass.
 
 | Order | Step | POC criteria | Prompt source | Gate (must pass before next step) |
 |-------|------|--------------|---------------|-----------------------------------|
@@ -103,6 +116,11 @@ build.
 | 18 | Cross-link existing crash reporter *(if detected)* | SC-3 | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) | Builds; session URL attached as a custom key/tag |
 | 19 | Crash workflows + CUJ + POC dashboards | SC-3, SC-7, SC-11 | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | Driven by **bd-cli** + **bd-cuj**, not bd-instrumentation. Crash workflow(s) deployed and LIVE; CUJ stack (Sankey/funnel/SLO/alert/session-capture/dashboard) deployed for the ASK'd flow; 3 POC dashboards composed and viewable; **span-percentile charts present on the Business/UX dashboard**, labeled distinctly from bd-cuj's wall-clock step timing |
 | 20 | Evaluation readout | All in-scope | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) | Every in-scope criterion has a named artifact + a `bd-cli` command or portal link proving it |
+
+Build text in the step table means “recommended verification.” For every step, the
+agent must still run the static gate, record changed files, and check the affected
+code path. If a build is allowed, run it at the natural milestone rather than
+forcing a full rebuild after every prompt.
 
 > ⚠️ **Step 6 cardinality gate (hard requirement, not advisory).** Any path with a dynamic
 > segment (id/uuid) **must** get a stable path template before this step passes. Unbounded
@@ -151,10 +169,13 @@ build.
 Run all of these after the last in-scope step. Each is pass/fail; the run is **green only if
 all pass**.
 
-**V1 — Build is clean.** Platform build exits 0:
+**V1 — Build status is recorded.** A platform build is recommended, but optional:
 - Android: `./gradlew clean && ./gradlew build`
 - iOS: `xcodebuild ... build` (or the project's scheme build) exits 0
 - React Native: `pod install` (iOS) succeeds **and** the app bundles
+
+If builds were skipped by instruction, report `DEFERRED` with the reason. Do not
+call V1 PASS.
 
 **V2 — Instrumentation is present.** Source contains the SDK and a logger-start call:
 - Android: `grep -rq "io.bitdrift" .`
@@ -188,6 +209,20 @@ maps to a step that ran (per the §2 column and the
 criterion, assert it is covered; **FAIL V6** and list any in-scope criterion with no
 completed step. Note: SC-3/SC-4/SC-6/SC-10 are satisfied by automatic instrumentation once
 Step 2 ran — confirm they appear in the dashboard as part of V4.
+
+**V7 — Call-site integrity.** After each removal or signature change, search for
+orphaned imports, deleted helper names, stale parameters, suspend/non-suspend
+overload ambiguity, and references to deleted API methods. This gate is mandatory
+even when builds are deferred.
+
+**V8 — Runtime configuration.** Record the effective backend host and SDK-key
+source without printing secrets. Confirm local reachability before starting a
+simulation; a screen showing fallback data is not a successful runtime check.
+
+**V9 — Run artifacts.** Store the preflight, prompt transcript, diffs, gate results,
+and runtime evidence under `guidetest/runs/<date>/<platform>/<scope>/` or another
+path explicitly named in the run report. Exclude build outputs, IDE caches, and
+ignored local-secret files from commits and evidence bundles.
 
 **V7 — Workflows and dashboards are live, not just deployed.** If Step 19 ran, use **bd-cli**
 to confirm the crash workflow(s) and the bd-cuj CUJ stack transitioned to **LIVE** status (not

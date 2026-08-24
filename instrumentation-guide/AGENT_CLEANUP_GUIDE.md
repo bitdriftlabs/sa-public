@@ -15,6 +15,15 @@ a strict reverse order, and verification gates phrased as checkable assertions.
 > an intermediate break is transient and a final build tells you nothing the greps in §3 don't.
 > Verifying the project still compiles is the **caller's** responsibility, not a gate here.
 
+> **Scope modes.** `local-only` removes app instrumentation and local artifacts;
+> `full-revert` also removes the evaluation readout; account-side Step 19 deletion
+> always requires explicit confirmation. Never delete server resources merely
+> because the user asked to clean the local app.
+
+> **Build policy.** A build is recommended after cleanup but is not mandatory. If
+> the user says not to build, perform the static gates below and report the build as
+> `DEFERRED`; do not claim the project compiles.
+
 ---
 
 ## 0. Preflight — run first, HALT on any failure
@@ -22,11 +31,12 @@ a strict reverse order, and verification gates phrased as checkable assertions.
 | # | Check | How to verify | On failure |
 |---|-------|---------------|------------|
 | P1 | Skills installed | `bd-instrumentation`, `bd-docs` resolvable. **Also `bd-cli`, unless the request explicitly excludes Step 19** | HALT: `npx skills add bitdriftlabs/bd-skills` |
-| P1b | `bd` usable *(required unless Step 19 is explicitly out of scope)* | `bd --version` exits 0 **and** `bd auth status` succeeds | HALT: `brew install bd` / `bd auth`. Checking this upfront avoids completing every local removal and only then failing at account cleanup |
+| P1b | `bd` usable *(required unless Step 19 is explicitly out of scope)* | `bd --version` exits 0 **and** `bd auth` succeeds interactively, or a harmless authenticated read succeeds when `BD_API_KEY` is already set | HALT: `brew install bd` / `bd auth`. Checking this upfront avoids completing every local removal and only then failing at account cleanup |
 | P2 | Source state detected | Run the **V1** grep from §3, check for a local evaluation readout, **and — unless Step 19 is explicitly out of scope — query `bd-cli` for existing Step 19 workflows/dashboards** | Establishes what actually needs removing. Never halts on its own |
 | P3 | Something to remove | P2 found SDK references, a readout, or (when queried) Step 19 workflows/dashboards | HALT with "already baseline" only when everything P2 checked is empty |
 | P3b | Platform detected *(only if P2 found SDK references)* | android / ios / react-native | HALT if undetectable **and** app code needs removing. If P2 found no SDK references, skip this and P4 and run the **server-side-and-artifacts-only path** — platform detection is irrelevant when there is no app code to clean |
 | P4 | Clean working tree | `git status --porcelain` empty (or user accepts dirty) | WARN; continue (keeps the removal diff reviewable) |
+| P5 | Local configuration and generated files | inspect ignored `.xcconfig`, `local.properties`, `.gradle`, `.idea`, `build`, DerivedData, and generated workflow/dashboard directories | WARN; preserve user-owned local files and exclude them from the cleanup diff unless explicitly requested |
 
 Record platform from P3b — it selects the verification commands in §3. On a server-side-only run there is no platform to record and §3's grep gates do not apply.
 
@@ -108,6 +118,16 @@ that set, then discard the readout.
 The cleanup is **green only if all pass**. There is deliberately no build gate — see §2. If the
 caller needs a compiling project, they build it themselves; a green run here asserts that the
 references are gone, not that the app still compiles.
+
+**V5 — Call-site integrity.** After each reverse-order removal, search for orphaned
+imports, deleted helper names, stale parameters, suspend/non-suspend overload
+ambiguity, and references to deleted API methods. This is mandatory even when no
+build is run; cleanup is not complete if the source has known dangling references.
+
+**V6 — Local configuration sanity.** Check effective backend URLs and local config
+includes for stale host addresses or recursive includes. Never print SDK keys or
+other secrets in the run report. Preserve ignored local configuration unless the
+user explicitly asks for it to be changed.
 
 **V1 — No SDK references remain.** Each grep must return **nothing**:
 - Android: `grep -r "io.bitdrift" .`
