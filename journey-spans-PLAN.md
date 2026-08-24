@@ -527,3 +527,83 @@ Scope to settle when it's picked up: parameterising bundle id / package / activi
 any app; whether it covers physical devices or simulators/emulators only; and whether it stays
 shell or becomes something an agent drives directly. Keep it independent of this branch — it is
 not a prerequisite for merging, and it should not hold up §8.2.
+
+---
+
+## 12. Session log — 2026-08-24 (second session)
+
+### 12.1 What got done
+
+§11.3 closed except PII scrubbing — see the rewritten §11.3 above for outcomes and sources.
+Committed and pushed as `5ff20bf`. No PR: raising one was considered and dropped mid-session.
+
+### 12.2 Test target — decided, after ruling two out
+
+**Chosen: a stripped copy of the iOS app**, at `bitdrift-shop/ios-clean`.
+
+- **React Native — rejected.** A three-way parity sweep found the RN *app* already at parity (all
+  19 screens, identical route names, full 7-step journey, logger start, session strategy, screen
+  views, entity ID, custom logs, global fields, feature flags). The gaps are all demo-control
+  machinery, and three of them are large: no persisted demo state (React `useState` only, so every
+  chaos flag dies with the process), no launch-argument intake (no NSArgumentDomain equivalent), no
+  state-publish file or watchdog scripts. Two findings make it wrong regardless of effort: RN has
+  **no span API**, and this branch is entirely about spans — so a run there exercises the
+  paired-log shim, not the Step 4/10 pairing. And `reactnative/ios/ShopDemoRN/BdCrash.m` has **zero
+  references in `project.pbxproj`**, so native signals, true ANR and force-quit silently degrade to
+  JS errors; the crash/ANR demos on RN-iOS are currently fiction. Bundle ids also diverge
+  (`ShopDemoRN`), so no existing `bd-shop-*` workflow matches RN sessions.
+- **Checking out a pre-span commit — rejected** by the user (no testing against old versions). For
+  the record, it was viable: the span work is exactly `be444d2` (iOS) and `1cae16b` (Android), and
+  iOS at `be444d2~1` was span-free while already having all 19 screens instrumented.
+
+### 12.3 State of `bitdrift-shop/ios-clean` — READ THIS BEFORE RESUMING
+
+- It is a **byte-identical copy** of `bitdrift-shop/ios/`, and `.local.xcconfig` came with it. So it
+  carries the **same API key and the same bundle id, `ai.bitdrift.shop.ios`** — to the bitdrift
+  platform this copy *is* the production demo app.
+- **Change the bundle id in `.local.xcconfig` before any live run.** Otherwise its sessions land in
+  the real `bd-shop` app beside live POC data, and V10 ("every span name has live data") cannot be
+  read honestly.
+- It is **untracked and not gitignored** — it shows up in `git status` on this branch. Decide
+  whether to ignore it or move it out of the repo.
+- Nothing in it has been modified. Cleanup was **not started**.
+
+### 12.4 Cleanup preflight — done, all gates recorded
+
+Ran against `AGENT_CLEANUP_GUIDE.md`. P2: 10 of 20 Swift files reference Capture. P3: pass.
+P3b: platform `ios`. P4: WARN (untracked copy), accepted. **P5: baseline build PASSES** — verified
+green with the command in §12.5.
+
+**Step 19 (order 1) was explicitly declined by the user and must stay out of scope.** The copy's 19
+local workflow JSONs and 6 dashboard JSONs mirror the *real* `bd-shop-*` account resources that the
+live iOS and Android apps depend on. Deleting them would destroy production POC assets. Record it
+in the run report as intentionally kept.
+
+### 12.5 Resuming the cleanup
+
+Build/verify command:
+
+```
+cd bitdrift-shop/ios-clean && xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop \
+  -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/iosclean-dd build
+```
+
+Carry these scoping decisions forward — the runbook does not address them:
+
+- **Preserve** `scripts/demo-lib.sh`, `scripts/watchdog.sh`, `scripts/check-demo-state.sh`. They are
+  headless app-driving tooling needed for the later test (§11.6), not bitdrift instrumentation.
+  Remove bitdrift-specific scripts (`upload-symbols.sh`, `deploy-workflows.sh`).
+- **Leave credential values** in `local.xcconfig` / `.local.xcconfig` — needed to re-instrument.
+- There is an **"Upload bitdrift Symbols" run script build phase** in the target (order 9 / Step 12).
+- The SPM dependency is **`capture-ios`** (order 20 / Step 1).
+
+A 720K source snapshot was taken at `/tmp/ios-clean-snapshot`. **`/tmp` is ephemeral — assume it is
+gone.** `bitdrift-shop/ios/` is the real source of truth; re-copy from there if needed.
+
+### 12.6 A runbook finding, already
+
+`AGENT_CLEANUP_GUIDE.md` §2 demands a build gate after **each** of orders 3–20. On iOS that is 18
+`xcodebuild` runs, roughly 40+ minutes, which is impractical enough that any real run will deviate.
+The guide should either say which orders genuinely need their own gate, or sanction checkpoint
+builds explicitly. Logged here as the first §8.2 finding — it came from preparing the run, not
+even from executing it.
