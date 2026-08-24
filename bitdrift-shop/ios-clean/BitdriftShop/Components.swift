@@ -38,11 +38,6 @@ enum Palette {
 /// Same call shape as `AsyncImage(url:content:placeholder:)`, so every call site
 /// only needed the type name swapped.
 ///
-/// bitdrift SDK: trackSpan() wraps the network fetch (`URLSession.shared.data`)
-/// plus `UIImage` decode as one `product_image_load` span per row.
-/// POC: event tracking — per-image load latency; a screen with N product rows
-/// produces N of these, so a histogram shows the shape of image-loading cost
-/// across a whole list, not just an aggregate page-load number.
 struct SpannedAsyncImage<Content: View, Placeholder: View>: View {
     let url: URL?
     @ViewBuilder let content: (Image) -> Content
@@ -66,20 +61,9 @@ struct SpannedAsyncImage<Content: View, Placeholder: View>: View {
             // permanently if the new url is nil or the fetch fails.
             uiImage = nil
             guard let url else { return }
-            // Errors deliberately escape the span body rather than being swallowed by a
-            // `try?`: with `try?` the body returned nil *normally*, so trackSpan ended
-            // every span `.success` — a failed or cancelled load was recorded as a
-            // successful one, with its duration polluting the histogram. Letting the
-            // error propagate lets trackSpan mark it `.failure` (or `.canceled`, which
-            // `.task(id:)` produces routinely on view teardown / url change), and the
-            // catch here keeps the placeholder showing exactly as before.
             do {
-                uiImage = try await CaptureBridge.trackSpan(
-                    "product_image_load", fields: ["url": url.absoluteString]
-                ) { _ -> UIImage? in
-                    let (data, _) = try await URLSession.shared.data(from: url)
-                    return UIImage(data: data)
-                }
+                let (data, _) = try await URLSession.shared.data(from: url)
+                uiImage = UIImage(data: data)
             } catch {
                 uiImage = nil
             }
@@ -102,15 +86,9 @@ struct ScreenContainer<Content: View>: View {
     let color: Color
     var imageURL: String?
     var showLogo = false
-    var latestSDKVersion: String?
     var onBack: (() -> Void)?
     var onCart: (() -> Void)?
     @ViewBuilder var content: () -> Content
-
-    private var isSDKOutdated: Bool {
-        guard let latestSDKVersion else { return false }
-        return latestSDKVersion != AppConfig.captureSDKVersion
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -186,16 +164,6 @@ struct ScreenContainer<Content: View>: View {
                     .padding(.horizontal, 24)
                     .padding(.vertical, 18)
                     .background(Palette.logoBackdrop, in: RoundedRectangle(cornerRadius: 12))
-
-                Text("SDK v\(AppConfig.captureSDKVersion)\(isSDKOutdated ? " ⚑" : "")")
-                    .font(.caption)
-                    .foregroundStyle(isSDKOutdated ? Palette.orange : Color.secondary)
-
-                if isSDKOutdated, let latestSDKVersion {
-                    Text("v\(latestSDKVersion) available")
-                        .font(.caption2)
-                        .foregroundStyle(Palette.orange.opacity(0.75))
-                }
 
                 Text("App v\(AppConfig.appVersion)")
                     .font(.caption)

@@ -65,7 +65,7 @@ enum Screen: Hashable {
         }
     }
 
-    /// The name reported to `Logger.logScreenView`. Matches Android's
+    /// The name reported for this screen. Matches Android's
     /// `destinationToScreenName()` exactly — these values are what the Sankey
     /// and per-screen crash analytics group on.
     var screenName: String {

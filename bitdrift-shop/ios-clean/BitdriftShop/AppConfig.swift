@@ -9,8 +9,7 @@ import Foundation
 enum AppConfig {
 
     /// bitdrift API key — what the platform calls this credential, and the name
-    /// the SDK itself uses (`Logger.start(withAPIKey:)`). The same key authorizes
-    /// the build-time dSYM upload in `scripts/upload-symbols.sh`.
+    /// the platform uses for API access.
     ///
     /// Empty means the SDK still starts but never uploads — the Welcome screen's
     /// Device Code button surfaces that as `needs_api_key`.
@@ -69,11 +68,6 @@ enum AppConfig {
     static var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
-
-    /// The Capture SDK version this build actually linked against, reported by
-    /// the SDK itself rather than hardcoded — so the Welcome screen can never
-    /// claim a version the binary doesn't match.
-    static var captureSDKVersion: String { CaptureBridge.sdkVersion }
 
     // MARK: - Private
 

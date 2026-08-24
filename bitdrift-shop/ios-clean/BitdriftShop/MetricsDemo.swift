@@ -1,4 +1,3 @@
-import Capture
 import Foundation
 
 /// Five waveform metrics (sine/square/sawtooth/triangle/dc) plus a per-tick
@@ -11,22 +10,8 @@ import Foundation
 /// Also carries the "grouping of metrics" demo: `metric_work_latency_ms`
 /// simulates a release history across five versions, each with a visibly
 /// different latency distribution. The tick loop auto-rotates to a random
-/// version every `versionRotationSeconds` (via `Logger.addField`, exactly like
-/// `app_variant` / `ff_*` elsewhere in this app) so a grouped chart fills out
-/// with all five series on its own. In a real app this dimension is just the
-/// SDK's built-in `app_version` field — it is faked here only so a multi-version
-/// grouped chart can be demoed from one build in one session.
-///
-/// Session handling: a workflow only evaluates sessions that started *after* it
-/// went live — an already-open session never retroactively shows up in a newly
-/// created workflow's charts, even while it is actively emitting matching
-/// events. Rather than requiring a manual kill-and-relaunch after every workflow
-/// change, `start()` and the tick loop call `Logger.startNewSession()`
-/// immediately and then every `sessionRotationSeconds` while running, so there
-/// is always a recent session boundary for whatever workflow is currently
-/// deployed to pick up. This rotates the *app-wide* session, not just metrics
-/// telemetry — avoid running Metrics at the same time as a shopping-journey demo
-/// you need to read as one continuous session.
+/// version every `versionRotationSeconds` so a grouped chart fills out with all
+/// five series on its own.
 enum SimAppVersion: String, CaseIterable {
     case baseline = "4.0.0"
     case regressed = "4.1.0"
@@ -83,11 +68,6 @@ final class MetricsDemoManager: ObservableObject {
 
     private func start() {
         isRunning = true
-        Logger.addField(withKey: "sim_app_version", value: simVersion.label)
-        // Fresh session boundary right away — see the type doc for why. Whatever
-        // workflow is deployed at this moment sees everything from here on,
-        // without a relaunch.
-        Logger.startNewSession()
 
         tickTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -95,12 +75,8 @@ final class MetricsDemoManager: ObservableObject {
                 if Task.isCancelled { return }
                 guard let self else { return }
                 self.elapsedSeconds += 1
-                if self.elapsedSeconds % Self.sessionRotationSeconds == 0 {
-                    Logger.startNewSession()
-                }
                 if self.elapsedSeconds % Self.versionRotationSeconds == 0 {
                     self.simVersion = self.nextRandomVersion()
-                    Logger.addField(withKey: "sim_app_version", value: self.simVersion.label)
                 }
                 self.logTick(Double(self.elapsedSeconds))
             }

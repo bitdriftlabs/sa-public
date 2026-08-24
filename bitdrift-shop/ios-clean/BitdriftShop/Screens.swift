@@ -1,4 +1,3 @@
-import Capture
 import SwiftUI
 
 // MARK: - Step 1: Welcome
@@ -8,12 +7,6 @@ struct WelcomeScreen: View {
     @EnvironmentObject private var nav: Navigator
 
     @State private var apiData: JSON?
-    @State private var latestSDKVersion: String?
-    /// bitdrift SDK: createTemporaryDeviceCode() generates a short-lived code for
-    /// locating this device's session in the dashboard.
-    /// POC: support debugging — pull any reported session from production without
-    /// a repro case.
-    @State private var deviceCode: String?
     @State private var crashLoopOn = Prefs.crashLoop.bool(Prefs.keyActive)
 
     private var subtitle: String {
@@ -40,8 +33,7 @@ struct WelcomeScreen: View {
             step: 1,
             systemImage: "cart.fill",
             color: Palette.blue,
-            showLogo: true,
-            latestSDKVersion: latestSDKVersion
+            showLogo: true
         ) {
             PrimaryButton(title: "Browse Products", systemImage: "line.3.horizontal",
                           enabled: !sim.isSimulating) {
@@ -93,48 +85,13 @@ struct WelcomeScreen: View {
                     }
                 }
 
-                Button {
-                    Logger.createTemporaryDeviceCode { result in
-                        Task { @MainActor in
-                            switch result {
-                            case .success(let code):
-                                deviceCode = code
-                                UIPasteboard.general.string = code
-                            case .failure:
-                                deviceCode = "⚠ needs_api_key"
-                            }
-                        }
-                    }
-                } label: {
-                    Text(deviceCode ?? "Device Code")
-                        .font(deviceCode != nil ? .caption.bold() : .subheadline.bold())
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(deviceCode != nil ? Palette.blue : Color(.systemGray4))
-                .foregroundStyle(deviceCode != nil ? Color.white : Color.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-
                 SecondaryButton(title: "Advanced", systemImage: "gearshape") {
                     nav.navigate(to: .advanced)
                 }
             }
         }
         .task {
-            // bitdrift SDK: trackSpan() wraps both awaits so their combined latency —
-            // getWelcome() is local-backend, fetchLatestSDKVersion() hits a real
-            // external host (api.github.com) — shows up as one screen-load number,
-            // with each request still individually visible via the URLSession
-            // integration for finer breakdown.
-            // POC: event tracking — screen-level "time to data ready", standalone
-            // (not nested under any journey span — this fires on every Welcome visit,
-            // including simulated journey restarts).
-            await CaptureBridge.trackSpan("welcome_screen_load") { _ in
-                apiData = try? await ApiClient.getWelcome()
-                latestSDKVersion = await ApiClient.fetchLatestSDKVersion()
-            }
+            apiData = try? await ApiClient.getWelcome()
         }
         .onAppear {
             crashLoopOn = Prefs.crashLoop.bool(Prefs.keyActive)
@@ -191,8 +148,6 @@ struct AdvancedScreen: View {
                 VStack(alignment: .leading, spacing: 12) {
                     sectionHeader("Simulation Variant")
 
-                    // bitdrift SDK: setVariant() calls setFeatureFlagExposure() so
-                    // every log in the run is tagged with the active cohort.
                     HStack(spacing: 8) {
                         ForEach(SimVariant.allCases, id: \.self) { variant in
                             let selected = sim.activeVariant == variant
@@ -229,9 +184,6 @@ struct AdvancedScreen: View {
 
                     sectionHeader("Metrics Demo")
 
-                    // bitdrift SDK: once a second, logs a single metric_values event
-                    // with the waveform + counter fields, plus metric_work_latency_ms
-                    // whose distribution auto-rotates across sim_app_version on its own.
                     ToggleChipButton(
                         title: metrics.isRunning ? "Metrics: ON" : "Metrics",
                         isOn: metrics.isRunning,
@@ -244,16 +196,12 @@ struct AdvancedScreen: View {
 
                     sectionHeader("Debug Tools")
 
-                    // bitdrift SDK: addField("supportlog") tags all telemetry for
-                    // filtering during support investigations.
-                    // POC: ad-hoc debugging — filter Timeline to a specific device.
                     ToggleChipButton(
                         title: supportLogEnabled ? "Support Log: ON" : "Support Log: OFF",
                         isOn: supportLogEnabled,
                         onColor: Palette.green
                     ) {
                         supportLogEnabled.toggle()
-                        Logger.addField(withKey: "supportlog", value: String(supportLogEnabled))
                     }
                 }
             }
@@ -397,19 +345,9 @@ struct BrowseScreen: View {
     private var recommendations: [(product: JSON, score: Double)] {
         guard sim.recommendationsV2Enabled, let first = products.first else { return [] }
         let pid = first.str("id")
-        // bitdrift SDK: trackSpan() wraps the scoring work and records its
-        // duration in the session timeline; ends SUCCESS on return, FAILURE on
-        // throw. On iOS this span is the primary detection path for the jank —
-        // the OOTB DROPPED_FRAME condition is Android-only.
-        // POC: event tracking — unsampled duration histogram (p50/p95).
-        return CaptureBridge.trackSpan(
-            "score_products",
-            fields: ["product_id": pid, "screen_name": "Browse"]
-        ) { span in
-            RecommendationEngine.scoreProducts(
-                catalogJSON: catalogJSON, referenceProductID: pid, parentSpanID: span?.id
-            )
-        }
+        return RecommendationEngine.scoreProducts(
+            catalogJSON: catalogJSON, referenceProductID: pid
+        )
     }
 
     private var subtitle: String {
@@ -441,22 +379,9 @@ struct BrowseScreen: View {
             }
         }
         .task {
-            // bitdrift SDK: trackSpan() wraps the fetch; a nested child span isolates
-            // the `.serialized` re-encode of the whole product list, which is real
-            // local CPU work (only actually consumed when Rec v2 is on) rather than
-            // network wait.
-            // POC: event tracking — screen-load waterfall, standalone (fires on every
-            // Browse visit; see WelcomeScreen for why these screen-load spans don't
-            // nest under a journey span).
-            await CaptureBridge.trackSpan("browse_screen_load") { browseSpan in
-                apiData = try? await ApiClient.getBrowse()
-                products = apiData?["products"].array ?? []
-                catalogJSON = CaptureBridge.trackSpan(
-                    "catalog_serialize", parentSpanID: browseSpan?.id
-                ) { _ in
-                    apiData?["products"].serialized ?? "[]"
-                }
-            }
+            apiData = try? await ApiClient.getBrowse()
+            products = apiData?["products"].array ?? []
+            catalogJSON = apiData?["products"].serialized ?? "[]"
         }
     }
 }
@@ -632,14 +557,9 @@ struct ProductDetailScreen: View {
     /// Unmemoized on purpose — see `BrowseScreen.recommendations`.
     private var recommendations: [(product: JSON, score: Double)] {
         guard sim.recommendationsV2Enabled else { return [] }
-        return CaptureBridge.trackSpan(
-            "score_products",
-            fields: ["product_id": productID, "screen_name": "ProductDetail"]
-        ) { span in
-            RecommendationEngine.scoreProducts(
-                catalogJSON: catalogJSON, referenceProductID: productID, parentSpanID: span?.id
-            )
-        }
+        return RecommendationEngine.scoreProducts(
+            catalogJSON: catalogJSON, referenceProductID: productID
+        )
     }
 
     private var subtitle: String {
@@ -662,8 +582,6 @@ struct ProductDetailScreen: View {
                 nav.navigate(to: .productDetail(source: "browse", productID: recProductID))
             }
             PrimaryButton(title: "Add to Cart", systemImage: "plus") {
-                // bitdrift SDK: logInfo() with a stable event name and field map
-                // enables aggregation in the dashboard.
                 ScreenLogger.logInfo("add_to_cart", ["product_id": productID, "source_screen": source])
                 nav.navigate(to: .cart(productID: productID))
             }
@@ -673,19 +591,9 @@ struct ProductDetailScreen: View {
             }
         }
         .task(id: productID) {
-            // bitdrift SDK: trackSpan() wraps the product fetch and, when Rec v2 is
-            // on, the extra full-catalog fetch — duration is bimodal on that flag,
-            // same pattern as score_products' fields distinguishing why a call was
-            // slow.
-            // POC: event tracking — screen-load waterfall, standalone (fires many
-            // times per journey and outside journeys alike).
-            await CaptureBridge.trackSpan(
-                "product_detail_load", fields: ["rec_v2": String(sim.recommendationsV2Enabled)]
-            ) { _ in
-                apiData = try? await ApiClient.getProduct(productID)
-                if sim.recommendationsV2Enabled {
-                    catalogJSON = (try? await ApiClient.getFullCatalogJSON()) ?? "[]"
-                }
+            apiData = try? await ApiClient.getProduct(productID)
+            if sim.recommendationsV2Enabled {
+                catalogJSON = (try? await ApiClient.getFullCatalogJSON()) ?? "[]"
             }
         }
     }
@@ -767,8 +675,6 @@ struct CartScreen: View {
             }
 
             PrimaryButton(title: "Checkout as Guest", systemImage: "person") {
-                // bitdrift SDK: logInfo() records checkout funnel entry for
-                // conversion tracking.
                 ScreenLogger.logInfo("checkout_started", ["checkout_type": "guest"])
                 nav.navigate(to: .checkoutGuest(productID: productID))
             }
@@ -781,23 +687,12 @@ struct CartScreen: View {
             }
         }
         .task(id: productID) {
-            // bitdrift SDK: startSpan()/end() bracket the do/catch by hand — the
-            // catch here swallows its error (as the original code did) rather than
-            // rethrowing, so trackSpan's automatic throw-to-FAILURE mapping doesn't
-            // fit; ending explicitly on each branch is what makes the span still
-            // reflect a failed call's own latency.
-            // POC: event tracking — screen-load waterfall, standalone.
-            let cartSpan = Logger.startSpan(name: "cart_screen_load", level: .info)
             do {
                 apiData = productID.isEmpty
                     ? try await ApiClient.getCart()
                     : try await ApiClient.addToCart(productID)
-                cartSpan?.end(.success)
             } catch {
-                // bitdrift SDK: logError() with an error captures the exception in
-                // the session timeline.
                 ScreenLogger.logError("cart_failed", error: error, ["product_id": productID])
-                cartSpan?.end(.failure)
             }
         }
     }
@@ -814,7 +709,6 @@ struct CartScreen: View {
             Spacer()
             Text(money(item.num("line_total"))).font(.subheadline.bold())
             Button {
-                // bitdrift SDK: logInfo() records cart mutations for funnel analysis.
                 ScreenLogger.logInfo("cart_item_removed", ["product_id": itemProductID])
                 Task { apiData = try? await ApiClient.deleteCartItem(itemProductID) }
             } label: {
@@ -896,21 +790,12 @@ struct CheckoutGuestScreen: View {
             }
         }
         .task {
-            // bitdrift SDK: startSpan()/end() bracket the do/catch by hand, same
-            // reasoning as CartScreen — the catch swallows its error rather than
-            // rethrowing.
-            // POC: event tracking — screen-load waterfall.
-            let checkoutSpan = Logger.startSpan(
-                name: "checkout_screen_load", level: .info, fields: ["checkout_type": "guest"]
-            )
             do {
                 let data = try await ApiClient.checkoutGuest()
                 apiData = data
                 checkoutSession = data.str("checkout_session")
-                checkoutSpan?.end(.success)
             } catch {
                 ScreenLogger.logError("checkout_failed", error: error, ["checkout_type": "guest"])
-                checkoutSpan?.end(.failure)
             }
         }
     }
@@ -948,24 +833,10 @@ struct CheckoutSignInScreen: View {
             }
         }
         .task {
-            // bitdrift SDK: startSpan()/end() bracket the do/catch by hand, same
-            // reasoning as CartScreen — the catch swallows its error rather than
-            // rethrowing. A FAILURE-ended span here still tells you how long a
-            // failed sign-in attempt took before erroring, even though the
-            // user_id-tagging logic below only runs on success.
-            // POC: event tracking — screen-load waterfall.
-            let checkoutSpan = Logger.startSpan(
-                name: "checkout_screen_load", level: .info, fields: ["checkout_type": "signin"]
-            )
             do {
                 let data = try await ApiClient.checkoutSignIn()
                 apiData = data
                 checkoutSession = data.str("checkout_session")
-                // bitdrift SDK: addField() sets user_id on the session so every
-                // subsequent log is tagged with this user. Persisted to
-                // UserDefaults so UserIDFieldProvider survives startNewSession().
-                // POC: per-user debugging — user_id appears in the Timeline
-                // session header for instant identification.
                 // `/api/checkout/signin` returns name, email, member_since and
                 // loyalty_points — but no `id` (see backend/shopping_server.py).
                 // Reading `id` alone left user_id permanently unset, so manual
@@ -977,12 +848,9 @@ struct CheckoutSignInScreen: View {
                 let userID = user.str("id").isEmpty ? user.str("email") : user.str("id")
                 if !userID.isEmpty {
                     Prefs.userSession.set(Prefs.keyUserID, userID)
-                    Logger.addField(withKey: "user_id", value: userID)
                 }
-                checkoutSpan?.end(.success)
             } catch {
                 ScreenLogger.logError("checkout_failed", error: error, ["checkout_type": "signin"])
-                checkoutSpan?.end(.failure)
             }
         }
     }
@@ -1092,11 +960,6 @@ struct PaymentScreen: View {
                 cardOption(label: "Amex ending 1001", brand: "amex", last4: "1001", primary: false)
             } else {
                 PrimaryButton(title: "Complete Purchase", systemImage: "checkmark.circle") {
-                    // bitdrift SDK: logInfo() records payment completion. Emitted
-                    // for every method, not just card — the shared checkout-funnel
-                    // workflow keys on this event, so omitting it here silently
-                    // excluded every Apple Pay / PayPal / Android Pay completion
-                    // from the conversion numbers.
                     ScreenLogger.logInfo("payment_completed", [
                         "payment_method": method.fieldValue,
                         "order_id": orderID,
@@ -1106,25 +969,12 @@ struct PaymentScreen: View {
             }
         }
         .task(id: checkoutSession) {
-            // bitdrift SDK: startSpan()/end() bracket the do/catch by hand, same
-            // reasoning as CartScreen — the catch swallows its error rather than
-            // rethrowing. This is the actual "payment processing" sub-phase — the
-            // one place a payment-processor-style latency distribution shows up on
-            // its own, distinct from checkout entry and confirmation.
-            // POC: event tracking — screen-load waterfall.
-            let paymentSpan = Logger.startSpan(
-                name: "payment_screen_load", level: .info, fields: ["payment_method": method.fieldValue]
-            )
             do {
                 let data = try await method.call(checkoutSession)
                 apiData = data
                 orderID = data.str("order_id")
-                paymentSpan?.end(.success)
             } catch {
-                // bitdrift SDK: logError() with an error records payment failures
-                // in the session timeline.
                 ScreenLogger.logError("payment_failed", error: error, ["payment_method": method.fieldValue])
-                paymentSpan?.end(.failure)
             }
         }
     }
@@ -1132,8 +982,6 @@ struct PaymentScreen: View {
     @ViewBuilder
     private func cardOption(label: String, brand: String, last4: String, primary: Bool) -> some View {
         let tap = {
-            // bitdrift SDK: logInfo() records payment completion with method and
-            // order ID for conversion tracking.
             ScreenLogger.logInfo("payment_completed", [
                 "payment_method": brand, "card_last4": last4, "order_id": orderID,
             ])
@@ -1216,15 +1064,7 @@ struct ConfirmationScreen: View {
             onCart: { nav.navigate(to: .cart(productID: "")) }
         ) {
             Button {
-                // bitdrift SDK: startNewSession() begins a new session for the next
-                // journey, keeping each purchase flow separate in the timeline.
-                // POC: session management — clean per-user Timeline entries.
-                Logger.startNewSession()
-
-                // bitdrift SDK: removeField() clears user_id when starting a new
-                // journey — session-level logout.
                 Prefs.userSession.remove(Prefs.keyUserID)
-                Logger.removeField(withKey: "user_id")
 
                 nav.popToWelcome()
             } label: {
@@ -1238,14 +1078,7 @@ struct ConfirmationScreen: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .task(id: orderID) {
-            // bitdrift SDK: trackSpan() wraps the confirmation fetch. Trivial single
-            // call on its own — the value is completing the checkout-onward
-            // screen-load waterfall (checkout -> payment -> confirmation), not this
-            // call's own weight.
-            // POC: event tracking — screen-load waterfall.
-            await CaptureBridge.trackSpan("confirmation_screen_load") { _ in
-                apiData = try? await ApiClient.getConfirmation(orderID)
-            }
+            apiData = try? await ApiClient.getConfirmation(orderID)
         }
     }
 }

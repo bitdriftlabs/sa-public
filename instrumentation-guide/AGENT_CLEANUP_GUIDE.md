@@ -48,8 +48,28 @@ Record platform from P3b — it selects the verification commands in §3. On a s
 Dispatch by order, not uniformly: **order 1** (Step 19) goes through **bd-cli** to delete the
 resources recorded in the readout — no code involved, so the gate is confirming via bd-cli that
 each is actually gone (or explicitly skipped). **Order 2** (Step 20) is a plain file deletion — no
-skill. **Orders 3–20** go through **bd-instrumentation**. Within orders 3–20, order is fixed: call
-sites come out before the logger-start and the dependency, which comes out last.
+skill. **Orders 3–20** go through **bd-instrumentation**.
+
+Within orders 3–20 the ordering is a **recommended default, not a constraint**: call sites before
+the logger-start, dependency last. It exists to minimise transient breakage. On a **full revert**
+the end state is identical whichever way you go, and working **file-by-file** is usually faster and
+easier to review — a single file often carries five different orders' worth of call sites, and
+visiting it once beats visiting it five times. Keep to the order when doing a **partial** removal,
+where what you leave behind has to keep working.
+
+⚠️ **Documentation and comments are part of the instrumentation.** No grep in §3 catches prose,
+so this is the one category that silently survives an otherwise-green run. Two kinds:
+
+- **Docs** — a README section like "What's already instrumented", deploy instructions, dashboard
+  IDs, a project-layout table naming the helper file you just deleted.
+- **In-code comments** — rationale notes naming SDK calls, span names, or POC criteria. These
+  outnumber the call sites: a real run removed 126 such lines from 14 files after every call site
+  was already gone.
+
+Both leave the repo asserting behaviour the code no longer has. **And if the app is being cleaned
+so the instrumentation guide can be re-run against it, leaving them invalidates that test outright**
+— the next agent reads the answer instead of discovering it, and the run proves nothing. Remove the
+sections and comments; keep the app's own product documentation.
 
 ⚠️ **Order 1 before order 2 is deliberate.** The readout is usually the only record of which
 workflow and dashboard IDs this run created. Discard it first and the agent is left telling this
@@ -61,21 +81,22 @@ that set, then discard the readout.
 |-------|---------|---------------|-------|
 | 1 | Crash workflow(s), CUJ stack, POC dashboards, **and any span-timing workflows/dashboards** *(ASK before deleting — see §1)* | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | Confirm via **bd-cli** that each is actually deleted, or explicitly skipped |
 | 2 | Evaluation readout + generated artifacts *(full revert / explicit request only)* | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) | Plain file deletion |
+| 2b | **Instrumentation documentation and comments** — README/docs sections describing the instrumentation, and in-code rationale comments naming SDK calls, span names, or dashboards | — | No skill. See the ⚠️ note below the table — cheap to skip, and the single most common way a "clean" app is not clean |
 | 3 | Crash-reporter session-URL cross-linking + any `previousRunInfo` usage | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) | — |
 | 4 | Session replay — **explicitly disable** (null/nil session-replay configuration) | [Step 17](INSTRUMENTATION_GUIDE.md#17-session-replay-wireframe--on-by-default) | Replay is on in a default `Configuration`, so "reverting to defaults" leaves it running. On a full revert this is moot (order 20 removes everything); on a partial removal it is the whole point of this order |
 | 5 | Feature-flag exposure calls | [Step 16](INSTRUMENTATION_GUIDE.md#16-record-feature-flag-exposures) | — |
 | 6 | Analytics/beacon forwarding bridge | [Step 15](INSTRUMENTATION_GUIDE.md#15-forward-analytics--beacon-events) | — |
 | 7 | Log-framework forwarding bridge | [Step 14](INSTRUMENTATION_GUIDE.md#14-forward-your-existing-log-framework) | — |
 | 8 | New-session calls + field re-application | [Step 13](INSTRUMENTATION_GUIDE.md#13-new-session-on-user-logout-or-journey-reset) | — |
-| 9 | Symbol/mapping upload + manual scripts | [Step 12](INSTRUMENTATION_GUIDE.md#12-upload-symbol-files-for-readable-crash-stacks) | — |
+| 9 | Symbol/mapping upload + manual scripts | [Step 12](INSTRUMENTATION_GUIDE.md#12-upload-symbol-files-for-readable-crash-stacks) | A `scripts/` directory usually mixes **bitdrift** scripts (symbol upload, workflow deploy, any release script whose purpose is `bd debug-files`) with the **app's own** tooling (launchers, watchdogs, state readers). Delete only the first kind. Judge by purpose, not by whether `bd` appears in the file |
 | 10 | Device-code/support affordance + field | [Step 11](INSTRUMENTATION_GUIDE.md#11-implement-device-identification-for-support) | — |
 | 11 | All spans — screen-load, journey-phase, app-specific (start/end + track-span wrappers) — **and the span-helper/bridge file** added for them | [Step 10](INSTRUMENTATION_GUIDE.md#10-span-every-element-of-the-user-journey) | No orphaned helper file or import left behind |
 | 12 | App-launch TTI + **cold-start span waterfall** + process-start timestamp | [Step 9](INSTRUMENTATION_GUIDE.md#9-report-app-launch-tti--cold-start-span-waterfall) | The waterfall comes out here, not under order 11. If TTI is being kept on a partial removal, the process-start timestamp stays with it |
 | 13 | Global fields + field providers | [Step 8](INSTRUMENTATION_GUIDE.md#8-attach-global-fields) | — |
-| 14 | Structured custom logs | [Step 7](INSTRUMENTATION_GUIDE.md#7-emit-structured-custom-logs) | — |
-| 15 | Network capture + all path templates | [Step 6](INSTRUMENTATION_GUIDE.md#6-capture-network-traffic) | — |
+| 14 | Structured custom logs | [Step 7](INSTRUMENTATION_GUIDE.md#7-emit-structured-custom-logs) | ⚠️ If the app routes logging through **its own facade** that calls both bitdrift and something else (`os.log`, Timber, a print wrapper), remove the **bitdrift emission inside the facade** and leave the facade and all its call sites alone. Deleting the facade deletes the app's logging — often hundreds of call sites — which is not what "remove bitdrift" means. Applies to any bitdrift-typed helper the facade exposes (field encoders, level mappers): those go with the emission |
+| 15 | Network capture + all path templates | [Step 6](INSTRUMENTATION_GUIDE.md#6-capture-network-traffic) | Path templates are rarely one header line. They are typically a `pathTemplate:` parameter threaded through the app's request builder and every parameterised call site, so removal is a **signature change with a ripple**, not a deletion. Remove the parameter, its header write, and every argument passed to it |
 | 16 | Entity-ID calls — `setEntityId`/`setEntityID` **and** `clearEntityId`/`clearEntityID` | [Step 5](INSTRUMENTATION_GUIDE.md#5-identify-users-with-entity-id) | — |
-| 17 | Screen-view tracking + nav listener | [Step 4](INSTRUMENTATION_GUIDE.md#4-instrument-screen-views-and-pair-them-with-load-spans) | — |
+| 17 | Screen-view tracking + nav listener | [Step 4](INSTRUMENTATION_GUIDE.md#4-instrument-screen-views-and-pair-them-with-load-spans) | Same facade caveat as order 14. The nav listener often also drives app-owned behaviour (breadcrumbs, persisted last-screen); strip the bitdrift call, keep the rest |
 | 18 | Session strategy (with logger-start below) | [Step 3](INSTRUMENTATION_GUIDE.md#3-confirm-session-strategy) | — |
 | 19 | Logger-start call, its `Configuration` (session replay / WebView / sleep mode / fatal-issue reporting), the `startResult` callback and `getSdkStatus()` checks, and all bitdrift imports | [Step 2](INSTRUMENTATION_GUIDE.md#2-start-the-logger) | — |
 | 20 | SDK dependency + build plugin + the `bitdrift { instrumentation { … } }` DSL block | [Step 1](INSTRUMENTATION_GUIDE.md#1-add-the-dependency) | Last — nothing depends on it |
@@ -95,6 +116,12 @@ references are gone, not that the app still compiles.
 - All: `grep -r "startSpan\|trackSpan\|CaptureBridge\|getSdkStatus\|startResult\|previousRunInfo\|clearEntityI"` returns nothing — these survive the per-call-site greps above because a helper or diagnostic wrapper may not import anything obviously bitdrift-named
 - Android: no `bitdrift { instrumentation { … } }` DSL block and no `automaticOkHttpInstrumentation` / `automaticWebViewInstrumentation` references remain in any `build.gradle(.kts)`
 - All: no path templates, no debug-file upload steps, no `bd debug-files` scripts remain.
+- iOS: no bitdrift **run-script build phase** survives in `project.pbxproj` (the dSYM upload from
+  order 9 is a `PBXShellScriptBuildPhase`, invisible to a source grep), and no
+  `XCRemoteSwiftPackageReference` / `XCSwiftPackageProductDependency` for the SDK remains.
+- All: **prose is clean too** — no README/doc section describes the removed instrumentation, and no
+  in-code comment names an SDK call, span name, workflow, or dashboard. Greps cannot confirm this;
+  read the README and skim the diff. See the ⚠️ note under §2.
 
 **V2 — Dependency manifests clean.** No bitdrift entry in `build.gradle(.kts)` / `Package.swift` / `Podfile` / `package.json`.
 

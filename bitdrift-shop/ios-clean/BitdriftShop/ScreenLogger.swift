@@ -1,4 +1,3 @@
-import Capture
 import Foundation
 import os.log
 
@@ -26,48 +25,18 @@ enum ScreenLogger {
     /// rather than adding more fields.
     private static let screenTrailDepth = 5
 
-    /// The most recent screens, newest first. Backs the `screen_current` /
-    /// `screen_prev_N` global fields.
+    /// The most recent screens, newest first. Persisted so the next launch can
+    /// report the path taken before an abrupt termination.
     private static var recentScreens: [String] = []
 
-    /// bitdrift SDK: logScreenView() records the transition so it appears as a
-    /// breadcrumb in session timelines and powers Sankey diagrams in the
-    /// dashboard. Called centrally from `Navigator` for every navigation, so it
-    /// fires identically for user taps and for simulator-driven navigation.
-    /// POC: User Journey Sankey diagram; per-screen crash analytics.
+    /// Records a screen transition. Called centrally from `Navigator` for every
+    /// navigation, so it fires identically for user taps and for simulator-driven
+    /// navigation.
     static func logScreenView(_ screenName: String) {
         printLog("SCREEN", "_screen_name: \(screenName)", [:])
-        Logger.logScreenView(screenName: screenName)
-
-        // Also carry the screen as a *global field*, not just a breadcrumb.
-        //
-        // `logScreenView` writes one event into the session timeline, which is
-        // fine to read by hand but cannot be aggregated: answering "which screen
-        // were users on when we crashed" would mean correlating two events across
-        // a session, and a crash report frequently is not in the same session as
-        // the screen views preceding it. A global field rides along on every
-        // subsequent log *and on the crash report itself*, so crashes can simply
-        // be grouped by `last_screen`.
-        Logger.addField(withKey: "last_screen", value: screenName)
 
         // Shift register of the last `screenTrailDepth` screens, newest first.
-        //
-        // `last_screen` above answers "where were they when it died"; this
-        // answers "how did they get there". Because global fields ride on the
-        // crash report itself, a crash arrives already carrying the path the
-        // user took — no workflow has to reassemble it from a flow. That
-        // matters even though a crash-terminal Sankey *can* close on iOS now
-        // (`CaptureBridge.start()` / `bd-shop-19`): the Sankey needs
-        // `sessionStrategy: .activityBased()` and a relaunch inside
-        // `inactivityThresholdMins`. This register has neither dependency —
-        // it is on the report regardless of session strategy or relaunch
-        // timing, which is what makes it the one that should never break.
-        //
-        // Each field holds one screen name from a bounded set, so nothing here
-        // is high-cardinality on its own. Which of them get promoted to chart
-        // dimensions is a separate, server-side decision in the Ripsaw script —
-        // keeping the composition there means the analysis can change without
-        // shipping a new build.
+        // Answers "how did they get here" on the launch after an abrupt termination.
         // Collapse consecutive repeats of the same screen. `Navigator` legitimately
         // logs the same screen twice in a row — `logInitialScreen()` on launch and
         // `popToWelcome()` at journey start both emit Welcome — and a user
@@ -81,14 +50,6 @@ enum ScreenLogger {
             if recentScreens.count > screenTrailDepth {
                 recentScreens.removeLast()
             }
-        }
-        Logger.addField(withKey: "screen_current", value: screenName)
-        for offset in 1 ..< screenTrailDepth {
-            // "none" rather than omitting the key: a stable field set makes a
-            // report from early in a session (genuinely fewer screens) legible
-            // as such, instead of looking like the register failed to populate.
-            let value = offset < recentScreens.count ? recentScreens[offset] : "none"
-            Logger.addField(withKey: "screen_prev_\(offset)", value: value)
         }
 
         // A plain log carrying the screen under a key that the termination log
@@ -115,43 +76,27 @@ enum ScreenLogger {
         // newest screen and attribute the next launch to a stale one — the same
         // reason every crash-state write in DemoPrefs flushes.
         //
-        // bitdrift SDK: trackSpan() wraps the write+flush — `flush()` calls the
-        // Apple-deprecated `UserDefaults.synchronize()`, which can block, and this
-        // runs on literally every screen transition (Navigator is @MainActor), so
-        // its P99 tail is exactly the kind of main-thread stall a span histogram
-        // catches that nothing else here would.
-        // POC: event tracking — a high-frequency, main-thread-relevant hotspot,
-        // not just journey/checkout-shaped operations.
-        CaptureBridge.trackSpan("screen_view_persist") { _ in
-            Prefs.screen.set(Prefs.keyLastScreen, screenName)
-            // Same reasoning for the trail: in-memory global fields die with the
-            // process, so a watchdog hang or jetsam kill would otherwise arrive on
-            // the next launch with no path at all. Stored newest-first, joined.
-            Prefs.screen.set(Prefs.keyScreenTrail, recentScreens.joined(separator: ">"))
-            Prefs.screen.flush()
-        }
+        Prefs.screen.set(Prefs.keyLastScreen, screenName)
+        // Same reasoning for the trail: it must survive the process dying, so a
+        // watchdog hang or jetsam kill still reports the path. Newest-first, joined.
+        Prefs.screen.set(Prefs.keyScreenTrail, recentScreens.joined(separator: ">"))
+        Prefs.screen.flush()
     }
 
     static func logInfo(_ message: String, _ fields: [String: String] = [:]) {
         printLog("INFO", message, fields)
-        Logger.logInfo(message, fields: encode(fields))
     }
 
     static func logWarning(_ message: String, _ fields: [String: String] = [:]) {
         printLog("WARNING", message, fields)
-        Logger.logWarning(message, fields: encode(fields))
     }
 
     static func logError(_ message: String, _ fields: [String: String] = [:]) {
         printLog("ERROR", message, fields)
-        Logger.logError(message, fields: encode(fields))
     }
 
-    /// bitdrift SDK: logError() with an error captures the failure in the session
-    /// timeline alongside its fields.
     static func logError(_ message: String, error: Error, _ fields: [String: String] = [:]) {
-        printLog("ERROR", message, fields)
-        Logger.logError(message, fields: encode(fields), error: error)
+        printLog("ERROR", message, fields.merging(["error": String(describing: error)]) { a, _ in a })
     }
 
     static func logSimulationStart(_ runs: Int) {
@@ -162,13 +107,6 @@ enum ScreenLogger {
         logInfo("simulation_end", ["total_runs": String(runs)])
     }
 
-    // MARK: - Field helpers
-
-    /// `Capture.Fields` is `[String: any Encodable & Sendable]`; the app builds
-    /// plain `[String: String]` everywhere, so widen it in one place.
-    static func encode(_ fields: [String: String]) -> Fields? {
-        fields.isEmpty ? nil : fields.mapValues { $0 as any Encodable & Sendable }
-    }
 
     // MARK: - Private
 

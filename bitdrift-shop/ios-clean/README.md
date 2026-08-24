@@ -2,11 +2,9 @@
 
 **Version 2.0**
 
-Native SwiftUI demo app simulating an e-commerce shopping experience, **already
-instrumented with the bitdrift Capture SDK** (`capture-ios` 0.23.11 via Swift
-Package Manager). It pairs with the same FastAPI backend the Android app uses, so
-it produces realistic sessions, network traffic, crashes, and performance signals
-out of the box.
+Native SwiftUI demo app simulating an e-commerce shopping experience. It pairs
+with the same FastAPI backend the Android app uses, so it produces realistic
+sessions, network traffic, crashes, and performance signals out of the box.
 
 **100% native Swift.** No Kotlin Multiplatform, no shared framework, no
 Objective-C sources or bridging header, no CocoaPods — just Swift + SwiftUI with
@@ -15,8 +13,8 @@ traps plus POSIX signals rather than `NSException` tricks, and the app lifecycle
 runs on SwiftUI's `scenePhase` rather than a `UIApplicationDelegate`.
 
 This is a port of [`android/`](../android/) — same 19 screens, same probabilistic
-simulation, same event and field names — so both platforms feed the same
-`bd-shop-*` workflows and dashboards and can be compared side by side.
+simulation, same event and field names — so both platforms can be compared side
+by side.
 
 This is community-contributed content provided for educational purposes only.
 
@@ -31,37 +29,6 @@ This is community-contributed content provided for educational purposes only.
 > `./scripts/check-demo-state.sh` (add `--reset` to clear) before any demo session.
 
 ## Quick Start
-
-### Step 0: Configure your bitdrift credentials
-
-Create `.local.xcconfig` in this directory (gitignored — your real values go here,
-overlaying the blank `local.xcconfig` template that it is `#include?`d from):
-
-```
-BITDRIFT_API_KEY = <your-api-key>
-BITDRIFT_API_HOST = api.bitdrift.io
-```
-
-Get the API key from the **bitdrift dashboard → Settings**. It determines which
-project your data lands in — crashes, sessions, and workflows only appear in the
-project that owns this key. The same key authorizes both jobs it's needed for:
-`Logger.start(withAPIKey:)` at runtime, and the dSYM upload for crash
-symbolication at build time.
-
-> Named `BITDRIFT_API_KEY` to match what bitdrift calls it — the SDK's own
-> parameter is `withAPIKey:` and the CLI's flag is `--api-key`. The Android app
-> calls the same credential `BITDRIFT_SDK_KEY` in its `local.properties`.
-
-For bitdrift-internal testing against a non-production environment, point
-`BITDRIFT_API_HOST` at that environment instead (e.g. `api.bitdrift.dev`), making
-sure the key was issued by that same environment's dashboard.
-
-Without a key the app still runs and the UI works; the SDK logs
-`failed to authenticate with the backend` and the Device Code button returns
-`⚠ needs_api_key`.
-
-These two settings are the whole configuration surface — the same pair the
-Android app reads from `.local.properties`.
 
 ### Step 1: Start the backend
 
@@ -160,32 +127,6 @@ the dashboard in real time.
 
 ---
 
-## What's already instrumented
-
-| Feature | SDK surface | Where it lives |
-|---------|-------------|----------------|
-| **SDK dependency** | `capture-ios` 0.23.11 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
-| **Logger startup** | `Logger.start(withAPIKey:sessionStrategy:configuration:fieldProviders:)` in `App.init()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
-| **Session strategy** | `.activityBased()` — resumes the same session across a crash + relaunch if it lands within `inactivityThresholdMins`, which is what lets `bd-shop-19`'s crash-terminal Sankey close | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
-| **Network capture** | `.enableIntegrations([.urlSession()])` — automatic, no per-call code | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
-| **Path templates** | `x-capture-path-template` header on parameterised routes | [ApiClient.swift](BitdriftShop/ApiClient.swift) |
-| **Screen views** | `Logger.logScreenView(screenName:)`, centrally from `Navigator` | [Navigator.swift](BitdriftShop/Navigator.swift), [ScreenLogger.swift](BitdriftShop/ScreenLogger.swift) |
-| **User identity** | `Logger.setEntityID("demo")` on launch, then rotated per simulated user | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [SimulationManager.swift](BitdriftShop/SimulationManager.swift) |
-| **Structured logs** | `logInfo`/`logWarning`/`logError` (`add_to_cart`, `checkout_started`, `payment_completed`, …) | [Screens.swift](BitdriftShop/Screens.swift), [SimulationManager.swift](BitdriftShop/SimulationManager.swift) |
-| **Global fields** | `Logger.addField(withKey:value:)` + a `FieldProvider` — `user_id`, `app_variant`, `platform`, `ff_*`, `supportlog`, `sim_app_version` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
-| **Feature flags** | `Logger.setFeatureFlagExposure(withName:variant:)` for `checkout_flow`, `payment_ui`, `cart_abandon_rate`, `recommendations_v2`, … | [SimulationManager.swift](BitdriftShop/SimulationManager.swift) |
-| **Custom metrics** | `metric_values` ticking once/sec, with `metric_work_latency_ms` auto-rotating across `sim_app_version` — same event/field names as Android, so both feed `bd-shop-12`; walkthrough in [android/metric-demo.md](../android/metric-demo.md) | [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
-| **App launch TTI** | `Logger.logAppLaunchTTI()` after first frame | [ContentView.swift](BitdriftShop/ContentView.swift) |
-| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`) and a `trackSpan` helper wrapping `score_products` | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
-| **Support tooling** | `Logger.createTemporaryDeviceCode()`, Support Log toggle | [Screens.swift](BitdriftShop/Screens.swift) |
-| **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
-| **Crash symbolication** | dSYM upload via `bd debug-files upload` in a post-build phase | [scripts/upload-symbols.sh](scripts/upload-symbols.sh) |
-| **Lifecycle events** | `app_open` / `app_close` from SwiftUI `scenePhase`; `memory_pressure` from the UIKit memory-warning notification | [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
-
-`Logger.trackSpan { }` exists in the Kotlin API but not the Swift one, so
-[`CaptureBridge.trackSpan`](BitdriftShop/CaptureBridge.swift) reimplements the
-scoped form (SUCCESS on return, FAILURE on throw) over `startSpan`/`Span.end`.
-
 ## Simulation
 
 The simulator walks the full funnel, choosing branches probabilistically at each
@@ -203,9 +144,8 @@ implementation, so cross-platform comparisons in a dashboard are apples to apple
 ### Simplified journey
 
 `SIMPLIFIED_JOURNEY_ENABLED = YES` in `.local.xcconfig` replaces the randomized
-funnel above with a fixed, non-random 7-step path, matching
-[`bd-shop-17`](workflows/bd-shop-17-ios-journey-vs-crashes.json)'s funnel stages
-1:1 so the funnel chart reads as a clean staircase:
+funnel above with a fixed, non-random 7-step path, so a funnel chart reads as a
+clean staircase:
 
 ```
 Welcome → Browse → ProductDetail → Cart → CheckoutGuest → PaymentCard → Confirmation
@@ -295,11 +235,7 @@ full product profiles, called synchronously and unmemoized from a SwiftUI view
 body, so it re-executes on every render. The code is correct and throws nothing —
 the defect is a runtime performance characteristic.
 
-On Android this is caught by the OOTB `DROPPED_FRAME` condition. **That condition
-is Android-only**, so on iOS the `score_products` span wrapped around each call
-site is the detection path — the shape
-[`bd-shop-11b-slow-rendering-manual-span.json`](../android/workflows/bd-shop-11b-slow-rendering-manual-span.json)
-matches on. Background and walkthrough:
+Background and walkthrough:
 [demo-slow-rendering.md](../android/demo-slow-rendering.md).
 
 ---
@@ -327,7 +263,6 @@ are all places where the platform left no choice:
 ## Scripts
 
 ```bash
-./scripts/release-build.sh                # Release build + dSYM upload (see below)
 ./scripts/watchdog.sh                     # relaunch on death; background the app when a background crash is armed
 ./scripts/watchdog.sh --stop              # stop the watchdog and terminate the app
 ./scripts/check-demo-state.sh             # show which fault flags are armed
@@ -371,67 +306,6 @@ write is silently overwritten on the daemon's next flush. On a device the plist
 isn't reachable at all, but the JSON file can be pulled with
 `devicectl device copy from`. `--reset` works around the daemon by terminating
 the app, deleting the plist, and bouncing it.
-
-### Crash symbolication (dSYM upload)
-
-The **Upload bitdrift Symbols** post-build phase runs
-[scripts/upload-symbols.sh](scripts/upload-symbols.sh), the counterpart of the
-Android app's `bdUpload*` Gradle tasks. It needs the `bd` CLI on `PATH` and a
-platform API key:
-
-```
-BITDRIFT_API_KEY = <platform-api-key>
-```
-
-It reuses `BITDRIFT_API_KEY` — the same key the app starts the SDK with. Xcode
-exports build settings into script phases, so defining it in `.local.xcconfig` is
-all that's needed.
-
-The phase skips quietly and never fails the build when there's no key, no `bd`,
-or no dSYM. **Debug builds produce no dSYM** (`DEBUG_INFORMATION_FORMAT = dwarf`),
-so symbols only upload from Release.
-
-#### Doing a Release build
-
-```bash
-./scripts/release-build.sh --simulator            # no signing needed
-./scripts/release-build.sh --device              # signed, matches phone crashes
-./scripts/release-build.sh --device --install     # ...and install it
-./scripts/release-build.sh --device --team ABCDE12345
-```
-
-With no flag it targets a booted simulator, else a connected device. A **device**
-build needs a signing team — pass `--team`, or put it in `.local.xcconfig` once:
-
-```
-DEVELOPMENT_TEAM = <your-team-id>
-```
-
-The script warns up front if `BITDRIFT_API_KEY` is missing, then prints the app
-and dSYM paths and **verifies the upload actually landed** by counting debug files
-before and after:
-
-```
-debug files on the platform: 0 -> 1
-Symbols uploaded.
-```
-
-That check exists because **`bd` exits 0 whether or not the upload worked** —
-verified against bd 0.2.18, a deliberately invalid API key printed no error and
-still exited 0, uploading nothing. The exit code is useless, so both layers key
-off other signals: the build phase looks for `bd`'s explicit "File uploaded"
-line, and this script diffs the platform's debug-file count. If the count doesn't
-move, the key is missing or rejected.
-
-Note that `bd debug-files list` prints its `total=N` summary on **stderr**, not
-stdout — discarding stderr when scripting it silently yields no count.
-
-For a device build, prefer the device dSYM: it's the one whose UUID matches
-crashes coming off the phone.
-
-```bash
-# manual / CI equivalent
-BITDRIFT_API_KEY=<key> ./scripts/upload-symbols.sh <path-to-dSYMs>
 ```
 
 ### Arming a demo from the command line
@@ -450,128 +324,16 @@ the setting survives the watchdog's subsequent relaunches. Clear it with
 `crash_loop.fast_mode`, `crash_loop.oom_only`, `app_hang.active`,
 `force_quit.active`, `auto_infinite.active`.
 
-## Deploy workflows and dashboards
-
-The `bd-shop-*` workflows and dashboards in [`../android/workflows/`](../android/workflows/)
-and [`../android/dashboards/`](../android/dashboards/) apply to this app too — the
-event names, field names, screen names, and span names all match. Two caveats:
-
-- `bd-shop-11-slow-rendering.json` matches Android-only frame detection; use
-  `bd-shop-11b` for iOS.
-- `bd-shop-05-anr-force-quit.json` matches on `anr_*` fields, which this app emits
-  for main-thread hangs.
-
-Use the **bd-cli** skill to deploy them, then filter by `platform == "ios"` (a
-global field set at startup) to separate the two apps, or leave it off to compare
-them.
-
-iOS-specific workflows live in [`workflows/`](workflows/) and the dashboard
-payload in [`dashboards/`](dashboards/). Everything is re-deployable as code:
-
-```bash
-./scripts/deploy-workflows.sh
-```
-
-That creates and deploys every `bd-shop-*` iOS workflow plus the two-tab
-**Journey vs Crashes** dashboard. See [`workflows/README.md`](workflows/README.md)
-for what each one shows, the `stop`/`update`/`deploy` rule for editing a live
-workflow, and — measured, not inferred — the conditions under which a crash
-*can* be the terminal node of a Sankey on iOS (`.activityBased()` sessions plus
-a relaunch inside `inactivityThresholdMins`, which is what `bd-shop-19` needs)
-and what `bd-shop-18` does instead when those conditions do not hold.
-
-Two API quirks the committed payloads work around: `bd dashboard get` returns
-neither `layout_settings` nor row positions, so the checked-in dashboard JSON is
-the only complete record of its layout; and multi-entry chart-metadata files must
-be sent alongside `--workflow-file`, never on their own.
-
-### Span-timing workflows and dashboards
-
-Beyond the crash/journey workflows above, `workflows/bd-shop-20` through
-`bd-shop-24` cover every span added throughout the app — cold start, screen
-loads, journey sub-phases, the recommendation engine, and local persistence
-I/O — each with its own dashboard. Pull these up when demoing performance
-instrumentation specifically:
-
-| Dashboard | Live id | What it shows |
-|---|---|---|
-| [Cold-Start Span Timings](https://explorations.bitdrift.io/dashboards/1rik5G13l_cOcZMr_Oxka) | `1rik5G13l_cOcZMr_Oxka` | `app_cold_start` waterfall: `sdk_init` / `scene_render` / `state_restore` |
-| [Screen Load Timings](https://explorations.bitdrift.io/dashboards/6nkAoIli6rgustvUJA2Es) | `6nkAoIli6rgustvUJA2Es` | 9 spans: "time to data ready" for 7 screens (Welcome, Browse, ProductDetail, Cart, Checkout, Payment, Confirmation — not every screen in the app) plus 2 sub-operations (catalog re-serialize, per-image load) |
-| [Journey Sub-Phase Timings](https://explorations.bitdrift.io/dashboards/7jSnw6WcGPFxYA3D9YtF8) | `7jSnw6WcGPFxYA3D9YtF8` | `discovery_fetch` / `product_view` / `wishlist_add` / `cart_assembly` / `checkout.payment` / `checkout.confirmation` |
-| [Recommendation Engine Timings](https://explorations.bitdrift.io/dashboards/gBqNwTjMdc0KKL4bRD64C) | `gBqNwTjMdc0KKL4bRD64C` | `score_products`: parse vs. the O(n·m) similarity pass |
-| [Persistence I/O Timings](https://explorations.bitdrift.io/dashboards/GuxEP0btHJDxhTv5TtNrb) | `GuxEP0btHJDxhTv5TtNrb` | `screen_view_persist` vs. `demo_state_publish` |
-
-These links are tied to *this* account's dashboard IDs (the table above) *and*
-workflow IDs (`0pTX`, `t8u9`, `beLW`, `49io`, `qt3D` — see the "Live id" column
-in [`workflows/README.md`](workflows/README.md#span-timings-beyond-cold-start-bd-shop-21-through-bd-shop-24)'s
-table, not the dashboard table above). Deploying to a fresh account means
-creating new workflows and dashboards, whose IDs will differ from both. Each
-dashboard file's `chart_id.workflow.workflow_id` fields reference the
-*workflow* id, so **edit those before creating the dashboard, not after** —
-running `bd dashboard create` against the committed files as-is produces a
-dashboard whose charts still point at the *old* account's workflows:
-
-```bash
-./scripts/deploy-workflows.sh --no-dash   # bd-shop-13 through bd-shop-24, prints each new id
-
-cd workflows
-# Each dashboard file has exactly one workflow_id to replace (grep -o
-# '"workflow_id": "[^"]*"' <file> to confirm which). Substitute the old id
-# for the new one deploy-workflows.sh just printed, THEN create — same as the
-# guided crash dashboard's deploy-workflows.sh substitution, just not
-# automated here since each of these five only has one workflow behind it.
-sed -i '' 's/0pTX/<new-bd-shop-20-id>/' ../dashboards/ios-cold-start-span-timings.dashboard.json
-bd dashboard create --request-file ../dashboards/ios-cold-start-span-timings.dashboard.json
-
-sed -i '' 's/t8u9/<new-bd-shop-21-id>/' ../dashboards/ios-screen-load-timings.dashboard.json
-bd dashboard create --request-file ../dashboards/ios-screen-load-timings.dashboard.json
-
-sed -i '' 's/beLW/<new-bd-shop-22-id>/' ../dashboards/ios-journey-subphase-timings.dashboard.json
-bd dashboard create --request-file ../dashboards/ios-journey-subphase-timings.dashboard.json
-
-sed -i '' 's/49io/<new-bd-shop-23-id>/' ../dashboards/ios-recommendation-engine-timings.dashboard.json
-bd dashboard create --request-file ../dashboards/ios-recommendation-engine-timings.dashboard.json
-
-sed -i '' 's/qt3D/<new-bd-shop-24-id>/' ../dashboards/ios-persistence-timings.dashboard.json
-bd dashboard create --request-file ../dashboards/ios-persistence-timings.dashboard.json
-```
-
-Don't run these `sed` commands against *this* account's own copies of the
-files — they're meant for a one-time substitution when standing up a fresh
-account, not for the checked-in files, which must keep referencing this
-account's real IDs.
-
-Before demoing these, two things worth doing first:
-
-- **Make sure the backend is actually reachable.** Every span behind an API
-  call (most of the Screen Load Timings dashboard) times out identically and
-  silently if `.local.xcconfig`'s `SHOP_BACKEND_URL` has drifted — see the
-  comment there and [`workflows/README.md`](workflows/README.md#a-live-example-of-why-the-unitslabels-matter-silent-backend-drift)
-  for what that looks like on a chart (several unrelated spans reporting the
-  exact same duration) and how it was caught.
-- **Toggle Rec v2** if you want the Recommendation Engine dashboard populated
-  — off by default, and nothing in the automated sim turns it on:
-  ```bash
-  xcrun simctl launch <udid> ai.bitdrift.shop.ios -recommendations.active 1
-  ```
-
-See [`workflows/README.md`](workflows/README.md) for the full per-workflow
-breakdown, caveats (which spans are conditional/per-row, which only populate
-under the full journey vs. the simplified one, session-boundary rules), and
-the `ColdStartSpans`/`SpannedAsyncImage`/`CaptureBridge.trackSpan` source
-pointers for each span.
-
 ## Project layout
 
 ```
 ios/
-├── BitdriftShop.xcodeproj/     Xcode project (SPM: capture-ios 0.23.11)
+├── BitdriftShop.xcodeproj/     Xcode project
 ├── Info.plist                  Bundle config; xcconfig values surface here
 ├── local.xcconfig              Blank template; includes .local.xcconfig
 ├── scripts/                    watchdog.sh, check-demo-state.sh, demo-lib.sh
 └── BitdriftShop/
-    ├── BitdriftShopApp.swift   App entry, SDK start, scenePhase lifecycle logging
-    ├── CaptureBridge.swift     SDK lifecycle, trackSpan, FieldProvider
+    ├── BitdriftShopApp.swift   App entry, scenePhase lifecycle logging
     ├── ScreenLogger.swift      Central logging surface
     ├── AppConfig.swift         Info.plist/env-backed build config
     ├── DemoPrefs.swift         Namespaced UserDefaults
@@ -579,7 +341,7 @@ ios/
     ├── ApiClient.swift         Backend API
     ├── JSON.swift              Dynamic JSON reader
     ├── Screen.swift            Routes and screen names
-    ├── Navigator.swift         NavigationStack driver + screen-view logging
+    ├── Navigator.swift         NavigationStack driver + screen logging
     ├── ContentView.swift       Startup config, nav host, resume logic
     ├── Screens.swift           All 19 screens
     ├── Components.swift        Shared UI

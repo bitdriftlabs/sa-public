@@ -6,14 +6,13 @@ struct BitdriftShopApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        CaptureBridge.start()
         AppLifecycleObserver.shared.register()
 
         // SIGTERM has to be trapped before anything can send one.
         WatchdogHangs.installTerminationHandler()
 
         // Blocks here if a scene-create hang is armed. Deliberately after
-        // Logger.start(), so the breadcrumb explaining the hang is actually
+        // app startup, so the breadcrumb explaining the hang is actually
         // captured — and still inside the launch window the OS is timing, which
         // is what makes the report come back as `WatchdogEvent: scene-create`
         // rather than a plain unresponsive app.
@@ -50,10 +49,6 @@ final class AppLifecycleObserver {
         NotificationCenter.default.addObserver(
             forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
         ) { _ in
-            // bitdrift SDK: logWarning() emits a warning-level event; severity is
-            // queryable in the dashboard.
-            // POC: alert triggers — create a Workflow that fires when the
-            // memory_pressure rate exceeds a threshold.
             ScreenLogger.logWarning("memory_pressure", ["level": "didReceiveMemoryWarning"])
         }
     }
@@ -72,14 +67,8 @@ final class AppLifecycleObserver {
             ScreenLogger.logInfo("app_open", ["trigger": "scenePhase.active"])
             WatchdogHangs.blockIfArmed(for: .sceneUpdate)
         case .active where lastPhase != .active:
-            // bitdrift SDK: logInfo() emits a structured event with a stable name
-            // and field map.
-            // POC: Workflow matching, Timeline breadcrumbs, alert triggers —
-            // stable event names are queryable.
             ScreenLogger.logInfo("app_open", ["trigger": "scenePhase.active"])
         case .background where lastPhase != .background:
-            // bitdrift SDK: logInfo() emits a structured event for
-            // foreground/background transitions.
             ScreenLogger.logInfo("app_close", ["trigger": "scenePhase.background"])
         default:
             break

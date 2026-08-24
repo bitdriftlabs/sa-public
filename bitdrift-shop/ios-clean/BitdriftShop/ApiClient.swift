@@ -1,12 +1,6 @@
-import Capture
 import Foundation
 
 /// HTTP client for the bitdrift-shop backend.
-///
-/// Requests are not logged by hand: `Integration.urlSession()` (enabled in
-/// `CaptureBridge.start()`) instruments URLSession, so every call below appears
-/// in the bitdrift session timeline automatically — the iOS equivalent of the
-/// Android app's automatic OkHttp instrumentation.
 ///
 enum ApiClient {
 
@@ -60,8 +54,7 @@ enum ApiClient {
     private static func request(
         _ method: String,
         _ path: String,
-        body: [String: Any]? = nil,
-        pathTemplate: String? = nil
+        body: [String: Any]? = nil
     ) async throws -> JSON {
         guard let url = URL(string: baseURL + path) else {
             throw URLError(.badURL)
@@ -72,13 +65,6 @@ enum ApiClient {
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
             req.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         }
-        // bitdrift SDK: the `x-capture-path-template` header tells the SDK to
-        // record a request under its canonical path instead of the concrete URL,
-        // collapsing per-ID cardinality into a single dashboard entry.
-        if let pathTemplate {
-            req.setValue(pathTemplate, forHTTPHeaderField: "x-capture-path-template")
-        }
-
         let (data, response) = try await session.data(for: req)
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw HTTPError(status: http.statusCode, path: path)
@@ -86,16 +72,16 @@ enum ApiClient {
         return JSON.parse(data)
     }
 
-    private static func get(_ path: String, pathTemplate: String? = nil) async throws -> JSON {
-        try await request("GET", path, pathTemplate: pathTemplate)
+    private static func get(_ path: String) async throws -> JSON {
+        try await request("GET", path)
     }
 
     private static func post(_ path: String, _ body: [String: Any] = [:]) async throws -> JSON {
         try await request("POST", path, body: body)
     }
 
-    private static func delete(_ path: String, pathTemplate: String? = nil) async throws -> JSON {
-        try await request("DELETE", path, pathTemplate: pathTemplate)
+    private static func delete(_ path: String) async throws -> JSON {
+        try await request("DELETE", path)
     }
 
     // MARK: - Public API
@@ -115,15 +101,15 @@ enum ApiClient {
 
     static func getCategoryProducts(_ category: String) async throws -> JSON {
         let escaped = category.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? category
-        return try await get("/categories/\(escaped)", pathTemplate: "/api/categories/<category>")
+        return try await get("/categories/\(escaped)")
     }
 
     static func getProduct(_ productID: String) async throws -> JSON {
-        try await get("/product/\(productID)", pathTemplate: "/api/product/<id>")
+        try await get("/product/\(productID)")
     }
 
     static func getReviews(_ productID: String) async throws -> JSON {
-        try await get("/product/\(productID)/reviews", pathTemplate: "/api/product/<id>/reviews")
+        try await get("/product/\(productID)/reviews")
     }
 
     static func addToCart(_ productID: String, quantity: Int = 1) async throws -> JSON {
@@ -133,7 +119,7 @@ enum ApiClient {
     static func getCart() async throws -> JSON { try await get("/cart") }
 
     static func deleteCartItem(_ productID: String) async throws -> JSON {
-        try await delete("/cart/\(productID)", pathTemplate: "/api/cart/<id>")
+        try await delete("/cart/\(productID)")
     }
 
     static func addToWishlist(_ productID: String) async throws -> JSON {
@@ -165,21 +151,7 @@ enum ApiClient {
     }
 
     static func getConfirmation(_ orderID: String) async throws -> JSON {
-        try await get("/confirmation/\(orderID)", pathTemplate: "/api/confirmation/<id>")
-    }
-
-    /// Latest published capture-ios release tag, so the Welcome screen can flag
-    /// a build running behind. Returns nil on any error.
-    static func fetchLatestSDKVersion() async -> String? {
-        guard let url = URL(string: "https://api.github.com/repos/bitdriftlabs/capture-ios/releases/latest") else {
-            return nil
-        }
-        guard let (data, response) = try? await session.data(from: url),
-              let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode)
-        else { return nil }
-        let tag = JSON.parse(data).str("tag_name")
-        let stripped = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
-        return stripped.isEmpty ? nil : stripped
+        try await get("/confirmation/\(orderID)")
     }
 
     /// Raw JSON array of products from `/browse`, used for recommendation scoring.
@@ -190,21 +162,16 @@ enum ApiClient {
     // MARK: - Cardinality demo
 
     /// Generates a fresh random hex `session` on every call so each request
-    /// produces a unique URL, creating unbounded cardinality in the bitdrift HTTP
-    /// traffic dashboard. Demonstrates why Path Templates exist.
+    /// produces a unique URL, creating unbounded cardinality in HTTP traffic
+    /// analytics. Demonstrates why path templates exist.
     static func inventoryLookup(_ item: String) async throws -> JSON {
         let hex = "0123456789abcdef"
         let session = String((0..<16).compactMap { _ in hex.randomElement() })
         let escapedItem = item.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? item
 
-        // Without a path template every request lands as a unique URL in the
-        // bitdrift dashboard (e.g. /api/inventory/lookup/headphones/a3f92b1e4d7c0e85).
-        // The FIX is to pass the x-capture-path-template header, which records all
-        // of them under one canonical path. To apply: add the `pathTemplate:`
-        // argument below.
-        // Docs: https://docs.bitdrift.io/sdk/features/http-traffic-logs#http-request-fields
-        //
-        //     pathTemplate: "/api/inventory/lookup/<item>/<session>"
+        // Every request lands as a unique URL (e.g.
+        // /api/inventory/lookup/headphones/a3f92b1e4d7c0e85), which is what makes
+        // this a cardinality demo.
         return try await get("/inventory/lookup/\(escapedItem)/\(session)")
     }
 }

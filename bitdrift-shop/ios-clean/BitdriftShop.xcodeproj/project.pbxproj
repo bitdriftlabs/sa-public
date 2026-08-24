@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		BD10A001 /* Capture in Frameworks */ = {isa = PBXBuildFile; productRef = BD10E002 /* Capture */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,7 +28,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BD10A001 /* Capture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -64,7 +62,6 @@
 				BD102001 /* Sources */,
 				BD10D001 /* Frameworks */,
 				BD102002 /* Resources */,
-				BD105001 /* Upload bitdrift Symbols */,
 			);
 			buildRules = (
 			);
@@ -75,7 +72,6 @@
 			);
 			name = BitdriftShop;
 			packageProductDependencies = (
-				BD10E002 /* Capture */,
 			);
 			productName = BitdriftShop;
 			productReference = BD10B001 /* BitdriftShop.app */;
@@ -106,7 +102,6 @@
 			mainGroup = BD10F001;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				BD10E001 /* XCRemoteSwiftPackageReference "capture-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BD10F002 /* Products */;
@@ -117,24 +112,6 @@
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		BD105001 /* Upload bitdrift Symbols */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Upload bitdrift Symbols";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Uploads dSYMs to bitdrift for crash symbolication — the counterpart of\n# the Android app's bdUpload* Gradle tasks. Skips quietly when there is no\n# API key or no dSYM (Debug builds emit none), and never fails the build.\n\"$SRCROOT/scripts/upload-symbols.sh\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXResourcesBuildPhase section */
 		BD102002 /* Resources */ = {
@@ -289,24 +266,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		BD10E001 /* XCRemoteSwiftPackageReference "capture-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/bitdriftlabs/capture-ios";
-			requirement = {
-				kind = exactVersion;
-				version = 0.23.11;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		BD10E002 /* Capture */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = BD10E001 /* XCRemoteSwiftPackageReference "capture-ios" */;
-			productName = Capture;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BD100001 /* Project object */;
 }

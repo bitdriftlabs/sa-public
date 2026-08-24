@@ -1,9 +1,0 @@
-{
-  "description": "Counts real, SDK-uploaded crash reports grouped by last_screen -- read directly off the Report's .fields map via a Ripsaw issue_match script, not the synthetic previous_run_terminated breadcrumb DVE2 uses for crashed_on_screen. .fields carries every Logger.addField() global field present when the report was generated, so this reads the actual crash report rather than a next-launch proxy. issue_match steps run server-side and cannot be mixed with other step types or attached to anything but a Plot Chart action, so this cannot join into DVE2's Sankey/funnel flow directly -- combine them on a dashboard instead, joined by screen name. crashes-by-type-control exists because Ripsaw's Report.type enum (JVMCrash/NativeCrash/AppNotResponding/...) is documented from Android's usage; this control chart confirms what iOS Swift-trap and signal crashes actually report as .type before anything depends on filtering by it.",
-  "per_rule_metadata": [
-    {
-      "rule_id": "issue-step",
-      "title": "Uploaded crash report"
-    }
-  ]
-}

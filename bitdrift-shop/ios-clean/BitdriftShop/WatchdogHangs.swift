@@ -1,10 +1,9 @@
-import Capture
 import Foundation
 import UIKit
 
 /// Reproduces iOS watchdog terminations — `0x8BADF00D`, reported as **App Hang**.
 ///
-/// These are the largest single class of iOS crashes seen in real Capture data,
+/// These are the largest single class of iOS crashes seen in the field,
 /// and nothing in the Swift-trap / POSIX-signal catalog can produce them: they
 /// are not exceptions at all. The OS gives an app a wall-clock budget to finish a
 /// lifecycle transition, and kills it via RunningBoard when it overruns:
@@ -74,8 +73,6 @@ enum WatchdogHangs {
         // no way in to switch it off.
         disarm()
 
-        Logger.addField(withKey: "crash_kind", value: "watchdog_\(hang.rawValue)")
-        Logger.addField(withKey: "watchdog_event", value: hang.rawValue)
         ScreenLogger.logWarning("about_to_hang: watchdog_\(hang.rawValue)", [
             "watchdog_event": hang.rawValue,
             "block_seconds": String(Int(hang.blockDuration)),

@@ -566,7 +566,7 @@ Committed and pushed as `5ff20bf`. No PR: raising one was considered and dropped
   V10 that the app id is shared, so "this span has data" does not by itself mean *this* app sent it.
 - It is **untracked and not gitignored** — it shows up in `git status` on this branch. Decide
   whether to ignore it or move it out of the repo.
-- Nothing in it has been modified. Cleanup was **not started**.
+- **Cleanup is now DONE** — see §12.7.
 
 ### 12.4 Cleanup preflight — done, all gates recorded
 
@@ -620,3 +620,60 @@ Consequence to be aware of: a cleanup run can now report green having left the p
 non-compiling. That is deliberate — the run asserts references are gone, not that the app builds.
 The one case that argued for keeping gates is **partial** removal, where the end state still holds
 live bitdrift code; that was considered and rejected in favour of removing them uniformly.
+
+
+---
+
+## 12.7 Cleanup executed — `ios-clean` is a clean baseline
+
+Ran `AGENT_CLEANUP_GUIDE.md` against `bitdrift-shop/ios-clean`, 2026-08-24. Step 19 out of scope
+throughout; **no `bd` command was run and no server-side resource was queried or touched.**
+
+```
+platform:           ios
+categories_removed: spans (screen-load, journey-phase, cold-start waterfall, helper
+                    bridge), app-launch TTI, global fields + FieldProvider, entity ID,
+                    feature-flag exposures, session rotation, device-code affordance,
+                    custom-log emission, screen-view emission, network path templates,
+                    logger start + Configuration, dSYM upload build phase, SPM
+                    dependency, local workflow/dashboard artifacts, instrumentation
+                    docs and comments
+categories_skipped: Step 19 server-side — declined; shares an app id with the live app
+gates:              V1 pass  V2 pass  V3 pass  V4 pass   (no build gate — removed §12.6;
+                    built anyway, clean build SUCCEEDED, zero Capture refs in build log)
+residual_refs:      none
+server_side_state:  intentionally kept per user decision
+```
+
+Scale: 14 files touched, `CaptureBridge.swift` (362 lines) deleted, 11 `trackSpan` closures
+unwrapped, 4 `startSpan`/`end` pairs removed, 29 single-line field/flag/session calls removed,
+126 orphaned comment lines stripped, README 598 → ~340 lines.
+
+**Deliberately left:** `ScreenLogger` as an os.log-only facade (it had **75** call sites, and an app
+with pre-existing logging is a *better* baseline — Step 14 is literally "forward your existing log
+framework"); credentials in `local.xcconfig`; `demo-lib.sh` / `watchdog.sh` / `check-demo-state.sh`;
+and all branding (`BitdriftShopApp`, `BitdriftLogo`, bundle id) — identity, not instrumentation.
+
+**Not run.** The app builds clean but has never been launched. Three unwrapped sites became
+`await { … }()` closures to preserve their internal `return`s — semantically equivalent, but only a
+launch proves it.
+
+### 12.8 Six findings, all fixed in the guides
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | **Docs and comments are an answer key.** No grep catches prose. The README documented every span name and the helper file; 126 in-code `// bitdrift SDK:` comments outlived every call site. For a cleanup that's cosmetic — but when the app is being cleaned *so the instrumentation guide can be re-run against it*, leaving them invalidates the test outright: the next agent reads the answer instead of finding it | New **order 2b** + ⚠️ note in both cleanup guides; V1 and the human checklist extended to prose; new **P9** preflight in `AGENT_INSTRUMENTATION_GUIDE.md` that WARNs on residue and requires the run report to name what was pre-supplied |
+| 2 | **No distinction between the app's own logging and bitdrift's.** Order 14 read literally ("remove all structured custom logs") deletes an app-owned facade and every call site with it | Orders 14 and 17 now say to strip the bitdrift *emission* inside a facade and keep the facade, its call sites, and any app-owned behaviour the nav listener drives |
+| 3 | **Path templates are a signature change, not a header line.** `pathTemplate:` was threaded through the request builder and 6 call sites | Order 15 now describes the ripple explicitly |
+| 4 | **No guidance on app tooling vs. bitdrift tooling in `scripts/`.** Delete wrongly and the headless tooling the later test depends on goes with it | Order 9 now says to judge by purpose, not by whether `bd` appears in the file |
+| 5 | **"Order is fixed" was wrong** once build gates were removed. File-by-file was markedly faster — one file often carries five orders' worth of call sites | §2 reframed: recommended default on a full revert, still binding on a *partial* removal |
+| 6 | **V1 could not see the Xcode build phase.** The dSYM upload is a `PBXShellScriptBuildPhase` in `project.pbxproj`, invisible to a source grep | V1 and the human checklist now check build phases and Swift-package references |
+
+### 12.9 Still outstanding
+
+- **Run the instrumentation runbook against `ios-clean`** — the actual §8.2 bar. Everything above was
+  preparation. Note P9 will now WARN on nothing, since the docs and comments are gone; that was the
+  point.
+- The app has not been launched (above).
+- PII scrubbing (§11.3) remains deferred.
+- Sessions from `ios-clean` will land in the real `bd-shop` app — accepted, see §12.3.

@@ -42,15 +42,16 @@ Work from the bottom of the instrumentation guide up. Each prompt drives the ski
 | 6 | *"Remove the bitdrift analytics/beacon-event forwarding bridge at the analytics submission point."* | [Step 15](INSTRUMENTATION_GUIDE.md#15-forward-analytics--beacon-events) |
 | 7 | *"Remove the bitdrift log-framework forwarding (the Timber/CocoaLumberjack/console bridge)."* | [Step 14](INSTRUMENTATION_GUIDE.md#14-forward-your-existing-log-framework) |
 | 8 | *"Remove all bitdrift new-session calls and the field re-application that followed them."* | [Step 13](INSTRUMENTATION_GUIDE.md#13-new-session-on-user-logout-or-journey-reset) |
-| 9 | *"Remove the bitdrift symbol/mapping upload from the build and any manual upload scripts."* | [Step 12](INSTRUMENTATION_GUIDE.md#12-upload-symbol-files-for-readable-crash-stacks) |
+| 2b | *"Remove the README sections and in-code comments that describe the bitdrift instrumentation — what was instrumented, deploy steps, dashboard IDs, and any comment naming an SDK call or span name. Leave the app's own product documentation."* | — |
+| 9 | *"Remove the bitdrift symbol/mapping upload from the build, and any bitdrift-specific scripts (symbol upload, workflow deploy). Leave the app's own tooling scripts alone."* | [Step 12](INSTRUMENTATION_GUIDE.md#12-upload-symbol-files-for-readable-crash-stacks) |
 | 10 | *"Remove the bitdrift device-code / session-URL support affordance and the support-mode field."* | [Step 11](INSTRUMENTATION_GUIDE.md#11-implement-device-identification-for-support) |
 | 11 | *"Remove all bitdrift spans — screen-load, journey-phase, and any app-specific ones — plus the span-helper file added for them."* | [Step 10](INSTRUMENTATION_GUIDE.md#10-span-every-element-of-the-user-journey) |
 | 12 | *"Remove bitdrift app-launch TTI reporting, the cold-start span waterfall, and the process-start timestamp they used."* | [Step 9](INSTRUMENTATION_GUIDE.md#9-report-app-launch-tti--cold-start-span-waterfall) |
 | 13 | *"Remove all bitdrift global fields and any field providers."* | [Step 8](INSTRUMENTATION_GUIDE.md#8-attach-global-fields) |
-| 14 | *"Remove all bitdrift structured custom logs."* | [Step 7](INSTRUMENTATION_GUIDE.md#7-emit-structured-custom-logs) |
-| 15 | *"Remove bitdrift network capture from every HTTP client and delete all path templates."* | [Step 6](INSTRUMENTATION_GUIDE.md#6-capture-network-traffic) |
+| 14 | *"Remove all bitdrift structured custom logs. If the app logs through its own facade that also writes to os.log/Timber/etc., strip only the bitdrift emission inside it and leave the facade and its call sites intact."* | [Step 7](INSTRUMENTATION_GUIDE.md#7-emit-structured-custom-logs) |
+| 15 | *"Remove bitdrift network capture from every HTTP client and delete all path templates — including the `pathTemplate` parameter on the app's request builder and every call site that passes one."* | [Step 6](INSTRUMENTATION_GUIDE.md#6-capture-network-traffic) |
 | 16 | *"Remove all bitdrift entity-ID calls — `setEntityId`/`setEntityID` and `clearEntityId`/`clearEntityID`."* | [Step 5](INSTRUMENTATION_GUIDE.md#5-identify-users-with-entity-id) |
-| 17 | *"Remove bitdrift screen-view tracking and any navigation listener added for it."* | [Step 4](INSTRUMENTATION_GUIDE.md#4-instrument-screen-views-and-pair-them-with-load-spans) |
+| 17 | *"Remove bitdrift screen-view tracking and any navigation listener added for it — but if the listener also drives app-owned behaviour (breadcrumbs, a persisted last-screen), keep that and strip only the bitdrift call."* | [Step 4](INSTRUMENTATION_GUIDE.md#4-instrument-screen-views-and-pair-them-with-load-spans) |
 | 18 | *"Remove the session strategy (together with the logger-start call below)."* | [Step 3](INSTRUMENTATION_GUIDE.md#3-confirm-session-strategy) |
 | 19 | *"Remove the bitdrift logger-start call from app startup, its `Configuration` (session replay, WebView, sleep mode, fatal-issue reporting), the `startResult` callback and any `getSdkStatus()` checks, and all bitdrift imports."* | [Step 2](INSTRUMENTATION_GUIDE.md#2-start-the-logger) |
 | 20 | *"Remove the bitdrift Capture SDK dependency, the build plugin, and its `bitdrift { instrumentation { … } }` DSL block, then clean and rebuild."* | [Step 1](INSTRUMENTATION_GUIDE.md#1-add-the-dependency) |
@@ -59,7 +60,11 @@ Work from the bottom of the instrumentation guide up. Each prompt drives the ski
 
 > **Session replay is on by default, so "revert the configuration" is the wrong instinct** (order 4). Restoring a default `Configuration` re-enables replay, because `sessionReplayConfiguration` defaults to a live object on both platforms. On a **full** revert this is moot — the whole SDK goes at order 20. It matters on a **partial** removal, where leaving the logger in place means leaving replay running.
 
-> **Order matters.** Orders 1–2 are server-side/account cleanup with no build impact, so they're safe to do first (or to skip, if the workflows/dashboards should stay). From order 3 onward, the skill removes call sites (spans, logs, fields, screen views, network) *before* the logger-start call and the dependency. That ordering keeps transient breakage to a minimum, though nothing verifies compilation at each step — build when you want to, not because a gate demands it. The dependency comes out last.
+> **Order is a sensible default, not a rule.** On a full revert the end state is the same whichever
+> way you go, and working file-by-file is usually faster — one file often holds several orders' worth
+> of call sites. Keep to the order on a *partial* removal, where what you leave has to keep working.
+>
+> **Original rationale.** Orders 1–2 are server-side/account cleanup with no build impact, so they're safe to do first (or to skip, if the workflows/dashboards should stay). From order 3 onward, the skill removes call sites (spans, logs, fields, screen views, network) *before* the logger-start call and the dependency. That ordering keeps transient breakage to a minimum, though nothing verifies compilation at each step — build when you want to, not because a gate demands it. The dependency comes out last.
 
 ---
 
@@ -71,8 +76,19 @@ The skill checks that the codebase is back to baseline. For a manual spot-check,
 
 ```bash
 grep -r "io.bitdrift" .        # Android: no SDK references (also check ios/ for "import Capture", JS for "@bitdrift")
+grep -rn "bitdrift SDK:\|POC:" .   # orphaned rationale comments — no grep in the runbook catches prose
 ./gradlew clean && ./gradlew build   # or the platform's equivalent build
 ```
+
+Two things a grep will not tell you, and both routinely survive an otherwise-clean removal:
+
+- **On iOS, the dSYM upload is a run-script build phase inside `project.pbxproj`**, not source — a
+  source grep misses it entirely. Check the target's Build Phases, and that no Swift-package
+  reference to the SDK remains.
+- **Prose.** README sections describing the instrumentation, and in-code comments naming SDK calls
+  or span names, leave the repo asserting behaviour the code no longer has. If the app is being
+  cleaned so the instrumentation guide can be re-run against it, leaving them **invalidates that
+  test** — the next agent reads the answer instead of finding it.
 
 **Checklist** (foundation comes out last — confirm it's gone at the end):
 
@@ -102,6 +118,8 @@ grep -r "io.bitdrift" .        # Android: no SDK references (also check ios/ for
 - [ ] No screen-view tracking or navigation listener (4)
 - [ ] No session strategy / logger-start call (3, 2)
 - [ ] SDK dependency and build plugin removed (1)
+- [ ] iOS: no bitdrift run-script build phase or Swift-package reference left in the Xcode project (9, 1)
+- [ ] README sections and in-code comments describing the instrumentation removed (2b)
 
 Then build the project. It is not part of the checklist above — the cleanup is judged on references being gone — but nothing else confirms the app still compiles.
 - [ ] No remaining bitdrift references anywhere in the codebase

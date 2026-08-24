@@ -38,6 +38,7 @@ the exact failing check; do not proceed or attempt repairs unless noted.
 | P6 | SDK key available | locate key (Admin → SDK Keys) in env, config, or user-provided | If absent → `ASK` user once for the SDK key; HALT if not supplied |
 | P7 | Clean working tree | `git status --porcelain` is empty (or user accepts dirty) | WARN; continue (so changes are reviewable in a clean diff) |
 | P8 | Baseline build passes | platform build succeeds **before** any change | HALT: a red baseline makes later gates meaningless |
+| P9 | Residue from a previous run | `grep -rn "bitdrift SDK:\|POC:\|trackSpan\|CaptureBridge"` and skim the README for a "what's instrumented" section | WARN; continue, **and say so in the run report**. Leftover docs or comments from an earlier instrumentation pass are a *specification*, not a discovery — a run that copies them has not tested this runbook's defaults. Note precisely which decisions were pre-supplied |
 
 Record platform from P5 — it selects the verification commands in §3 and the platform notes
 in the human guide.

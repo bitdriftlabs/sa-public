@@ -1,4 +1,3 @@
-import Capture
 import Foundation
 
 /// "Smart" product recommendation engine — computes relevance scores from
@@ -37,16 +36,9 @@ enum RecommendationEngine {
     /// call's P99 tail can be attributed to "parsing was slow" vs "the O(n·m)
     /// string comparison was slow" instead of one opaque number.
     static func scoreProducts(
-        catalogJSON: String, referenceProductID: String, parentSpanID: UUID? = nil
+        catalogJSON: String, referenceProductID: String
     ) -> [(product: JSON, score: Double)] {
-        // bitdrift SDK: trackSpan() isolates parsing the whole catalog JSON string
-        // back into JSON values, separate from the similarity pass below.
-        // POC: event tracking — sub-phase duration within an already-spanned call.
-        let products = CaptureBridge.trackSpan(
-            "score_products.parse_catalog", parentSpanID: parentSpanID
-        ) { _ in
-            JSON.parse(string: catalogJSON).array
-        }
+        let products = JSON.parse(string: catalogJSON).array
         guard !products.isEmpty else { return [] }
 
         guard let reference = products.first(where: { $0.str("id") == referenceProductID }) else {
@@ -61,16 +53,11 @@ enum RecommendationEngine {
         // listings still score as related.
         let refProfile = clip(reference.serialized)
 
-        // bitdrift SDK: trackSpan() isolates the O(n·m) Levenshtein pass per
-        // product — the most legitimately interesting perf case in the app (see
-        // the type doc's "slow-rendering trap"), separate from parsing above.
-        // POC: event tracking — sub-phase duration within an already-spanned call.
-        return CaptureBridge.trackSpan(
-            "score_products.similarity_pass", parentSpanID: parentSpanID
-        ) { _ in
-            products
-                .filter { $0.str("id") != referenceProductID }
-                .map { product -> (product: JSON, score: Double) in
+        // The O(n·m) Levenshtein pass per product — the most legitimately
+        // interesting perf case in the app (see the type doc's "slow-rendering trap").
+        return products
+            .filter { $0.str("id") != referenceProductID }
+            .map { product -> (product: JSON, score: Double) in
                     let desc = product.str("description", product.str("name"))
                     let category = product.str("category")
 
@@ -83,8 +70,7 @@ enum RecommendationEngine {
                         + (sharedWords * 0.01)
                     return (product, score)
                 }
-                .sorted { $0.score > $1.score }
-        }
+            .sorted { $0.score > $1.score }
     }
 
     // MARK: - Scoring primitives
