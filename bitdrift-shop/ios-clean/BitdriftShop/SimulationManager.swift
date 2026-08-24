@@ -361,8 +361,8 @@ final class SimulationManager: ObservableObject {
         isCancelled = true
 
         // A user-initiated app-switcher kill is a clean termination, not a crash.
-        // Give the SDK a moment to flush, then exit — the watchdog relaunches.
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.crashFlush) {
+        // The watchdog relaunches.
+        DispatchQueue.main.async {
             exit(0)
         }
         return true
@@ -437,7 +437,7 @@ final class SimulationManager: ObservableObject {
         return (combo.name, combo.fire, combo.fireInBackground)
     }
 
-    /// Fires `fire()`, either immediately after the `crashFlush` SDK-flush window
+    /// Fires `fire()`, either immediately
     /// or, for the background half of the sweep, once the app has genuinely moved
     /// to the background.
     ///
@@ -451,11 +451,8 @@ final class SimulationManager: ObservableObject {
     /// the process is backgrounded.
     private func dispatchCrash(_ fire: @escaping () -> Void, fireInBackground: Bool) {
         guard fireInBackground else {
-            // Foreground path: fire from a plain main-queue block with a blocking
-            // flush window so the SDK persists the crash report and preceding logs
-            // before the process dies.
+            // Foreground path: fire from a plain main-queue block.
             DispatchQueue.main.async {
-                Thread.sleep(forTimeInterval: Self.crashFlush)
                 fire()
             }
             return
@@ -631,10 +628,6 @@ final class SimulationManager: ObservableObject {
                 "run": String(currentRun),
                 "variant": activeVariant.label,
             ])
-            // Give the SDK time to fully initialise the new session before
-            // recording exposures.
-            await sleep(0.2)
-            // Re-apply the variant after a session reset.
             setVariant(activeVariant)
             await sleep(0.2)
         }
@@ -1071,9 +1064,7 @@ final class SimulationManager: ObservableObject {
 
         // ── Step 6: PaymentCard ──────────────────────────────────────────
         // Card is choice 0 — fixed, not the random payment-method roll the
-        // full journey uses, so this path stays deterministic. No separate
-        // checkoutSpan exists in this mode — checkout.payment/.confirmation nest
-        // directly under the flat journey span instead.
+        // full journey uses, so this path stays deterministic.
         let orderID = await runPayment(
             navigator, choice: 0, session: session
         )
@@ -1137,9 +1128,8 @@ final class SimulationManager: ObservableObject {
     /// Resource Utilization snapshots and show a rising memory graph rather than
     /// one flat point.
     private static let oomCrashRestartDelay: TimeInterval = 45
-    private static let crashFlush: TimeInterval = 0.3
-    /// Longer than `crashFlush`: gives the OS time to actually move the process
-    /// out of the foreground after `suspend`, before the crash fires.
+    /// Gives the OS time to actually move the process out of the foreground
+    /// after `suspend`, before the crash fires.
     private static let backgroundSettle: TimeInterval = 2
 
     private static let hangTargetScreenName = "CheckoutGuest"

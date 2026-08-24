@@ -47,8 +47,8 @@
 		<true/>
 	</dict>
 
-	<!-- Populated from local.xcconfig / .local.xcconfig (see ios/README.md).
-	     Read back at runtime by BitdriftShopApp to start the Capture SDK. -->
+	<!-- Populated from local.xcconfig / .local.xcconfig (see README.md).
+	     Read back at runtime by AppConfig. -->
 	<key>SHOP_BACKEND_URL</key>
 	<string>$(SHOP_BACKEND_URL)</string>
 	<key>ENABLE_BACKGROUND_CRASHES</key>

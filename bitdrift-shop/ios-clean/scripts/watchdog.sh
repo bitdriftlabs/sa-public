@@ -6,10 +6,10 @@
 #      deliberate crash so the process comes back on its own; there is no
 #      equivalent here.
 #   2. Background the app when a background-half crash is armed, so the crash
-#      lands while the app is backgrounded.
-#      Simulator only — see the warning it prints on a device.
+#      lands while the app is backgrounded. Works on a device too — there it
+#      launches Settings to take the foreground; see the note printed at start.
 #
-#   ./scripts/watchdog.sh                    # auto: booted simulator, else connected device
+#   ./scripts/watchdog.sh                    # auto: whichever single target is live
 #   ./scripts/watchdog.sh --simulator        # force the booted simulator
 #   ./scripts/watchdog.sh --device           # force the connected device
 #   ./scripts/watchdog.sh --device <UDID>    # a specific device

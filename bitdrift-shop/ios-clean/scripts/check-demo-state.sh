@@ -7,7 +7,7 @@
 # unrelated demo leaves it silently armed. Run this before any demo session.
 #
 #   ./scripts/check-demo-state.sh
-#   ./scripts/check-demo-state.sh --reset          # simulator only
+#   ./scripts/check-demo-state.sh --reset          # clear armed flags (simulator or device)
 #   ./scripts/check-demo-state.sh --device [UDID]
 #   ./scripts/check-demo-state.sh --simulator [UDID]
 set -uo pipefail
@@ -96,7 +96,7 @@ printf '  %-34s %s\n' "Next crash combo index" "$(state_value next_combo_index 0
 echo
 if [[ "$armed" -gt 0 ]]; then
   echo "$armed flag(s) armed."
-  [[ "$TARGET_KIND" == "sim" ]] && echo "Run with --reset to clear them before an unrelated demo."
+  echo "Run with --reset to clear them before an unrelated demo."
 else
   echo "Clean — no fault injection armed."
 fi

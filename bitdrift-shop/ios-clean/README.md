@@ -272,7 +272,7 @@ Both work against a Simulator or a physical device:
 
 | Flag | Target |
 |------|--------|
-| *(none)* | Auto — booted simulator if there is one, else a connected device |
+| *(none)* | Auto — resolves whichever single target is live. With both a booted simulator **and** a connected device it refuses to guess; pass a flag |
 | `--simulator [UDID]` | Force the simulator (`simctl`) |
 | `--device [UDID]` | Force a physical device (`devicectl`) |
 

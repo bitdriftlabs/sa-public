@@ -28,48 +28,6 @@ enum Palette {
 
 // MARK: - Spanned async image
 
-/// Drop-in replacement for SwiftUI's `AsyncImage`, wrapping the fetch+decode in a
-/// span. `AsyncImage` exposes no start/end hook of its own — its underlying
-/// request is still visible as a raw HTTP entry via the swizzled URLSession
-/// integration, but there is no way to get "time until this specific product
-/// thumbnail finished loading" as a named, chartable operation without replacing
-/// it with something that owns the fetch itself.
-///
-/// Same call shape as `AsyncImage(url:content:placeholder:)`, so every call site
-/// only needed the type name swapped.
-///
-struct RemoteImage<Content: View, Placeholder: View>: View {
-    let url: URL?
-    @ViewBuilder let content: (Image) -> Content
-    @ViewBuilder let placeholder: () -> Placeholder
-
-    @State private var uiImage: UIImage?
-
-    var body: some View {
-        Group {
-            if let uiImage {
-                content(Image(uiImage: uiImage))
-            } else {
-                placeholder()
-            }
-        }
-        .task(id: url) {
-            // Clear before fetching the new url, not just on success below — a row
-            // whose view identity gets reused for a different product (ForEach
-            // keys by offset, not product id) would otherwise keep showing the
-            // previous product's image for the duration of the new fetch, and
-            // permanently if the new url is nil or the fetch fails.
-            uiImage = nil
-            guard let url else { return }
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                uiImage = UIImage(data: data)
-            } catch {
-                uiImage = nil
-            }
-        }
-    }
-}
 
 // MARK: - Screen container
 
@@ -170,7 +128,7 @@ struct ScreenContainer<Content: View>: View {
                     .foregroundStyle(.secondary)
             }
         } else if let imageURL, let url = URL(string: imageURL) {
-            RemoteImage(url: url) { image in
+            AsyncImage(url: url) { image in
                 image.resizable().scaledToFill()
             } placeholder: {
                 Circle().fill(color.opacity(0.15))
@@ -432,7 +390,7 @@ struct ProductImageRow: View {
                             onProductTap(product.str("id"))
                         } label: {
                             HStack(spacing: 0) {
-                                RemoteImage(url: URL(string: product.str("image_url"))) { image in
+                                AsyncImage(url: URL(string: product.str("image_url"))) { image in
                                     image.resizable().scaledToFill()
                                 } placeholder: {
                                     Color.gray.opacity(0.2)
@@ -536,7 +494,7 @@ struct RecommendedSection: View {
                         onProductTap(item.product.str("id"))
                     } label: {
                         HStack(spacing: 10) {
-                            RemoteImage(url: URL(string: item.product.str("image_url"))) { image in
+                            AsyncImage(url: URL(string: item.product.str("image_url"))) { image in
                                 image.resizable().scaledToFill()
                             } placeholder: {
                                 Color.gray.opacity(0.2)

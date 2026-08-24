@@ -78,9 +78,6 @@ enum WatchdogHangs {
             "block_seconds": String(Int(hang.blockDuration)),
         ])
 
-        // Give the SDK a moment to flush the breadcrumb above before the main
-        // thread — and with it the logger's own work — stops responding.
-        Thread.sleep(forTimeInterval: 0.3)
         Thread.sleep(forTimeInterval: hang.blockDuration)
     }
 
