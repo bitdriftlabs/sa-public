@@ -1,6 +1,6 @@
 # Agent Instrumentation Runbook
 
-**Version 1.2 — machine-consumable** — covers the 20-step guide, including the Step 4/10 span pairing.
+**Version 1.3 — machine-consumable** — covers the 20-step guide, including the Step 4/10 span pairing and the SDK 0.23.12 review (session replay on by default, init diagnostics, entity-ID clearing, trace-propagation defaults).
 
 This is the **autonomous execution contract** for instrumenting any mobile app with the
 bitdrift Capture SDK. It wraps [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md) (the
@@ -52,6 +52,7 @@ silently unless the user has already stated a preference this session. Only the 
 
 | Decision | Source step | Default (use unless told otherwise) |
 |----------|-------------|-------------------------------------|
+| Init diagnostics | 2 | **On.** Pass the `startResult` callback (SDK 0.23.0+) and log its outcome; check `getSdkStatus()` after start. Cheap, and it turns a silent bad-key/blocked-egress failure into an explicit one at the call site rather than an empty dashboard at V4. |
 | Session strategy | 3 | **fixed** (fresh session per launch — best for PoC/verification) |
 | Which events to log | 7 | Discover candidate business events by scanning the code (checkout, payment, auth, errors). Instrument the **top 3–5 highest-signal** events; list them in the run report. Do **not** ASK. |
 | Cold-start span waterfall | 9 | **On.** Root `app_cold_start` back-dated to real process start, with `sdk_init` / `scene_render` / `state_restore` children. In addition to the TTI report, not instead of it. |
@@ -61,7 +62,7 @@ silently unless the user has already stated a preference this session. Only the 
 | Log-framework forwarding | 14 | Enable **if** an existing logger (Timber/CocoaLumberjack/console) is detected; otherwise skip. |
 | Analytics/beacon forwarding | 15 | Enable **if** an existing analytics/event client (Amplitude, custom dispatcher) is detected; otherwise skip. |
 | Feature flag exposures | 16 | Enable **if** a feature-flag system is detected; instrument at the divergence point. Otherwise skip. Confirm API via bd-docs. |
-| Session replay | 17 | **Skip by default** unless the POC scope includes SC-9. Confirm enablement via bd-docs before changing config. |
+| Session replay | 17 | **Already on** — the default `Configuration` enables it on both platforms, so "skipping" Step 17 still ships replay. Default action: leave enabled, and **record in the run report that it is on**. Disable (pass a null/nil session-replay configuration) only if the user or POC scope asks, or a privacy review is unresolved — that case is an `ASK`. |
 | Crash reporter cross-linking | 18 | Enable **if** an existing crash reporter (Crashlytics/Sentry/Bugsnag/etc.) is detected in the codebase; otherwise skip. |
 | Crash workflow classification dimensions | 19 | Auto-discover from what the app actually produces — classify by feature-flag exposure if flags are instrumented, by memory-pressure level for OOM-type crashes, by ANR/blocked-thread reason for ANR-type crashes. Do **not** ASK; pick whichever dimensions the crash catalog supports. |
 | CUJ flow to automate | 19 | `ASK` once — bd-cuj needs to know which flow is business-critical (e.g. checkout, onboarding, login). Skip this half of Step 19 only if told to stop at raw instrumentation. |
@@ -82,22 +83,22 @@ build.
 | Order | Step | POC criteria | Prompt source | Gate (must pass before next step) |
 |-------|------|--------------|---------------|-----------------------------------|
 | 1 | Add dependency + plugin | PRE-0 | [Step 1](INSTRUMENTATION_GUIDE.md#1-add-the-dependency) | Dependency resolves; project builds |
-| 2 | Start logger | SC-3, SC-4, SC-6, SC-10 | [Step 2](INSTRUMENTATION_GUIDE.md#2-start-the-logger) | Builds; logger-start call present in launch path |
+| 2 | Start logger | SC-3, SC-4, SC-6, SC-9, SC-10 | [Step 2](INSTRUMENTATION_GUIDE.md#2-start-the-logger) | Builds; logger-start call present in launch path; `startResult` wired and `getSdkStatus()` reports `Running` |
 | 3 | Session strategy (= default *fixed*) | SC-6 | [Step 3](INSTRUMENTATION_GUIDE.md#3-confirm-session-strategy) | Strategy set on the start call |
 | 4 | Screen views (+ screen-name inventory) | PRE-1, SC-7 | [Step 4](INSTRUMENTATION_GUIDE.md#4-instrument-screen-views-and-pair-them-with-load-spans) | Builds; navigation listener wired; **the full list of emitted screen names is captured and recorded in the run report** — it is the input to Step 10 and to Step 19's funnel matchers |
-| 5 | Entity ID | PRE-6, SC-11, SC-5 | [Step 5](INSTRUMENTATION_GUIDE.md#5-identify-users-with-entity-id) | Builds; set at identity boundary |
-| 6 | Network capture + path templates | SC-2, PRE-4 | [Step 6](INSTRUMENTATION_GUIDE.md#6-capture-network-traffic) | Builds; **every** dynamic route has a path template (cardinality gate — see ⚠️ below) |
+| 5 | Entity ID | PRE-6, SC-11, SC-5 | [Step 5](INSTRUMENTATION_GUIDE.md#5-identify-users-with-entity-id) | Builds; `setEntityId`/`setEntityID` at the identity boundary (not the removed `registerOpaqueEntityId`), and `clearEntityId`/`clearEntityID` on logout if a logout path exists |
+| 6 | Network capture + path templates | SC-2, PRE-4 | [Step 6](INSTRUMENTATION_GUIDE.md#6-capture-network-traffic) | Builds; **every** dynamic route has a path template (cardinality gate — see ⚠️ below); exactly one OkHttp instrumentation path on Android (plugin **or** manual, never both); trace-propagation default surfaced to the user (see ⚠️ below) |
 | 7 | Structured custom logs | SC-8, SC-7 | [Step 7](INSTRUMENTATION_GUIDE.md#7-emit-structured-custom-logs) | Builds; messages are stable names, variable data in fields |
 | 8 | Global fields | SC-7, SC-11 | [Step 8](INSTRUMENTATION_GUIDE.md#8-attach-global-fields) | Builds |
 | 9 | App launch TTI + cold-start waterfall | SC-1, SC-7 | [Step 9](INSTRUMENTATION_GUIDE.md#9-report-app-launch-tti--cold-start-span-waterfall) | Builds; TTI reported; root + 3 phase spans emit `_duration_ms`; root back-dated with a custom start **and** end time (both, or the SDK falls back to system time) in the SDK's clock domain (epoch, not monotonic uptime) |
 | 10 | Spans for every journey element | SC-1, PRE-4 | [Step 10](INSTRUMENTATION_GUIDE.md#10-span-every-element-of-the-user-journey) | Builds; start+end emit `_duration_ms`; **parity holds** — every Step 4 screen has a span and no span names a screen the app never emits; every hygiene item in the ⚠️ block below passes |
 | 11 | Device id / support *(opt-in)* | SC-5, SC-11 | [Step 11](INSTRUMENTATION_GUIDE.md#11-implement-device-identification-for-support) | Builds |
 | 12 | Symbol upload *(release only)* | SC-3 | [Step 12](INSTRUMENTATION_GUIDE.md#12-upload-symbol-files-for-readable-crash-stacks) | Upload step wired; uses SDK key |
-| 13 | New session on logout/reset *(opt-in)* | SC-6 | [Step 13](INSTRUMENTATION_GUIDE.md#13-new-session-on-user-logout-or-journey-reset) | Builds; global fields re-applied after |
+| 13 | New session on logout/reset *(opt-in)* | SC-6 | [Step 13](INSTRUMENTATION_GUIDE.md#13-new-session-on-user-logout-or-journey-reset) | Builds; global fields re-applied after; on a logout boundary the entity ID is cleared and user-scoped fields removed |
 | 14 | Forward existing logger *(if detected)* | PRE-3, SC-8 | [Step 14](INSTRUMENTATION_GUIDE.md#14-forward-your-existing-log-framework) | Builds |
 | 15 | Forward analytics/beacon events *(if detected)* | PRE-2, SC-8, SC-7 | [Step 15](INSTRUMENTATION_GUIDE.md#15-forward-analytics--beacon-events) | Builds; events bridged at single submission point |
 | 16 | Feature flag exposures *(if detected)* | PRE-5, SC-7 | [Step 16](INSTRUMENTATION_GUIDE.md#16-record-feature-flag-exposures) | Builds; recorded at divergence point |
-| 17 | Session replay *(opt-in / SC-9 in scope)* | SC-9 | [Step 17](INSTRUMENTATION_GUIDE.md#17-enable-session-replay-wireframe) | Builds; replay enabled per bd-docs |
+| 17 | Session replay *(verify; already on by default)* | SC-9 | [Step 17](INSTRUMENTATION_GUIDE.md#17-session-replay-wireframe--on-by-default) | Builds; the configuration in force is **stated** — enabled (default) or explicitly disabled with the reason. Never leave this unreported |
 | 18 | Cross-link existing crash reporter *(if detected)* | SC-3 | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) | Builds; session URL attached as a custom key/tag |
 | 19 | Crash workflows + CUJ + POC dashboards | SC-3, SC-7, SC-11 | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | Driven by **bd-cli** + **bd-cuj**, not bd-instrumentation. Crash workflow(s) deployed and LIVE; CUJ stack (Sankey/funnel/SLO/alert/session-capture/dashboard) deployed for the ASK'd flow; 3 POC dashboards composed and viewable; **span-percentile charts present on the Business/UX dashboard**, labeled distinctly from bd-cuj's wall-clock step timing |
 | 20 | Evaluation readout | All in-scope | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) | Every in-scope criterion has a named artifact + a `bd-cli` command or portal link proving it |
@@ -129,6 +130,14 @@ build.
 >
 > Full detail and the code that hits each one:
 > [examples/journey-span-instrumentation.md](examples/journey-span-instrumentation.md).
+
+> ⚠️ **Step 6 outbound-header notice (report it, don't silently ship it).** With network capture on,
+> the SDK injects a distributed-tracing header into instrumented outgoing requests by default (W3C
+> `traceparent`; `b3-single` / `b3-multi` / Datadog / `none` also available, selected by the
+> **server-side** runtime variable `client_config.trace.propagation_mode`). This reaches the
+> customer's backend, WAF, and CDN without an app release. Name it in the run report whenever Step 6
+> ran. It is not a failure — it is a change to outbound traffic that nobody should discover from a
+> CORS preflight error in staging.
 
 > **API signatures:** before writing call sites, have bd-instrumentation confirm exact
 > symbols for the installed SDK version via **bd-docs** (e.g. iOS `setEntityID` capital ID,
@@ -162,10 +171,15 @@ a session appears:
   exact command). **PASS** if ≥1 session with timeline events appears within ~120s of launch.
 - If empty after 120s → **FAIL V4**; report (do not silently pass). Likely causes: logger
   not started early enough, wrong SDK key, no network egress from device/emulator.
+- **Diagnose in-app before guessing.** The `startResult` callback wired in Step 2 reports an
+  initialization error directly, and `getSdkStatus()` distinguishes the cases the list above
+  lumps together: `NotStarted` / `Disabled` is a start problem, while `Running` with a stale
+  last-handshake or last-config-delivery time is an egress or key problem. Report which one.
 
 **V5 — Decisions logged.** The run report names: chosen session strategy, the events
-instrumented (Step 7), the spans added (Step 10 — see V9's parity table), and any skipped opt-in
-steps.
+instrumented (Step 7), the spans added (Step 10 — see V9's parity table), the session-replay state
+(on by default, or disabled with the reason), the trace-propagation mode in force, and any skipped
+opt-in steps.
 
 **V6 — POC coverage.** If a POC scope was provided, every in-scope `SC-n`/`PRE-n` criterion
 maps to a step that ran (per the §2 column and the
@@ -239,6 +253,9 @@ platform:        <android|ios|react-native>
 steps_run:       <list>
 steps_skipped:   <list + reason>
 session_strategy: <fixed|activity-based>
+sdk_status:      <getSdkStatus() state at first launch + startResult outcome>
+session_replay:  <enabled (default) | disabled + reason>
+trace_propagation: <w3c (default)|b3-single|b3-multi|dd|none> — outbound header the app now sends
 events_logged:   <names>
 screen_spans:    <screen name -> span name parity table; "none unpaired" or the orphans>
 journey_spans:   <phase spans + their parent>

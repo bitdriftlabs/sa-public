@@ -2,6 +2,8 @@
 
 Step-by-step prompts for instrumenting any mobile app with the bitdrift Capture SDK using an AI coding agent. Covers Android, iOS, and React Native. Each prompt drives the **bd-instrumentation** skill to write the call sites, wire the build, and verify it compiles — you run the prompts in order, the skill handles the platform-specific details.
 
+**v1.3** is reviewed against Capture SDK 0.23.12 — notably, session replay is **on by default**, so Step 17 confirms or disables it rather than enabling it.
+
 **v1.2** pairs screen views with spans: the same journey elements that become Sankey nodes and funnel steps also get duration spans, so a POC ends with per-step latency percentiles and not just conversion.
 
 ## Files

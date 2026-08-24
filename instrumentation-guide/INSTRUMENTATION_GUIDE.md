@@ -1,6 +1,8 @@
 # bitdrift Instrumentation Guide
 
-**Version 1.2** — pairs screen views with spans: Steps 4 and 10 now instrument the same journey elements, Step 9 adds a cold-start span waterfall, and a new [worked example](examples/journey-span-instrumentation.md) collects the traps. (1.1 added Steps 18–20 — crash-reporter cross-linking, crash/CUJ workflows and dashboards, evaluation readout.)
+**Version 1.3** — reviewed against Capture SDK 0.23.12: session replay is **on by default** (Step 17 is now a decision to confirm or disable, not to enable), Step 2 adds `startResult` / `getSdkStatus()` init diagnostics, Step 5/13 add `clearEntityId` at logout, and Step 6 documents default W3C trace-propagation headers plus the Android plugin and WebView gates.
+
+**Version 1.2** — paired screen views with spans: Steps 4 and 10 instrument the same journey elements, Step 9 adds a cold-start span waterfall, and a [worked example](examples/journey-span-instrumentation.md) collects the traps. (1.1 added Steps 18–20 — crash-reporter cross-linking, crash/CUJ workflows and dashboards, evaluation readout.)
 
 A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt. Steps 1–18 drive the **bd-instrumentation** skill to do the actual app-code work (write the call sites, wire the build, verify it compiles); Step 19 is server-side console configuration driven by **bd-cli** and **bd-cuj**; Step 20 writes up the result and touches neither. You don't write the code; you run the prompts in order and the skills handle the platform-specific details on Android, iOS, or React Native.
 
@@ -70,6 +72,10 @@ The skill adds the SDK dependency and the build plugin (which handles automatic 
 
 The skill starts the logger with your SDK key and a session strategy (Step 3), before any other SDK call.
 
+**Ask for the `startResult` callback and check `getSdkStatus()`.** Since SDK 0.23.0, `start(...)` takes an optional `startResult` callback that reports either the logger instance or an initialization error, and `getSdkStatus()` returns a point-in-time snapshot — initialization state (`NotStarted` / `Loaded` / `Running` / `Disabled`), last handshake time, last config-delivery time. Wire both during a POC. Without them, a wrong SDK key or a blocked egress path looks identical to "the app just isn't logging yet," and you find out via an empty dashboard 20 minutes later instead of at the call site.
+
+**Know what the default `Configuration` turns on.** `enableFatalIssueReporting` defaults to **true** (crash/ANR capture with no extra work) and `sessionReplayConfiguration` defaults to **enabled** — see [Step 17](#17-session-replay-wireframe--on-by-default), which is a decision to *confirm or disable*, not one to enable. `sleepMode` defaults to disabled; set it to enabled only if you want the SDK to start in minimal-activity mode.
+
 **Unlocks:** Instant Insights dashboards (app launches, crashes, network, resources), the session Timeline, and all automatic instrumentation (memory pressure, battery, orientation changes, slow frames, thermal state) — collected immediately after start.
 
 **POC criteria:** SC-3 (Crash Detection — automatic crash capture with full session context), SC-4 (Memory Monitoring — continuous memory tracking), SC-6 (Session Management — log-everything-on-device), SC-10 (Visual Performance — slow-frame/jank & responsiveness capture). All four are automatic once the logger starts; no extra call sites needed.
@@ -98,6 +104,8 @@ A **fixed** strategy starts a fresh session on every launch — simplest to reas
 
 The skill logs a stable, snake_case screen name on each navigation (the label that becomes a Sankey node), preferring a centralized listener so both user and programmatic navigation are captured.
 
+Since SDK 0.22.15, `logScreenView` also captures an up-to-date Session Replay wireframe at the moment of the call — so good screen-view coverage improves [Step 17](#17-session-replay-wireframe--on-by-default) for free.
+
 **Capture the screen-name list, don't just implement it.** That list is the contract Step 10 is verified against — one `<screen>_screen_load` span per screen — and it's also what Step 19's funnel matchers must be checked against. Getting it written down here is what stops a funnel step from naming a screen the app never emits (see [examples/cuj-funnel-pitfalls.md](examples/cuj-funnel-pitfalls.md)).
 
 **Unlocks:** User Journey (Sankey) diagram in Instant Insights — the foundation for funnel analysis. Paired with [Step 10](#10-span-every-element-of-the-user-journey), per-step duration percentiles for the same journey.
@@ -113,6 +121,8 @@ The skill logs a stable, snake_case screen name on each navigation (the label th
 > **Prompt:** *"Set the bitdrift entity ID at the user identity boundary (e.g. on login)."*
 
 The skill sets the entity ID when the user is known. The value is hashed; plaintext is never stored.
+
+The API is `setEntityId` (Android) / `setEntityID` (iOS) as of SDK 0.23.0 — it was renamed from `registerOpaqueEntityId`/`registerOpaqueEntityID` and is no longer experimental, so older snippets will not compile. Pair it with `clearEntityId` / `clearEntityID` (SDK 0.23.7+) at logout, or the previous user's identity stays attached to the next person to use the device — see [Step 13](#13-new-session-on-user-logout-or-journey-reset).
 
 **Unlocks:** The Entities feature — search any entity by name to see all their sessions, crashes, devices, and last location; queue a recording with **Record Next Online**; bookmark entities to share with your team.
 
@@ -130,9 +140,15 @@ The skill attaches the network integration to each HTTP client and collapses hig
 
 **Unlocks:** Network tab in Instant Insights (p50/p95 latency, error rate, throughput by endpoint), and network events on the Timeline alongside logs and screen views.
 
+> ⚠️ **Trace-propagation headers are on by default.** Once network capture is active the SDK injects a distributed-tracing header into instrumented outgoing requests — W3C `traceparent` by default, with `b3-single`, `b3-multi`, Datadog (`x-datadog-*`) and `none` also available. The mode is a **server-side runtime variable** (`client_config.trace.propagation_mode`), so it changes with no app release. Raise this before a POC build reaches a real backend: an unexpected header can trip strict CORS preflight, a WAF, or a CDN cache key. iOS exposes `isTracingActive` if you need to check at runtime.
+
+**Excluding noisy endpoints is also server-side.** `client_config.network.request_ignore_match_paths` and `client_config.network.request_ignore_match_headers` (both CSV) drop matching requests without an app change — the right tool for a third-party analytics endpoint that would otherwise dominate the Network tab. Path templates (below) are for *cardinality*; these are for *exclusion*.
+
+**Android plugin specifics.** `automaticOkHttpInstrumentation` defaults to **false** — it must be explicitly enabled in the `bitdrift { instrumentation { } }` DSL. Its mode defaults to `PROXY`, which preserves any `EventListener.Factory` the app already sets (`OVERWRITE` replaces it). **Never combine the plugin's auto-instrumentation with a manual `CaptureOkHttpEventListenerFactory`** — both attach a listener, so every request is logged twice and every metric doubles.
+
 > ⚠️ **High-cardinality paths are required, not optional.** When a path embeds a dynamic segment (user ID, product ID, UUID), every request becomes a distinct value. The dashboard groups metrics by path and enforces **cardinality limits** (~1,000 group-by dimensions / ~30 min, 20,000 total) — exceed them and metrics are **silently dropped**. The prompt above tells the skill to add a stable path template to every dynamic route.
 
-**POC criteria:** SC-2 (Network Monitoring — unsampled HTTP latency/error-rate/throughput per endpoint), PRE-4 (Networking — wrap okhttp/URLSession; custom networking is handled in Step 10), SC-12 (Web views — if the app embeds WebViews, the same network integration extends to them, though WebView instrumentation is **experimental on both platforms**: Android via the Capture Gradle plugin, iOS as of SDK 0.23.11. The skill confirms the current API via bd-docs before enabling it, and will stop rather than guess if the docs don't cover it).
+**POC criteria:** SC-2 (Network Monitoring — unsampled HTTP latency/error-rate/throughput per endpoint), PRE-4 (Networking — wrap okhttp/URLSession; custom networking is handled in Step 10), SC-12 (Web views — if the app embeds WebViews, the same network integration extends to them, though WebView instrumentation is **experimental / early-access on both platforms**: Android via the Capture Gradle plugin, iOS as of SDK 0.23.11. On Android it takes **three** things, and missing any one fails silently: the plugin applied with `automaticWebViewInstrumentation = true`, a non-null `WebViewConfiguration` passed to `Logger.start` (without it the injected bytecode short-circuits to a no-op), **and** the individual capture flags — `capturePageViews`, `captureWebVitals`, `captureNetworkRequests`, `captureConsoleLogs`, `captureUserInteractions`, `captureErrors`, `captureNavigationEvents`, `captureLongTasks` — which each default to **false**, so a bare `WebViewConfiguration()` captures nothing. The skill confirms the current API via bd-docs before enabling it, and will stop rather than guess if the docs don't cover it).
 
 **Docs:** [HTTP Traffic Logs](https://docs.bitdrift.io/sdk/features/http-traffic-logs), [Workflow cardinality limits](https://docs.bitdrift.io/product/workflows/actions)
 
@@ -279,6 +295,8 @@ The skill configures the build plugin to upload mappings/symbols after a release
 
 The skill starts a new session at the right boundary and re-applies global fields (they're session-scoped and not carried across a new session).
 
+**On logout specifically, clear the entity ID too** (`clearEntityId` / `clearEntityID`, SDK 0.23.7+). A new session alone does not detach the previous user — without the clear, the next person to use the device inherits their identity in Entities, which is both wrong and a privacy problem. Global fields carrying user context (`user_id`, tier, cohort) need removing on the same boundary.
+
 **Unlocks:** Clean per-user Timeline entries.
 
 **POC criteria:** SC-6 (Session Management — clean session boundaries so on-demand session retrieval maps to one user).
@@ -329,17 +347,21 @@ The skill records the variant a user is exposed to at the point the flag changes
 
 ---
 
-## 17. Enable session replay (wireframe)
+## 17. Session replay (wireframe) — on by default
 
-> **Prompt:** *"Enable bitdrift wireframe session replay on this build and confirm the configuration via bd-docs."*
+> ⚠️ **This step is a decision to confirm, not a feature to switch on.** On both platforms the default `Configuration` enables session replay: `sessionReplayConfiguration` defaults to a live configuration object, not `nil`/`null`. If Step 2 started the logger with a default configuration, **replay is already running.** Disabling it is the action that takes code.
 
-The skill enables lightweight, wireframe-based replay (no screenshots or video) and verifies the per-platform configuration. Replay reconstructs the user experience while preserving device performance.
+> **Prompt:** *"Confirm whether bitdrift wireframe session replay is enabled on this build, and tell me the configuration in force."* — or, to turn it off — *"Disable bitdrift session replay by passing a null session-replay configuration at logger start."*
+
+Replay is lightweight and wireframe-based — no screenshots, no video — and reconstructs the user experience while preserving device performance.
+
+Two reasons to reach for the off switch: a privacy or security review that has not yet cleared on-device view capture, or a measured performance budget the POC must not exceed. Both are decisions to make deliberately and record, rather than discover. Note that [Step 4](#4-instrument-screen-views-and-pair-them-with-load-spans)'s `logScreenView` refreshes the replay wireframe on every navigation, so screen-view coverage and replay fidelity move together.
 
 **Unlocks:** Wireframe session replay in the Timeline — reconstruct what the user saw and did during any captured session.
 
-**POC criteria:** SC-9 (Session Replay — wireframe replay with sufficient fidelity for debugging at <1% CPU/memory impact).
+**POC criteria:** SC-9 (Session Replay — wireframe replay with sufficient fidelity for debugging at <1% CPU/memory impact). Because the feature is on by default, SC-9 is satisfied by Step 2 alone; this step is where you *verify* it and measure the overhead the criterion actually asks about.
 
-> ⚠️ Session replay enablement and its exact configuration are version- and platform-specific. The skill confirms the current method via **bd-docs** (search `session replay`) before changing config rather than guessing.
+> ⚠️ The exact configuration surface is version- and platform-specific. The skill confirms the current method via **bd-docs** (search `session replay`) before changing config rather than guessing.
 
 **Docs:** [Session Replay](https://docs.bitdrift.io/product/timeline) — confirm via **bd-docs** (`session replay`).
 
@@ -350,6 +372,8 @@ The skill enables lightweight, wireframe-based replay (no screenshots or video) 
 > **Prompt:** *"Cross-link this app's bitdrift sessions with our existing crash reporter (Crashlytics / Sentry / Bugsnag) by attaching the bitdrift session URL as a custom tag on every crash report."*
 
 The skill reads the session URL (`Logger.sessionUrl` / `Logger.sessionURL` / `getSessionUrl()`) once the logger has started and attaches it to the incumbent crash tool as a custom key or tag, re-reading it whenever the session rotates.
+
+**`previousRunInfo` is the other half of this.** `Capture.Logger.getPreviousRunInfo()` (Android) / `Capture.Logger.previousRunInfo` (iOS) tells the app, on the next launch, how the previous run ended — a richer `ExitReason` since SDK 0.23.9, not just a boolean. Useful for a POC comparison: it lets the app log its own "we crashed last time" breadcrumb at startup, which is a direct, independent check on whether the incumbent tool and bitdrift agree about what terminated.
 
 **Unlocks:** Every crash in the existing tool links straight to its matching bitdrift session — full logs, network calls, spans, and device state. Lets bitdrift run alongside an incumbent crash tool during a POC instead of replacing it on day one.
 
@@ -408,7 +432,7 @@ State what was actually confirmed and how. A row that says "deployed" when nothi
 | Step | Prompt drives | bitdrift feature | POC criteria | Docs |
 |------|---------------|-----------------|--------------|------|
 | 1 | Install SDK + plugin | All features | PRE-0 | [Quickstart](https://docs.bitdrift.io/sdk/quickstart) |
-| 2 | Start the logger | Instant Insights, Timeline, automatic events | SC-3, SC-4, SC-6, SC-10 | [Configuration](https://docs.bitdrift.io/sdk/features/configuration) |
+| 2 | Start the logger (+ `startResult` / `getSdkStatus`) | Instant Insights, Timeline, automatic events, session replay | SC-3, SC-4, SC-6, SC-9, SC-10 | [Configuration](https://docs.bitdrift.io/sdk/features/configuration) |
 | 3 | Session strategy | Correct session grouping | SC-6 | [Session Management](https://docs.bitdrift.io/sdk/features/session-management) |
 | 4 | Screen-view tracking (+ paired load spans) | User Journey Sankey diagram | PRE-1, SC-7 | [Automatic Instrumentation](https://docs.bitdrift.io/sdk/features/automatic-instrumentation) |
 | 5 | Entity ID | Entities: per-user history, Record Next Online | PRE-6, SC-11, SC-5 | [Entity ID](https://docs.bitdrift.io/sdk/features/entity-id) |
@@ -423,7 +447,7 @@ State what was actually confirmed and how. A row that says "deployed" when nothi
 | 14 | Log framework forwarding | Existing logs visible in Timeline | PRE-3, SC-8 | [Integrations](https://docs.bitdrift.io/sdk/integrations) |
 | 15 | Analytics / beacon forwarding | Product-usage events in Timeline | PRE-2, SC-8, SC-7 | [Integrations](https://docs.bitdrift.io/sdk/integrations) |
 | 16 | Feature flag exposures | Slice metrics by flag variant | PRE-5, SC-7 | [Fields](https://docs.bitdrift.io/sdk/features/fields) |
-| 17 | Session replay (wireframe) | Wireframe replay in Timeline | SC-9 | [Session Replay](https://docs.bitdrift.io/product/timeline) |
+| 17 | Session replay — confirm or disable | Wireframe replay in Timeline (**default on**) | SC-9 | [Session Replay](https://docs.bitdrift.io/product/timeline) |
 | 18 | Cross-link existing crash reporter | Session URL cross-tagged on incumbent tool's crashes | SC-3 | [Fatal Issues](https://docs.bitdrift.io/sdk/features/fatal-issues) |
 | 19 | Crash workflows + CUJ + POC dashboards | Issue/Crash Workflows (Ripsaw), CUJ Sankey/funnel/SLO, curated dashboards | SC-3, SC-7, SC-11 | bd-cli, bd-cuj skills |
 | 20 | Evaluation readout | Criterion-by-criterion, evidence-backed readout | All in-scope | — |
@@ -441,15 +465,15 @@ This guide's own `SC-n` / `PRE-n` legend — what each ID means and the step(s) 
 | SC-1 | Event Tracking (p50/p90/p99 of key flows) | **10** (primary), 9 | Spans + synthetic metrics give unsampled percentiles. The Step 10 default spans **every** screen and journey phase, not the 2–3 flows the criterion asks for; Step 9 covers launch, broken into per-phase timings |
 | SC-2 | Network Monitoring | **6** | Unsampled per-endpoint latency/error/throughput |
 | SC-3 | Crash Detection | **2** (automatic capture) + **12** (readable stacks) + **18** (cross-linked with existing tool) + **19** (root-cause classification via Issue/Crash Workflows) | Full session context is automatic; symbols make stacks human-readable; 18/19 add cross-tool linking and classification depth |
-| SC-4 | Memory Monitoring | **2** | Automatic — no call sites; crash reports also carry the memory-pressure level at crash time (SDK 0.23.1+), no extra config |
+| SC-4 | Memory Monitoring | **2** | Automatic — no call sites; crash reports also carry the memory-pressure level at crash time (SDK **0.23.2+**), no extra config |
 | SC-5 | Debugging (ad-hoc capture) | **5**, **11** | Record Next Online + device/session lookup |
 | SC-6 | Session Management | **2**, **3**, **13** | Log-everything-on-device, upload on demand |
 | SC-7 | Insights & Visualization | **19** (primary — 2–3 curated dashboards) + 4, 7, 8, 9, 10, 15, 16 | Steps 4–16 emit the signals; Step 19 is what actually builds the dashboards a customer looks at. Per-step latency percentiles (Step 10) sit alongside funnel conversion on the Business/UX dashboard |
 | SC-8 | Log Forwarding & Integration | **7**, **14**, **15** | New logs, framework bridge, analytics bridge |
-| SC-9 | Session Replay | **17** | Wireframe replay |
+| SC-9 | Session Replay | **2** (on by default), **17** (verify / measure / disable) | Wireframe replay ships enabled in the default `Configuration` — Step 17 is confirmation and overhead measurement, not enablement |
 | SC-10 | Visual Performance (jank/slowness) | **2** | Automatic JankStats / responsiveness |
 | SC-11 | Customer Support | **5**, **11**, **8** (`user_id`), **19** (dedicated Entities/Support dashboard) | Entities + device support tooling, curated into its own dashboard |
-| SC-12 | Web views | **6** | Experimental on both platforms — Android via the Capture Gradle plugin, iOS as of SDK 0.23.11. Confirm the current API via bd-docs before enabling, and treat as a POC risk rather than a settled capability |
+| SC-12 | Web views | **6** | Experimental / early-access on both platforms — Android via the Capture Gradle plugin, iOS as of SDK 0.23.11. Android needs the plugin flag **and** a non-null `WebViewConfiguration` **and** its individual capture flags (all default false); miss any one and it fails silently. Confirm the current API via bd-docs before enabling, and treat as a POC risk rather than a settled capability |
 
 ### Required Pre-POC Engineering
 
@@ -496,7 +520,7 @@ For the full crash-classification, CUJ, and dashboard treatment — the part of 
 
 The prompts above are identical across platforms — the skill applies the right APIs. A few specifics it handles for you:
 
-**Android (Kotlin):** the SDK's `Logger.trackSpan` covers a synchronous one-off but not a journey — it forwards no parent span ID, its block isn't `suspend`, and it maps `CancellationException` to FAILURE. Since `LaunchedEffect(key)` cancels on ordinary scrolling, that last one floods duration histograms with partial measurements; the helper in [Step 10c](#10c-add-a-helper-dont-call-trackspan-raw) maps cancellation to CANCELED. Custom span start times are epoch millis, not `SystemClock.uptimeMillis()` (Step 9).
+**Android (Kotlin):** `automaticOkHttpInstrumentation` defaults to false and must be turned on in the plugin DSL; its `PROXY` mode preserves an existing `EventListener.Factory`. WebView instrumentation needs the plugin flag, a non-null `WebViewConfiguration`, and its per-capture flags (all default false). The SDK's `Logger.trackSpan` covers a synchronous one-off but not a journey — it forwards no parent span ID, its block isn't `suspend`, and it maps `CancellationException` to FAILURE. Since `LaunchedEffect(key)` cancels on ordinary scrolling, that last one floods duration histograms with partial measurements; the helper in [Step 10c](#10c-add-a-helper-dont-call-trackspan-raw) maps cancellation to CANCELED. Custom span start times are epoch millis, not `SystemClock.uptimeMillis()` (Step 9).
 
 **iOS (Swift):** install via SPM (`bitdriftlabs/capture-ios`) or CocoaPods (`pod 'BitdriftCapture'`, `import Capture`); start in the SwiftUI `@main App` `init()` or UIKit `didFinishLaunchingWithOptions`; integrations (network, log forwarding) are **chained on the start call**, not wired per-client; entity ID is `setEntityID` (capital **ID**); symbols are **dSYMs**, not ProGuard; the SDK is added only to targets that start the logger (avoids duplicate-symbol warnings). Path templates apply on iOS too. For spans, the parent parameter is `parentSpanID` (capital **ID**), and there is no Kotlin-style `trackSpan` counterpart — the helper in [Step 10c](#10c-add-a-helper-dont-call-trackspan-raw) wraps `startSpan`/`end` in sync and `async` forms. Read process start from the kernel rather than a stored `Date()` static (Step 9).
 

@@ -1,6 +1,6 @@
 # Agent Cleanup Runbook
 
-**Version 1.2 — machine-consumable** — covers removal of all 20 steps, including the v1.2 journey spans and server-side workflow/dashboard state.
+**Version 1.3 — machine-consumable** — covers removal of all 20 steps, including the v1.2 journey spans, the v1.3 SDK surface (logger `Configuration`, init diagnostics, entity-ID clearing, plugin DSL), and server-side workflow/dashboard state.
 
 This is the **autonomous execution contract** for removing all bitdrift Capture SDK
 instrumentation and returning the app to baseline. It wraps
@@ -60,8 +60,8 @@ that set, then discard the readout.
 |-------|---------|---------------|------|
 | 1 | Crash workflow(s), CUJ stack, POC dashboards, **and any span-timing workflows/dashboards** *(ASK before deleting — see §1)* | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | No code — confirm via **bd-cli** that each is actually deleted, or explicitly skipped |
 | 2 | Evaluation readout + generated artifacts *(full revert / explicit request only)* | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) | No code — nothing to build |
-| 3 | Crash-reporter session-URL cross-linking | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) | Builds |
-| 4 | Session replay disable + config revert | [Step 17](INSTRUMENTATION_GUIDE.md#17-enable-session-replay-wireframe) | Builds |
+| 3 | Crash-reporter session-URL cross-linking + any `previousRunInfo` usage | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) | Builds |
+| 4 | Session replay — **explicitly disable** (null/nil session-replay configuration) | [Step 17](INSTRUMENTATION_GUIDE.md#17-session-replay-wireframe--on-by-default) | Builds; replay is on in a default `Configuration`, so "reverting to defaults" leaves it running. On a full revert this is moot (order 20 removes everything); on a partial removal it is the whole point of this order |
 | 5 | Feature-flag exposure calls | [Step 16](INSTRUMENTATION_GUIDE.md#16-record-feature-flag-exposures) | Builds |
 | 6 | Analytics/beacon forwarding bridge | [Step 15](INSTRUMENTATION_GUIDE.md#15-forward-analytics--beacon-events) | Builds |
 | 7 | Log-framework forwarding bridge | [Step 14](INSTRUMENTATION_GUIDE.md#14-forward-your-existing-log-framework) | Builds |
@@ -73,11 +73,11 @@ that set, then discard the readout.
 | 13 | Global fields + field providers | [Step 8](INSTRUMENTATION_GUIDE.md#8-attach-global-fields) | Builds |
 | 14 | Structured custom logs | [Step 7](INSTRUMENTATION_GUIDE.md#7-emit-structured-custom-logs) | Builds |
 | 15 | Network capture + all path templates | [Step 6](INSTRUMENTATION_GUIDE.md#6-capture-network-traffic) | Builds |
-| 16 | Entity-ID calls | [Step 5](INSTRUMENTATION_GUIDE.md#5-identify-users-with-entity-id) | Builds |
+| 16 | Entity-ID calls — `setEntityId`/`setEntityID` **and** `clearEntityId`/`clearEntityID` | [Step 5](INSTRUMENTATION_GUIDE.md#5-identify-users-with-entity-id) | Builds |
 | 17 | Screen-view tracking + nav listener | [Step 4](INSTRUMENTATION_GUIDE.md#4-instrument-screen-views-and-pair-them-with-load-spans) | Builds |
 | 18 | Session strategy (with logger-start below) | [Step 3](INSTRUMENTATION_GUIDE.md#3-confirm-session-strategy) | Builds |
-| 19 | Logger-start call + all bitdrift imports | [Step 2](INSTRUMENTATION_GUIDE.md#2-start-the-logger) | Builds |
-| 20 | SDK dependency + build plugin, clean+rebuild | [Step 1](INSTRUMENTATION_GUIDE.md#1-add-the-dependency) | Builds from clean |
+| 19 | Logger-start call, its `Configuration` (session replay / WebView / sleep mode / fatal-issue reporting), the `startResult` callback and `getSdkStatus()` checks, and all bitdrift imports | [Step 2](INSTRUMENTATION_GUIDE.md#2-start-the-logger) | Builds |
+| 20 | SDK dependency + build plugin + the `bitdrift { instrumentation { … } }` DSL block, clean+rebuild | [Step 1](INSTRUMENTATION_GUIDE.md#1-add-the-dependency) | Builds from clean |
 
 ---
 
@@ -89,7 +89,8 @@ The cleanup is **green only if all pass**.
 - Android: `grep -r "io.bitdrift" .`
 - iOS: `grep -r "import Capture" .` (and any `BitdriftCapture` / SPM/Pod entries)
 - React Native: `grep -r "@bitdrift" .`
-- All: `grep -r "startSpan\|trackSpan\|CaptureBridge"` returns nothing — a span-helper file survives the per-call-site greps above because it may not import anything obviously bitdrift-named.
+- All: `grep -r "startSpan\|trackSpan\|CaptureBridge\|getSdkStatus\|startResult\|previousRunInfo\|clearEntityI"` returns nothing — these survive the per-call-site greps above because a helper or diagnostic wrapper may not import anything obviously bitdrift-named
+- Android: no `bitdrift { instrumentation { … } }` DSL block and no `automaticOkHttpInstrumentation` / `automaticWebViewInstrumentation` references remain in any `build.gradle(.kts)`
 - All: no path templates, no debug-file upload steps, no `bd debug-files` scripts remain.
 
 **V2 — Build is clean from scratch.** Exits 0:
