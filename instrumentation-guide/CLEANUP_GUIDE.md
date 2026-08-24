@@ -1,6 +1,6 @@
 # bitdrift Cleanup Guide
 
-**Version 1.1** — covers removal of all 20 steps, including server-side workflow/dashboard state.
+**Version 1.2** — covers removal of all 20 steps, including the v1.2 journey spans and server-side workflow/dashboard state.
 
 Remove all bitdrift Capture SDK instrumentation from **any** app and return it to its baseline (pre-bitdrift) state — **by prompting an AI coding agent**. Each step is a ready-to-use prompt that drives the **bd-instrumentation** skill to undo the corresponding instrumentation step.
 
@@ -44,16 +44,18 @@ Work from the bottom of the instrumentation guide up. Each prompt drives the ski
 | 8 | *"Remove all bitdrift new-session calls and the field re-application that followed them."* | [Step 13](INSTRUMENTATION_GUIDE.md#13-new-session-on-user-logout-or-journey-reset) |
 | 9 | *"Remove the bitdrift symbol/mapping upload from the build and any manual upload scripts."* | [Step 12](INSTRUMENTATION_GUIDE.md#12-upload-symbol-files-for-readable-crash-stacks) |
 | 10 | *"Remove the bitdrift device-code / session-URL support affordance and the support-mode field."* | [Step 11](INSTRUMENTATION_GUIDE.md#11-implement-device-identification-for-support) |
-| 11 | *"Remove all bitdrift spans (start/end and track-span wrappers)."* | [Step 10](INSTRUMENTATION_GUIDE.md#10-measure-operations-with-custom-spans) |
-| 12 | *"Remove bitdrift app-launch TTI reporting and the process-start timestamp it used."* | [Step 9](INSTRUMENTATION_GUIDE.md#9-report-app-launch-tti) |
+| 11 | *"Remove all bitdrift spans — screen-load, journey-phase, and any app-specific ones — plus the span-helper file added for them."* | [Step 10](INSTRUMENTATION_GUIDE.md#10-span-every-element-of-the-user-journey) |
+| 12 | *"Remove bitdrift app-launch TTI reporting, the cold-start span waterfall, and the process-start timestamp they used."* | [Step 9](INSTRUMENTATION_GUIDE.md#9-report-app-launch-tti--cold-start-span-waterfall) |
 | 13 | *"Remove all bitdrift global fields and any field providers."* | [Step 8](INSTRUMENTATION_GUIDE.md#8-attach-global-fields) |
 | 14 | *"Remove all bitdrift structured custom logs."* | [Step 7](INSTRUMENTATION_GUIDE.md#7-emit-structured-custom-logs) |
 | 15 | *"Remove bitdrift network capture from every HTTP client and delete all path templates."* | [Step 6](INSTRUMENTATION_GUIDE.md#6-capture-network-traffic) |
 | 16 | *"Remove all bitdrift entity-ID calls."* | [Step 5](INSTRUMENTATION_GUIDE.md#5-identify-users-with-entity-id) |
-| 17 | *"Remove bitdrift screen-view tracking and any navigation listener added for it."* | [Step 4](INSTRUMENTATION_GUIDE.md#4-instrument-screen-views) |
+| 17 | *"Remove bitdrift screen-view tracking and any navigation listener added for it."* | [Step 4](INSTRUMENTATION_GUIDE.md#4-instrument-screen-views-and-pair-them-with-load-spans) |
 | 18 | *"Remove the session strategy (together with the logger-start call below)."* | [Step 3](INSTRUMENTATION_GUIDE.md#3-confirm-session-strategy) |
 | 19 | *"Remove the bitdrift logger-start call from app startup and all bitdrift imports."* | [Step 2](INSTRUMENTATION_GUIDE.md#2-start-the-logger) |
 | 20 | *"Remove the bitdrift Capture SDK dependency and build plugin, then clean and rebuild."* | [Step 1](INSTRUMENTATION_GUIDE.md#1-add-the-dependency) |
+
+> **Spans are no longer a handful of call sites.** Under guide v1.2 an instrumented app has one span per screen, one per journey phase, the cold-start waterfall, and a span-helper file — so order 11 is the largest removal in this list. Two things to keep straight: the cold-start spans come out under order 12 with TTI, not order 11; and if TTI is being *kept* while spans are removed, the process-start timestamp stays.
 
 > **Order matters.** Orders 1–2 are server-side/account cleanup with no build impact, so they're safe to do first (or to skip, if the workflows/dashboards should stay). From order 3 onward, the skill removes call sites (spans, logs, fields, screen views, network) *before* the logger-start call and the dependency, so the project compiles at each step. The dependency comes out last.
 
@@ -82,8 +84,12 @@ grep -r "io.bitdrift" .        # Android: no SDK references (also check ios/ for
 - [ ] No new-session calls (13)
 - [ ] Symbol/mapping upload removed (12)
 - [ ] Device code + support field removed (11)
-- [ ] No span calls (10)
-- [ ] No TTI reporting (9)
+- [ ] No screen-load spans (10)
+- [ ] No journey-phase spans (10)
+- [ ] No app-specific spans — custom networking, compute, image/row loads (10)
+- [ ] Span-helper / bridge file deleted (10)
+- [ ] No cold-start waterfall spans (9)
+- [ ] No TTI reporting or process-start timestamp (9)
 - [ ] No global fields / field providers (8)
 - [ ] No custom log calls (7)
 - [ ] No network capture or path templates (6)

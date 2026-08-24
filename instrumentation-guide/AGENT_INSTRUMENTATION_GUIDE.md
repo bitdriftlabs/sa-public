@@ -1,6 +1,6 @@
 # Agent Instrumentation Runbook
 
-**Version 1.1 — machine-consumable** — covers the 20-step guide, including Steps 18–20.
+**Version 1.2 — machine-consumable** — covers the 20-step guide, including the Step 4/10 span pairing.
 
 This is the **autonomous execution contract** for instrumenting any mobile app with the
 bitdrift Capture SDK. It wraps [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md) (the
@@ -54,7 +54,8 @@ silently unless the user has already stated a preference this session. Only the 
 |----------|-------------|-------------------------------------|
 | Session strategy | 3 | **fixed** (fresh session per launch — best for PoC/verification) |
 | Which events to log | 7 | Discover candidate business events by scanning the code (checkout, payment, auth, errors). Instrument the **top 3–5 highest-signal** events; list them in the run report. Do **not** ASK. |
-| Which operations to span | 10 | Wrap the **single most important multi-step flow** found (e.g. checkout/discovery). One parent span + obvious children. |
+| Cold-start span waterfall | 9 | **On.** Root `app_cold_start` back-dated to real process start, with `sdk_init` / `scene_render` / `state_restore` children. In addition to the TTI report, not instead of it. |
+| Which operations to span | 10 | Span **every** journey element: one `<screen>_screen_load` per screen instrumented in Step 4, plus one `journey.<phase>` per phase of the flow chosen for Step 19, nested via explicit parent span IDs. Add app-specific hot paths (custom networking, heavy compute, per-row loads). Do **not** ASK, and do **not** narrow this to one flow. |
 | Support affordance | 11 | **Skip by default** — it adds UI. Include only if user asked for support tooling. `ASK` only if the run scope explicitly mentions support. |
 | Symbol/mapping upload | 12 | Configure for release builds **only**; no-op for debug-only runs. |
 | Log-framework forwarding | 14 | Enable **if** an existing logger (Timber/CocoaLumberjack/console) is detected; otherwise skip. |
@@ -83,13 +84,13 @@ build.
 | 1 | Add dependency + plugin | PRE-0 | [Step 1](INSTRUMENTATION_GUIDE.md#1-add-the-dependency) | Dependency resolves; project builds |
 | 2 | Start logger | SC-3, SC-4, SC-6, SC-10 | [Step 2](INSTRUMENTATION_GUIDE.md#2-start-the-logger) | Builds; logger-start call present in launch path |
 | 3 | Session strategy (= default *fixed*) | SC-6 | [Step 3](INSTRUMENTATION_GUIDE.md#3-confirm-session-strategy) | Strategy set on the start call |
-| 4 | Screen views | PRE-1, SC-7 | [Step 4](INSTRUMENTATION_GUIDE.md#4-instrument-screen-views) | Builds; navigation listener wired |
+| 4 | Screen views (+ screen-name inventory) | PRE-1, SC-7 | [Step 4](INSTRUMENTATION_GUIDE.md#4-instrument-screen-views-and-pair-them-with-load-spans) | Builds; navigation listener wired; **the full list of emitted screen names is captured and recorded in the run report** — it is the input to Step 10 and to Step 19's funnel matchers |
 | 5 | Entity ID | PRE-6, SC-11, SC-5 | [Step 5](INSTRUMENTATION_GUIDE.md#5-identify-users-with-entity-id) | Builds; set at identity boundary |
 | 6 | Network capture + path templates | SC-2, PRE-4 | [Step 6](INSTRUMENTATION_GUIDE.md#6-capture-network-traffic) | Builds; **every** dynamic route has a path template (cardinality gate — see ⚠️ below) |
 | 7 | Structured custom logs | SC-8, SC-7 | [Step 7](INSTRUMENTATION_GUIDE.md#7-emit-structured-custom-logs) | Builds; messages are stable names, variable data in fields |
 | 8 | Global fields | SC-7, SC-11 | [Step 8](INSTRUMENTATION_GUIDE.md#8-attach-global-fields) | Builds |
-| 9 | App launch TTI | SC-1, SC-7 | [Step 9](INSTRUMENTATION_GUIDE.md#9-report-app-launch-tti) | Builds |
-| 10 | Custom spans | SC-1, PRE-4 | [Step 10](INSTRUMENTATION_GUIDE.md#10-measure-operations-with-custom-spans) | Builds; start+end emit `_duration_ms` |
+| 9 | App launch TTI + cold-start waterfall | SC-1, SC-7 | [Step 9](INSTRUMENTATION_GUIDE.md#9-report-app-launch-tti--cold-start-span-waterfall) | Builds; TTI reported; root + 3 phase spans emit `_duration_ms`, root back-dated to process start in the SDK's clock domain (epoch, not monotonic uptime) |
+| 10 | Spans for every journey element | SC-1, PRE-4 | [Step 10](INSTRUMENTATION_GUIDE.md#10-span-every-element-of-the-user-journey) | Builds; start+end emit `_duration_ms`; **parity holds** — every Step 4 screen has a span and no span names a screen the app never emits; every hygiene item in the ⚠️ block below passes |
 | 11 | Device id / support *(opt-in)* | SC-5, SC-11 | [Step 11](INSTRUMENTATION_GUIDE.md#11-implement-device-identification-for-support) | Builds |
 | 12 | Symbol upload *(release only)* | SC-3 | [Step 12](INSTRUMENTATION_GUIDE.md#12-upload-symbol-files-for-readable-crash-stacks) | Upload step wired; uses SDK key |
 | 13 | New session on logout/reset *(opt-in)* | SC-6 | [Step 13](INSTRUMENTATION_GUIDE.md#13-new-session-on-user-logout-or-journey-reset) | Builds; global fields re-applied after |
@@ -98,13 +99,34 @@ build.
 | 16 | Feature flag exposures *(if detected)* | PRE-5, SC-7 | [Step 16](INSTRUMENTATION_GUIDE.md#16-record-feature-flag-exposures) | Builds; recorded at divergence point |
 | 17 | Session replay *(opt-in / SC-9 in scope)* | SC-9 | [Step 17](INSTRUMENTATION_GUIDE.md#17-enable-session-replay-wireframe) | Builds; replay enabled per bd-docs |
 | 18 | Cross-link existing crash reporter *(if detected)* | SC-3 | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) | Builds; session URL attached as a custom key/tag |
-| 19 | Crash workflows + CUJ + POC dashboards | SC-3, SC-7, SC-11 | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | Driven by **bd-issue-match** + **bd-cuj** + **bd-cli**, not bd-instrumentation. Crash workflow(s) deployed and LIVE; CUJ stack (Sankey/funnel/SLO/alert/session-capture/dashboard) deployed for the ASK'd flow; 3 POC dashboards composed and viewable |
+| 19 | Crash workflows + CUJ + POC dashboards | SC-3, SC-7, SC-11 | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | Driven by **bd-issue-match** + **bd-cuj** + **bd-cli**, not bd-instrumentation. Crash workflow(s) deployed and LIVE; CUJ stack (Sankey/funnel/SLO/alert/session-capture/dashboard) deployed for the ASK'd flow; 3 POC dashboards composed and viewable; **span-percentile charts present on the Business/UX dashboard**, labeled distinctly from bd-cuj's wall-clock step timing |
 | 20 | Evaluation readout | All in-scope | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) | Every in-scope criterion has a named artifact + a `bd-cli` command or portal link proving it |
 
 > ⚠️ **Step 6 cardinality gate (hard requirement, not advisory).** Any path with a dynamic
 > segment (id/uuid) **must** get a stable path template before this step passes. Unbounded
 > cardinality is **silently dropped** server-side. If you cannot template a dynamic route,
 > record it in the run report as a known gap — do not mark step 6 passed.
+
+> ⚠️ **Step 10 span-hygiene gate (hard requirement, not advisory).** Every one of these produces a
+> chart that is wrong or empty *without producing an error*, so none of them is caught by a build:
+>
+> 1. The span **wraps** the try/catch, not the reverse — a swallowing catch inside the span records
+>    SUCCESS on a failed operation, usually a fast one, so the p50 improves when the app breaks.
+> 2. Cancellation maps to **CANCELED, not FAILURE**. On Android this is the common case:
+>    `LaunchedEffect(key)` cancels on ordinary scrolling.
+> 3. No broad `catch (Exception)` inside a span body — in Kotlin it swallows `CancellationException`
+>    before the wrapper sees it, undoing item 2.
+> 4. No bare `return` inside a span closure — it exits the closure, not the caller.
+> 5. Custom start times are in the SDK's clock domain (**epoch**, not monotonic uptime).
+> 6. Children pass an **explicit parent span ID** — never an ambient/global span-context stack,
+>    which misattributes under concurrent loads.
+> 7. Every span name is reachable in the app's **default configuration** — not only behind a
+>    non-default mode or an off-by-default flag. If gated, wire a headless toggle and report it.
+> 8. Duration charts set `y_axis.unit = MILLISECONDS` at creation, and filter `_result != canceled`
+>    where cancellation is routine.
+>
+> Full detail and the code that hits each one:
+> [examples/journey-span-instrumentation.md](examples/journey-span-instrumentation.md).
 
 > **API signatures:** before writing call sites, have bd-instrumentation confirm exact
 > symbols for the installed SDK version via **bd-docs** (e.g. iOS `setEntityID` capital ID,
@@ -140,7 +162,8 @@ a session appears:
   not started early enough, wrong SDK key, no network egress from device/emulator.
 
 **V5 — Decisions logged.** The run report names: chosen session strategy, the events
-instrumented (Step 7), the spanned flow (Step 10), and any skipped opt-in steps.
+instrumented (Step 7), the spans added (Step 10 — see V9's parity table), and any skipped opt-in
+steps.
 
 **V6 — POC coverage.** If a POC scope was provided, every in-scope `SC-n`/`PRE-n` criterion
 maps to a step that ran (per the §2 column and the
@@ -160,6 +183,10 @@ For chart data, the bar depends on whether matching traffic actually occurred:
 - **CUJ charts** (Sankey, funnel, completion rate, network) — representative journey traffic is
   something the run can generate, so **FAIL V7** if these return no data after exercising the
   flow.
+- **Span-timing charts** (screen load, journey phase, cold start) — same bar as CUJ charts, for the
+  same reason: the run can generate the traffic. An empty one means the span is on a code path the
+  default configuration never runs, or the matcher names a span that was never added. **FAIL V7**;
+  do not write it off as low traffic.
 - **Crash workflows** — a valid, correctly-scripted crash workflow legitimately has no data when
   no matching crash occurred, and this runbook never requires causing one. Do **not** fail on an
   empty crash chart. Validate on LIVE state plus a correct deployed script, and record
@@ -181,6 +208,24 @@ has no `SC-n`/`PRE-n` set to check against — apply the same evidence bar to ea
 the generic step-coverage summary (§2) instead, so an empty readout can't pass V8 by vacuously
 having nothing to check.
 
+**V9 — Span/screen parity.** Produce the table of every emitted screen name against every span
+name. **FAIL V9** on an orphan in either direction: a screen with no `<screen>_screen_load` span, or
+a span naming a screen the app never emits. Journey-phase spans are checked the same way against the
+phases of the flow chosen for Step 19.
+
+**V10 — Span data is real, not just present.** Via **bd-cli**, every span name added has non-zero
+events after the flow has been exercised. Two specific failures this catches, both of which look
+like a broken chart and are not:
+- The span sits on a code path the app's **default configuration never runs** (a non-default journey
+  mode, an off-by-default feature flag). Fix the coverage or wire a headless toggle; don't relabel it
+  as "no traffic."
+- The span reports **only FAILURE or CANCELED**. That is a hygiene bug (⚠️ items 1–3), not a
+  measurement — its durations are partial and will skew every percentile it feeds.
+
+Also check the shape of what arrives: several unrelated spans reporting an *identical* duration is
+near-conclusive evidence of one shared failure mode (a fixed timeout, a dead backend), not several
+real measurements. Report it rather than charting it.
+
 ---
 
 ## 4. Run report — emit at the end
@@ -193,10 +238,13 @@ steps_run:       <list>
 steps_skipped:   <list + reason>
 session_strategy: <fixed|activity-based>
 events_logged:   <names>
-spans_added:     <flow + child spans>
+screen_spans:    <screen name -> span name parity table; "none unpaired" or the orphans>
+journey_spans:   <phase spans + their parent>
+cold_start_spans: <root + phases, or "not run">
+span_hygiene:    <⚠️ items 1-8, each pass/fail>
 cardinality_gaps: <any un-templated dynamic routes, or none>
 poc_coverage:    <each in-scope SC-n/PRE-n → covering step, or "no POC scope provided">
-gates:           V1 <pass/fail> V2 ... V8 ...
+gates:           V1 <pass/fail> V2 ... V10 ...
 data_in_dashboard: <yes + session id | no + suspected cause>
 crash_workflows: <name/id + LIVE status, or "not run">
 cuj_stack:       <flow name + Sankey/funnel/SLO/alert/dashboard ids, or "not run">
