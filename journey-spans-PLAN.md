@@ -403,7 +403,8 @@ check. Decide that first. Three candidates, in rough order of value:
 | `bitdrift-shop` iOS or Android | Fastest to run | Already fully instrumented, so it tests almost nothing about the new defaults |
 
 Run the instrumentation runbook, then the cleanup runbook, and check every §8.2 assertion. Expect
-the first run to surface prompt-level ambiguities rather than outright errors.
+the first run to surface prompt-level ambiguities rather than outright errors. Drive the app
+**headlessly** rather than by hand — see [§11.6](#116-exercising-the-app-headlessly--and-a-follow-on).
 
 ### 11.2 Decisions the test pass should settle
 
@@ -448,3 +449,55 @@ Re-check these before trusting the v1.3 claims; they move.
 | Capture SDK | `v0.23.12-7-gb3cbde45` |
 | bd CLI | 0.2.20 |
 | bd skills | 0.1.13 (four skills: bd-cli, bd-cuj, bd-docs, bd-instrumentation) |
+
+### 11.6 Exercising the app headlessly — and a follow-on
+
+V10 ("every span name has live data") cannot be met by tapping through a simulator. The charts need
+a journey run many times, and the failure this gate exists to catch — a span sitting on a code path
+the default configuration never runs — only shows up across repeated, *unattended* runs. Hand-driving
+also can't survive the crash and ANR demos, which kill the app by design.
+
+**Tooling already exists** in `bitdrift-shop` on `main`. Don't rebuild it:
+
+| | Where | What it does |
+|---|---|---|
+| iOS | `ios/scripts/demo-lib.sh` | Abstracts booted Simulator (`xcrun simctl`) and physical device (`xcrun devicectl`) behind one set of functions — `resolve_target sim\|device\|auto`, so callers never branch |
+| iOS | `ios/scripts/watchdog.sh` | Relaunches after deliberate crashes, backgrounds the app for background-crash demos, suppresses macOS "app quit unexpectedly" dialogs (a *global* pref it restores on exit) |
+| iOS | `ios/scripts/check-demo-state.sh` | Reads app state from a JSON file in the container, deliberately **not** UserDefaults — cfprefsd caches that domain in memory, so a host-side read returns values the app abandoned minutes ago |
+| Android | `android/scripts/watchdog.sh` | adb-based: detects the system ANR dialog and force-quit deaths, performs a user-style recents swipe-dismiss, relaunches |
+| Android | `android/scripts/check-demo-state.sh` | Same role as the iOS one |
+
+Two mechanics worth knowing before using them:
+
+- **Demo flags are set as launch arguments**, not by navigating to a settings screen — on iOS via
+  NSArgumentDomain, e.g. `xcrun simctl launch <udid> ai.bitdrift.shop.ios -recommendations.active 1`.
+  `DISARM_ARGS` in `demo-lib.sh` turns every flag off. A flag not wired through this mechanism
+  cannot be exercised headlessly at all, which is exactly why the recommendation-engine spans sat
+  unpopulated until that flag got a launch-argument path.
+- **Android self-restarts after a deliberate crash** (it arms an AlarmManager first); iOS has no
+  equivalent, which is the whole reason the iOS watchdog exists. Expect the two platforms to need
+  different amounts of babysitting.
+
+**Blocker for reusing them as-is:** every script is hardcoded to bitdrift-shop — `BUNDLE_ID`,
+`PKG=ai.bitdrift.shop`, `ACTIVITY=ai.bitdrift.shop/.MainActivity`. Testing the runbook against a
+genuinely uninstrumented app (§11.1) means overriding those, and `BUNDLE_ID` is the only one with an
+env-var escape hatch today.
+
+### Follow-on: extract this into its own instruction set
+
+**Intent, not scheduled work.** These scripts are the most reusable thing in the repo and the least
+discoverable — they live under one demo app's directory and read as that app's private tooling.
+They should become a **repo-wide instruction set**, a sibling to `instrumentation-guide/` rather
+than a subdirectory of `bitdrift-shop`.
+
+Shape it the same way this guide is shaped, since that structure has now survived three revisions:
+a human reference, an agent runbook with defaults and checkable gates, and worked examples carrying
+the traps. The traps are already known and are the valuable part — the cfprefsd staleness, the
+global macOS crash-dialog pref that must be restored on exit, launch-argument flag plumbing as a
+hard requirement rather than a convenience, and the asymmetry between Android's self-restart and
+iOS's need for a watchdog.
+
+Scope to settle when it's picked up: parameterising bundle id / package / activity so it works on
+any app; whether it covers physical devices or simulators/emulators only; and whether it stays
+shell or becomes something an agent drives directly. Keep it independent of this branch — it is
+not a prerequisite for merging, and it should not hold up §8.2.
