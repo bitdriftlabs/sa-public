@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>bitdrift Shop</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!-- The demo backend is a plain-HTTP FastAPI server on the host machine.
+	     Arbitrary loads are enabled only so the simulator can reach it over
+	     http://localhost:5173 — this app is a local demo, never shipped. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+
+	<!-- Populated from local.xcconfig / .local.xcconfig (see README.md).
+	     Read back at runtime by AppConfig. -->
+	<key>SHOP_BACKEND_URL</key>
+	<string>$(SHOP_BACKEND_URL)</string>
+	<key>ENABLE_BACKGROUND_CRASHES</key>
+	<string>$(ENABLE_BACKGROUND_CRASHES)</string>
+	<key>ENABLE_OOM_CRASHES</key>
+	<string>$(ENABLE_OOM_CRASHES)</string>
+	<key>SIMPLIFIED_JOURNEY_ENABLED</key>
+	<string>$(SIMPLIFIED_JOURNEY_ENABLED)</string>
+	<key>SHOW_CARDINALITY</key>
+	<string>$(SHOW_CARDINALITY)</string>
+	<key>SHOW_SIM_AB</key>
+	<string>$(SHOW_SIM_AB)</string>
+</dict>
+</plist>

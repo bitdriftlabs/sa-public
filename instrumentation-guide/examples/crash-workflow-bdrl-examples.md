@@ -23,7 +23,7 @@ One deploy-time detail worth knowing if you copy these: the on-disk JSON key is
 Turns a generic `JVMCrash` into a lock-contention classifier: it isolates the crash type this
 app specifically injects for lock contention, identifies which thread was holding the lock at
 crash time, and — as a bonus, nearly free — cross-references memory pressure at the same
-moment using the automatic memory snapshot every crash report carries (SDK 0.23.1+).
+moment using the automatic memory snapshot every crash report carries (SDK 0.23.2+).
 
 ```
 if .type != "JVMCrash" {
@@ -134,4 +134,6 @@ SDK package prefixes.
 ## Reference
 
 - [Ripsaw/BDRL scripting docs](https://docs.bitdrift.io/product/workflows/scripting/overview)
-- The **bd-issue-match** skill — for writing new BDRL scripts from scratch.
+- The **bd-cli** skill's IssueMatch recipes (`recipes/issue-match.md`, `issue-match-examples.md`,
+  `issue-match-metrics.md`) — for writing new Ripsaw scripts from scratch. These were previously a
+  standalone `bd-issue-match` skill; it no longer exists as one.

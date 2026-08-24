@@ -1,0 +1,358 @@
+# Bitdrift Shop (iOS — SDK)
+
+**Version 2.0**
+
+Native SwiftUI demo app simulating an e-commerce shopping experience. It pairs
+with the same FastAPI backend the Android app uses, so it produces realistic
+sessions, network traffic, crashes, and performance signals out of the box.
+
+**100% native Swift.** No Kotlin Multiplatform, no shared framework, no
+Objective-C sources or bridging header, no CocoaPods, no third-party package
+dependencies — just Swift + SwiftUI. The crash catalog uses Swift language and standard-library
+traps plus POSIX signals rather than `NSException` tricks, and the app lifecycle
+runs on SwiftUI's `scenePhase` rather than a `UIApplicationDelegate`.
+
+This is a port of [`android/`](../android/) — same 19 screens, same probabilistic
+simulation, same event and field names — so both platforms can be compared side
+by side.
+
+This is community-contributed content provided for educational purposes only.
+
+> ⚠️ **Run `./scripts/watchdog.sh` before enabling Crash, OOMs, Hang-A, or Quit**
+> (Advanced screen). These modes deliberately crash, freeze, or kill the app, and
+> **iOS gives an app no way to relaunch itself** — without the host-side watchdog
+> the simulator just sits on a dead app. Fast Crash Mode fires too quickly to stop
+> from the UI; use `./scripts/watchdog.sh --stop`.
+>
+> **These flags persist across restarts by design**, so leaving one on and later
+> starting an unrelated demo leaves it silently armed. Run
+> `./scripts/check-demo-state.sh` (add `--reset` to clear) before any demo session.
+
+## Quick Start
+
+### Step 1: Start the backend
+
+```bash
+cd ../backend
+./start-backend-docker.sh
+```
+
+Needs a running Docker daemon — see [backend/README.md](../backend/README.md) if
+`docker ps` isn't already working. Without Docker you can run it directly:
+
+```bash
+cd ../backend && python3 -m uvicorn shopping_server:app --host 0.0.0.0 --port 5173
+```
+
+The **iOS Simulator shares the host's network stack**, so the app reaches the
+backend at plain `http://localhost:5173` with no aliasing — unlike the Android
+emulator, which needs the `10.0.2.2` alias.
+
+On a **physical device** `localhost` means the phone, which has no route to your
+Mac's loopback — so set `SHOP_BACKEND_URL` in `.local.xcconfig` to your Mac's LAN
+address. No source changes needed:
+
+```
+SHOP_BACKEND_URL = http:/$()/192.168.1.20:5173
+```
+
+`ipconfig getifaddr en0` prints the address. Keep the `$()` between the slashes:
+`//` starts a comment in xcconfig, so without it the value truncates to `http:`.
+
+`en0` is Wi-Fi on most Macs, but not all — a Mac connected via a USB-Ethernet
+adapter or dock can have `en0` come back empty while the real address sits on
+`en5`/`en6`/etc. If `ipconfig getifaddr en0` prints nothing, run
+`ifconfig | awk '/^[a-z]/{i=$1} /inet /{print i, $2}'` to see every interface's
+address and pick the one matching your LAN's subnet (check `networksetup
+-listnetworkserviceorder` if more than one looks plausible).
+
+(A physical *Android* device has the same problem — its `10.0.2.2` alias is
+emulator-only. The emulator hides it rather than solving it.)
+
+### Step 2: Run the app
+
+Open `BitdriftShop.xcodeproj` in Xcode and run on any iOS 16+ simulator or device.
+From the command line:
+
+```bash
+xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop \
+  -configuration Debug -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 16' build
+```
+
+The app opens on a 5-second **startup config** screen (crash mode, fast crash,
+OOM-only, auto ∞ sim), then goes to Welcome. **Skip → Normal App** bypasses it and
+clears the crash flags.
+
+### Optional: run on a physical device, without opening Xcode
+
+Build, install, and launch are all CLI. Signing is the only catch — the account
+credential has to exist locally first, either from one Xcode → Settings →
+Accounts sign-in, or from an App Store Connect API key
+(`-authenticationKeyPath`/`-authenticationKeyID`/`-authenticationKeyIssuerID`,
+which needs Account Holder rights to create).
+
+```bash
+DEV=<device-udid>        # xcrun devicectl list devices
+TEAM=<your-team-id>      # developer.apple.com -> Account -> Membership details
+
+xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop -configuration Debug \
+  -destination "id=$DEV" -allowProvisioningUpdates DEVELOPMENT_TEAM=$TEAM \
+  -derivedDataPath build/dev build
+
+xcrun devicectl device install app --device $DEV \
+  build/dev/Build/Products/Debug-iphoneos/BitdriftShop.app
+xcrun devicectl device process launch --device $DEV ai.bitdrift.shop.ios
+```
+
+Things that will stop you the first time:
+
+- **"Untrusted Developer" on first launch.** Expected for *any* development-signed
+  build, paid team or free — Xcode's Run button shows it too. Trust the
+  certificate once per signing identity: Settings → General → VPN & Device
+  Management → Developer App → Trust.
+- **"Device isn't registered in your developer account."** `-allowProvisioningUpdates`
+  can only auto-register if your role on that team allows it. Otherwise an Admin
+  adds the UDID at developer.apple.com → Devices. A free personal team
+  auto-registers, but its profile expires after **7 days**.
+- **Product screens will be empty** unless the backend is reachable. `localhost`
+  on a phone means the phone, so set `SHOP_BACKEND_URL` in `.local.xcconfig` to
+  your Mac's LAN address (`ipconfig getifaddr en0`). No source edit needed.
+
+### Step 3: Generate data
+
+On Welcome, tap **Sim 10** for ten journeys or **SIM ∞** for continuous
+simulation. Each journey drives real navigation and real HTTP traffic against the
+backend, and writes local `os.log` output you can watch in Console.
+
+---
+
+## Simulation
+
+The simulator walks the full funnel, choosing branches probabilistically at each
+decision point. Three persona presets bias those choices, exactly as on Android:
+
+| Variant | Behaviour |
+|---------|-----------|
+| **Control** | Baseline — unbiased random at every branch |
+| **Variant A** | Digital native: snap decisions, skips reviews, guest checkout, digital payment, high cart abandonment |
+| **Variant B** | Deliberate shopper: reads everything, heavy cart churn, signs in, pays by card, rarely abandons |
+
+Every probability and event name matches the Android implementation, so the two
+platforms behave identically.
+
+### Simplified journey
+
+`SIMPLIFIED_JOURNEY_ENABLED = YES` in `.local.xcconfig` replaces the randomized
+funnel above with a fixed, non-random 7-step path, so a funnel chart reads as a
+clean staircase:
+
+```
+Welcome → Browse → ProductDetail → Cart → CheckoutGuest → PaymentCard → Confirmation
+```
+
+Built for a concrete before/after test against a fixed path, rather than
+reasoning about a randomized journey with a probabilistic crash point. With the
+crash loop **off**, every journey completes all 7 steps — a clean baseline. With
+it **on**, every journey crashes
+**unconditionally at step 5** (`CheckoutGuest`) — no random branching, no
+probabilistic crash-point selection, so there is never any ambiguity about
+which step the journey died at. See
+[`SimulationManager.runSimplifiedJourney`](BitdriftShop/SimulationManager.swift).
+
+Step 5 is chosen deliberately: it is exactly where `ScreenLogger`'s 5-deep
+screen shift register fills, so a crash report carries `screen_current` plus
+four real `screen_prev_N` values with no `none` padding — the full path from
+Welcome to the crash, readable straight off the report's Custom Fields.
+
+A few things behave differently in this mode, all deliberately:
+
+- **The startup config splash is skipped.** There is nothing to configure —
+  the path and crash point are both fixed by the build flag — so every
+  relaunch goes straight to the app instead of paying a 5s countdown. A small
+  "MIN JOURNEY" / "FULL JOURNEY" pill floats over the top-right corner of every
+  screen so it's still obvious at a glance which build is installed.
+- **The crash draw excludes every hang-shaped combo**, not just the ones
+  targeted at the crash catalog's `watchdog_*` entries. `lock_contention` is
+  also excluded — it deliberately blocks the main thread for a fixed delay
+  before a separate thread converts it to a crash, which is exactly the kind
+  of hang this mode exists to rule out. The crash *kind* still rotates through
+  the rest of the catalog on every firing; only the hang-shaped ones are
+  removed. See `Crashes.combo(excludeHangs:)`.
+- **`app_hang` and `force_quit` modes are unaffected** — this flag only
+  changes which screens the simulator walks and how its own crash draw is
+  filtered, not the other fault-injection toggles below.
+
+## Fault injection
+
+All toggles live on the **Advanced** screen unless noted. Each one persists across
+launches.
+
+| Mode | What it does |
+|------|--------------|
+| **Crash** | After each completed journey, fires the next crash in a deterministic sweep of 32 crash kinds × {foreground, background} |
+| **OOMs** | Same loop restricted to the 6 memory-exhaustion variants |
+| **Fast crash mode** *(startup screen)* | Skips the journey entirely and fires the next crash immediately on every launch |
+| **Hang-A** | Blocks the main thread on CheckoutGuest (Variant A only) — the iOS analogue of Android's ANR |
+| **Quit** | Terminates the process on ProductDetail, simulating an app-switcher swipe-away |
+| **Rec v2** | Enables the deliberately slow, unmemoized recommendation scoring — see below |
+
+### Crash catalog
+
+[`Crashes.swift`](BitdriftShop/Crashes.swift) defines 36 variants, each with its
+own `@inline(never)` top frame so bitdrift's issue grouper keeps them apart.
+
+**30 run in the default sweep** — the 6 memory variants are excluded unless
+`ENABLE_OOM_CRASHES = YES`, since each blocks for ~35s and needs a 45s restart.
+
+- **Swift language traps** (13) — force-unwrap nil, array index, force cast,
+  divide by zero, number format, arithmetic overflow, precondition, assertion,
+  fatalError, string index, negative array size, unowned-after-dealloc, stack
+  overflow
+- **Standard-library traps** (3) — missing dictionary key, invalid `Range`
+  (upperBound < lowerBound), `try!` decode of a mismatched payload
+- **Off-main-thread** (2) — background `DispatchQueue`, detached `Task`
+- **Watchdog terminations** (3) — `0x8BADF00D`, reported as **App Hang**:
+  `scene-create` (blocks during launch), `scene-update` (blocks on resume),
+  `process-exit` (blocks on SIGTERM). Not exceptions — the OS killing a process
+  that overran a lifecycle budget. These arm a flag and `scripts/watchdog.sh`
+  drives the transition, since an app cannot launch, resume or terminate itself
+- **Memory access faults** (1) — `exc_bad_access_null`, a real bad dereference, so
+  the report carries a faulting address (a raised `SIGSEGV` carries none)
+- **Lock contention** (1) — three genuinely uncorrelated thread states captured
+- **Vendor SDK attribution** (2) — frames from `AdSDKFake` / `AnalyticsSDKFake`,
+  standing in for Android's `com.adsdk.fake` / `com.analytics.fake`
+- **Native signals** (5) — SIGSEGV, SIGBUS, SIGABRT, SIGFPE, SIGILL, each calling
+  `raise()` directly
+- **Memory exhaustion** (6) — background allocator, main thread, single huge
+  allocation, thread exhaustion, image buffers, unbounded cache
+
+### Slow-rendering demo
+
+`RecommendationEngine.scoreProducts()` runs a Levenshtein-similarity pass over
+full product profiles, called synchronously and unmemoized from a SwiftUI view
+body, so it re-executes on every render. The code is correct and throws nothing —
+the defect is a runtime performance characteristic.
+
+Background and walkthrough:
+[demo-slow-rendering.md](../android/demo-slow-rendering.md).
+
+---
+
+## How this differs from the Android app
+
+Observable behaviour is deliberately identical. The differences are all places
+where the platform left no choice:
+
+| Area | Android | iOS |
+|------|---------|-----|
+| **Backend host** | `10.0.2.2:5173` (emulator alias) | `localhost:5173` (Simulator shares the host network stack) |
+| **Relaunch after a fault** | `AlarmManager` armed before the crash; the app restarts itself | **Not possible.** `scripts/watchdog.sh` polls and relaunches, on a Simulator (`simctl`) or a device (`devicectl`) |
+| **ANR** | Real ANR + system dialog | No such concept. A blocked main thread is reported through MetricKit hang diagnostics. Event/field names keep the `anr_*` spelling so both platforms match; the UI calls it **Hang-A** |
+| **Hang duration** | Unbounded freeze until the watchdog dismisses the dialog | Bounded (15s), then exits — nothing host-side can detect or clear a hung iOS app, so the alternative is a permanently frozen simulator |
+| **Backgrounding for background crashes** | `Activity.moveTaskToBack()` | No public API exists, and the private `suspend` selector is useless anyway — a *suspended* app's main queue is frozen, so a crash scheduled on it never runs. Instead the crash is **armed** and fires once the app genuinely backgrounds (Home button, or the watchdog), held alive by a `beginBackgroundTask` assertion long enough to land while `running_state` reads background |
+| **App lifecycle** | `ActivityLifecycleCallbacks` | SwiftUI `scenePhase`, filtered to real foreground/background edges so `app_open`/`app_close` counts stay comparable |
+| **OOM** | `OutOfMemoryError` with a stack | Jetsam kill; surfaced via out-of-memory / unexpected-termination detection, not a crash report. Far more predictable on a physical device than on the Simulator, where limits track the host machine |
+| **Frame jank** | OOTB `DROPPED_FRAME` detection | No equivalent; the heavy recommendation scoring pass is the repro |
+| **Preferences** | `SharedPreferences` + `commit()` | `UserDefaults` + `synchronize()`, namespaced by suite in [DemoPrefs.swift](BitdriftShop/DemoPrefs.swift) |
+| **Android Pay screen** | Native to the platform | Kept as-is. The route, `_screen_name`, and `payment_method` values stay `PaymentAndroidPay` / `android_pay` so the two platforms line up |
+| **`payment_completed`** | Emitted only on the card screen | Emitted for **every** payment method. Android's omission silently drops Apple Pay / PayPal / Android Pay from the checkout-funnel conversion numbers — an Android bug worth fixing there, not a behaviour worth copying. Expect iOS completion counts to exceed Android's until it is |
+| **`user_id` on member checkout** | Reads `user.id`, which the backend never returns — so it is never set | Falls back to `user.email`, the only stable identifier `/api/checkout/signin` actually provides. Android has the same latent bug |
+
+## Scripts
+
+```bash
+./scripts/watchdog.sh                     # relaunch on death; background the app when a background crash is armed
+./scripts/watchdog.sh --stop              # stop the watchdog and terminate the app
+./scripts/check-demo-state.sh             # show which fault flags are armed
+./scripts/check-demo-state.sh --reset     # clear armed flags (simulator or device)
+```
+
+Both work against a Simulator or a physical device:
+
+| Flag | Target |
+|------|--------|
+| *(none)* | Auto — resolves whichever single target is live. With both a booted simulator **and** a connected device it refuses to guess; pass a flag |
+| `--simulator [UDID]` | Force the simulator (`simctl`) |
+| `--device [UDID]` | Force a physical device (`devicectl`) |
+
+Both work on a device too:
+
+- **Backgrounding** for the background half of the crash sweep. The Simulator gets
+  there by launching SpringBoard; a device has no equivalent, so the watchdog
+  launches **Settings** to take the foreground instead. Expect the phone to flip
+  to Settings periodically during a crash loop.
+- **`--reset`** can't delete a device's `UserDefaults` plist, so it disarms by
+  relaunching the app with every flag explicitly `0`. Launch arguments land in
+  `NSArgumentDomain`, and the app persists whatever it resolves at startup, so one
+  disarmed launch sticks.
+
+**Stuck in Fast Crash Mode?** That's what `--reset` is for:
+
+```bash
+./scripts/check-demo-state.sh --device --reset
+```
+
+Fast crash mode fires before you can reach the UI, so the on-screen "Stop crash
+loop" button is unusable — this is the way out.
+
+The app publishes its fault state to
+`<container>/Library/Application Support/bitdrift-demo-state.json`, and the
+scripts read that rather than the app's `UserDefaults` plist. On the Simulator
+that plist is owned by `cfprefsd`, which caches the domain in memory — a
+host-side read can return values the app abandoned minutes ago, and a host-side
+write is silently overwritten on the daemon's next flush. On a device the plist
+isn't reachable at all, but the JSON file can be pulled with
+`devicectl device copy from`. `--reset` works around the daemon by terminating
+the app, deleting the plist, and bouncing it.
+
+### Arming a demo from the command line
+
+Any flag can be set as a launch argument, which is handy for scripted or
+unattended runs:
+
+```bash
+xcrun simctl launch <UDID> ai.bitdrift.shop.ios \
+  -crash_loop.active 1 -crash_loop.fast_mode 1
+```
+
+The app promotes whatever it resolves at startup into its persistent store, so
+the setting survives the watchdog's subsequent relaunches. Clear it with
+`./scripts/check-demo-state.sh --reset`. Available keys: `crash_loop.active`,
+`crash_loop.fast_mode`, `crash_loop.oom_only`, `app_hang.active`,
+`force_quit.active`, `auto_infinite.active`.
+
+## Project layout
+
+```
+ios/
+├── BitdriftShop.xcodeproj/     Xcode project
+├── Info.plist                  Bundle config; xcconfig values surface here
+├── local.xcconfig              Blank template; includes .local.xcconfig
+├── scripts/                    watchdog.sh, check-demo-state.sh, demo-lib.sh
+└── BitdriftShop/
+    ├── BitdriftShopApp.swift   App entry, scenePhase lifecycle logging
+    ├── ScreenLogger.swift      Central logging surface
+    ├── AppConfig.swift         Info.plist/env-backed build config
+    ├── DemoPrefs.swift         Namespaced UserDefaults
+    ├── DemoStateFile.swift     Fault state published for the shell scripts
+    ├── ApiClient.swift         Backend API
+    ├── JSON.swift              Dynamic JSON reader
+    ├── Screen.swift            Routes and screen names
+    ├── Navigator.swift         NavigationStack driver + screen logging
+    ├── ContentView.swift       Startup config, nav host, resume logic
+    ├── Screens.swift           All 19 screens
+    ├── Components.swift        Shared UI
+    ├── SimulationManager.swift Journey simulator, fault injection, crash cycling
+    ├── Crashes.swift           32-variant crash catalog
+    ├── VendorSDKs.swift        Fake vendor namespaces for crash attribution
+    ├── MetricsDemo.swift       Waveform + latency metrics
+    ├── RecommendationEngine.swift  The slow-rendering trap
+    └── OrderSummaryHelper.swift
+```
+
+## Requirements
+
+- Xcode 16 or later (developed against Xcode 26)
+- iOS 16.0+ deployment target
+- The [backend](../backend/) running on port 5173
