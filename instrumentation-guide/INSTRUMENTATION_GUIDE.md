@@ -349,13 +349,13 @@ The skill records the variant a user is exposed to at the point the flag changes
 
 ## 17. Session replay (wireframe) — on by default
 
-> ⚠️ **This step is a decision to confirm, not a feature to switch on.** On both platforms the default `Configuration` enables session replay: `sessionReplayConfiguration` defaults to a live configuration object, not `nil`/`null`. If Step 2 started the logger with a default configuration, **replay is already running.** Disabling it is the action that takes code.
+> ⚠️ **Nothing to switch on — replay ships enabled, and that is the intended state.** On both platforms the default `Configuration` sets `sessionReplayConfiguration` to a live configuration object, not `nil`/`null`. If Step 2 started the logger with a default configuration, **replay is already running** and no further work is needed. Turning it off is the only action that takes code, and it should happen only when someone explicitly asks for it.
 
 > **Prompt:** *"Confirm whether bitdrift wireframe session replay is enabled on this build, and tell me the configuration in force."* — or, to turn it off — *"Disable bitdrift session replay by passing a null session-replay configuration at logger start."*
 
 Replay is lightweight and wireframe-based — no screenshots, no video — and reconstructs the user experience while preserving device performance.
 
-Two reasons to reach for the off switch: a privacy or security review that has not yet cleared on-device view capture, or a measured performance budget the POC must not exceed. Both are decisions to make deliberately and record, rather than discover. Note that [Step 4](#4-instrument-screen-views-and-pair-them-with-load-spans)'s `logScreenView` refreshes the replay wireframe on every navigation, so screen-view coverage and replay fidelity move together.
+If a customer does ask to disable it — an uncleared privacy review, or a performance budget the POC must not exceed — use the second prompt above and record the decision. That is a customer call, not one to make on their behalf: leaving replay on is the default for a reason, since SC-9 is one of the criteria most POCs are judged on and it costs nothing to have running. Note that [Step 4](#4-instrument-screen-views-and-pair-them-with-load-spans)'s `logScreenView` refreshes the replay wireframe on every navigation, so screen-view coverage and replay fidelity move together.
 
 **Unlocks:** Wireframe session replay in the Timeline — reconstruct what the user saw and did during any captured session.
 
