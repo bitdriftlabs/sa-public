@@ -378,7 +378,73 @@ untouched.
 
 ### Still outstanding
 
-Everything in [§8.2](#82-deferred-to-the-separate-test-pass--do-not-attempt-during-this-work). The
-guides are **unvalidated on a real app** — no build, launch, or `bd` command has been run against an
-account for any of the four commits. That is the deliberate trade recorded in §8.3, and it is the
-reason this branch is not merged.
+See [§11](#11-picking-this-up--next-session).
+
+---
+
+## 11. Picking this up — next session
+
+Start here on a new machine. `git fetch origin && git checkout journey-spans-guide`.
+
+**Standing constraint:** testing is to be done *carefully and deliberately*, to control token spend.
+Nothing below should turn into an open-ended agent run.
+
+### 11.1 The main outstanding work — validate the guides on a real app
+
+The guides have never been executed. Four commits of documentation, zero runs. The bar is
+[§8.2](#82-deferred-to-the-separate-test-pass--do-not-attempt-during-this-work); what §8.2 does not
+say is **which app to test against**, because the original dry-run task was replaced by a desk
+check. Decide that first. Three candidates, in rough order of value:
+
+| Target | Why | Watch out |
+|---|---|---|
+| A genuinely uninstrumented app | The only honest test of "no operator prompting" | Needs a throwaway bitdrift account/app id so the test doesn't pollute real POC data |
+| `bitdrift-shop/reactnative` | The one shop platform with no span work yet | **RN has no span API** (D5) — a correct run produces the paired-log shim, not native spans. Judge it against that, or the test reads as a failure when it isn't |
+| `bitdrift-shop` iOS or Android | Fastest to run | Already fully instrumented, so it tests almost nothing about the new defaults |
+
+Run the instrumentation runbook, then the cleanup runbook, and check every §8.2 assertion. Expect
+the first run to surface prompt-level ambiguities rather than outright errors.
+
+### 11.2 Decisions the test pass should settle
+
+- **Open question 1 — full sweep vs. journey-scoped spans.** Currently written as full sweep. If
+  ~20 spans on an unfamiliar app proves too noisy or too large a diff, narrow Step 10's default to
+  screens reachable in the Step 19 journey.
+- **Open question 2 — a fourth "Latency" dashboard vs. folding span charts into Business/UX.**
+  Currently folded in, to protect SC-7's "2–3 dashboards" promise.
+- Whether the `bd-instrumentation` skill needs its own update: its span guidance is three bullets
+  per platform that defer to bd-docs, with nothing about parent IDs, cancellation, or custom times.
+  The v1.3 runbook now asks that skill for things it has no guidance on. That is the weakest link
+  in the new defaults, and it is a **separate repo** (`bitdriftlabs/bd-skills`), not this branch.
+
+### 11.3 Known gaps in the guides, not yet addressed
+
+Found during the SDK 0.23.12 review and deliberately left alone:
+
+- **Field and log-message scrubbing** (SDK 0.23.4) appears nowhere in the guides. It is not in the
+  platform API surface, so it looks server-side — worth confirming via bd-docs. A PII-scrubbing
+  step is arguably missing from a guide aimed at customer POCs, where privacy review is often the
+  gating item.
+- **`sleepMode`** gets one line in Step 2. If minimal-activity mode matters to POC framing it
+  deserves more.
+- **Span volume vs. log budget** (§9) is still unanswered: is there a documented per-session
+  log-volume ceiling to cite when recommending ~20 spans? High-frequency spans are the concern —
+  a per-transition persistence span, a per-row image-load span.
+- **Open question 3** — whether a future POC scope V2.1 should carry an explicit span /
+  journey-performance criterion, now that the default output supports one. Unlike 1 and 2, the test
+  pass does not answer this; it is a product/scope-template call.
+
+### 11.4 Merge
+
+Not merged, by design (§8.3). Merge to `main` once §8.2 passes. No PR was opened — that was the
+agreed workflow, not an oversight.
+
+### 11.5 What this was reviewed against
+
+Re-check these before trusting the v1.3 claims; they move.
+
+| | Version at review (2026-08-24) |
+|---|---|
+| Capture SDK | `v0.23.12-7-gb3cbde45` |
+| bd CLI | 0.2.20 |
+| bd skills | 0.1.13 (four skills: bd-cli, bd-cuj, bd-docs, bd-instrumentation) |
