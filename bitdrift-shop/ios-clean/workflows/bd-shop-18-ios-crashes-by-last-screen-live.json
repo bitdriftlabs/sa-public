@@ -1,0 +1,159 @@
+{
+  "name": "bd-shop — iOS Crashes by Last Screen (live crash reports, Ripsaw)",
+  "platform_targets": [
+    {
+      "apple": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop.ios"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "issue-step",
+            "issue_match": {
+              "program": "value = .fields.last_screen\nlast_screen = if is_string(value) { to_string(value) } else { \"unknown\" }\np1 = .fields.screen_prev_1\ncame_from = if is_string(p1) { to_string(p1) } else { \"unknown\" }\np2 = .fields.screen_prev_2\nprev2 = if is_string(p2) { to_string(p2) } else { \"none\" }\ncrash_path = prev2 + \">\" + came_from + \">\" + last_screen\nerror_name = if length(.errors) > 0 { string(.errors[0].name) ?? \"unknown\" } else { \"none\" }\n[\n  add_field(\"last_screen\", last_screen),\n  add_field(\"crash_type\", .type),\n  add_field(\"error_name\", error_name),\n  add_field(\"came_from\", came_from),\n  add_field(\"crash_path\", crash_path)\n]\n"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "crashes-by-path",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "issue-step"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "crash_path"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "crashes-by-came-from",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "issue-step"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "came_from"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "crashes-by-last-screen-live",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "issue-step"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "last_screen"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "screen-attribution-by-error",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "issue-step"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "error_name"
+                  },
+                  {
+                    "field_key": "last_screen"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "crashes-by-error-name",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "issue-step"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "error_name"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "crashes-by-type-control",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "issue-step"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "crash_type"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

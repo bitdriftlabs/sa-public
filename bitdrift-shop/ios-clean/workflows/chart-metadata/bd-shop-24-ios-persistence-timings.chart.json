@@ -1,0 +1,62 @@
+[
+  {
+    "rule_id": "hist-screen-view-persist",
+    "metadata": {
+      "title": "Screen-view persist (UserDefaults write+flush) (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-demo-state-publish",
+    "metadata": {
+      "title": "Demo state publish (JSON write to disk) (P50/P90/P99)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "hist-compared",
+    "metadata": {
+      "title": "All phases compared (one line per phase)",
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Duration",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            },
+            "sort_order": "MAX",
+            "connector_export_config": []
+          }
+        ]
+      }
+    }
+  }
+]

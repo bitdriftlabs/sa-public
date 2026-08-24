@@ -12,7 +12,7 @@ This is the inverse of [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md): the
 >
 > **Step 20 is just a document.** The evaluation readout has no account-side state — discarding it is an ordinary file deletion needing no special confirmation, and it's independent of whether you keep or delete the Step 19 resources (see order 2 below — after the Step 19 deletion, since the readout records the IDs that deletion needs).
 
-> **Prefer to run this unattended?** This is the *human* reference. For a fully autonomous run, point your agent at the companion **[AGENT_CLEANUP_GUIDE.md](AGENT_CLEANUP_GUIDE.md)** runbook (preflight, strict reverse order, and build gates the agent checks itself) and say *"execute this runbook."*
+> **Prefer to run this unattended?** This is the *human* reference. For a fully autonomous run, point your agent at the companion **[AGENT_CLEANUP_GUIDE.md](AGENT_CLEANUP_GUIDE.md)** runbook (preflight, strict reverse order, and grep-based verification gates the agent checks itself) and say *"execute this runbook."* It deliberately does **not** gate on the build — confirming the project still compiles is yours to do.
 
 ---
 
@@ -59,7 +59,7 @@ Work from the bottom of the instrumentation guide up. Each prompt drives the ski
 
 > **Session replay is on by default, so "revert the configuration" is the wrong instinct** (order 4). Restoring a default `Configuration` re-enables replay, because `sessionReplayConfiguration` defaults to a live object on both platforms. On a **full** revert this is moot — the whole SDK goes at order 20. It matters on a **partial** removal, where leaving the logger in place means leaving replay running.
 
-> **Order matters.** Orders 1–2 are server-side/account cleanup with no build impact, so they're safe to do first (or to skip, if the workflows/dashboards should stay). From order 3 onward, the skill removes call sites (spans, logs, fields, screen views, network) *before* the logger-start call and the dependency, so the project compiles at each step. The dependency comes out last.
+> **Order matters.** Orders 1–2 are server-side/account cleanup with no build impact, so they're safe to do first (or to skip, if the workflows/dashboards should stay). From order 3 onward, the skill removes call sites (spans, logs, fields, screen views, network) *before* the logger-start call and the dependency. That ordering keeps transient breakage to a minimum, though nothing verifies compilation at each step — build when you want to, not because a gate demands it. The dependency comes out last.
 
 ---
 
@@ -102,7 +102,8 @@ grep -r "io.bitdrift" .        # Android: no SDK references (also check ios/ for
 - [ ] No screen-view tracking or navigation listener (4)
 - [ ] No session strategy / logger-start call (3, 2)
 - [ ] SDK dependency and build plugin removed (1)
-- [ ] Project rebuilds successfully
+
+Then build the project. It is not part of the checklist above — the cleanup is judged on references being gone — but nothing else confirms the app still compiles.
 - [ ] No remaining bitdrift references anywhere in the codebase
 
 ---

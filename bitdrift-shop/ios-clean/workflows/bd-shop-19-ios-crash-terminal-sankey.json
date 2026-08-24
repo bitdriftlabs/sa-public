@@ -1,0 +1,124 @@
+{
+  "name": "bd-shop — iOS Crash-Terminal Sankey",
+  "platform_targets": [
+    {
+      "apple": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop.ios"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "journey-start",
+            "generic_match": {
+              "base_matcher": {
+                "log_field": "_screen_name",
+                "operator": "EQUAL",
+                "string_value": "Welcome"
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        },
+        {
+          "match_rule": {
+            "match_id": "screen-view",
+            "ootb_match": {
+              "apple_condition": "SCREEN_VIEW"
+            }
+          },
+          "exit_conditions": [],
+          "loop_match_id": "screen-view",
+          "save_fields": []
+        },
+        {
+          "match_rule": {
+            "match_id": "fatal-crash",
+            "ootb_match": {
+              "apple_condition": "APP_IOS_BUILT_IN_CRASH"
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "crash-alone",
+            "ootb_match": {
+              "apple_condition": "APP_IOS_BUILT_IN_CRASH"
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "crash-terminal-sankey",
+      "sankey_diagram_rule": {
+        "nodes": [
+          {
+            "id": "journey-start",
+            "fixed": "Welcome"
+          },
+          {
+            "id": "screen-view",
+            "extract_field": "_screen_name"
+          },
+          {
+            "id": "fatal-crash",
+            "fixed": "Fatal Issue - Crash"
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "flow-closed-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "fatal-crash"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "crash-alone-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "crash-alone"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "capture-flow-closed",
+      "flush_rule": {
+        "match_id": "fatal-crash"
+      }
+    }
+  ]
+}

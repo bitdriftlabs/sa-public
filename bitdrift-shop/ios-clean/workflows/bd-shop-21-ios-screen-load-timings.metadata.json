@@ -1,0 +1,41 @@
+{
+  "description": "Per-span P50/P90/P99 duration histograms for ios screen load timings.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "welcome-screen-end",
+      "title": "Welcome screen load"
+    },
+    {
+      "rule_id": "browse-screen-end",
+      "title": "Browse screen load"
+    },
+    {
+      "rule_id": "catalog-serialize-end",
+      "title": "Catalog re-serialize (Browse)"
+    },
+    {
+      "rule_id": "product-detail-end",
+      "title": "Product detail load"
+    },
+    {
+      "rule_id": "cart-screen-end",
+      "title": "Cart screen load"
+    },
+    {
+      "rule_id": "checkout-screen-end",
+      "title": "Checkout screen load (guest+signin)"
+    },
+    {
+      "rule_id": "payment-screen-end",
+      "title": "Payment screen load"
+    },
+    {
+      "rule_id": "confirmation-screen-end",
+      "title": "Confirmation screen load"
+    },
+    {
+      "rule_id": "product-image-end",
+      "title": "Product image load"
+    }
+  ]
+}

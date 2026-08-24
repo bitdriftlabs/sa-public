@@ -1,0 +1,176 @@
+{
+  "name": "bd-shop \u2014 iOS Persistence I/O Timings",
+  "platform_targets": [
+    {
+      "apple": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop.ios"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "screen-view-persist-end",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_name",
+                      "operator": "EQUAL",
+                      "string_value": "screen_view_persist"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "demo-state-publish-end",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_name",
+                      "operator": "EQUAL",
+                      "string_value": "demo_state_publish"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "any-phase-end",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "or_matcher": {
+                      "matchers": [
+                        {
+                          "base_matcher": {
+                            "log_field": "_span_name",
+                            "operator": "EQUAL",
+                            "string_value": "screen_view_persist"
+                          }
+                        },
+                        {
+                          "base_matcher": {
+                            "log_field": "_span_name",
+                            "operator": "EQUAL",
+                            "string_value": "demo_state_publish"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "exit_conditions": [],
+          "save_fields": []
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "hist-screen-view-persist",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "screen-view-persist-end",
+                "name": "_duration_ms"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "hist-demo-state-publish",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "demo-state-publish-end",
+                "name": "_duration_ms"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "hist-compared",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "any-phase-end",
+                "name": "_duration_ms"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "_span_name"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

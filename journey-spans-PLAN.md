@@ -561,9 +561,9 @@ Committed and pushed as `5ff20bf`. No PR: raising one was considered and dropped
 - It is a **byte-identical copy** of `bitdrift-shop/ios/`, and `.local.xcconfig` came with it. So it
   carries the **same API key and the same bundle id, `ai.bitdrift.shop.ios`** — to the bitdrift
   platform this copy *is* the production demo app.
-- **Change the bundle id in `.local.xcconfig` before any live run.** Otherwise its sessions land in
-  the real `bd-shop` app beside live POC data, and V10 ("every span name has live data") cannot be
-  read honestly.
+- Its sessions will land in the real `bd-shop` app beside live POC data, since the bundle id and key
+  match. **The user has accepted this** — do not change the bundle id. Just remember when reading
+  V10 that the app id is shared, so "this span has data" does not by itself mean *this* app sent it.
 - It is **untracked and not gitignored** — it shows up in `git status` on this branch. Decide
   whether to ignore it or move it out of the repo.
 - Nothing in it has been modified. Cleanup was **not started**.
@@ -571,8 +571,8 @@ Committed and pushed as `5ff20bf`. No PR: raising one was considered and dropped
 ### 12.4 Cleanup preflight — done, all gates recorded
 
 Ran against `AGENT_CLEANUP_GUIDE.md`. P2: 10 of 20 Swift files reference Capture. P3: pass.
-P3b: platform `ios`. P4: WARN (untracked copy), accepted. **P5: baseline build PASSES** — verified
-green with the command in §12.5.
+P3b: platform `ios`. P4: WARN (untracked copy), accepted. A baseline build was run and **passed**,
+though P5 has since been deleted from the runbook along with every other build gate (§12.6).
 
 **Step 19 (order 1) was explicitly declined by the user and must stay out of scope.** The copy's 19
 local workflow JSONs and 6 dashboard JSONs mirror the *real* `bd-shop-*` account resources that the
@@ -600,10 +600,23 @@ Carry these scoping decisions forward — the runbook does not address them:
 A 720K source snapshot was taken at `/tmp/ios-clean-snapshot`. **`/tmp` is ephemeral — assume it is
 gone.** `bitdrift-shop/ios/` is the real source of truth; re-copy from there if needed.
 
-### 12.6 A runbook finding, already
+### 12.6 First §8.2 finding — build gates removed from cleanup entirely
 
-`AGENT_CLEANUP_GUIDE.md` §2 demands a build gate after **each** of orders 3–20. On iOS that is 18
-`xcodebuild` runs, roughly 40+ minutes, which is impractical enough that any real run will deviate.
-The guide should either say which orders genuinely need their own gate, or sanction checkpoint
-builds explicitly. Logged here as the first §8.2 finding — it came from preparing the run, not
-even from executing it.
+Surfaced while *preparing* the run, before executing a step: `AGENT_CLEANUP_GUIDE.md` §2 demanded a
+build gate after **each** of orders 3–20 — 18 `xcodebuild` runs, 40+ minutes on iOS, impractical
+enough that any real run would deviate.
+
+The deeper problem was that it applied an instrumentation-shaped rule to a removal. Adding code
+needs a gate per step because each step introduces new failure surface. Removal is monotonic toward
+a known end state, so an intermediate break is transient and a final build tells you nothing the
+§3 greps don't.
+
+**Resolved: every build gate is gone from both cleanup guides.** The per-order gates, preflight P5,
+and V2 ("Build is clean from scratch") were all removed; V3–V5 renumbered to V2–V4. Both guides now
+state that verifying compilation is the **caller's** responsibility, and §2's reverse-order
+rationale no longer claims per-step compilation, since nothing verified it.
+
+Consequence to be aware of: a cleanup run can now report green having left the project
+non-compiling. That is deliberate — the run asserts references are gone, not that the app builds.
+The one case that argued for keeping gates is **partial** removal, where the end state still holds
+live bitdrift code; that was considered and rejected in favour of removing them uniformly.
