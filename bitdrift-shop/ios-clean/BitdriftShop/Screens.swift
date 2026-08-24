@@ -112,7 +112,6 @@ struct AdvancedScreen: View {
     @State private var forceQuitOn = Prefs.forceQuit.bool(Prefs.keyActive)
     @State private var showHangReminder = false
     @State private var showQuitReminder = false
-    @State private var supportLogEnabled = false
 
     private var isVariantASelected: Bool { sim.activeVariant == .variantA }
 
@@ -192,17 +191,6 @@ struct AdvancedScreen: View {
                         metrics.toggle()
                     }
 
-                    Divider()
-
-                    sectionHeader("Debug Tools")
-
-                    ToggleChipButton(
-                        title: supportLogEnabled ? "Support Log: ON" : "Support Log: OFF",
-                        isOn: supportLogEnabled,
-                        onColor: Palette.green
-                    ) {
-                        supportLogEnabled.toggle()
-                    }
                 }
             }
         }
@@ -860,7 +848,7 @@ struct CheckoutSignInScreen: View {
 
 /// The four payment screens differ only in endpoint, copy, and colour, so they
 /// share one implementation rather than four near-identical copies. Screen names
-/// still come from the route (`Screen.screenName`), so the Sankey sees them as
+/// still come from the route (`Screen.screenName`), so they read as
 /// four distinct destinations exactly as on Android.
 struct PaymentScreen: View {
     enum Method {

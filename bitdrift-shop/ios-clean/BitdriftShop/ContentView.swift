@@ -150,8 +150,7 @@ struct ContentView: View {
         sim.syncForceQuitEnabledState()
         // Headless equivalent of tapping "Rec v2" on the Advanced screen —
         // `-recommendations.active 1` as a simctl/devicectl launch argument.
-        // Needed to populate bd-shop-23 (score_products.parse_catalog /
-        // .similarity_pass) without a UI tap.
+        // Lets the heavier scoring pass be exercised without a UI tap.
         sim.recommendationsV2Enabled = Prefs.recommendations.bool(Prefs.keyActive)
 
         // Promote whatever was resolved into the persistent store. Flags supplied
@@ -195,7 +194,7 @@ struct ContentView: View {
 
         // These flags persist across launches and silently change what the app
         // does, so record what was actually armed at startup. Saves guessing at
-        // "why did it crash / why didn't it" from the session timeline alone.
+        // "why did it crash / why didn't it" from the logs alone.
         ScreenLogger.logInfo("demo_flags_resolved", [
             "crash_loop": String(sim.crashLoopEnabled),
             "fast_crash": String(sim.fastCrashModeEnabled),

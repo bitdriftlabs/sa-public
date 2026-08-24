@@ -11,10 +11,9 @@ import Foundation
 /// recommendations, and throws nothing. The defect is a runtime performance
 /// characteristic you can only see by watching frames render.
 ///
-/// On iOS the OOTB `DROPPED_FRAME` condition that catches this on Android does
-/// not exist, so the `score_products` span wrapped around each call site (see
-/// `BrowseScreen` / `ProductDetailScreen`) is the detection path here — the
-/// shape `bd-shop-11b-slow-rendering-manual-span.json` matches on.
+/// Android can catch this with an out-of-the-box dropped-frame signal; iOS has
+/// no equivalent, so this pass is the repro itself (see `BrowseScreen` /
+/// `ProductDetailScreen`).
 enum RecommendationEngine {
 
     /// Upper bound on the profile length fed to the O(n·m) distance function.
@@ -30,11 +29,6 @@ enum RecommendationEngine {
 
     /// Scores all products against a reference product.
     /// Returns `(product, score)` pairs sorted by score descending.
-    ///
-    /// `parentSpanID` nests the two sub-spans below under the caller's own
-    /// `score_products` span (see `Screens.swift`'s two call sites), so a slow
-    /// call's P99 tail can be attributed to "parsing was slow" vs "the O(n·m)
-    /// string comparison was slow" instead of one opaque number.
     static func scoreProducts(
         catalogJSON: String, referenceProductID: String
     ) -> [(product: JSON, score: Double)] {

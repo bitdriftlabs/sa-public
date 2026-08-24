@@ -7,8 +7,8 @@ with the same FastAPI backend the Android app uses, so it produces realistic
 sessions, network traffic, crashes, and performance signals out of the box.
 
 **100% native Swift.** No Kotlin Multiplatform, no shared framework, no
-Objective-C sources or bridging header, no CocoaPods — just Swift + SwiftUI with
-one SPM dependency. The crash catalog uses Swift language and standard-library
+Objective-C sources or bridging header, no CocoaPods, no third-party package
+dependencies — just Swift + SwiftUI. The crash catalog uses Swift language and standard-library
 traps plus POSIX signals rather than `NSException` tricks, and the app lifecycle
 runs on SwiftUI's `scenePhase` rather than a `UIApplicationDelegate`.
 
@@ -115,15 +115,15 @@ Things that will stop you the first time:
   can only auto-register if your role on that team allows it. Otherwise an Admin
   adds the UDID at developer.apple.com → Devices. A free personal team
   auto-registers, but its profile expires after **7 days**.
-- **Product screens will be empty.** The backend URL is hardcoded to `localhost`,
-  which on a phone means the phone. Point `ApiClient.swift` at your Mac's LAN IP.
-  bitdrift reporting is unaffected — that goes to `api.bitdrift.io`.
+- **Product screens will be empty** unless the backend is reachable. `localhost`
+  on a phone means the phone, so set `SHOP_BACKEND_URL` in `.local.xcconfig` to
+  your Mac's LAN address (`ipconfig getifaddr en0`). No source edit needed.
 
 ### Step 3: Generate data
 
 On Welcome, tap **Sim 10** for ten journeys or **SIM ∞** for continuous
-simulation. The Sankey, network calls, spans, and session timelines populate in
-the dashboard in real time.
+simulation. Each journey drives real navigation and real HTTP traffic against the
+backend, and writes local `os.log` output you can watch in Console.
 
 ---
 
@@ -138,8 +138,8 @@ decision point. Three persona presets bias those choices, exactly as on Android:
 | **Variant A** | Digital native: snap decisions, skips reviews, guest checkout, digital payment, high cart abandonment |
 | **Variant B** | Deliberate shopper: reads everything, heavy cart churn, signs in, pays by card, rarely abandons |
 
-Every probability, event name, field name, and span name matches the Android
-implementation, so cross-platform comparisons in a dashboard are apples to apples.
+Every probability and event name matches the Android implementation, so the two
+platforms behave identically.
 
 ### Simplified journey
 
@@ -151,14 +151,13 @@ clean staircase:
 Welcome → Browse → ProductDetail → Cart → CheckoutGuest → PaymentCard → Confirmation
 ```
 
-Built for a concrete before/after test of whether a workflow's Sankey or flow
-actually closes on a crash, rather than reasoning about it against a randomized
-journey with a probabilistic crash point. With the crash loop **off**, every
-journey completes all 7 steps — a clean baseline proving the path itself
-populates a Sankey/funnel end to end. With it **on**, every journey crashes
+Built for a concrete before/after test against a fixed path, rather than
+reasoning about a randomized journey with a probabilistic crash point. With the
+crash loop **off**, every journey completes all 7 steps — a clean baseline. With
+it **on**, every journey crashes
 **unconditionally at step 5** (`CheckoutGuest`) — no random branching, no
 probabilistic crash-point selection, so there is never any ambiguity about
-which step a workflow's flow died at. See
+which step the journey died at. See
 [`SimulationManager.runSimplifiedJourney`](BitdriftShop/SimulationManager.swift).
 
 Step 5 is chosen deliberately: it is exactly where `ScreenLogger`'s 5-deep
@@ -242,21 +241,21 @@ Background and walkthrough:
 
 ## How this differs from the Android app
 
-Everything observable in the dashboard is deliberately identical. The differences
-are all places where the platform left no choice:
+Observable behaviour is deliberately identical. The differences are all places
+where the platform left no choice:
 
 | Area | Android | iOS |
 |------|---------|-----|
 | **Backend host** | `10.0.2.2:5173` (emulator alias) | `localhost:5173` (Simulator shares the host network stack) |
 | **Relaunch after a fault** | `AlarmManager` armed before the crash; the app restarts itself | **Not possible.** `scripts/watchdog.sh` polls and relaunches, on a Simulator (`simctl`) or a device (`devicectl`) |
-| **ANR** | Real ANR + system dialog | No such concept. A blocked main thread is reported through MetricKit hang diagnostics. Event/field names keep the `anr_*` spelling so `bd-shop-05` matches both platforms; the UI calls it **Hang-A** |
+| **ANR** | Real ANR + system dialog | No such concept. A blocked main thread is reported through MetricKit hang diagnostics. Event/field names keep the `anr_*` spelling so both platforms match; the UI calls it **Hang-A** |
 | **Hang duration** | Unbounded freeze until the watchdog dismisses the dialog | Bounded (15s), then exits — nothing host-side can detect or clear a hung iOS app, so the alternative is a permanently frozen simulator |
-| **Backgrounding for background crashes** | `Activity.moveTaskToBack()` | No public API exists, and the private `suspend` selector is useless anyway — a *suspended* app's main queue is frozen, so a crash scheduled on it never runs. Instead the crash is **armed** and fires once the app genuinely backgrounds (Home button, or the watchdog), held alive by a `beginBackgroundTask` assertion long enough to land while `running_state` reads background. This is what `bd-shop-06`/`07` chart |
+| **Backgrounding for background crashes** | `Activity.moveTaskToBack()` | No public API exists, and the private `suspend` selector is useless anyway — a *suspended* app's main queue is frozen, so a crash scheduled on it never runs. Instead the crash is **armed** and fires once the app genuinely backgrounds (Home button, or the watchdog), held alive by a `beginBackgroundTask` assertion long enough to land while `running_state` reads background |
 | **App lifecycle** | `ActivityLifecycleCallbacks` | SwiftUI `scenePhase`, filtered to real foreground/background edges so `app_open`/`app_close` counts stay comparable |
 | **OOM** | `OutOfMemoryError` with a stack | Jetsam kill; surfaced via out-of-memory / unexpected-termination detection, not a crash report. Far more predictable on a physical device than on the Simulator, where limits track the host machine |
-| **Frame jank** | OOTB `DROPPED_FRAME` detection | Not available on iOS — use the `score_products` span |
+| **Frame jank** | OOTB `DROPPED_FRAME` detection | No equivalent; the heavy recommendation scoring pass is the repro |
 | **Preferences** | `SharedPreferences` + `commit()` | `UserDefaults` + `synchronize()`, namespaced by suite in [DemoPrefs.swift](BitdriftShop/DemoPrefs.swift) |
-| **Android Pay screen** | Native to the platform | Kept as-is. The route, `_screen_name`, and `payment_method` values stay `PaymentAndroidPay` / `android_pay` so the shared funnel and payment-error workflows line up across platforms |
+| **Android Pay screen** | Native to the platform | Kept as-is. The route, `_screen_name`, and `payment_method` values stay `PaymentAndroidPay` / `android_pay` so the two platforms line up |
 | **`payment_completed`** | Emitted only on the card screen | Emitted for **every** payment method. Android's omission silently drops Apple Pay / PayPal / Android Pay from the checkout-funnel conversion numbers — an Android bug worth fixing there, not a behaviour worth copying. Expect iOS completion counts to exceed Android's until it is |
 | **`user_id` on member checkout** | Reads `user.id`, which the backend never returns — so it is never set | Falls back to `user.email`, the only stable identifier `/api/checkout/signin` actually provides. Android has the same latent bug |
 
@@ -266,7 +265,7 @@ are all places where the platform left no choice:
 ./scripts/watchdog.sh                     # relaunch on death; background the app when a background crash is armed
 ./scripts/watchdog.sh --stop              # stop the watchdog and terminate the app
 ./scripts/check-demo-state.sh             # show which fault flags are armed
-./scripts/check-demo-state.sh --reset     # simulator only
+./scripts/check-demo-state.sh --reset     # clear armed flags (simulator or device)
 ```
 
 Both work against a Simulator or a physical device:
@@ -306,7 +305,6 @@ write is silently overwritten on the daemon's next flush. On a device the plist
 isn't reachable at all, but the JSON file can be pulled with
 `devicectl device copy from`. `--reset` works around the daemon by terminating
 the app, deleting the plist, and bouncing it.
-```
 
 ### Arming a demo from the command line
 

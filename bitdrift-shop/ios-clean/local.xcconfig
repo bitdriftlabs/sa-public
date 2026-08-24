@@ -3,11 +3,6 @@
 // everything here. Mirrors the android/ app's local.properties/.local.properties
 // split.
 //
-//   BITDRIFT_API_KEY    Your bitdrift API key. Used for both jobs it authorizes:
-//                       Logger.start(withAPIKey:) at runtime, and the dSYM upload
-//                       for crash symbolication at build time.
-//   BITDRIFT_API_HOST   bitdrift API host. Defaults to api.bitdrift.io.
-//
 //   SHOP_BACKEND_URL    Optional. Base URL of the bitdrift-shop demo backend —
 //                       the FastAPI store server, NOT anything to do with the
 //                       bitdrift platform. Blank uses localhost, which is correct
@@ -18,8 +13,6 @@
 // xcconfig treats `//` as a comment, so a URL has to break it with the
 // empty-variable trick:  SHOP_BACKEND_URL = http:/$()/192.168.1.20:5173
 
-BITDRIFT_API_KEY =
-BITDRIFT_API_HOST = api.bitdrift.io
 SHOP_BACKEND_URL =
 
 // Bundle identifier. Override in .local.xcconfig if you need a unique ID for
@@ -43,8 +36,7 @@ SHOW_SIM_AB = NO
 // the Simulator, and a crash that never fires stalls the whole loop.
 //
 // Off by default: every crash fires in the foreground, and the sweep is half as
-// long. Set to YES to restore the foreground/background split that the
-// bd-shop-06 / bd-shop-07 workflows chart.
+// long. Set to YES to restore the foreground/background split.
 ENABLE_BACKGROUND_CRASHES = NO
 
 // The memory-exhaustion variants are slow by construction: each paces its
@@ -60,7 +52,7 @@ ENABLE_OOM_CRASHES = NO
 
 // Replaces the randomized shopping journey with a fixed 7-step path (Welcome →
 // Browse → ProductDetail → Cart → CheckoutGuest → PaymentCard → Confirmation),
-// matching bd-shop-17's funnel stages 1:1. With the crash loop off, every
+// With the crash loop off, every
 // journey completes all 7 steps — a clean "before" baseline. With the crash
 // loop on, every journey crashes unconditionally at step 5 (CheckoutGuest) —
 // a clean "after" comparison, with no random branching and no probabilistic
@@ -71,7 +63,7 @@ ENABLE_OOM_CRASHES = NO
 // plus four real screen_prev_N values with no "none" padding.
 //
 // Off by default; set it to YES in .local.xcconfig to run the before/after
-// workflow-closure test. Leave the committed template at NO — with YES here,
+// comparison. Leave the committed template at NO — with YES here,
 // every build skips the startup config screen and auto-starts an infinite
 // simulation.
 SIMPLIFIED_JOURNEY_ENABLED = NO

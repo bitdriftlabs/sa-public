@@ -8,25 +8,9 @@ import Foundation
 /// CI and `xcodebuild`-driven runs can override without editing a file.
 enum AppConfig {
 
-    /// bitdrift API key — what the platform calls this credential, and the name
-    /// the platform uses for API access.
-    ///
-    /// Empty means the SDK still starts but never uploads — the Welcome screen's
-    /// Device Code button surfaces that as `needs_api_key`.
-    static let apiKey = value(for: "BITDRIFT_API_KEY") ?? ""
-
-    /// bitdrift API host, e.g. `api.bitdrift.io`.
-    static let apiHost = value(for: "BITDRIFT_API_HOST") ?? "api.bitdrift.io"
-
-    static var apiURL: URL {
-        URL(string: "https://\(apiHost)") ?? URL(string: "https://api.bitdrift.io")!
-    }
-
     /// Optional override for the demo shop's backend, e.g. when the Mac's LAN IP
     /// changes or several devices share one backend. Nil unless set, in which
     /// case `ApiClient` falls back to its compiled-in per-environment defaults.
-    ///
-    /// Nothing to do with the bitdrift platform — that is `BITDRIFT_API_HOST`.
     static let shopBackendURL = value(for: "SHOP_BACKEND_URL")
 
     /// Optional demo toggles, mirroring the Android BuildConfig flags.
@@ -49,17 +33,15 @@ enum AppConfig {
 
     /// Replaces the randomized shopping journey with a fixed 7-step path
     /// (Welcome → Browse → ProductDetail → Cart → CheckoutGuest → PaymentCard
-    /// → Confirmation), matching `bd-shop-17`'s funnel stages 1:1, and — when
+    /// → Confirmation), and — when
     /// the crash loop is also on — an unconditional crash right after step 5
     /// (CheckoutGuest), every journey, no random branching, no probabilistic
     /// crash-point selection.
     ///
     /// Step 5 is deliberate, not just "the checkout step": it is exactly where
-    /// `ScreenLogger`'s 5-deep screen shift register is full, so a crash report
-    /// carries four real `screen_prev_N` values with no `none` padding.
+    /// the checkout funnel is deepest.
     ///
-    /// Built for a concrete before/after test of whether a workflow's flow
-    /// actually closes on a crash: with the crash loop off, every journey
+    /// Built for a concrete before/after comparison: with the crash loop off, every journey
     /// completes all 7 steps ("before" — proves the path itself is sound). With
     /// it on, every journey stops at exactly step 5 ("after" — no ambiguity
     /// about which step). See `SimulationManager.runSimplifiedJourney`.

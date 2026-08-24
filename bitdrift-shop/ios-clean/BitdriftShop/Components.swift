@@ -38,7 +38,7 @@ enum Palette {
 /// Same call shape as `AsyncImage(url:content:placeholder:)`, so every call site
 /// only needed the type name swapped.
 ///
-struct SpannedAsyncImage<Content: View, Placeholder: View>: View {
+struct RemoteImage<Content: View, Placeholder: View>: View {
     let url: URL?
     @ViewBuilder let content: (Image) -> Content
     @ViewBuilder let placeholder: () -> Placeholder
@@ -170,7 +170,7 @@ struct ScreenContainer<Content: View>: View {
                     .foregroundStyle(.secondary)
             }
         } else if let imageURL, let url = URL(string: imageURL) {
-            SpannedAsyncImage(url: url) { image in
+            RemoteImage(url: url) { image in
                 image.resizable().scaledToFill()
             } placeholder: {
                 Circle().fill(color.opacity(0.15))
@@ -432,7 +432,7 @@ struct ProductImageRow: View {
                             onProductTap(product.str("id"))
                         } label: {
                             HStack(spacing: 0) {
-                                SpannedAsyncImage(url: URL(string: product.str("image_url"))) { image in
+                                RemoteImage(url: URL(string: product.str("image_url"))) { image in
                                     image.resizable().scaledToFill()
                                 } placeholder: {
                                     Color.gray.opacity(0.2)
@@ -536,7 +536,7 @@ struct RecommendedSection: View {
                         onProductTap(item.product.str("id"))
                     } label: {
                         HStack(spacing: 10) {
-                            SpannedAsyncImage(url: URL(string: item.product.str("image_url"))) { image in
+                            RemoteImage(url: URL(string: item.product.str("image_url"))) { image in
                                 image.resizable().scaledToFill()
                             } placeholder: {
                                 Color.gray.opacity(0.2)

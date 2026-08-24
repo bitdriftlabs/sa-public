@@ -56,16 +56,13 @@ struct Prefs {
     static let forceQuit = Prefs(suite: "force_quit")
     /// "Auto ∞ sim" startup toggle.
     static let autoInfinite = Prefs(suite: "auto_infinite")
-    /// "Rec v2" toggle — gates `score_products` and its two sub-spans. Not a
+    /// "Rec v2" toggle — enables the heavier recommendation scoring pass. Not a
     /// fault flag, but wired through the same Prefs/launch-argument mechanism
     /// so it can be armed headlessly (`-recommendations.active 1`), the same
     /// way `crash_loop`/`app_hang`/etc. are — see `scripts/demo-lib.sh`.
     static let recommendations = Prefs(suite: "recommendations")
-    /// Signed-in user, read back by `UserIDFieldProvider` on every log.
+    /// Signed-in user.
     static let userSession = Prefs(suite: "user_session")
-    /// Last screen the user reached. Persisted so it survives the process dying,
-    /// which is what lets the *next* launch report where a crash happened.
-    static let screen = Prefs(suite: "screen")
 
     // MARK: - Keys (shared across stores, as on Android)
 
@@ -78,11 +75,6 @@ struct Prefs {
     static let keyResumeInfiniteWithCrash = "resume_infinite_with_crash"
     static let keyRestartVariant = "restart_variant"
     static let keyUserID = "user_id"
-    static let keyLastScreen = "last_screen"
-    /// The last N screens, newest first, joined by `>`. Persisted alongside
-    /// `keyLastScreen` so an out-of-session termination can still report the
-    /// path the user took, not just the final screen.
-    static let keyScreenTrail = "screen_trail"
     /// Set while a background-half crash is armed; polled by `scripts/watchdog.sh`.
     static let keyAwaitingBackground = "awaiting_background"
     /// Which `WatchdogHang` is armed, if any. The app cannot launch, resume or

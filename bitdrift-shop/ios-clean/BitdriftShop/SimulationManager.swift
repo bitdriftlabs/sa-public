@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 /// Drives `setFeatureFlagExposure()` calls so every log in a run is tagged with
-/// the active cohort, enabling dashboard slicing by `checkout_flow`,
+/// the active cohort, enabling slicing by `checkout_flow`,
 /// `payment_ui`, and `cart_abandon_rate`.
 enum SimVariant: String, CaseIterable {
     case control       // baseline: fully random, no variant bias
@@ -21,8 +21,8 @@ enum SimVariant: String, CaseIterable {
 /// Automated simulation of user journeys through the app. Randomly selects
 /// paths at each decision point to generate varied journey data.
 ///
-/// The probabilities, event names, field names and span structure are identical
-/// to the Android app's, so both platforms feed the same `bd-shop-*` workflows.
+/// The probabilities, event names and field names are identical to the Android
+/// app's, so the two platforms behave the same way.
 @MainActor
 final class SimulationManager: ObservableObject {
 
@@ -72,7 +72,7 @@ final class SimulationManager: ObservableObject {
     /// Firing every crash at Confirmation — as this used to — makes crash data
     /// useless for the question teams actually ask, which is *where in the funnel
     /// are we losing people*. Every issue would report the same last screen, and
-    /// the Sankey would show a single crash point that says nothing.
+    /// the recorded path would show a single crash point that says nothing.
     ///
     /// All the points sit in the back half deliberately: a crash on the Welcome
     /// screen is not a realistic e-commerce failure and would drown out the
@@ -106,30 +106,7 @@ final class SimulationManager: ObservableObject {
     func setVariant(_ variant: SimVariant) {
         activeVariant = variant
 
-        let checkoutFlow: String
-        let paymentUI: String
-        let cartAbandon: String
-        let androidPay: String
-        switch variant {
-        case .control:  checkoutFlow = "random"; paymentUI = "random";  cartAbandon = "medium"; androidPay = "enabled"
-        case .variantA: checkoutFlow = "guest";  paymentUI = "digital"; cartAbandon = "high";   androidPay = "enabled"
-        case .variantB: checkoutFlow = "signin"; paymentUI = "card";    cartAbandon = "low";    androidPay = "disabled"
-        }
-
-        // Feature flag exposures are per-session and trigger workflow transitions.
-        // Also set as global fields so every log carries the active flag values.
-
-
-        let orderSummary = crashLoopEnabled ? "v2" : "v1"
-
-        let hangState = appHangEnabled ? "enabled" : "disabled"
-
-        let forceQuitState = forceQuitEnabled ? "enabled" : "disabled"
-
-        let recommendationsV2State = recommendationsV2Enabled ? "enabled" : "disabled"
-
-        // Explicit log so flag exposure is verifiable in the raw log stream.
-        ScreenLogger.logInfo("feature_flag_exposure_set")
+        ScreenLogger.logInfo("variant_set", ["variant": variant.label])
 
         // Every Advanced-screen toggle routes through here, so this is the one
         // hook that keeps the on-disk state the scripts read in step with the UI.
@@ -216,7 +193,7 @@ final class SimulationManager: ObservableObject {
     }
 
     /// A/B split sim: runs `runsEach` journeys as each variant in sequence. Each
-    /// run is a flag transition, maximising workflow matches in the dashboard.
+    /// run is a flag transition.
     func abSimulate(runsEach: Int, nav: Navigator) {
         guard runTask == nil else { return }
         runTask = Task { [weak self] in
@@ -274,8 +251,8 @@ final class SimulationManager: ObservableObject {
     }
 
     /// Cardinality demo: hammers `/api/inventory/lookup/{item}/{session}` with a
-    /// fresh random session path segment on every request, flooding the bitdrift
-    /// dashboard with unbounded-cardinality URLs. Runs until cancelled.
+    /// fresh random session path segment on every request, producing
+    /// unbounded-cardinality URLs. Runs until cancelled.
     func cardinalitySimulate(nav: Navigator) {
         guard runTask == nil else { return }
         runTask = Task { [weak self] in
@@ -355,8 +332,7 @@ final class SimulationManager: ObservableObject {
     // MARK: - Fault injection
 
     /// Simulates the user force-quitting (swipe-up from the app switcher) on the
-    /// ProductDetail screen. The Sankey shows ProductDetail → (dropout) since no
-    /// subsequent screens are reached.
+    /// ProductDetail screen, so no subsequent screens are reached.
     ///
     /// iOS has no equivalent of Android's AlarmManager, so the app cannot
     /// schedule its own relaunch — `scripts/watchdog.sh` notices the dead process
@@ -395,13 +371,11 @@ final class SimulationManager: ObservableObject {
     /// Simulates a main-thread hang on the CheckoutGuest screen — as if a
     /// synchronous post-checkout validation call blocked the main thread. Called
     /// after navigation and the API call complete so the screen is rendered and
-    /// visible. The Sankey shows CheckoutGuest → (dropout) since Payment is never
-    /// reached.
+    /// visible. Payment is never reached.
     ///
     /// This is the iOS analogue of Android's ANR. iOS has no ANR dialog; a hung
-    /// main thread is picked up by MetricKit's hang diagnostics, which the SDK
-    /// consumes. Event and field names deliberately keep Android's `anr_*`
-    /// spelling so `bd-shop-05-anr-force-quit.json` matches both platforms.
+    /// main thread is picked up by MetricKit's hang diagnostics. Event and field
+    /// names deliberately keep Android's `anr_*` spelling so both platforms match.
     ///
     /// Unlike Android — where the freeze is unbounded and the watchdog dismisses
     /// the ANR dialog — the block here is bounded and followed by an exit, since
@@ -474,8 +448,7 @@ final class SimulationManager: ObservableObject {
     /// armed, and when the app actually backgrounds (the user pressing Home, or
     /// `scripts/watchdog.sh` doing it) a background-task assertion keeps the
     /// process executing just long enough for the crash to land while
-    /// `app_metrics.running_state` reads background. That split is what
-    /// `bd-shop-06` / `bd-shop-07` chart.
+    /// the process is backgrounded.
     private func dispatchCrash(_ fire: @escaping () -> Void, fireInBackground: Bool) {
         guard fireInBackground else {
             // Foreground path: fire from a plain main-queue block with a blocking
@@ -651,9 +624,8 @@ final class SimulationManager: ObservableObject {
     // ═══════════════════════════════════════════════════════════════════════
 
     private func runSingleJourney(_ navigator: Navigator) async {
-        // Keep force-quit runs in the startup session so workflows that begin
-        // with SDK configuration and end with app termination match in a single
-        // session.
+        // Keep force-quit runs in the startup session so the whole run stays in
+        // one session.
         if !forceQuitEnabled {
             ScreenLogger.logInfo("journey_started", [
                 "run": String(currentRun),
@@ -662,9 +634,7 @@ final class SimulationManager: ObservableObject {
             // Give the SDK time to fully initialise the new session before
             // recording exposures.
             await sleep(0.2)
-            // Re-apply flag exposures after startNewSession() — exposure is
-            // per-session, so it must be recorded again on the new session for
-            // the dashboard to detect it.
+            // Re-apply the variant after a session reset.
             setVariant(activeVariant)
             await sleep(0.2)
         }
@@ -674,12 +644,8 @@ final class SimulationManager: ObservableObject {
         journeyCrashPoint = JourneyCrashPoint.allCases.randomElement() ?? .confirmation
         crashFiredThisJourney = false
 
-        // Rotate through the fixed entity list so each journey appears as a
-        // different user in the bitdrift Entities view. `currentRun` is 1-indexed.
-        let entity = Self.demoEntities[(max(currentRun, 1) - 1) % Self.demoEntities.count]
-
         if AppConfig.simplifiedJourneyEnabled {
-            await runSimplifiedJourney(navigator, entity: entity)
+            await runSimplifiedJourney(navigator)
             return
         }
 
@@ -886,8 +852,7 @@ final class SimulationManager: ObservableObject {
             await nav(navigator, .checkoutGuest(productID: checkoutPid))
             session = (try? await ApiClient.checkoutGuest())?.str("checkout_session") ?? ""
             // Hang injection: fires after the checkout API call completes, which
-            // gives SwiftUI time to render the screen. The Sankey shows
-            // CheckoutGuest → (dropout) since Payment is never reached.
+            // gives SwiftUI time to render the screen. Payment is never reached.
             if maybeInjectGuestHang(isGuest: isGuest) { return }
         } else {
             await nav(navigator, .checkoutSignIn(productID: checkoutPid))
@@ -959,7 +924,7 @@ final class SimulationManager: ObservableObject {
                 "variant": activeVariant.label,
             ])
 
-            // Navigate to the PaymentFailed screen so it appears in the Sankey.
+            // Navigate to the PaymentFailed screen so it appears in the recorded path.
             await nav(navigator, .paymentFailed(paymentMethod: paymentMethod, checkoutSession: session))
             await sleep(0.2)
 
@@ -1020,8 +985,7 @@ final class SimulationManager: ObservableObject {
 
     // ═══════════════════════════════════════════════════════════════════════
     // Simplified journey — `AppConfig.simplifiedJourneyEnabled`. A fixed,
-    // non-random 7-step path, built for a concrete before/after test of
-    // whether a workflow's flow actually closes on a crash:
+    // non-random 7-step path, built for a concrete before/after comparison:
     //
     //   1. Welcome
     //   2. Browse
@@ -1033,15 +997,15 @@ final class SimulationManager: ObservableObject {
     //   7. Confirmation
     //
     // With the crash loop OFF, every journey reaches step 7 — the "before":
-    // proof the path itself is sound and fully populates a Sankey/funnel.
+    // proof the path itself is sound and fully completes end to end.
     // With it ON, every journey stops at exactly step 5 — the "after": proof
     // of precisely where the flow died, with no ambiguity about which step.
     //
     // Two things fix the shape of this path:
     //
-    // The steps map 1:1 onto `bd-shop-17`'s funnel stages (Welcome, Discovery,
-    // ProductDetail, Cart, Checkout, Payment, Confirmation), so the funnel
-    // chart reads as a clean 7-bar staircase rather than something that has to
+    // The steps map 1:1 onto the seven funnel stages (Welcome, Discovery,
+    // ProductDetail, Cart, Checkout, Payment, Confirmation), so a funnel
+    // reads as a clean 7-bar staircase rather than something that has to
     // be mentally reconciled against a different set of screens.
     //
     // Crashing at step 5 specifically is what exercises `ScreenLogger`'s
@@ -1052,7 +1016,7 @@ final class SimulationManager: ObservableObject {
     // never demonstrated the window at all.
     // ═══════════════════════════════════════════════════════════════════════
 
-    private func runSimplifiedJourney(_ navigator: Navigator, entity: String) async {
+    private func runSimplifiedJourney(_ navigator: Navigator) async {
 
         // ── Step 1: Welcome ──────────────────────────────────────────────
         navigator.popToWelcome()
@@ -1177,11 +1141,6 @@ final class SimulationManager: ObservableObject {
     /// Longer than `crashFlush`: gives the OS time to actually move the process
     /// out of the foreground after `suspend`, before the crash fires.
     private static let backgroundSettle: TimeInterval = 2
-
-    static let demoEntities = [
-        "Groucho", "Harpo", "Chico", "Gummo", "Zeppo",
-        "Moe", "Larry", "Curly", "Abbott", "Costello",
-    ]
 
     private static let hangTargetScreenName = "CheckoutGuest"
     private static let hangProbability = 0.25

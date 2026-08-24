@@ -1,7 +1,7 @@
 import Foundation
 
-// Stand-ins for third-party SDKs, used by the vendor-SDK crash-attribution demo
-// (`bd-shop-09-vendor-sdk-attribution.json`). They exist purely so a crash's
+// Stand-ins for third-party SDKs, used by the vendor-SDK crash-attribution demo.
+// They exist purely so a crash's
 // stack carries a frame from a namespace that clearly is not the app's own —
 // the iOS counterpart of the Android app's `com.adsdk.fake` /
 // `com.analytics.fake` packages.

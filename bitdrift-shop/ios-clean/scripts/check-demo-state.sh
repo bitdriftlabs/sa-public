@@ -71,7 +71,7 @@ FLAGS=(
   "force_quit_restart_pending|Force-quit restart pending"
   "auto_infinite|Auto infinite sim on launch"
   "awaiting_background|Background crash armed"
-  "recommendations_v2|Rec v2 (score_products spans)"
+  "recommendations_v2|Rec v2 (heavier scoring pass)"
 )
 
 if ! refresh_state; then

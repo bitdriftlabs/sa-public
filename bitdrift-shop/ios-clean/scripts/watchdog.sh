@@ -6,7 +6,7 @@
 #      deliberate crash so the process comes back on its own; there is no
 #      equivalent here.
 #   2. Background the app when a background-half crash is armed, so the crash
-#      lands with app_metrics.running_state = background (bd-shop-06/07).
+#      lands while the app is backgrounded.
 #      Simulator only — see the warning it prints on a device.
 #
 #   ./scripts/watchdog.sh                    # auto: booted simulator, else connected device

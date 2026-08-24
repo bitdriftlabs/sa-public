@@ -258,7 +258,7 @@ The SDK's own track-span wrapper is enough for a synchronous one-off, but not fo
 
 A small per-platform bridge file fixes hygiene rules 2, 3 and 5 once instead of at twenty call sites. **React Native has no span API at all** — there, the equivalent is paired start/end logs correlated by a `_span_id` field with `_duration_ms` / `_result` / `parent_span_id` on the end log, which is the same data shape the dashboard queries. Confirm the current API surface via **bd-docs** before writing call sites.
 
-**Unlocks:** Spans waterfall in the Timeline; per-screen and per-phase p50/p95/p99 histograms across your whole user base, unsampled, by querying `_duration_ms` in Workflows.
+**Unlocks:** Spans waterfall in the Timeline; per-screen and per-phase p50/p90/p99 histograms across your whole user base, unsampled, by querying `_duration_ms` in Workflows.
 
 **POC criteria:** SC-1 (Event Tracking — precise p50/p90/p99 without sampling bias — *this is the primary step for SC-1*, and the default now covers every journey step rather than the 2–3 flows SC-1's test plan asks for), PRE-4 (Networking — wrap **custom** networking that isn't okhttp/URLSession in spans).
 
@@ -364,7 +364,7 @@ The skill records the variant a user is exposed to at the point the flag changes
 
 Replay is lightweight and wireframe-based — no screenshots, no video — and reconstructs the user experience while preserving device performance.
 
-If a customer does ask to disable it — an uncleared privacy review, or a performance budget the POC must not exceed — use the second prompt above and record the decision. That is a customer call, not one to make on their behalf: leaving replay on is the default for a reason, since SC-9 is one of the criteria most POCs are judged on and it costs nothing to have running. Note that [Step 4](#4-instrument-screen-views-and-pair-them-with-load-spans)'s `logScreenView` refreshes the replay wireframe on every navigation, so screen-view coverage and replay fidelity move together.
+If a customer does ask to disable it — an uncleared privacy review, or a performance budget the POC must not exceed — use the second prompt above and record the decision. That is a customer call, not one to make on their behalf: leaving replay on is the default for a reason, since SC-9 is one of the criteria most POCs are judged on and its cost is expected to be low — though "low" is a number Step 17 asks you to actually measure, not assume. Note that [Step 4](#4-instrument-screen-views-and-pair-them-with-load-spans)'s `logScreenView` refreshes the replay wireframe on every navigation, so screen-view coverage and replay fidelity move together.
 
 **Unlocks:** Wireframe session replay in the Timeline — reconstruct what the user saw and did during any captured session.
 

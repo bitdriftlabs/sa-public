@@ -113,7 +113,7 @@ references are gone, not that the app still compiles.
 - Android: `grep -r "io.bitdrift" .`
 - iOS: `grep -r "import Capture" .` (and any `BitdriftCapture` / SPM/Pod entries)
 - React Native: `grep -r "@bitdrift" .`
-- All: `grep -r "startSpan\|trackSpan\|CaptureBridge\|getSdkStatus\|startResult\|previousRunInfo\|clearEntityI"` returns nothing — these survive the per-call-site greps above because a helper or diagnostic wrapper may not import anything obviously bitdrift-named
+- All: `grep -r "startSpan\|trackSpan\|CaptureBridge\|getSdkStatus\|startResult\|previousRunInfo\|clearEntityI"` — these survive the per-call-site greps above because a helper or diagnostic wrapper may not import anything obviously bitdrift-named. ⚠️ **`startSpan` and `trackSpan` are generic tracing names, not bitdrift-owned.** An app may legitimately use them for OpenTelemetry, its own tracer, or another vendor. Treat a hit as *something to verify ownership of*, not something to delete: confirm it resolves to a bitdrift type or a helper the instrumentation added. Only bitdrift-owned matches must return nothing
 - Android: no `bitdrift { instrumentation { … } }` DSL block and no `automaticOkHttpInstrumentation` / `automaticWebViewInstrumentation` references remain in any `build.gradle(.kts)`
 - All: no path templates, no debug-file upload steps, no `bd debug-files` scripts remain.
 - iOS: no bitdrift **run-script build phase** survives in `project.pbxproj` (the dSYM upload from

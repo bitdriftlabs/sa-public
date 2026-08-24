@@ -2,10 +2,8 @@ import Foundation
 
 /// Five waveform metrics (sine/square/sawtooth/triangle/dc) plus a per-tick
 /// counter, logged once a second in a single `metric_values` event. Useful for
-/// validating bitdrift's dashboard aggregation against CloudWatch or another
-/// metrics backend side by side — see `android/metric-demo.md` for the workflow
-/// and CloudWatch export that read this data. The event and field names match
-/// the Android app exactly, so both feed the same charts.
+/// validating metric aggregation against CloudWatch or another metrics backend
+/// side by side. The event and field names match the Android app exactly.
 ///
 /// Also carries the "grouping of metrics" demo: `metric_work_latency_ms`
 /// simulates a release history across five versions, each with a visibly
@@ -109,8 +107,8 @@ final class MetricsDemoManager: ObservableObject {
 
         // work_latency_ms: the metric the grouping demo is built around. Its
         // mean/jitter depend on the currently simulated version (auto-rotated
-        // across all five), so grouping this by `sim_app_version` in a workflow
-        // chart produces five distinct distributions instead of one.
+        // across all five), so grouping this by `sim_app_version` produces five
+        // distinct distributions instead of one.
         let version = simVersion
         let jitter = Double.random(in: -1...1) * version.jitterMs
         let latency = max(version.meanLatencyMs + jitter, 1)
@@ -129,9 +127,6 @@ final class MetricsDemoManager: ObservableObject {
     deinit {
         tickTask?.cancel()
     }
-
-    /// How often to roll the session boundary while the tick loop is running.
-    private static let sessionRotationSeconds = 60
 
     /// How often to auto-rotate to a random simulated version while running.
     private static let versionRotationSeconds = 30

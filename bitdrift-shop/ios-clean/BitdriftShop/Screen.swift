@@ -1,8 +1,7 @@
 import Foundation
 
 /// Navigation destinations. Route strings are byte-identical to the Android
-/// app's so both platforms emit the same `_screen_name` values and share the
-/// `bd-shop-*` workflows and dashboards.
+/// app's so both platforms report the same screen names.
 ///
 ///     Step 1: Welcome, Advanced
 ///     Step 2: Browse, Search
@@ -66,7 +65,7 @@ enum Screen: Hashable {
     }
 
     /// The name reported for this screen. Matches Android's
-    /// `destinationToScreenName()` exactly — these values are what the Sankey
+    /// `destinationToScreenName()` exactly — these values are what the recorded path
     /// and per-screen crash analytics group on.
     var screenName: String {
         switch self {
