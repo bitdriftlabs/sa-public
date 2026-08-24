@@ -2,7 +2,7 @@
 
 **Version 1.2** — pairs screen views with spans: Steps 4 and 10 now instrument the same journey elements, Step 9 adds a cold-start span waterfall, and a new [worked example](examples/journey-span-instrumentation.md) collects the traps. (1.1 added Steps 18–20 — crash-reporter cross-linking, crash/CUJ workflows and dashboards, evaluation readout.)
 
-A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt. Steps 1–18 drive the **bd-instrumentation** skill to do the actual app-code work (write the call sites, wire the build, verify it compiles); Step 19 is server-side console configuration driven by **bd-issue-match**, **bd-cuj**, and **bd-cli**; Step 20 writes up the result and touches neither. You don't write the code; you run the prompts in order and the skills handle the platform-specific details on Android, iOS, or React Native.
+A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt. Steps 1–18 drive the **bd-instrumentation** skill to do the actual app-code work (write the call sites, wire the build, verify it compiles); Step 19 is server-side console configuration driven by **bd-cli** and **bd-cuj**; Step 20 writes up the result and touches neither. You don't write the code; you run the prompts in order and the skills handle the platform-specific details on Android, iOS, or React Native.
 
 Each step also lists the bitdrift feature it **unlocks** and the relevant **docs**, so you know what each prompt buys you.
 
@@ -24,8 +24,7 @@ These prompts assume your agent (Claude Code, Cursor, Codex, Copilot, or any ski
 
 - **bd-instrumentation** — installs and instruments the Capture SDK; detects the platform and whether the SDK is already present, then does a fresh install or extends an existing integration. This is the skill Steps 1–18 drive.
 - **bd-docs** — fetches live bitdrift documentation at query time.
-- **bd-cli** — drives the `bd` CLI for symbol/source-map uploads, workflows, keys, and dashboard composition.
-- **bd-issue-match** — writes and deploys server-side crash-classification scripts (Ripsaw/BDRL). Drives the crash-workflow half of Step 19.
+- **bd-cli** — drives the `bd` CLI for symbol/source-map uploads, workflows, keys, and dashboard composition. Its **IssueMatch recipes** also write and deploy the server-side crash-classification scripts (Ripsaw, formerly called BDRL) that drive the crash-workflow half of Step 19.
 - **bd-cuj** — automates a full critical-user-journey stack (Sankey, funnel, SLO, alerting, session capture, dashboard) for one flow in a single pass. Drives the CUJ half of Step 19.
 
 Install and authenticate the `bd` CLI (macOS, Homebrew):
@@ -179,6 +178,8 @@ The skill captures the start timestamp in the launch path and reports the elapse
 
 TTI is one opaque number — it tells you launch got slower, not what got slower. The waterfall splits it into `app_cold_start.sdk_init` (logger start plus identity/field setup), `app_cold_start.scene_render` (the UI framework standing up the first window), and `app_cold_start.state_restore` (your own startup bookkeeping), each nested under the root via the parent span ID so one launch renders as a single waterfall in the Timeline. Keep the TTI report too: it's the population-level chart, and the waterfall is the diagnosis.
 
+> ⚠️ **Custom times are both-or-neither.** Back-dating the root span means supplying a custom **start *and* end** time. Supply only one and the SDK silently tracks the span on system time instead — the span still emits, the chart still fills, and the number is just wrong. Child phases that need no back-dating should pass neither.
+
 > ⚠️ **Clock domain.** A back-dated span start time must be in the clock domain the SDK expects — an **epoch** timestamp. The natural source for launch timing on Android is `SystemClock.uptimeMillis()`, which is monotonic-since-boot; passing it straight through stamps the span's start log in 1970. Convert first. On iOS the trap is the mirror image: a `Date()` captured in a stored static initialises lazily, at the moment TTI is *computed* rather than at launch, and yields ~0. Read process start from the kernel instead.
 
 > **First-launch caveat, worth knowing before you demo.** On the very first launch after a fresh install, `sdk_init` emits but never reaches its chart, while the other phases from the same launch do. It's config timing, not a bug: `sdk_init` ends a few hundred milliseconds into the process, before the on-device workflow engine has fetched and applied its config, so nothing can match it yet. The later phases end well after. From the second launch on, config is cached and `sdk_init` lands normally. The span is in the Timeline waterfall either way — only the chart is affected.
@@ -220,7 +221,7 @@ Each of these produces a chart that is wrong or empty without producing an error
 5. **Custom start times are in the SDK's clock domain** (epoch, not monotonic uptime — see [Step 9](#9-report-app-launch-tti--cold-start-span-waterfall)).
 6. **Children pass an explicit parent span ID.** Never an ambient/global span-context stack — concurrent screen loads will attribute spans to the wrong parent.
 7. **Every span name is reachable in the app's default configuration** — not only behind a non-default journey mode or an off-by-default feature flag. If it is gated, provide a headless toggle and document it next to the chart.
-8. **Charts set `y_axis.unit = MILLISECONDS` at creation**, and filter `_result != canceled` where cancellation is routine.
+8. **Chart metadata is set at creation**: `y_axis.unit = MILLISECONDS`, a `TimeSeriesMetadata.title` on every series (without one the UI falls back to the raw aggregated action ID — an opaque hash), and `_result != canceled` filtering where cancellation is routine.
 
 ### 10c. Add a helper, don't call `trackSpan` raw
 
@@ -360,17 +361,17 @@ The skill reads the session URL (`Logger.sessionUrl` / `Logger.sessionURL` / `ge
 
 ## 19. Turn crashes and journeys into workflows and dashboards
 
-Every step above is app code, driven by **bd-instrumentation**. This step is different: it's **server-side console configuration**, driven by **bd-issue-match** (crash classification scripting) and **bd-cuj** (critical-user-journey automation), composed into dashboards with **bd-cli**. Run it once data is flowing — after at least Steps 1–10.
+Every step above is app code, driven by **bd-instrumentation**. This step is different: it's **server-side console configuration**, driven by **bd-cli** (crash-classification scripting, via its IssueMatch recipes) and **bd-cuj** (critical-user-journey automation), and composed into dashboards with **bd-cli**. Run it once data is flowing — after at least Steps 1–10.
 
 > **Prompt:** *"Deploy a bitdrift crash workflow that classifies crashes by [ANR reason / memory-pressure level at crash time / feature-flag exposure] using Issue/Crash Workflows (Ripsaw), then use bd-cuj to build a full critical-user-journey stack for our [checkout / onboarding / login] flow, and compose the results into POC dashboards."*
 
-- **bd-issue-match** writes and deploys a Ripsaw/BDRL script that runs server-side against every crash Report (not on-device), turning raw crash payloads into standing charts — e.g. classify ANRs by blocked reason, tag OOM crashes with the memory-pressure level captured automatically since Step 2, or compute a feature-flag crash differential (does variant B crash more than control?).
+- **bd-cli**'s IssueMatch recipes write and deploy a Ripsaw script that runs server-side against every crash Report (not on-device), turning raw crash payloads into standing charts — e.g. classify ANRs by blocked reason, tag OOM crashes with the memory-pressure level captured automatically since Step 2, or compute a feature-flag crash differential (does variant B crash more than control?).
 - **bd-cuj** builds the full critical-user-journey stack for one flow in a single pass: a Sankey of the actual path taken, a funnel with step-by-step conversion, a completion-rate SLO alert, a key-step-duration alert, on-demand session capture for drop-offs, and a two-tab dashboard — instead of hand-assembling each piece from raw workflow primitives.
 - **bd-cli** composes the resulting charts (from both of the above, plus Instant Insights) into 2–3 curated POC dashboards: a **Stability** dashboard (crash classification, ANR/OOM breakdown, crash-free % by version), a **Business/UX** dashboard (funnel, TTI, span percentiles, jank/slow-frame rate), and an **Entities/Support** dashboard (per-user profiles, Record Next Online).
 
 **Before building a funnel, confirm the step names against what the app actually emits** — don't trust the names in a journey description. A matcher on a screen that is never logged deploys cleanly, reports LIVE, and charts nothing, which reads as a 0% conversion rate rather than a config error. Grep the source for the real values, covering both call-site shapes (`grep -rhoE 'screenName *= *"[^"]*"|logScreenView\("[^"]*"\)' --include=*.kt`), or read them off `bd tail`, then verify the *deployed* definition with `bd workflow describe <ID>`. Watch for two specific traps: a step that's really a category with several concrete screens behind it, and mutually exclusive branches listed as if they were sequential — both need an `or_matcher`. See [examples/cuj-funnel-pitfalls.md](examples/cuj-funnel-pitfalls.md).
 
-**Span names need the same treatment as screen names.** The grep that validates funnel steps against what the app really emits should also cover span names — a duration chart matching a span that was never added, or that lives on a code path the default config never runs, deploys LIVE and charts nothing. Two chart-side defaults are worth setting at creation rather than fixing later: `y_axis.unit = MILLISECONDS` on every duration chart (unset, they render raw unitless numbers), and `_result != canceled` on spans where cancellation is routine.
+**Span names need the same treatment as screen names.** The grep that validates funnel steps against what the app really emits should also cover span names — a duration chart matching a span that was never added, or that lives on a code path the default config never runs, deploys LIVE and charts nothing. Three chart-side defaults are worth setting at creation rather than fixing later: `y_axis.unit = MILLISECONDS` on every duration chart (unset, they render raw unitless numbers), a `TimeSeriesMetadata.title` per series (unset, the legend shows an opaque action-ID hash), and `_result != canceled` on spans where cancellation is routine.
 
 **Put both kinds of duration on the journey dashboard, labeled distinctly.** bd-cuj's key-step timing measures **wall clock between two screen events** — it includes user think time. A span's `_duration_ms` measures **the app's own work**. A checkout step showing 5 seconds is a slow API or a user reading a form, and only having both tells you which. Label them "step duration (wall clock)" and "screen load (work)"; a reader given one will assume it covers the other.
 
@@ -378,9 +379,9 @@ Every step above is app code, driven by **bd-instrumentation**. This step is dif
 
 **POC criteria:** SC-3 (Crash Detection — root-cause classification, not just raw reports), SC-7 (Insights & Visualization — 2–3 purpose-built dashboards, this is the primary step for SC-7's "build 2–3 dashboards" test plan), SC-11 (Customer Support — a dedicated Entities/Support dashboard).
 
-**Worked examples:** [examples/crash-workflow-bdrl-examples.md](examples/crash-workflow-bdrl-examples.md) (two real BDRL classification scripts), [examples/cuj-funnel-pitfalls.md](examples/cuj-funnel-pitfalls.md) (how a funnel comes out silently empty).
+**Worked examples:** [examples/crash-workflow-bdrl-examples.md](examples/crash-workflow-bdrl-examples.md) (two real Ripsaw classification scripts), [examples/cuj-funnel-pitfalls.md](examples/cuj-funnel-pitfalls.md) (how a funnel comes out silently empty).
 
-**Docs:** the **bd-issue-match** and **bd-cuj** skills; [Workflows](https://docs.bitdrift.io/product/workflows/overview), [Ripsaw scripting](https://docs.bitdrift.io/product/workflows/scripting/overview), [Dashboards](https://docs.bitdrift.io/product/dashboards/overview)
+**Docs:** the **bd-cli** (IssueMatch recipes) and **bd-cuj** skills; [Workflows](https://docs.bitdrift.io/product/workflows/overview), [Ripsaw scripting](https://docs.bitdrift.io/product/workflows/scripting/overview), [Dashboards](https://docs.bitdrift.io/product/dashboards/overview)
 
 ---
 
@@ -424,7 +425,7 @@ State what was actually confirmed and how. A row that says "deployed" when nothi
 | 16 | Feature flag exposures | Slice metrics by flag variant | PRE-5, SC-7 | [Fields](https://docs.bitdrift.io/sdk/features/fields) |
 | 17 | Session replay (wireframe) | Wireframe replay in Timeline | SC-9 | [Session Replay](https://docs.bitdrift.io/product/timeline) |
 | 18 | Cross-link existing crash reporter | Session URL cross-tagged on incumbent tool's crashes | SC-3 | [Fatal Issues](https://docs.bitdrift.io/sdk/features/fatal-issues) |
-| 19 | Crash workflows + CUJ + POC dashboards | Issue/Crash Workflows (Ripsaw), CUJ Sankey/funnel/SLO, curated dashboards | SC-3, SC-7, SC-11 | bd-issue-match, bd-cuj skills |
+| 19 | Crash workflows + CUJ + POC dashboards | Issue/Crash Workflows (Ripsaw), CUJ Sankey/funnel/SLO, curated dashboards | SC-3, SC-7, SC-11 | bd-cli, bd-cuj skills |
 | 20 | Evaluation readout | Criterion-by-criterion, evidence-backed readout | All in-scope | — |
 
 ---
@@ -472,7 +473,7 @@ Some features need **Workflows** — server-side rules configured in the dashboa
 
 > **Prompt:** *"Create a bitdrift workflow that alerts when the `payment_failed` event rate exceeds a threshold."* — or — *"…a custom metric for the p95 of the `checkout` span duration."*
 
-For the full crash-classification, CUJ, and dashboard treatment — the part of a POC that actually delights a customer — see **[Step 19](#19-turn-crashes-and-journeys-into-workflows-and-dashboards)**, which hands off to the **bd-issue-match** and **bd-cuj** skills.
+For the full crash-classification, CUJ, and dashboard treatment — the part of a POC that actually delights a customer — see **[Step 19](#19-turn-crashes-and-journeys-into-workflows-and-dashboards)**, which hands off to **bd-cli**'s IssueMatch recipes and the **bd-cuj** skill.
 
 **Automatic, no Workflow needed:** Instant Insights dashboards (crashes, network, memory, app launches); Session Timeline breadcrumbs; User Journey Sankey; TTI histogram; Spans waterfall; Entities view.
 

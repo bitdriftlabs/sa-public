@@ -32,7 +32,7 @@ the exact failing check; do not proceed or attempt repairs unless noted.
 |---|-------|---------------|------------|
 | P1 | `bd` CLI installed | `bd --version` exits 0 | HALT: instruct user to `brew tap bitdriftlabs/bd && brew install bd` |
 | P2 | `bd` authenticated | `bd auth status` (or first authed command) succeeds | HALT: instruct user to run `bd auth`, or set `BD_API_KEY` for CI |
-| P3 | Skills installed | `bd-instrumentation`, `bd-docs`, `bd-cli` resolvable. **Also `bd-issue-match` and `bd-cuj` whenever Step 19 is in scope — which the no-scope default in §1 always includes**, so treat them as mandatory unless Step 19 was explicitly excluded | HALT: `npx skills add bitdriftlabs/bd-skills` |
+| P3 | Skills installed | `bd-instrumentation`, `bd-docs`, `bd-cli` resolvable. **Also `bd-cuj` whenever Step 19 is in scope — which the no-scope default in §1 always includes**, so treat it as mandatory unless Step 19 was explicitly excluded. There are exactly four bitdrift skills; crash classification lives in **bd-cli**'s IssueMatch recipes, not a separate skill | HALT: `npx skills add bitdriftlabs/bd-skills` |
 | P4 | Skills/CLI current | (best-effort) `brew upgrade` + `npx skills update --all` | WARN only; continue |
 | P5 | Target platform detected | bd-instrumentation reports android / ios / react-native | HALT if undetectable |
 | P6 | SDK key available | locate key (Admin → SDK Keys) in env, config, or user-provided | If absent → `ASK` user once for the SDK key; HALT if not supplied |
@@ -74,8 +74,8 @@ silently unless the user has already stated a preference this session. Only the 
 ## 2. Execution order — sequential, gate after each
 
 Dispatch by step: **Steps 1–18** run through the **bd-instrumentation** skill using the prompt
-from the source guide (linked); **Step 19** is server-side and runs through **bd-issue-match**,
-**bd-cuj**, and **bd-cli**; **Step 20** is document generation and uses no skill. After every
+from the source guide (linked); **Step 19** is server-side and runs through **bd-cli** (IssueMatch
+recipes for crash classification, plus dashboard composition) and **bd-cuj**; **Step 20** is document generation and uses no skill. After every
 step, run its gate. **HALT on a failed gate** — do not continue to the next step on a broken
 build.
 
@@ -89,7 +89,7 @@ build.
 | 6 | Network capture + path templates | SC-2, PRE-4 | [Step 6](INSTRUMENTATION_GUIDE.md#6-capture-network-traffic) | Builds; **every** dynamic route has a path template (cardinality gate — see ⚠️ below) |
 | 7 | Structured custom logs | SC-8, SC-7 | [Step 7](INSTRUMENTATION_GUIDE.md#7-emit-structured-custom-logs) | Builds; messages are stable names, variable data in fields |
 | 8 | Global fields | SC-7, SC-11 | [Step 8](INSTRUMENTATION_GUIDE.md#8-attach-global-fields) | Builds |
-| 9 | App launch TTI + cold-start waterfall | SC-1, SC-7 | [Step 9](INSTRUMENTATION_GUIDE.md#9-report-app-launch-tti--cold-start-span-waterfall) | Builds; TTI reported; root + 3 phase spans emit `_duration_ms`, root back-dated to process start in the SDK's clock domain (epoch, not monotonic uptime) |
+| 9 | App launch TTI + cold-start waterfall | SC-1, SC-7 | [Step 9](INSTRUMENTATION_GUIDE.md#9-report-app-launch-tti--cold-start-span-waterfall) | Builds; TTI reported; root + 3 phase spans emit `_duration_ms`; root back-dated with a custom start **and** end time (both, or the SDK falls back to system time) in the SDK's clock domain (epoch, not monotonic uptime) |
 | 10 | Spans for every journey element | SC-1, PRE-4 | [Step 10](INSTRUMENTATION_GUIDE.md#10-span-every-element-of-the-user-journey) | Builds; start+end emit `_duration_ms`; **parity holds** — every Step 4 screen has a span and no span names a screen the app never emits; every hygiene item in the ⚠️ block below passes |
 | 11 | Device id / support *(opt-in)* | SC-5, SC-11 | [Step 11](INSTRUMENTATION_GUIDE.md#11-implement-device-identification-for-support) | Builds |
 | 12 | Symbol upload *(release only)* | SC-3 | [Step 12](INSTRUMENTATION_GUIDE.md#12-upload-symbol-files-for-readable-crash-stacks) | Upload step wired; uses SDK key |
@@ -99,7 +99,7 @@ build.
 | 16 | Feature flag exposures *(if detected)* | PRE-5, SC-7 | [Step 16](INSTRUMENTATION_GUIDE.md#16-record-feature-flag-exposures) | Builds; recorded at divergence point |
 | 17 | Session replay *(opt-in / SC-9 in scope)* | SC-9 | [Step 17](INSTRUMENTATION_GUIDE.md#17-enable-session-replay-wireframe) | Builds; replay enabled per bd-docs |
 | 18 | Cross-link existing crash reporter *(if detected)* | SC-3 | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) | Builds; session URL attached as a custom key/tag |
-| 19 | Crash workflows + CUJ + POC dashboards | SC-3, SC-7, SC-11 | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | Driven by **bd-issue-match** + **bd-cuj** + **bd-cli**, not bd-instrumentation. Crash workflow(s) deployed and LIVE; CUJ stack (Sankey/funnel/SLO/alert/session-capture/dashboard) deployed for the ASK'd flow; 3 POC dashboards composed and viewable; **span-percentile charts present on the Business/UX dashboard**, labeled distinctly from bd-cuj's wall-clock step timing |
+| 19 | Crash workflows + CUJ + POC dashboards | SC-3, SC-7, SC-11 | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | Driven by **bd-cli** + **bd-cuj**, not bd-instrumentation. Crash workflow(s) deployed and LIVE; CUJ stack (Sankey/funnel/SLO/alert/session-capture/dashboard) deployed for the ASK'd flow; 3 POC dashboards composed and viewable; **span-percentile charts present on the Business/UX dashboard**, labeled distinctly from bd-cuj's wall-clock step timing |
 | 20 | Evaluation readout | All in-scope | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) | Every in-scope criterion has a named artifact + a `bd-cli` command or portal link proving it |
 
 > ⚠️ **Step 6 cardinality gate (hard requirement, not advisory).** Any path with a dynamic
@@ -117,13 +117,15 @@ build.
 > 3. No broad `catch (Exception)` inside a span body — in Kotlin it swallows `CancellationException`
 >    before the wrapper sees it, undoing item 2.
 > 4. No bare `return` inside a span closure — it exits the closure, not the caller.
-> 5. Custom start times are in the SDK's clock domain (**epoch**, not monotonic uptime).
+> 5. Custom start times are in the SDK's clock domain (**epoch**, not monotonic uptime), and are
+>    supplied as a **pair** — a custom start with no custom end is silently tracked on system time.
 > 6. Children pass an **explicit parent span ID** — never an ambient/global span-context stack,
 >    which misattributes under concurrent loads.
 > 7. Every span name is reachable in the app's **default configuration** — not only behind a
 >    non-default mode or an off-by-default flag. If gated, wire a headless toggle and report it.
-> 8. Duration charts set `y_axis.unit = MILLISECONDS` at creation, and filter `_result != canceled`
->    where cancellation is routine.
+> 8. Duration charts set `y_axis.unit = MILLISECONDS` and a `TimeSeriesMetadata.title` per series at
+>    creation (without a title the legend shows an opaque action-ID hash), and filter
+>    `_result != canceled` where cancellation is routine.
 >
 > Full detail and the code that hits each one:
 > [examples/journey-span-instrumentation.md](examples/journey-span-instrumentation.md).
@@ -175,7 +177,7 @@ Step 2 ran — confirm they appear in the dashboard as part of V4.
 **V7 — Workflows and dashboards are live, not just deployed.** If Step 19 ran, use **bd-cli**
 to confirm the crash workflow(s) and the bd-cuj CUJ stack transitioned to **LIVE** status (not
 stuck `IDLE` — this is exactly the drift the account audit found in an earlier run: workflows
-created but never deployed, or deployed with an empty match rule instead of the intended BDRL
+created but never deployed, or deployed with an empty match rule instead of the intended Ripsaw
 script). **FAIL V7** if any workflow this run created is not LIVE.
 
 For chart data, the bar depends on whether matching traffic actually occurred:

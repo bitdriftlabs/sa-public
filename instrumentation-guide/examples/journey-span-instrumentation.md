@@ -126,6 +126,10 @@ iOS has no equivalent trap — process start is read from the kernel as a wall-c
 has its own: capturing `Date()` in a stored static yields ~0, because Swift statics initialise
 lazily on first access, i.e. at the moment TTI is computed rather than at launch.
 
+Separately, custom times are **both-or-neither**: supply a custom start without a custom end and
+the SDK tracks the span on system time, discarding the back-date entirely. The demo's root span
+passes both (kernel process start, and `now` at end); its middle phases pass neither.
+
 ### 2.6 Explicit parent IDs, never an ambient span-context stack
 
 Nest children by passing the parent's span ID down (`parentSpanId` on Android, `parentSpanID` —
@@ -157,6 +161,9 @@ as "prove the code path executes" before "prove the matcher is right."
 - **`y_axis.unit`** — set to `MILLISECONDS` at workflow *creation*. Left unset, a duration chart
   renders raw unitless numbers (`1.4K`, `2K`) and the reader has to guess. Fixable live afterwards
   as chart metadata, but it's free to get right up front.
+- **`TimeSeriesMetadata.title`** — set one per series. Without it the legend and tooltips fall back
+  to the raw aggregated action ID, an opaque hash string, which makes a multi-series comparison
+  chart unreadable at exactly the moment it's most useful.
 - **`_result != canceled`** — add this to the match rule for spans where cancellation is routine
   (per-row image loads, anything tied to scroll). Spans where cancellation is rare don't need it;
   filtering everywhere isn't worth resetting evaluation windows over.

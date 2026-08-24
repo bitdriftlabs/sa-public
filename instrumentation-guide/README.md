@@ -31,4 +31,4 @@ npx skills add bitdriftlabs/bd-skills
 
 ## What gets instrumented
 
-The guide covers SDK init, screen views, user identity, network capture, structured logs, global fields, TTI and the cold-start span waterfall, spans for every journey element, device code / support tooling, crash symbolication, log forwarding, and session replay — in an order tuned for fastest time-to-value in a POC. It then hands off to **bd-issue-match** and **bd-cuj** to turn that data into crash workflows, CUJ dashboards, and a criterion-by-criterion evaluation readout.
+The guide covers SDK init, screen views, user identity, network capture, structured logs, global fields, TTI and the cold-start span waterfall, spans for every journey element, device code / support tooling, crash symbolication, log forwarding, and session replay — in an order tuned for fastest time-to-value in a POC. It then hands off to **bd-cli** and **bd-cuj** to turn that data into crash workflows, CUJ dashboards, and a criterion-by-criterion evaluation readout.

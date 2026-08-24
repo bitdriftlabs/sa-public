@@ -134,4 +134,6 @@ SDK package prefixes.
 ## Reference
 
 - [Ripsaw/BDRL scripting docs](https://docs.bitdrift.io/product/workflows/scripting/overview)
-- The **bd-issue-match** skill — for writing new BDRL scripts from scratch.
+- The **bd-cli** skill's IssueMatch recipes (`recipes/issue-match.md`, `issue-match-examples.md`,
+  `issue-match-metrics.md`) — for writing new Ripsaw scripts from scratch. These were previously a
+  standalone `bd-issue-match` skill; it no longer exists as one.
