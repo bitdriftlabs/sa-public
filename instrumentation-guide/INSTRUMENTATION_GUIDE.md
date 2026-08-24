@@ -4,7 +4,14 @@
 
 **Version 1.2** — paired screen views with spans: Steps 4 and 10 instrument the same journey elements, Step 9 adds a cold-start span waterfall, and a [worked example](examples/journey-span-instrumentation.md) collects the traps. (1.1 added Steps 18–20 — crash-reporter cross-linking, crash/CUJ workflows and dashboards, evaluation readout.)
 
-A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt. Steps 1–18 drive the **bd-instrumentation** skill to do the actual app-code work (write the call sites, wire the build, verify it compiles); Step 19 is server-side console configuration driven by **bd-cli** and **bd-cuj**; Step 20 writes up the result and touches neither. You don't write the code; you run the prompts in order and the skills handle the platform-specific details on Android, iOS, or React Native.
+A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt. Steps 1–18 drive the **bd-instrumentation** skill to do the actual app-code work (write the call sites, wire the build, and recommend verification); Step 19 is server-side console configuration driven by **bd-cli** and **bd-cuj**; Step 20 writes up the result and touches neither. You don't write the code; you run the prompts in order and the skills handle the platform-specific details on Android, iOS, or React Native.
+
+Choose a scope before starting: **local-only** runs Steps 1–18 and does not require
+account-side workflows or dashboards; **full-poc** runs Steps 1–20 and requires
+explicit authorization and authenticated account access. Builds and tests are
+recommended evidence, not mandatory for every prompt. If you cannot or do not want
+to build, ask the agent to mark build checks `DEFERRED` and complete static/runtime
+checks instead; it must not claim a deferred build passed.
 
 Each step also lists the bitdrift feature it **unlocks** and the relevant **docs**, so you know what each prompt buys you.
 
@@ -522,6 +529,8 @@ For the full crash-classification, CUJ, and dashboard treatment — the part of 
 - **Run steps in dependency order.** Step 2 requires Step 1; Step 3 is part of the Step 2 call. After Steps 1–2 the rest are independent — ask only for what you need. Note Step 13 (new session) clears global fields, so the skill re-applies them; and Step 12 (symbols) only matters for release builds.
 - **Ask for the parity table before any workflow is written.** *"Show me every screen name this app emits against every span name, and flag anything unpaired."* An orphan in either direction is the cheapest bug you will ever fix at this stage, and the most expensive one to notice later — an unpaired name produces a chart that deploys LIVE and stays empty.
 - **Ask the skill to verify.** End with *"compile the app and confirm the bitdrift instrumentation builds and data flows to the dashboard."* SDK calls are no-ops if the logger hasn't started, so a clean compile + launch is the first gate; then confirm sessions in Timeline, the Sankey from screen views, network events, TTI, and spans.
+- **If builds are deferred, say so explicitly.** Use *"Do not build; perform static checks and report the build as DEFERRED."* The agent should still check deleted/changed signatures, imports, route-template parameters, and runtime configuration.
+- **Check effective local configuration.** Inspect ignored `.xcconfig`, `local.properties`, environment variables, backend URLs, SDK-key sources, and recursive includes. A stale local host can make a healthy app appear to have no data.
 - **Keep it on stable APIs.** The skill avoids experimental, opt-in-required APIs by default. If a feature you want is only available experimentally, it will ask before opting in.
 - **When in doubt, point it at the docs.** Ask the skill to confirm signatures via **bd-docs** for your installed SDK version rather than guessing.
 

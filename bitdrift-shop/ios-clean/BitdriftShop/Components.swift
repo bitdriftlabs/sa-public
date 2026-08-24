@@ -26,7 +26,37 @@ enum Palette {
     static let logoBackdrop = Color(red: 0.10, green: 0.10, blue: 0.18) // 0xFF1A1A2E
 }
 
-// MARK: - Spanned async image
+// MARK: - Remote image
+
+/// Small app-owned image loader. It keeps image fetching independent of any
+/// observability SDK and makes failures fall back to the supplied placeholder.
+struct RemoteImage<Content: View, Placeholder: View>: View {
+    let url: URL?
+    @ViewBuilder let content: (Image) -> Content
+    @ViewBuilder let placeholder: () -> Placeholder
+
+    @State private var uiImage: UIImage?
+
+    var body: some View {
+        Group {
+            if let uiImage {
+                content(Image(uiImage: uiImage))
+            } else {
+                placeholder()
+            }
+        }
+        .task(id: url) {
+            uiImage = nil
+            guard let url else { return }
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                uiImage = UIImage(data: data)
+            } catch {
+                uiImage = nil
+            }
+        }
+    }
+}
 
 
 // MARK: - Screen container
@@ -128,7 +158,7 @@ struct ScreenContainer<Content: View>: View {
                     .foregroundStyle(.secondary)
             }
         } else if let imageURL, let url = URL(string: imageURL) {
-            AsyncImage(url: url) { image in
+            RemoteImage(url: url) { image in
                 image.resizable().scaledToFill()
             } placeholder: {
                 Circle().fill(color.opacity(0.15))
@@ -302,6 +332,8 @@ struct SimulationOverlay: View {
             } label: {
                 Image(systemName: "xmark")
                     .foregroundStyle(.white.opacity(0.8))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Cancel simulation")
         }
@@ -390,7 +422,7 @@ struct ProductImageRow: View {
                             onProductTap(product.str("id"))
                         } label: {
                             HStack(spacing: 0) {
-                                AsyncImage(url: URL(string: product.str("image_url"))) { image in
+                                RemoteImage(url: URL(string: product.str("image_url"))) { image in
                                     image.resizable().scaledToFill()
                                 } placeholder: {
                                     Color.gray.opacity(0.2)
@@ -494,7 +526,7 @@ struct RecommendedSection: View {
                         onProductTap(item.product.str("id"))
                     } label: {
                         HStack(spacing: 10) {
-                            AsyncImage(url: URL(string: item.product.str("image_url"))) { image in
+                            RemoteImage(url: URL(string: item.product.str("image_url"))) { image in
                                 image.resizable().scaledToFill()
                             } placeholder: {
                                 Color.gray.opacity(0.2)

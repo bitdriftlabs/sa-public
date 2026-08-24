@@ -6,13 +6,17 @@ Remove all bitdrift Capture SDK instrumentation from **any** app and return it t
 
 This is the inverse of [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md): the same 20 categories, removed in **reverse order** (last added, first removed) so dependent call sites come out before the foundation they relied on, and the project keeps compiling at each step. The prompts are platform-neutral — the skill applies the right removals on Android, iOS, or React Native.
 
-> **Do it in one prompt (app code only):** *"Remove all bitdrift Capture SDK instrumentation from this app, working in reverse order, and confirm the project still builds."* The skill sequences the work for Steps 1–18 (app code). The per-step prompts below are the reference if you want to remove categories selectively.
+> **Do it in one prompt (app code only):** *"Remove all bitdrift Capture SDK instrumentation from this app, working in reverse order. Build if permitted; otherwise perform static verification and report the build as DEFERRED."* The skill sequences the work for Steps 1–18 (app code). The per-step prompts below are the reference if you want to remove categories selectively.
 >
 > **Step 19 is server-side/account state, not app code** — deleting a crash workflow, a CUJ stack, or a dashboard is destructive to whatever else the account was using them for, and isn't covered by the one-shot prompt above. Confirm explicitly before removing any of it (see order 1 below).
 >
 > **Step 20 is just a document.** The evaluation readout has no account-side state — discarding it is an ordinary file deletion needing no special confirmation, and it's independent of whether you keep or delete the Step 19 resources (see order 2 below — after the Step 19 deletion, since the readout records the IDs that deletion needs).
 
-> **Prefer to run this unattended?** This is the *human* reference. For a fully autonomous run, point your agent at the companion **[AGENT_CLEANUP_GUIDE.md](AGENT_CLEANUP_GUIDE.md)** runbook (preflight, strict reverse order, and grep-based verification gates the agent checks itself) and say *"execute this runbook."* It deliberately does **not** gate on the build — confirming the project still compiles is yours to do.
+> **Prefer to run this unattended?** This is the *human* reference. For a fully autonomous run, point your agent at the companion **[AGENT_CLEANUP_GUIDE.md](AGENT_CLEANUP_GUIDE.md)** runbook (preflight, strict reverse order, and grep-based verification gates the agent checks itself) and say *"execute this runbook."* Builds are recommended but optional; the agent must distinguish PASS, FAIL, and DEFERRED.
+
+> **Scope:** use `local-only` to remove app instrumentation and local artifacts;
+> use `full-revert` to remove the evaluation readout too. Step 19 account resources
+> are destructive and always require explicit confirmation.
 
 ---
 
@@ -121,7 +125,15 @@ Two things a grep will not tell you, and both routinely survive an otherwise-cle
 - [ ] iOS: no bitdrift run-script build phase or Swift-package reference left in the Xcode project (9, 1)
 - [ ] README sections and in-code comments describing the instrumentation removed (2b)
 
-Then build the project. It is not part of the checklist above — the cleanup is judged on references being gone — but nothing else confirms the app still compiles.
+Then build the project if permitted. It is recommended evidence, not part of the
+reference-removal checklist. If skipped, report `DEFERRED` rather than claiming the
+app still compiles. In all cases, search for orphaned imports, deleted helper names,
+stale parameters, removed API methods, and suspend/non-suspend overload ambiguity.
+
+Also inspect ignored local configuration (`.xcconfig`, `local.properties`, and
+environment overrides) for stale backend hosts or recursive includes. Preserve
+those files unless the user explicitly asks to change them, and never include keys
+or secrets in the cleanup report.
 - [ ] No remaining bitdrift references anywhere in the codebase
 
 ---

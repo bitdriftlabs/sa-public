@@ -137,6 +137,8 @@ final class SimulationManager: ObservableObject {
 
     func cancel() {
         isCancelled = true
+        runTask?.cancel()
+        isSimulating = false
         ScreenLogger.logInfo("simulation_cancelled", [
             "completed_runs": String(currentRun),
             "total_runs": String(totalRuns),

@@ -8,8 +8,10 @@ enum ApiClient {
 
     /// Host running the bitdrift-shop backend.
     ///
-    /// Hardcoded to `localhost`, matching `ApiClient.kt`'s hardcoded host. The
-    /// Simulator shares the Mac's network stack so this works directly — Android
+    /// Use the IPv4 loopback explicitly. The iOS Simulator shares the Mac's
+    /// network stack, while many local FastAPI servers bind only to IPv4 — using
+    /// `127.0.0.1` avoids URLSession resolving `localhost` to an unreachable
+    /// IPv6 loopback first. Android uses its `10.0.2.2` emulator alias.
     /// needs its `10.0.2.2` emulator alias for the same reason.
     ///
     /// **On a physical device this will not work**: `localhost` there means the
@@ -21,7 +23,7 @@ enum ApiClient {
     /// (`ipconfig getifaddr en0` prints it. The `$()` is required — `//` starts a
     /// comment in xcconfig.) A physical *Android* device has exactly this problem
     /// too; the emulator alias is what hides it.
-    private static let host = "localhost"
+    private static let host = "127.0.0.1"
 
     /// `SHOP_BACKEND_URL` wins when set; otherwise the per-environment default
     /// above. The override exists because the device default is a LAN IP, which
