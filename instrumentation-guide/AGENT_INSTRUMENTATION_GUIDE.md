@@ -166,6 +166,11 @@ forcing a full rebuild after every prompt.
 > symbols for the installed SDK version via **bd-docs** (e.g. iOS `setEntityID` capital ID,
 > chained integrations; RN top-level named exports). Do not guess signatures.
 
+**Android signature traps observed in practice:** current Kotlin SDKs use
+`SessionStrategy.Fixed()`; `Logger.logAppLaunchTTI` takes `kotlin.time.Duration` (convert
+milliseconds with `.milliseconds`); and `CaptureResult.Failure.error` is not guaranteed to
+be a `Throwable`. Treat all three as compile-time checks, not copy/paste assumptions.
+
 ### 2a. Post-instrumentation state machine — Steps 19–21
 
 For `full-poc`, execute this sequence without collapsing its states:
