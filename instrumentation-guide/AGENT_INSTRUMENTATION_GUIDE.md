@@ -1,6 +1,6 @@
 # Agent Instrumentation Runbook
 
-**Version 1.3 — machine-consumable** — covers the 20-step guide, including the Step 4/10 span pairing and the SDK 0.23.12 review (session replay on by default, init diagnostics, entity-ID clearing, trace-propagation defaults).
+**Version 1.4 — machine-consumable** — covers the 21-step guide, including a mandatory read-only post-instrumentation discovery phase before account-side workflows and dashboards.
 
 This is the **autonomous execution contract** for instrumenting any mobile app with the
 bitdrift Capture SDK. It wraps [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md) (the
@@ -22,8 +22,8 @@ execution order, and verification gates phrased as checkable assertions.
 > `HALT` condition and report which gate failed.
 
 > **Execution scopes.** Use `local-only` for app changes and static/runtime SDK
-> validation (Steps 1–18); use `full-poc` for account workflows, CUJ, dashboards,
-> and the evaluation readout (Steps 19–20). If the user does not specify a scope,
+> validation (Steps 1–18); use `full-poc` for account discovery, workflows, CUJ, dashboards,
+> and the evaluation readout (Steps 19–21). If the user does not specify a scope,
 > ask once before accessing account resources. Never infer authorization for
 > account-wide or destructive changes.
 
@@ -43,7 +43,7 @@ the exact failing check; do not proceed or attempt repairs unless noted.
 |---|-------|---------------|------------|
 | P1 | `bd` CLI installed | `bd --version` exits 0 | HALT: instruct user to `brew tap bitdriftlabs/bd && brew install bd` |
 | P2 | `bd` authenticated | `bd auth` succeeds interactively, or a harmless authenticated read succeeds when `BD_API_KEY` is already set for automation | HALT: instruct user to run `bd auth`, or set `BD_API_KEY` for CI |
-| P3 | Skills installed | `bd-instrumentation` and `bd-docs` resolvable; add `bd-cli` and `bd-cuj` only for `full-poc` Step 19 work | HALT: `npx skills add bitdriftlabs/bd-skills` |
+| P3 | Skills installed | `bd-instrumentation` and `bd-docs` resolvable; add `bd-cli` for full-poc discovery and `bd-cuj` for full-poc Step 20 work | HALT: `npx skills add bitdriftlabs/bd-skills` |
 | P4 | Skills/CLI current | (best-effort) `brew upgrade` + `npx skills update --all` | WARN only; continue |
 | P5 | Target platform detected | bd-instrumentation reports android / ios / react-native | HALT if undetectable |
 | P6 | SDK key available | required for runtime upload/full POC; local-only static work may use a documented placeholder or skip runtime upload | For full POC, `ASK` user once for the SDK key; HALT if not supplied |
@@ -77,20 +77,22 @@ silently unless the user has already stated a preference this session. Only the 
 | Feature flag exposures | 16 | Enable **if** a feature-flag system is detected; instrument at the divergence point. Otherwise skip. Confirm API via bd-docs. |
 | Session replay | 17 | **Leave it enabled.** The default `Configuration` turns it on on both platforms, and that is the wanted state — so "skipping" Step 17 is correct behaviour, not an oversight. Record in the run report that it is on. Disable it (null/nil session-replay configuration) **only when the user explicitly prompts for that**. Do **not** `ASK`, and do not infer a reason to turn it off from privacy or performance considerations you noticed yourself. |
 | Crash reporter cross-linking | 18 | Enable **if** an existing crash reporter (Crashlytics/Sentry/Bugsnag/etc.) is detected in the codebase; otherwise skip. |
-| Crash workflow classification dimensions | 19 | Auto-discover from what the app actually produces — classify by feature-flag exposure if flags are instrumented, by memory-pressure level for OOM-type crashes, by ANR/blocked-thread reason for ANR-type crashes. Do **not** ASK; pick whichever dimensions the crash catalog supports. |
-| CUJ flow to automate | 19 | `ASK` once — bd-cuj needs to know which flow is business-critical (e.g. checkout, onboarding, login). Skip this half of Step 19 only if told to stop at raw instrumentation. |
-| POC dashboards to build | 19 | Build the 3 default dashboards (Stability, Business/UX, Entities/Support) unless the scope says otherwise. |
-| Evaluation readout | 20 | Run whenever a POC scope was provided (map to its criteria). If no scope was given, run it anyway as a generic step-coverage summary rather than skipping. |
-| Execution scope | all | Use `local-only` for Steps 1–18; use `full-poc` for Steps 1–20. If unspecified, ask once before Step 19/account access rather than assuming authorization. |
-| Scope (which steps) | all | If a **POC scope** is provided → instrument exactly the steps whose POC criteria are in scope (see §2 column). If scope is `local-only` → run Steps 1–18 and stop before account-side work. If scope is `full-poc` → run Steps 1–20. Steps 11, 12, 13, 18 remain opt-in unless their criterion is in scope. **Step 17 is different** — it verifies the enabled default and must be reported when SC-9 is in scope. |
+| Discovery window | 19 | Use the most recent representative window after exercising the target app; capture actual values and sample session IDs. Discovery is read-only and must never create workflows or dashboards. |
+| Crash workflow portfolio | 20 | **Required:** deploy ≥3 crash/Issue workflows — baseline crash/affected-user view, breakdown by a schema-confirmed report dimension, and an observed-schema IssueMatch classifier. With no representative crash, use only the CLI schema-confirmed generic crash/report condition and safe report metadata; record that matching traffic has not appeared. |
+| CUJ flow to automate | 20 | `ASK` once — bd-cuj needs the business-critical flow (e.g. checkout, onboarding, login). Its step names must be observed in Step 19, not merely inferred from source. |
+| POC dashboards to build | 20 | **Required:** build 5 curated dashboards: Stability, Crash Triage, Business/UX, Performance & Network, Support & Sessions. Replace unsupported optional panels with another observed signal; never create an empty substitute. |
+| Evaluation readout | 21 | Run whenever a POC scope was provided (map to its criteria). If no scope was given, run it anyway as a generic step-coverage summary rather than skipping. |
+| Execution scope | all | Use `local-only` for Steps 1–18; use `full-poc` for Steps 1–21. If unspecified, ask once before Step 19/account access rather than assuming authorization. |
+| Scope (which steps) | all | If a **POC scope** is provided → instrument exactly the steps whose POC criteria are in scope (see §2 column). If scope is `local-only` → run Steps 1–18 and stop before account-side work. If scope is `full-poc` → run Steps 1–21. Steps 11, 12, 13, 18 remain opt-in unless their criterion is in scope. **Step 17 is different** — it verifies the enabled default and must be reported when SC-9 is in scope. |
 
 ---
 
 ## 2. Execution order — sequential, gate after each
 
 Dispatch by step: **Steps 1–18** run through the **bd-instrumentation** skill using the prompt
-from the source guide (linked); **Step 19** is server-side and runs through **bd-cli** (IssueMatch
- recipes for crash classification, plus dashboard composition) and **bd-cuj**; **Step 20** is document generation and uses no skill. After every
+from the source guide (linked); **Step 19** is read-only account discovery through **bd-cli**;
+**Step 20** is authorized server-side configuration through **bd-cli** (IssueMatch recipes and
+dashboard composition) and **bd-cuj**; **Step 21** is document generation and uses no skill. After every
 step, run its gate. **HALT on a failed mandatory static/runtime gate.** A skipped
 build is recorded as `DEFERRED`, not treated as a failure or a pass.
 
@@ -114,8 +116,9 @@ build is recorded as `DEFERRED`, not treated as a failure or a pass.
 | 16 | Feature flag exposures *(if detected)* | PRE-5, SC-7 | [Step 16](INSTRUMENTATION_GUIDE.md#16-record-feature-flag-exposures) | Builds; recorded at divergence point |
 | 17 | Session replay *(on by default — verify only)* | SC-9 | [Step 17](INSTRUMENTATION_GUIDE.md#17-session-replay-wireframe--on-by-default) | Builds; the configuration in force is **stated** — enabled (the default and expected state), or disabled because the user asked. Never leave this unreported |
 | 18 | Cross-link existing crash reporter *(if detected)* | SC-3 | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) | Builds; session URL attached as a custom key/tag |
-| 19 | Crash workflows + CUJ + POC dashboards | SC-3, SC-7, SC-11 | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) | Driven by **bd-cli** + **bd-cuj**, not bd-instrumentation. Crash workflow(s) deployed and LIVE; CUJ stack (Sankey/funnel/SLO/alert/session-capture/dashboard) deployed for the ASK'd flow; 3 POC dashboards composed and viewable; **span-percentile charts present on the Business/UX dashboard**, labeled distinctly from bd-cuj's wall-clock step timing |
-| 20 | Evaluation readout | All in-scope | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) | Every in-scope criterion has a named artifact + a `bd-cli` command or portal link proving it |
+| 19 | Post-instrumentation discovery | Enables 20 | [Step 19](INSTRUMENTATION_GUIDE.md#19-discover-and-validate-post-instrumentation-data) | **Read-only.** Signal catalog contains exact observed screen/event/span/network/field values, Issue/crash field availability, and representative session IDs after the target journey is exercised. HALT before Step 20 if the journey or required signals are unobserved. |
+| 20 | Observed-data workflow + dashboard portfolio | SC-3, SC-7, SC-11 | [Step 20](INSTRUMENTATION_GUIDE.md#20-build-workflows-and-dashboards-from-observed-data) | Driven by **bd-cli** + **bd-cuj**, not bd-instrumentation. Deploy ≥10 focused workflows, including ≥3 crash/Issue workflows, and 5 populated dashboards. Every matcher comes from the catalog; workflows are LIVE; the exercised CUJ has populated Sankey/funnel/span charts. |
+| 21 | Evaluation readout | All in-scope | [Step 21](INSTRUMENTATION_GUIDE.md#21-generate-the-evaluation-readout) | Every in-scope criterion has a named artifact + a `bd-cli` command or portal link proving it |
 
 Build text in the step table means “recommended verification.” For every step, the
 agent must still run the static gate, record changed files, and check the affected
@@ -161,6 +164,19 @@ forcing a full rebuild after every prompt.
 > **API signatures:** before writing call sites, have bd-instrumentation confirm exact
 > symbols for the installed SDK version via **bd-docs** (e.g. iOS `setEntityID` capital ID,
 > chained integrations; RN top-level named exports). Do not guess signatures.
+
+### 2a. Post-instrumentation state machine — Steps 19–21
+
+For `full-poc`, execute this sequence without collapsing its states:
+
+`DISCOVER → VALIDATE → PROPOSE → DEPLOY → EXERCISE → VERIFY → READOUT`
+
+1. **DISCOVER (Step 19):** make authenticated reads only. Inspect recent sessions, Timeline data, exact matcher values, observed Issues, and existing account artifacts. Save a signal catalog under the run-artifact path. Never call a create, update, deploy, or delete command in this state.
+2. **VALIDATE (Step 19):** require representative session IDs and observed target-journey values. If screen/event/span values are absent, malformed, or only source-derived, HALT and diagnose the app/data flow; do not call it 0% conversion.
+3. **PROPOSE (Step 20):** derive a portfolio plan from the catalog: ≥10 focused workflows (≥3 crash/Issue) and 5 dashboards. Include observed matcher values, sample evidence, workflow purpose, owner dashboard, and a replacement observed signal for every unavailable optional panel.
+4. **DEPLOY (Step 20):** after account-write authorization, create the proposed portfolio. Baseline crash workflows are mandatory even without a representative crash; confirm the generic crash/report condition and metadata with `bd schema`. IssueMatch classifiers must use observed report fields. Do not use an absent signal as a matcher.
+5. **EXERCISE and VERIFY (Step 20):** run the target journey again, verify workflow definitions against the catalog, require LIVE status and populated non-crash charts, and retain the resulting session IDs. A crash workflow may remain empty only when its matcher is valid and no matching crash has occurred.
+6. **READOUT (Step 21):** link each criterion to the catalog evidence and the resulting artifact, including deferred or unobserved capabilities.
 
 ---
 
@@ -224,11 +240,18 @@ and runtime evidence under `guidetest/runs/<date>/<platform>/<scope>/` or anothe
 path explicitly named in the run report. Exclude build outputs, IDE caches, and
 ignored local-secret files from commits and evidence bundles.
 
-**V7 — Workflows and dashboards are live, not just deployed.** If Step 19 ran, use **bd-cli**
+**V10 — Post-instrumentation catalog is real.** If Step 19 ran, the saved signal catalog must
+contain a time window, representative session IDs, exact observed matcher values for the selected
+journey, observed span results, network path templates/fields, and the observed Issue/crash shape
+or an explicit *"no matching crash observed"* statement. **FAIL V10** if an artifact proposal
+uses a source-derived or assumed value not present in the catalog. Step 20 may not begin on this
+failure.
+
+**V11 — Observed-data workflow and dashboard portfolio is live, not just deployed.** If Step 20 ran, use **bd-cli**
 to confirm the crash workflow(s) and the bd-cuj CUJ stack transitioned to **LIVE** status (not
 stuck `IDLE` — this is exactly the drift the account audit found in an earlier run: workflows
 created but never deployed, or deployed with an empty match rule instead of the intended Ripsaw
-script). **FAIL V7** if any workflow this run created is not LIVE.
+script). **FAIL V11** if fewer than 10 focused workflows (including fewer than 3 crash/Issue workflows), fewer than 5 dashboards, or any workflow this run created is not LIVE.
 
 For chart data, the bar depends on whether matching traffic actually occurred:
 
@@ -252,20 +275,20 @@ than as an error. Note also that funnel and Sankey charts return `funnel_data` /
 **not** `line_data.time_series` — a populated funnel looks empty to a check that only inspects
 metric series.
 
-**V8 — Evaluation readout is evidence-backed.** If Step 20 ran, every in-scope criterion in
+**V12 — Evaluation readout is evidence-backed.** If Step 21 ran, every in-scope criterion in
 the readout has a concrete artifact (a chart, workflow, dashboard, or session ID) and a
-`bd-cli` command or portal link that proves it — not just a step name. **FAIL V8** on any
+`bd-cli` command or portal link that proves it — not just a step name. **FAIL V12** on any
 criterion listed with no accompanying proof. If no POC scope was given, "in-scope criterion"
 has no `SC-n`/`PRE-n` set to check against — apply the same evidence bar to each step listed in
 the generic step-coverage summary (§2) instead, so an empty readout can't pass V8 by vacuously
 having nothing to check.
 
-**V9 — Span/screen parity.** Produce the table of every emitted screen name against every span
-name. **FAIL V9** on an orphan in either direction: a screen with no `<screen>_screen_load` span, or
+**V13 — Span/screen parity.** Produce the table of every emitted screen name against every span
+name. **FAIL V13** on an orphan in either direction: a screen with no `<screen>_screen_load` span, or
 a span naming a screen the app never emits. Journey-phase spans are checked the same way against the
 phases of the flow chosen for Step 19.
 
-**V10 — Span data is real, not just present.** Via **bd-cli**, every span name added has non-zero
+**V14 — Span data is real, not just present.** Via **bd-cli**, every span name added has non-zero
 events after the flow has been exercised. Two specific failures this catches, both of which look
 like a broken chart and are not:
 - The span sits on a code path the app's **default configuration never runs** (a non-default journey
@@ -299,11 +322,14 @@ cold_start_spans: <root + phases, or "not run">
 span_hygiene:    <⚠️ items 1-8, each pass/fail>
 cardinality_gaps: <any un-templated dynamic routes, or none>
 poc_coverage:    <each in-scope SC-n/PRE-n → covering step, or "no POC scope provided">
-gates:           V1 <pass/fail> V2 ... V10 ...
+gates:           V1 <pass/fail> V2 ... V14 ...
 data_in_dashboard: <yes + session id | no + suspected cause>
-crash_workflows: <name/id + LIVE status, or "not run">
-cuj_stack:       <flow name + Sankey/funnel/SLO/alert/dashboard ids, or "not run">
-poc_dashboards:  <dashboard names/ids built, or "not run">
+signal_catalog:  <path + observed time window + representative session IDs, or "not run">
+observed_contract: <screen/event/span/network/field/Issue matcher values + gaps>
+artifact_proposal: <≥10 workflows + 5 dashboards, observed matcher evidence + replacement panels, or "not run">
+crash_workflows: <≥3 name/id + LIVE status + observed matcher evidence, or "not run">
+cuj_stack:       <flow name + validated matcher values + Sankey/funnel/SLO/alert/dashboard ids, or "not run">
+poc_dashboards:  <5 dashboard names/ids + populated panels, or "not run">
 evaluation_readout: <link/path to the readout doc, or "not run">
 ```
 

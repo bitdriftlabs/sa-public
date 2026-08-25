@@ -1,6 +1,6 @@
 # Sample evaluation readout — bitdrift-shop (Android)
 
-A worked example of [Step 20's](../INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout)
+A worked example of [Step 21's](../INSTRUMENTATION_GUIDE.md#21-generate-the-evaluation-readout)
 output: a criterion-by-criterion readout where every row states what was actually confirmed and
 how. Rows that were verified say so and name the artifact; rows that weren't say that instead. A
 readout where every row is green on day one isn't a readout — the honest gaps are what make the

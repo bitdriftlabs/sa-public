@@ -3,7 +3,7 @@
 These two scripts are the **actual, real BDRL** running live today for `ai.bitdrift.shop`
 (Android), pulled verbatim from the checked-in workflow JSON in
 [`bitdrift-shop/android/workflows/`](../../bitdrift-shop/android/workflows/). They're included
-here as worked examples for [Step 19](../INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards)
+here as worked examples for [Step 20](../INSTRUMENTATION_GUIDE.md#20-build-workflows-and-dashboards-from-observed-data)
 because a live-account audit found both had drifted — deployed with an **empty** `issue_match`
 instead of this logic — and they were fixed as part of this guide's validation pass.
 
