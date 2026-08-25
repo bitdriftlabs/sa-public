@@ -43,7 +43,7 @@ the exact failing check; do not proceed or attempt repairs unless noted.
 |---|-------|---------------|------------|
 | P1 | `bd` CLI installed | `bd --version` exits 0 | HALT: instruct user to `brew tap bitdriftlabs/bd && brew install bd` |
 | P2 | `bd` authenticated *(full-poc only)* | For `full-poc`, `bd auth` succeeds interactively, or a harmless authenticated read succeeds when `BD_API_KEY` is already set for automation. For `local-only`, mark `N/A` and continue. | HALT only for `full-poc`: instruct user to run `bd auth`, or set `BD_API_KEY` for CI |
-| P3 | Skills installed | `bd-instrumentation` and `bd-docs` resolvable; add `bd-cli` for full-poc discovery and `bd-cuj` for full-poc Step 20 work | HALT: `npx skills add bitdriftlabs/bd-skills` |
+| P3 | Skills installed | `bd-instrumentation` and `bd-docs` resolvable; for `full-poc`, also require `bd-post-instrumentation`, `bd-observability-portfolio`, `bd-cli`, and `bd-cuj` | HALT: `npx skills add bitdriftlabs/bd-skills` |
 | P4 | Skills/CLI current | (best-effort) `brew upgrade` + `npx skills update --all` | WARN only; continue |
 | P5 | Target platform detected | bd-instrumentation reports android / ios / react-native | HALT if undetectable |
 | P6 | SDK key available | required for runtime upload/full POC; local-only static work may use a documented placeholder or skip runtime upload | For full POC, `ASK` user once for the SDK key; HALT if not supplied |
@@ -90,9 +90,10 @@ silently unless the user has already stated a preference this session. Only the 
 ## 2. Execution order — sequential, gate after each
 
 Dispatch by step: **Steps 1–18** run through the **bd-instrumentation** skill using the prompt
-from the source guide (linked); **Step 19** is read-only account discovery through **bd-cli**;
-**Step 20** is authorized server-side configuration through **bd-cli** (IssueMatch recipes and
-dashboard composition) and **bd-cuj**; **Step 21** is document generation and uses no skill. After every
+from the source guide (linked); **Step 19** runs through **bd-post-instrumentation** (with
+**bd-cli**) for read-only account discovery; **Step 20** runs through
+**bd-observability-portfolio** (with **bd-cli** and **bd-cuj**) for authorized server-side
+configuration; **Step 21** is document generation and uses no skill. After every
 step, run its gate. **HALT on a failed mandatory static/runtime gate.** A skipped
 build is recorded as `DEFERRED`, not treated as a failure or a pass.
 

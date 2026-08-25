@@ -33,8 +33,10 @@ These prompts assume your agent (Cursor, Codex, Copilot, or any skills-compatibl
 
 - **bd-instrumentation** — installs and instruments the Capture SDK; detects the platform and whether the SDK is already present, then does a fresh install or extends an existing integration. This is the skill Steps 1–18 drive.
 - **bd-docs** — fetches live bitdrift documentation at query time.
-- **bd-cli** — drives the `bd` CLI for symbol/source-map uploads, discovery of sessions/events/issues, workflows, keys, and dashboard composition. Its **IssueMatch recipes** also write and deploy the server-side crash-classification scripts (Ripsaw, formerly called BDRL) used in Step 20.
-- **bd-cuj** — automates a full critical-user-journey stack (Sankey, funnel, SLO, alerting, session capture, dashboard) for one flow in a single pass. It is used in Step 20 only after Step 19 has validated the flow's emitted signals.
+- **bd-post-instrumentation** — runs the read-only Step 19 discovery/data-contract gate: representative sessions, exact matcher values, Timeline evidence, and Issue/crash shape. It hands off without making account changes.
+- **bd-observability-portfolio** — runs the authorized Step 20 workflow/dashboard portfolio: crash workflows, focused operational workflows, alerts, and curated dashboards, built from Step 19's catalog.
+- **bd-cli** — provides the CLI syntax, live schemas, and account operations that both post-instrumentation skills use. Its **IssueMatch recipes** write and deploy server-side crash-classification scripts (Ripsaw, formerly called BDRL).
+- **bd-cuj** — provides the Critical User Journey stack used by `bd-observability-portfolio` for one validated journey.
 
 Install and authenticate the `bd` CLI (macOS, Homebrew):
 
