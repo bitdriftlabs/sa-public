@@ -15,13 +15,17 @@ non-empty.
 
 Before deploying any example, list existing account workflows and verify their deployed
 definitions. `LIVE` does not prove that the app emits the matched signal. For Android
-non-crash validation, reset persisted fault-injection state, build/install the debug APK, start
-the `SIM ∞` loop, and monitor ordinary logs, screen views, network events, and business failures:
+non-crash validation, run from the Android app directory, reset persisted fault-injection state,
+build/install the debug APK, explicitly enable the persisted infinite-simulation flag, launch the
+app, and monitor ordinary logs, screen views, network events, and business failures:
 
 ```bash
+cd /path/to/android-app
 ./scripts/check-demo-state.sh -s emulator-5554 --reset
 ./gradlew :app:assembleDebug :app:installDebug
-adb -s emulator-5554 shell monkey -p ai.bitdrift.shop 1
+adb -s emulator-5554 shell run-as ai.bitdrift.shop sh -c \
+  'mkdir -p shared_prefs && printf %s "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\" ?><map><boolean name=\"active\" value=\"true\" /></map>" > shared_prefs/auto_infinite.xml'
+adb -s emulator-5554 shell am start -n ai.bitdrift.shop/.MainActivity
 ```
 
 Do not enable Crash Loop, ANR-A, or Force-Quit for this pass. Record workflow status and whether
