@@ -11,12 +11,12 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Singleton HTTP client for the bitdrift-shop backend API.
- * The emulator reaches host localhost via 10.0.2.2.
+ * Defaults to the Android emulator's host alias; override `SHOP_BACKEND_URL` in
+ * `local.properties` or `.local.properties` for a physical-device LAN backend.
  */
 object ApiClient {
 
-    private const val PORT = 5173
-    private const val BASE_URL = "http://10.0.2.2:$PORT/api"
+    private val BASE_URL = "${BuildConfig.SHOP_BACKEND_URL.trimEnd('/')}/api"
     private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
 
     private val client = OkHttpClient.Builder()

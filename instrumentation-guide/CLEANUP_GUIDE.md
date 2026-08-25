@@ -1,21 +1,21 @@
 # bitdrift Cleanup Guide
 
-**Version 1.3** — covers removal of all 20 steps, including the v1.2 journey spans, the v1.3 SDK surface (logger `Configuration`, init diagnostics, entity-ID clearing, plugin DSL), and server-side workflow/dashboard state.
+**Version 1.4** — covers removal of all 21 steps, including post-instrumentation signal catalogs and the server-side workflow/dashboard state derived from them.
 
 Remove all bitdrift Capture SDK instrumentation from **any** app and return it to its baseline (pre-bitdrift) state — **by prompting an AI coding agent**. Each step is a ready-to-use prompt that drives the **bd-instrumentation** skill to undo the corresponding instrumentation step.
 
-This is the inverse of [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md): the same 20 categories, removed in **reverse order** (last added, first removed) so dependent call sites come out before the foundation they relied on, and the project keeps compiling at each step. The prompts are platform-neutral — the skill applies the right removals on Android, iOS, or React Native.
+This is the inverse of [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md): the same 21 steps, removed in **reverse order** (last added, first removed) so dependent call sites come out before the foundation they relied on, and the project keeps compiling at each step. The prompts are platform-neutral — the skill applies the right removals on Android, iOS, or React Native.
 
 > **Do it in one prompt (app code only):** *"Remove all bitdrift Capture SDK instrumentation from this app, working in reverse order. Build if permitted; otherwise perform static verification and report the build as DEFERRED."* The skill sequences the work for Steps 1–18 (app code). The per-step prompts below are the reference if you want to remove categories selectively.
 >
-> **Step 19 is server-side/account state, not app code** — deleting a crash workflow, a CUJ stack, or a dashboard is destructive to whatever else the account was using them for, and isn't covered by the one-shot prompt above. Confirm explicitly before removing any of it (see order 1 below).
+> **Step 20 is server-side/account state, not app code** — deleting a crash workflow, a CUJ stack, or a dashboard is destructive to whatever else the account was using them for, and isn't covered by the one-shot prompt above. Confirm explicitly before removing any of it (see order 1 below).
 >
-> **Step 20 is just a document.** The evaluation readout has no account-side state — discarding it is an ordinary file deletion needing no special confirmation, and it's independent of whether you keep or delete the Step 19 resources (see order 2 below — after the Step 19 deletion, since the readout records the IDs that deletion needs).
+> **Steps 19 and 21 are documents.** The signal catalog and evaluation readout have no account-side state — discarding them is an ordinary file deletion needing no special confirmation, and is independent of whether you keep or delete the Step 20 resources (see order 2 below — after Step 20 deletion, since the readout records the IDs that deletion needs).
 
 > **Prefer to run this unattended?** This is the *human* reference. For a fully autonomous run, point your agent at the companion **[AGENT_CLEANUP_GUIDE.md](AGENT_CLEANUP_GUIDE.md)** runbook (preflight, strict reverse order, and grep-based verification gates the agent checks itself) and say *"execute this runbook."* Builds are recommended but optional; the agent must distinguish PASS, FAIL, and DEFERRED.
 
 > **Scope:** use `local-only` to remove app instrumentation and local artifacts;
-> use `full-revert` to remove the evaluation readout too. Step 19 account resources
+> use `full-revert` to remove the signal catalog and evaluation readout too. Step 20 account resources
 > are destructive and always require explicit confirmation.
 
 ---
@@ -38,8 +38,8 @@ Work from the bottom of the instrumentation guide up. Each prompt drives the ski
 
 | Order | Prompt | Reference |
 |-------|--------|-----------|
-| 1 | *"Using the workflow and dashboard IDs recorded in the evaluation readout, delete the crash workflow(s), the bd-cuj CUJ stack (Sankey/funnel/SLO/alerts), and the POC dashboards — confirm each deletion explicitly, this is destructive account state."* | [Step 19](INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards) |
-| 2 | *"Discard the evaluation readout and any generated summary artifacts."* (no code involved) | [Step 20](INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout) |
+| 1 | *"Using the workflow and dashboard IDs recorded in the post-instrumentation build readout, delete the crash workflow(s), the bd-cuj CUJ stack (Sankey/funnel/SLO/alerts), and the POC dashboards — confirm each deletion explicitly, this is destructive account state."* | [Step 20](INSTRUMENTATION_GUIDE.md#20-build-workflows-and-dashboards-from-observed-data) |
+| 2 | *"Discard the signal catalog, evaluation readout, and any generated summary artifacts."* (no code involved) | [Steps 19 and 21](INSTRUMENTATION_GUIDE.md#19-discover-and-validate-post-instrumentation-data) |
 | 3 | *"Remove the bitdrift session-URL cross-linking from our existing crash reporter, and any `previousRunInfo` usage added alongside it."* | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) |
 | 4 | *"Disable bitdrift wireframe session replay by passing a null session-replay configuration — do not just revert to a default `Configuration`."* | [Step 17](INSTRUMENTATION_GUIDE.md#17-session-replay-wireframe--on-by-default) |
 | 5 | *"Remove all bitdrift feature-flag exposure calls."* | [Step 16](INSTRUMENTATION_GUIDE.md#16-record-feature-flag-exposures) |
@@ -134,7 +134,7 @@ Also inspect ignored local configuration (`.xcconfig`, `local.properties`, and
 environment overrides) for stale backend hosts or recursive includes. Preserve
 those files unless the user explicitly asks to change them, and never include keys
 or secrets in the cleanup report.
-- [ ] No remaining bitdrift references anywhere in the codebase
+- [ ] No remaining Capture SDK, telemetry configuration, or instrumentation references in the target app; sample product identity such as `ai.bitdrift.shop` and Bitdrift Shop branding may remain
 
 ---
 

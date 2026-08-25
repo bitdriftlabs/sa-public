@@ -148,12 +148,9 @@ object Crashes {
     }
 
     // A step delay is threaded through each gradual OOM loop below so the climb
-    // takes ~20-30s instead of well under a second. Reasons this matters, not just
-
-
-    // never gets a single sample, and one that dies in ~5s gets one, which reads as
-
-    // produces an actual rising memory curve. crashOomSingleAllocation is
+    // takes ~20-30s instead of well under a second. That makes the allocation
+    // progression observable and distinguishes a gradual leak from an immediate
+    // allocation failure. crashOomSingleAllocation is
     // deliberately excluded -- it represents the opposite case (a single allocation
     // failing instantly) and pacing it would defeat that contrast.
     private fun crashOomAllocatorThread() {
@@ -239,7 +236,8 @@ object Crashes {
     // the allocation shape and top frame are still a genuinely different scenario.
     //
     // Paced in batches rather than per-entry -- these entries are cheap enough that
-    // a per-entry sleep would dominate wall time over actual allocation, and a
+    // a per-entry sleep would dominate wall time over actual allocation. Batching
+    // preserves a visible gradual growth curve without making the demo impractically slow.
 
     private fun crashOomCacheGrowth() {
         Thread {
@@ -275,8 +273,8 @@ object Crashes {
         // A watchdog thread, uninvolved in the lock itself, converts the block into
         // a crash after a short, fixed delay -- independent of LOCK_HOLD_MS, so
         // there's real margin against scheduler jitter rather than a race against
-        // the same window the lock holder is using. Honest about what it's doing:
-        // this is a synthetic stand-in for a real ANR, deliberately turned into a
+        // the same window the lock holder is using. This is a synthetic stand-in
+        // for a real ANR, deliberately converted into a reportable crash.
 
         Thread {
             Thread.sleep(WATCHDOG_DELAY_MS)

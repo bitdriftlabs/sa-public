@@ -1,13 +1,13 @@
 # bitdrift Instrumentation Guide
 
-**Version 1.3** — reviewed against Capture SDK 0.23.12: session replay is **on by default** (Step 17 is now a decision to confirm or disable, not to enable), Step 2 adds `startResult` / `getSdkStatus()` init diagnostics, Step 5/13 add `clearEntityId` at logout, and Step 6 documents default W3C trace-propagation headers plus the Android plugin and WebView gates.
+**Version 1.4** — adds a mandatory post-instrumentation iteration: first discover and validate the sessions, events, spans, network traffic, and crashes the app actually sends (Step 19), then build a substantial portfolio of crash workflows, operational workflows, and dashboards from that observed data (Step 20).
 
-**Version 1.2** — paired screen views with spans: Steps 4 and 10 instrument the same journey elements, Step 9 adds a cold-start span waterfall, and a [worked example](examples/journey-span-instrumentation.md) collects the traps. (1.1 added Steps 18–20 — crash-reporter cross-linking, crash/CUJ workflows and dashboards, evaluation readout.)
+**Version 1.2** — paired screen views with spans: Steps 4 and 10 instrument the same journey elements, Step 9 adds a cold-start span waterfall, and a [worked example](examples/journey-span-instrumentation.md) collects the traps. (1.1 added the account-side evaluation portion: crash-reporter cross-linking, crash/CUJ workflows and dashboards, and an evaluation readout.)
 
-A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt. Steps 1–18 drive the **bd-instrumentation** skill to do the actual app-code work (write the call sites, wire the build, and recommend verification); Step 19 is server-side console configuration driven by **bd-cli** and **bd-cuj**; Step 20 writes up the result and touches neither. You don't write the code; you run the prompts in order and the skills handle the platform-specific details on Android, iOS, or React Native.
+A platform-neutral, step-by-step guide for instrumenting **any** mobile app with the bitdrift Capture SDK — **by prompting an AI coding agent**. Each step is a ready-to-use prompt. Steps 1–18 drive the **bd-instrumentation** skill to do the actual app-code work (write the call sites, wire the build, and recommend verification); Step 19 discovers and validates incoming account data with **bd-cli**; Step 20 creates server-side workflows and dashboards with **bd-cli** and **bd-cuj**; Step 21 writes up the result and touches neither. You don't write the code; you run the prompts in order and the skills handle the platform-specific details on Android, iOS, or React Native.
 
 Choose a scope before starting: **local-only** runs Steps 1–18 and does not require
-account-side workflows or dashboards; **full-poc** runs Steps 1–20 and requires
+account-side discovery, workflows, or dashboards; **full-poc** runs Steps 1–21 and requires
 explicit authorization and authenticated account access. Builds and tests are
 recommended evidence, not mandatory for every prompt. If you cannot or do not want
 to build, ask the agent to mark build checks `DEFERRED` and complete static/runtime
@@ -15,7 +15,7 @@ checks instead; it must not claim a deferred build passed.
 
 Each step also lists the bitdrift feature it **unlocks** and the relevant **docs**, so you know what each prompt buys you.
 
-The order is tuned for a proof-of-concept: stand up the SDK (1–3), then light up the timeline with the highest-value signals first — screen views, user identity, and network (4–6) — before layering on logs, performance, and operational features (7–18). This follows bitdrift's [Integration first steps](https://docs.bitdrift.io/product/first-steps). Steps **19–20** then turn that raw signal into the artifacts an evaluation is actually judged on: classified crash workflows, journey dashboards, and a criterion-by-criterion readout. Steps 4–18 are independent of each other, so run only the prompts you need, in any order that suits your app.
+The order is tuned for a proof-of-concept: stand up the SDK (1–3), then light up the timeline with the highest-value signals first — screen views, user identity, and network (4–6) — before layering on logs, performance, and operational features (7–18). This follows bitdrift's [Integration first steps](https://docs.bitdrift.io/product/first-steps). The post-instrumentation iteration then separates **observing the data contract** (Step 19) from **creating account-side artifacts** (Step 20), followed by an evidence-backed evaluation readout (Step 21). Steps 4–18 are independent of each other, so run only the prompts you need, in any order that suits your app.
 
 > **Steps 4 and 10 are a pair.** Screen views define the journey; spans time it. Run Step 4 and the funnel tells you *where* users drop off; run Step 10 against the same list of screens and it also tells you *how long each step took*. The default is to span every journey element, not one hand-picked flow — see the [pairing rule](#10a-the-pairing-rule) in Step 10.
 
@@ -33,8 +33,10 @@ These prompts assume your agent (Cursor, Codex, Copilot, or any skills-compatibl
 
 - **bd-instrumentation** — installs and instruments the Capture SDK; detects the platform and whether the SDK is already present, then does a fresh install or extends an existing integration. This is the skill Steps 1–18 drive.
 - **bd-docs** — fetches live bitdrift documentation at query time.
-- **bd-cli** — drives the `bd` CLI for symbol/source-map uploads, workflows, keys, and dashboard composition. Its **IssueMatch recipes** also write and deploy the server-side crash-classification scripts (Ripsaw, formerly called BDRL) that drive the crash-workflow half of Step 19.
-- **bd-cuj** — automates a full critical-user-journey stack (Sankey, funnel, SLO, alerting, session capture, dashboard) for one flow in a single pass. Drives the CUJ half of Step 19.
+- **bd-post-instrumentation** — runs the read-only Step 19 discovery/data-contract gate: representative sessions, exact matcher values, Timeline evidence, and Issue/crash shape. It hands off without making account changes.
+- **bd-observability-portfolio** — runs the authorized Step 20 workflow/dashboard portfolio: crash workflows, focused operational workflows, alerts, and curated dashboards, built from Step 19's catalog.
+- **bd-cli** — provides the CLI syntax, live schemas, and account operations that both post-instrumentation skills use. Its **IssueMatch recipes** write and deploy server-side crash-classification scripts (Ripsaw, formerly called BDRL).
+- **bd-cuj** — provides the Critical User Journey stack used by `bd-observability-portfolio` for one validated journey.
 
 Install and authenticate the `bd` CLI (macOS, Homebrew):
 
@@ -399,33 +401,58 @@ The skill reads the session URL (`Logger.sessionUrl` / `Logger.sessionURL` / `ge
 
 ---
 
-## 19. Turn crashes and journeys into workflows and dashboards
+## 19. Discover and validate post-instrumentation data
 
-Every step above is app code, driven by **bd-instrumentation**. This step is different: it's **server-side console configuration**, driven by **bd-cli** (crash-classification scripting, via its IssueMatch recipes) and **bd-cuj** (critical-user-journey automation), and composed into dashboards with **bd-cli**. Run it once data is flowing — after at least Steps 1–10.
+Instrumentation is complete when the SDK starts; it is not ready for account-side configuration until its **observed data contract** is known. This is a read-only **bd-cli** iteration after at least Steps 1–10. Exercise the target app and journey first, then inspect the received data rather than deriving matchers solely from source code or a product-flow description.
 
-> **Prompt:** *"Deploy a bitdrift crash workflow that classifies crashes by [ANR reason / memory-pressure level at crash time / feature-flag exposure] using Issue/Crash Workflows (Ripsaw), then use bd-cuj to build a full critical-user-journey stack for our [checkout / onboarding / login] flow, and compose the results into POC dashboards."*
+> **Prompt:** *"Use bd-cli to inspect the last [time window] of bitdrift data for this app. Confirm representative sessions and Timeline events, inventory the exact screen names, custom log messages, span names/results, network path templates, global/entity fields, feature-flag values, and available crash/Issue fields. Exercise [checkout / onboarding / login], capture representative session IDs, and write a post-instrumentation signal catalog. Do not create or modify workflows or dashboards in this step."*
 
-- **bd-cli**'s IssueMatch recipes write and deploy a Ripsaw script that runs server-side against every crash Report (not on-device), turning raw crash payloads into standing charts — e.g. classify ANRs by blocked reason, tag OOM crashes with the memory-pressure level captured automatically since Step 2, or compute a feature-flag crash differential (does variant B crash more than control?).
-- **bd-cuj** builds the full critical-user-journey stack for one flow in a single pass: a Sankey of the actual path taken, a funnel with step-by-step conversion, a completion-rate SLO alert, a key-step-duration alert, on-demand session capture for drop-offs, and a two-tab dashboard — instead of hand-assembling each piece from raw workflow primitives.
-- **bd-cli** composes the resulting charts (from both of the above, plus Instant Insights) into 2–3 curated POC dashboards: a **Stability** dashboard (crash classification, ANR/OOM breakdown, crash-free % by version), a **Business/UX** dashboard (funnel, TTI, span percentiles, jank/slow-frame rate), and an **Entities/Support** dashboard (per-user profiles, Record Next Online).
+The signal catalog must record exact matcher values and evidence, not a vague feature list:
 
-**Before building a funnel, confirm the step names against what the app actually emits** — don't trust the names in a journey description. A matcher on a screen that is never logged deploys cleanly, reports LIVE, and charts nothing, which reads as a 0% conversion rate rather than a config error. Grep the source for the real values, covering both call-site shapes (`grep -rhoE 'screenName *= *"[^"]*"|logScreenView\("[^"]*"\)' --include=*.kt`), or read them off `bd tail`, then verify the *deployed* definition with `bd workflow describe <ID>`. Watch for two specific traps: a step that's really a category with several concrete screens behind it, and mutually exclusive branches listed as if they were sequential — both need an `or_matcher`. See [examples/cuj-funnel-pitfalls.md](examples/cuj-funnel-pitfalls.md).
+- **Sessions and Timeline:** recent session IDs, their timestamps, and whether screen views, logs, network traffic, spans, replay, and entity context actually appear.
+- **Journey data:** exact screen/event names and their order for the exercised flow, branches that are alternatives (not sequential steps), and the observed span names/results that correspond to each step.
+- **Operational data:** stable network path templates, fields suitable for filtering, cardinality concerns, and flag values that have enough traffic to compare.
+- **Crashes and Issues:** observed report types, symbolication state, and fields available for classification. No observed crash is a valid result; record it as *"no matching crash observed"* rather than inducing one or inventing a classifier.
 
-**Span names need the same treatment as screen names.** The grep that validates funnel steps against what the app really emits should also cover span names — a duration chart matching a span that was never added, or that lives on a code path the default config never runs, deploys LIVE and charts nothing. Three chart-side defaults are worth setting at creation rather than fixing later: `y_axis.unit = MILLISECONDS` on every duration chart (unset, they render raw unitless numbers), a `TimeSeriesMetadata.title` per series (unset, the legend shows an opaque action-ID hash), and `_result != canceled` on spans where cancellation is routine.
+**Discovery gate.** Stop here and repair instrumentation or generate representative traffic if a session is absent, the target journey cannot be observed, required span names have zero events, or the catalog has only source-derived names. An empty funnel is not 0% conversion; it is an unverified matcher. The catalog is the input contract for Step 20.
 
-**Put both kinds of duration on the journey dashboard, labeled distinctly.** bd-cuj's key-step timing measures **wall clock between two screen events** — it includes user think time. A span's `_duration_ms` measures **the app's own work**. A checkout step showing 5 seconds is a slow API or a user reading a form, and only having both tells you which. Label them "step duration (wall clock)" and "screen load (work)"; a reader given one will assume it covers the other.
+**Unlocks:** A trustworthy, evidence-backed set of workflow matchers and dashboard panels. This prevents technically LIVE workflows from silently charting nothing.
 
-**Unlocks:** This is the step that turns instrumented signals into the artifacts a customer actually looks at during an evaluation — crash workflows, CUJ dashboards, and curated POC dashboards — instead of raw Instant Insights and an unclassified Timeline.
+**Worked example:** [examples/post-instrumentation-signal-catalog.md](examples/post-instrumentation-signal-catalog.md).
 
-**POC criteria:** SC-3 (Crash Detection — root-cause classification, not just raw reports), SC-7 (Insights & Visualization — 2–3 purpose-built dashboards, this is the primary step for SC-7's "build 2–3 dashboards" test plan), SC-11 (Customer Support — a dedicated Entities/Support dashboard).
+**Docs:** the **bd-cli** skill; [Timeline](https://docs.bitdrift.io/product/timeline), [Issues](https://docs.bitdrift.io/product/issues)
 
-**Worked examples:** [examples/crash-workflow-bdrl-examples.md](examples/crash-workflow-bdrl-examples.md) (two real Ripsaw classification scripts), [examples/cuj-funnel-pitfalls.md](examples/cuj-funnel-pitfalls.md) (how a funnel comes out silently empty).
+---
+
+## 20. Build workflows and dashboards from observed data
+
+Use the Step 19 signal catalog to select, create, and verify account-side artifacts. This is server-side configuration, driven by **bd-cli** (crash-classification scripting and dashboard composition) and **bd-cuj** (critical-user-journey automation). It requires authenticated access and authorization to change the target account.
+
+> **Prompt:** *"Using the attached post-instrumentation signal catalog, build the required post-instrumentation portfolio: at least 10 focused workflows, including at least 3 crash/Issue workflows, and 5 curated dashboards. Use bd-cuj for the validated [checkout / onboarding / login] path. Every matcher and panel must be supported by observed data; replace an unsupported idea with another observed signal rather than publishing an empty panel. Exercise the journey after deployment and verify every non-crash chart has data."*
+
+**Required portfolio.** Build focused workflows — one analytic question or coherent event flow per workflow — rather than one giant dashboard workflow. Do not count Instant Insights toward this portfolio.
+
+- **At least 3 crash/Issue workflows:** an overall crash/issue-volume or affected-user view; a crash breakdown by an always-available report dimension such as app version/platform; and an IssueMatch classifier based on observed report fields (ANR reason, OOM memory pressure, stack family, or flag exposure). If no representative crash occurred, still deploy three baseline crash workflows using the CLI's schema-confirmed generic crash/report condition and safe report metadata; record that they are awaiting matching crash traffic. Never omit crash workflows.
+- **At least 7 additional workflows:** a bd-cuj journey stack; completion and key-step-duration alerts; TTI/cold-start and screen-load span percentiles; network error/latency analysis; and the highest-signal custom-log/business-event rate or failure workflow. Add more focused workflows for observed flags, resource/jank, entities, or support signals.
+- **5 dashboards:** **Stability** (crash/Issue portfolio), **Crash Triage** (classification and affected cohorts), **Business/UX** (Sankey, funnel, conversion), **Performance & Network** (TTI, spans, jank, endpoint health), and **Support & Sessions** (entities when available, otherwise session/network/log triage). Every dashboard must contain multiple populated, purpose-specific panels; replace an unavailable optional panel with another observed signal.
+
+A flow that has branches needs `or_matcher` branches, not a fictional linear sequence. A valid crash workflow can have no matching data; verify its deployed definition and LIVE status, then record that condition honestly.
+
+**Matcher and chart contract.** Verify the deployed definition with `bd workflow describe <ID>` against the catalog. For duration charts, set `y_axis.unit = MILLISECONDS`, give every series a `TimeSeriesMetadata.title`, and exclude `_result = canceled` when cancellation is routine. Label bd-cuj's screen-to-screen measure **"step duration (wall clock)"** and span `_duration_ms` **"screen load (work)"**: the former includes user think time; the latter measures application work.
+
+**Post-deploy gate.** Confirm every created workflow is LIVE. Re-exercise the journey and require data in its Sankey, funnel, and span charts; empty non-crash charts are failures to investigate. For crash workflows, LIVE status plus a correct observed-data matcher is sufficient when no matching crash occurred.
+
+**Unlocks:** A substantial, data-backed operating surface: focused crash and operational workflows plus five curated dashboards, instead of a sparse set of panels based on assumed event names.
+
+**POC criteria:** SC-3 (Crash Detection — root-cause classification, when observed crash data supports it), SC-7 (Insights & Visualization — 2–3 purpose-built dashboards), SC-11 (Customer Support — a dedicated dashboard when identity/support data exists).
+
+**Worked examples:** [examples/crash-workflow-bdrl-examples.md](examples/crash-workflow-bdrl-examples.md), [examples/cuj-funnel-pitfalls.md](examples/cuj-funnel-pitfalls.md), [examples/post-instrumentation-build-readout.md](examples/post-instrumentation-build-readout.md).
 
 **Docs:** the **bd-cli** (IssueMatch recipes) and **bd-cuj** skills; [Workflows](https://docs.bitdrift.io/product/workflows/overview), [Ripsaw scripting](https://docs.bitdrift.io/product/workflows/scripting/overview), [Dashboards](https://docs.bitdrift.io/product/dashboards/overview)
 
 ---
 
-## 20. Generate the evaluation readout
+## 21. Generate the evaluation readout
 
 > **Prompt:** *"Map every in-scope POC criterion to a concrete bitdrift artifact — a chart, a workflow, a dashboard, or a captured session — and produce a readout a business stakeholder can review, with a portal link or screenshot proving each one."*
 
@@ -439,7 +466,7 @@ State what was actually confirmed and how. A row that says "deployed" when nothi
 
 **Worked example:** [examples/evaluation-readout-sample.md](examples/evaluation-readout-sample.md) — a real readout from this guide run against a demo app, including the criteria left deliberately open with reasons.
 
-**Docs:** N/A — this step composes the outputs of Steps 1–19.
+**Docs:** N/A — this step composes the outputs of Steps 1–20.
 
 ---
 
@@ -465,8 +492,9 @@ State what was actually confirmed and how. A row that says "deployed" when nothi
 | 16 | Feature flag exposures | Slice metrics by flag variant | PRE-5, SC-7 | [Fields](https://docs.bitdrift.io/sdk/features/fields) |
 | 17 | Session replay — confirm or disable | Wireframe replay in Timeline (**default on**) | SC-9 | [Session Replay](https://docs.bitdrift.io/product/timeline) |
 | 18 | Cross-link existing crash reporter | Session URL cross-tagged on incumbent tool's crashes | SC-3 | [Fatal Issues](https://docs.bitdrift.io/sdk/features/fatal-issues) |
-| 19 | Crash workflows + CUJ + POC dashboards | Issue/Crash Workflows (Ripsaw), CUJ Sankey/funnel/SLO, curated dashboards | SC-3, SC-7, SC-11 | bd-cli, bd-cuj skills |
-| 20 | Evaluation readout | Criterion-by-criterion, evidence-backed readout | All in-scope | — |
+| 19 | Post-instrumentation data discovery | Validated signal catalog: sessions, events, spans, network, fields, Issues | Enables 20 | bd-cli skill |
+| 20 | Observed-data workflow + dashboard portfolio | ≥3 crash/Issue workflows, ≥7 operational workflows, 5 curated dashboards | SC-3, SC-7, SC-11 | bd-cli, bd-cuj skills |
+| 21 | Evaluation readout | Criterion-by-criterion, evidence-backed readout | All in-scope | — |
 
 ---
 
@@ -480,15 +508,15 @@ This guide's own `SC-n` / `PRE-n` legend — what each ID means and the step(s) 
 |--------|----------|--------------------|-------|
 | SC-1 | Event Tracking (p50/p90/p99 of key flows) | **10** (primary), 9 | Spans + synthetic metrics give unsampled percentiles. The Step 10 default spans **every** screen and journey phase, not the 2–3 flows the criterion asks for; Step 9 covers launch, broken into per-phase timings |
 | SC-2 | Network Monitoring | **6** | Unsampled per-endpoint latency/error/throughput |
-| SC-3 | Crash Detection | **2** (automatic capture) + **12** (readable stacks) + **18** (cross-linked with existing tool) + **19** (root-cause classification via Issue/Crash Workflows) | Full session context is automatic; symbols make stacks human-readable; 18/19 add cross-tool linking and classification depth |
+| SC-3 | Crash Detection | **2** (automatic capture) + **12** (readable stacks) + **18** (cross-linked with existing tool) + **20** (root-cause classification via Issue/Crash Workflows) | Full session context is automatic; symbols make stacks human-readable; 18/20 add cross-tool linking and classification depth |
 | SC-4 | Memory Monitoring | **2** | Automatic — no call sites; crash reports also carry the memory-pressure level at crash time (SDK **0.23.2+**), no extra config |
 | SC-5 | Debugging (ad-hoc capture) | **5**, **11** | Record Next Online + device/session lookup |
 | SC-6 | Session Management | **2**, **3**, **13** | Log-everything-on-device, upload on demand |
-| SC-7 | Insights & Visualization | **19** (primary — 2–3 curated dashboards) + 4, 7, 8, 9, 10, 15, 16 | Steps 4–16 emit the signals; Step 19 is what actually builds the dashboards a customer looks at. Per-step latency percentiles (Step 10) sit alongside funnel conversion on the Business/UX dashboard |
+| SC-7 | Insights & Visualization | **20** (primary — 5 curated dashboards) + 4, 7, 8, 9, 10, 15, 16 | Steps 4–16 emit the signals; Step 19 validates them; Step 20 builds a substantial supported portfolio. Per-step latency percentiles (Step 10) sit alongside funnel conversion on the Business/UX dashboard |
 | SC-8 | Log Forwarding & Integration | **7**, **14**, **15** | New logs, framework bridge, analytics bridge |
 | SC-9 | Session Replay | **2** (on by default), **17** (verify / measure / disable) | Wireframe replay ships enabled in the default `Configuration` — Step 17 is confirmation and overhead measurement, not enablement |
 | SC-10 | Visual Performance (jank/slowness) | **2** | Automatic JankStats / responsiveness |
-| SC-11 | Customer Support | **5**, **11**, **8** (`user_id`), **19** (dedicated Entities/Support dashboard) | Entities + device support tooling, curated into its own dashboard |
+| SC-11 | Customer Support | **5**, **11**, **8** (`user_id`), **20** (dedicated Entities/Support dashboard, when supported by observed data) | Entities + device support tooling, curated into its own dashboard |
 | SC-12 | Web views | **6** | Experimental / early-access on both platforms — Android via the Capture Gradle plugin, iOS as of SDK 0.23.11. Android needs the plugin flag **and** a non-null `WebViewConfiguration` **and** its individual capture flags (all default false); miss any one and it fails silently. Confirm the current API via bd-docs before enabling, and treat as a POC risk rather than a settled capability |
 
 ### Required Pre-POC Engineering
@@ -515,7 +543,7 @@ Some features need **Workflows** — server-side rules configured in the dashboa
 
 > **Prompt:** *"Create a bitdrift workflow that alerts when the `payment_failed` event rate exceeds a threshold."* — or — *"…a custom metric for the p95 of the `checkout` span duration."*
 
-For the full crash-classification, CUJ, and dashboard treatment — the part of a POC that actually delights a customer — see **[Step 19](#19-turn-crashes-and-journeys-into-workflows-and-dashboards)**, which hands off to **bd-cli**'s IssueMatch recipes and the **bd-cuj** skill.
+For the full crash-classification, CUJ, and dashboard treatment, first run **[Step 19](#19-discover-and-validate-post-instrumentation-data)** to establish the data contract, then run **[Step 20](#20-build-workflows-and-dashboards-from-observed-data)** with **bd-cli**'s IssueMatch recipes and the **bd-cuj** skill.
 
 **Automatic, no Workflow needed:** Instant Insights dashboards (crashes, network, memory, app launches); Session Timeline breadcrumbs; User Journey Sankey; TTI histogram; Spans waterfall; Entities view.
 

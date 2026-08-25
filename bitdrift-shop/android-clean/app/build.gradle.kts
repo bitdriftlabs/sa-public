@@ -11,6 +11,7 @@ val localPropsFile = rootProject.file("local.properties")
 if (localPropsFile.exists()) localProps.load(localPropsFile.inputStream())
 val privateLocalPropsFile = rootProject.file(".local.properties")
 if (privateLocalPropsFile.exists()) privateLocalPropsFile.inputStream().use { localProps.load(it) }
+val shopBackendUrl = localProps.getProperty("SHOP_BACKEND_URL", "http://10.0.2.2:5173")
 
 android {
     namespace = "ai.bitdrift.shop"
@@ -27,6 +28,7 @@ android {
 
         buildConfigField("boolean", "SHOW_CARDINALITY", project.findProperty("SHOW_CARDINALITY")?.toString() ?: "false")
         buildConfigField("boolean", "SHOW_SIM_AB", project.findProperty("SHOW_SIM_AB")?.toString() ?: "false")
+        buildConfigField("String", "SHOP_BACKEND_URL", "\"$shopBackendUrl\"")
     }
 
     buildTypes {

@@ -1,10 +1,18 @@
 # Sample evaluation readout — bitdrift-shop (Android)
 
-A worked example of [Step 20's](../INSTRUMENTATION_GUIDE.md#20-generate-the-evaluation-readout)
+A worked example of [Step 21's](../INSTRUMENTATION_GUIDE.md#21-generate-the-evaluation-readout)
 output: a criterion-by-criterion readout where every row states what was actually confirmed and
 how. Rows that were verified say so and name the artifact; rows that weren't say that instead. A
 readout where every row is green on day one isn't a readout — the honest gaps are what make the
 rest credible.
+
+> **Historical sample (pre-v1.4 portfolio standard).** This run recorded two dashboards and a
+> smaller workflow set, so it is useful as evidence-format guidance but does **not** satisfy the
+> current Step 20 requirement of at least 10 focused workflows, at least 3 crash/Issue workflows,
+> and 5 populated dashboards. For a current run, use **bd-post-instrumentation** to build the
+> signal catalog, **bd-observability-portfolio** to create the portfolio, and
+> [post-instrumentation-build-readout.md](post-instrumentation-build-readout.md) to record every
+> resource ID before producing this Step 21 readout.
 
 App: `ai.bitdrift.shop` (Android) · SDK 0.23.10 · Date: 2026-08-17
 Traffic during validation: ~60 simulated checkout journeys against a local demo backend.
@@ -58,5 +66,6 @@ Caveats stated plainly rather than smoothed over:
 1. Set the key-step p95 alert and correct the 5s capture threshold from the observed percentiles
    (the histogram now has data, so this is a matter of reading p95 and applying ~1.5×).
 2. Create a notification group so both alerts route somewhere.
-3. Add a Support-oriented dashboard view if SC-11 needs to be fully green.
+3. Add the required Crash Triage, Performance & Network, and Support & Sessions dashboards, then
+   expand the workflow set to the current Step 20 portfolio before treating this as a v1.4 POC.
 4. Point the network workflow at a production hostname when moving off the demo backend.

@@ -12,7 +12,7 @@
 #   public *;
 #}
 
-# Preserve line number information for bitdrift crash stack traces.
+# Preserve line number information for readable demo crash stack traces.
 -keepattributes SourceFile,LineNumberTable
 
 # If you keep the line number information, uncomment this to

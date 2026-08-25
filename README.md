@@ -42,6 +42,10 @@ Agent and human versions of both are available- the agent version is a focused c
   SDK and add screen views, user identity, network capture, structured logs,
   fields, TTI, spans, support tooling, crash symbolication, and log forwarding —
   with the bitdrift feature each prompt unlocks and links to the docs.
+  After data is flowing, the guides hand off to **bd-post-instrumentation** for
+  read-only signal discovery and **bd-observability-portfolio** to build and
+  verify crash workflows, operational workflows, alerts, and dashboards from
+  that observed data.
 - **CLEANUP_GUIDE.md** and **AGENT_CLEANUP_GUIDE.md** — the inverse: prompts that drive the skill to remove the
   instrumentation in reverse order and return an app to its baseline state.
 - **[examples/](instrumentation-guide/examples/)** — worked artifacts from running the guide's later

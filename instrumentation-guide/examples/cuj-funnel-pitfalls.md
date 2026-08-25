@@ -1,7 +1,7 @@
 # Two ways a CUJ funnel comes out silently empty
 
 Both of these were hit for real while building the checkout funnel in
-[Step 19](../INSTRUMENTATION_GUIDE.md#19-turn-crashes-and-journeys-into-workflows-and-dashboards).
+[Step 20](../INSTRUMENTATION_GUIDE.md#20-build-workflows-and-dashboards-from-observed-data).
 Neither produces an error — the workflow deploys, reports LIVE, and charts nothing. That's the
 dangerous part: a funnel at 0% conversion looks like a *product* problem, not a config problem,
 and teams have burned days on that confusion during a POC.

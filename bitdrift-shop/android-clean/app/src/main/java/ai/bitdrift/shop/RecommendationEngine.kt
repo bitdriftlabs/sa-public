@@ -13,9 +13,8 @@ object RecommendationEngine {
      * Scores all products against a reference product.
      * Returns a list of (productJson, score) pairs sorted by score descending.
      *
-     * [parentSpanId] nests the two sub-spans below under the caller's own
-     * `score_products` span, so a slow call's tail can be attributed to "parsing was
-     * slow" vs. "the O(n*m) similarity pass was slow" instead of one opaque number.
+     * The score combines profile similarity and category affinity so related products
+     * remain useful even when their descriptions use different wording.
      */
     fun scoreProducts(
         catalogJson: String,
@@ -97,4 +96,3 @@ object RecommendationEngine {
         return wordsA.intersect(wordsB).size
     }
 }
-

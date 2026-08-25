@@ -19,3 +19,5 @@ The app package name and Bitdrift Shop branding are sample product identity. The
 
 Use the Welcome or Advanced screen to run a finite or continuous journey. The simulator overlay includes an X button to cancel the active run. Crash, hang, and force-quit scenarios may require the companion watchdog scripts in `scripts/`.
 
+Start `scripts/watchdog.sh` before running persistent fault scenarios. If Fast Crash Mode
+relaunches before the UI is usable, run `scripts/check-demo-state.sh --reset` to clear its flags.
