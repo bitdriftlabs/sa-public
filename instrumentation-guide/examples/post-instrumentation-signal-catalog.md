@@ -1,8 +1,11 @@
 # Post-instrumentation signal catalog
 
-Use this after exercising the app and before creating any workflows or dashboards. Values in
-this template are examples; replace them with values observed through the Timeline, Issues, and
-`bd-cli` reads. This is evidence, not a source-code inventory.
+Use this with **bd-post-instrumentation** after exercising the app and before creating any
+workflows or dashboards. Values in this template are examples; replace them with values observed
+through Timeline, Issues, and `bd-cli` reads. This is evidence, not a source-code inventory.
+
+The skill is read-only: it must not create, update, deploy, or delete account resources. Hand this
+completed catalog to **bd-observability-portfolio** only after account-write authorization.
 
 ```yaml
 observed_window: <UTC start → end>
@@ -38,8 +41,9 @@ issues:
 
 gaps:
   - signal: <missing or malformed signal>
-    disposition: <repair instrumentation|exercise traffic|defer artifact>
+    disposition: <repair instrumentation|exercise traffic|replace optional panel>
 ```
 
 Do not turn a missing item into a matcher. A missing crash should be recorded as `observed: no`,
-not simulated or classified speculatively.
+not simulated or classified speculatively. In that case, the portfolio skill may use only a
+`bd schema`-confirmed generic crash/report condition for its baseline crash workflows.
