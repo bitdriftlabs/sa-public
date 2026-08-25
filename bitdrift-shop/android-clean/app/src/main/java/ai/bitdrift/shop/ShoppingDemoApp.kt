@@ -23,7 +23,6 @@ class ShoppingDemoApp : Application() {
     private fun installCrashLoopHandler() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            defaultHandler?.uncaughtException(thread, throwable)
             val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
             if (prefs.getBoolean(KEY_ACTIVE, false)) {
                 // Pre-schedule restart via AlarmManager before the process dies.
@@ -31,8 +30,11 @@ class ShoppingDemoApp : Application() {
                 // JVM handler is never called -- the alarm is already armed before the crash.
                 scheduleRestart(applicationContext, RESTART_DELAY_MS)
             }
-            Process.killProcess(Process.myPid())
-            System.exit(1)
+            defaultHandler?.uncaughtException(thread, throwable)
+                ?: run {
+                    Process.killProcess(Process.myPid())
+                    System.exit(1)
+                }
         }
     }
 
@@ -73,5 +75,4 @@ class ShoppingDemoApp : Application() {
 
     }
 }
-
 

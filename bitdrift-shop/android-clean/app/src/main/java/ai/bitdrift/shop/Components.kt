@@ -181,8 +181,8 @@ fun ScreenContainer(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
  
-            // Screens with a logo show version info grouped with the SDK version above;
-            // everything else (no logo) shows the app version alone down here.
+            // Screens with a logo group the app version with the product identity;
+            // everything else shows it below the screen subtitle.
             if (logoResId == null) {
                 Text(
                     text = "App v${BuildConfig.VERSION_NAME}",

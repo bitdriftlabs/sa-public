@@ -77,9 +77,7 @@ read_prefs() {
   "${ADB[@]}" shell run-as "$PKG" cat "/data/data/$PKG/shared_prefs/$1" 2>/dev/null | tr -d '\r'
 }
 
-is_active() { echo "$1" | grep -q 'name="active" value="true"'; }
-is_fast_mode() { echo "$1" | grep -q 'name="fast_mode" value="true"'; }
-is_oom_only() { echo "$1" | grep -q 'name="oom_only" value="true"'; }
+is_enabled() { echo "$1" | grep -q "name=\"$2\" value=\"true\""; }
 
 CRASH_XML=$(read_prefs crash_loop.xml)
 ANR_XML=$(read_prefs anr_a.xml)
@@ -90,11 +88,16 @@ FAST_MODE=0
 OOM_ONLY=0
 ANR_ACTIVE=0
 FQ_ACTIVE=0
-is_active "$CRASH_XML" && CRASH_ACTIVE=1
-is_fast_mode "$CRASH_XML" && FAST_MODE=1
-is_oom_only "$CRASH_XML" && OOM_ONLY=1
-is_active "$ANR_XML" && ANR_ACTIVE=1
-is_active "$FQ_XML" && FQ_ACTIVE=1
+is_enabled "$CRASH_XML" active && CRASH_ACTIVE=1
+is_enabled "$CRASH_XML" fast_mode && FAST_MODE=1
+is_enabled "$CRASH_XML" oom_only && OOM_ONLY=1
+is_enabled "$ANR_XML" active && ANR_ACTIVE=1
+is_enabled "$FQ_XML" active && FQ_ACTIVE=1
+is_enabled "$ANR_XML" restart_pending && ANR_ACTIVE=1
+is_enabled "$FQ_XML" restart_pending && FQ_ACTIVE=1
+is_enabled "$ANR_XML" resume_infinite && ANR_ACTIVE=1
+is_enabled "$FQ_XML" resume_infinite && FQ_ACTIVE=1
+is_enabled "$CRASH_XML" resume_infinite_with_crash && CRASH_ACTIVE=1
 
 if [[ "$CRASH_ACTIVE" -eq 0 && "$ANR_ACTIVE" -eq 0 && "$FQ_ACTIVE" -eq 0 ]]; then
   echo "OK: no fault-injection mode left active on $SERIAL. Safe to start a new demo."
@@ -123,13 +126,13 @@ echo "Resetting..."
 "${ADB[@]}" shell am force-stop "$PKG"
 
 if [[ "$CRASH_ACTIVE" -eq 1 || "$FAST_MODE" -eq 1 || "$OOM_ONLY" -eq 1 ]]; then
-  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"fast_mode\" value=\"true\"/name=\"fast_mode\" value=\"false\"/' -e 's/name=\"oom_only\" value=\"true\"/name=\"oom_only\" value=\"false\"/' /data/data/$PKG/shared_prefs/crash_loop.xml"
+  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"fast_mode\" value=\"true\"/name=\"fast_mode\" value=\"false\"/' -e 's/name=\"oom_only\" value=\"true\"/name=\"oom_only\" value=\"false\"/' -e 's/name=\"resume_infinite_with_crash\" value=\"true\"/name=\"resume_infinite_with_crash\" value=\"false\"/' /data/data/$PKG/shared_prefs/crash_loop.xml"
 fi
 if [[ "$ANR_ACTIVE" -eq 1 ]]; then
-  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' /data/data/$PKG/shared_prefs/anr_a.xml"
+  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"restart_pending\" value=\"true\"/name=\"restart_pending\" value=\"false\"/' -e 's/name=\"resume_infinite\" value=\"true\"/name=\"resume_infinite\" value=\"false\"/' /data/data/$PKG/shared_prefs/anr_a.xml"
 fi
 if [[ "$FQ_ACTIVE" -eq 1 ]]; then
-  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' /data/data/$PKG/shared_prefs/force_quit.xml"
+  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"restart_pending\" value=\"true\"/name=\"restart_pending\" value=\"false\"/' -e 's/name=\"resume_infinite\" value=\"true\"/name=\"resume_infinite\" value=\"false\"/' /data/data/$PKG/shared_prefs/force_quit.xml"
 fi
 
 echo "Done. Verify:"

@@ -42,7 +42,7 @@ the exact failing check; do not proceed or attempt repairs unless noted.
 | # | Check | How to verify | On failure |
 |---|-------|---------------|------------|
 | P1 | `bd` CLI installed | `bd --version` exits 0 | HALT: instruct user to `brew tap bitdriftlabs/bd && brew install bd` |
-| P2 | `bd` authenticated | `bd auth` succeeds interactively, or a harmless authenticated read succeeds when `BD_API_KEY` is already set for automation | HALT: instruct user to run `bd auth`, or set `BD_API_KEY` for CI |
+| P2 | `bd` authenticated *(full-poc only)* | For `full-poc`, `bd auth` succeeds interactively, or a harmless authenticated read succeeds when `BD_API_KEY` is already set for automation. For `local-only`, mark `N/A` and continue. | HALT only for `full-poc`: instruct user to run `bd auth`, or set `BD_API_KEY` for CI |
 | P3 | Skills installed | `bd-instrumentation` and `bd-docs` resolvable; add `bd-cli` for full-poc discovery and `bd-cuj` for full-poc Step 20 work | HALT: `npx skills add bitdriftlabs/bd-skills` |
 | P4 | Skills/CLI current | (best-effort) `brew upgrade` + `npx skills update --all` | WARN only; continue |
 | P5 | Target platform detected | bd-instrumentation reports android / ios / react-native | HALT if undetectable |
@@ -117,7 +117,7 @@ build is recorded as `DEFERRED`, not treated as a failure or a pass.
 | 17 | Session replay *(on by default — verify only)* | SC-9 | [Step 17](INSTRUMENTATION_GUIDE.md#17-session-replay-wireframe--on-by-default) | Builds; the configuration in force is **stated** — enabled (the default and expected state), or disabled because the user asked. Never leave this unreported |
 | 18 | Cross-link existing crash reporter *(if detected)* | SC-3 | [Step 18](INSTRUMENTATION_GUIDE.md#18-cross-link-with-your-existing-crash-reporter) | Builds; session URL attached as a custom key/tag |
 | 19 | Post-instrumentation discovery | Enables 20 | [Step 19](INSTRUMENTATION_GUIDE.md#19-discover-and-validate-post-instrumentation-data) | **Read-only.** Signal catalog contains exact observed screen/event/span/network/field values, Issue/crash field availability, and representative session IDs after the target journey is exercised. HALT before Step 20 if the journey or required signals are unobserved. |
-| 20 | Observed-data workflow + dashboard portfolio | SC-3, SC-7, SC-11 | [Step 20](INSTRUMENTATION_GUIDE.md#20-build-workflows-and-dashboards-from-observed-data) | Driven by **bd-cli** + **bd-cuj**, not bd-instrumentation. Deploy ≥10 focused workflows, including ≥3 crash/Issue workflows, and 5 populated dashboards. Every matcher comes from the catalog; workflows are LIVE; the exercised CUJ has populated Sankey/funnel/span charts. |
+| 20 | Observed-data workflow + dashboard portfolio | SC-3, SC-7, SC-11 | [Step 20](INSTRUMENTATION_GUIDE.md#20-build-workflows-and-dashboards-from-observed-data) | Driven by **bd-cli** + **bd-cuj**, not bd-instrumentation. Deploy ≥10 focused workflows, including ≥3 crash/Issue workflows, and 5 populated dashboards. Every matcher comes from the catalog **except schema-confirmed generic crash/report conditions used when no matching crash was observed**; workflows are LIVE; the exercised CUJ has populated Sankey/funnel/span charts. |
 | 21 | Evaluation readout | All in-scope | [Step 21](INSTRUMENTATION_GUIDE.md#21-generate-the-evaluation-readout) | Every in-scope criterion has a named artifact + a `bd-cli` command or portal link proving it |
 
 Build text in the step table means “recommended verification.” For every step, the
@@ -182,8 +182,9 @@ For `full-poc`, execute this sequence without collapsing its states:
 
 ## 3. Final verification — checkable assertions
 
-Run all of these after the last in-scope step. Each is pass/fail; the run is **green only if
-all pass**.
+Run all of these after the last in-scope step. The run is **green** when every applicable gate
+passes and every permitted-but-skipped build is explicitly recorded as `DEFERRED`; `DEFERRED` is
+non-failing but is never equivalent to a build PASS.
 
 **V1 — Build status is recorded.** A platform build is recommended, but optional:
 - Android: `./gradlew clean && ./gradlew build`
@@ -256,11 +257,11 @@ script). **FAIL V11** if fewer than 10 focused workflows (including fewer than 3
 For chart data, the bar depends on whether matching traffic actually occurred:
 
 - **CUJ charts** (Sankey, funnel, completion rate, network) — representative journey traffic is
-  something the run can generate, so **FAIL V7** if these return no data after exercising the
+  something the run can generate, so **FAIL V11** if these return no data after exercising the
   flow.
 - **Span-timing charts** (screen load, journey phase, cold start) — same bar as CUJ charts, for the
   same reason: the run can generate the traffic. An empty one means the span is on a code path the
-  default configuration never runs, or the matcher names a span that was never added. **FAIL V7**;
+  default configuration never runs, or the matcher names a span that was never added. **FAIL V11**;
   do not write it off as low traffic.
 - **Crash workflows** — a valid, correctly-scripted crash workflow legitimately has no data when
   no matching crash occurred, and this runbook never requires causing one. Do **not** fail on an
@@ -280,7 +281,7 @@ the readout has a concrete artifact (a chart, workflow, dashboard, or session ID
 `bd-cli` command or portal link that proves it — not just a step name. **FAIL V12** on any
 criterion listed with no accompanying proof. If no POC scope was given, "in-scope criterion"
 has no `SC-n`/`PRE-n` set to check against — apply the same evidence bar to each step listed in
-the generic step-coverage summary (§2) instead, so an empty readout can't pass V8 by vacuously
+the generic step-coverage summary (§2) instead, so an empty readout can't pass V12 by vacuously
 having nothing to check.
 
 **V13 — Span/screen parity.** Produce the table of every emitted screen name against every span

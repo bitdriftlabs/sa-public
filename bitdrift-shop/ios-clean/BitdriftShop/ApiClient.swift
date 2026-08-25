@@ -12,9 +12,8 @@ enum ApiClient {
     /// network stack, while many local FastAPI servers bind only to IPv4 — using
     /// `127.0.0.1` avoids URLSession resolving `localhost` to an unreachable
     /// IPv6 loopback first. Android uses its `10.0.2.2` emulator alias.
-    /// needs its `10.0.2.2` emulator alias for the same reason.
     ///
-    /// **On a physical device this will not work**: `localhost` there means the
+    /// **On a physical device this will not work**: `127.0.0.1` there means the
     /// phone, which has no route to your Mac's loopback. Set `SHOP_BACKEND_URL`
     /// in `.local.xcconfig` to your Mac's LAN address instead:
     ///

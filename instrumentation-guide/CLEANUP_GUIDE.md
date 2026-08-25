@@ -4,7 +4,7 @@
 
 Remove all bitdrift Capture SDK instrumentation from **any** app and return it to its baseline (pre-bitdrift) state — **by prompting an AI coding agent**. Each step is a ready-to-use prompt that drives the **bd-instrumentation** skill to undo the corresponding instrumentation step.
 
-This is the inverse of [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md): the same 20 categories, removed in **reverse order** (last added, first removed) so dependent call sites come out before the foundation they relied on, and the project keeps compiling at each step. The prompts are platform-neutral — the skill applies the right removals on Android, iOS, or React Native.
+This is the inverse of [INSTRUMENTATION_GUIDE.md](INSTRUMENTATION_GUIDE.md): the same 21 steps, removed in **reverse order** (last added, first removed) so dependent call sites come out before the foundation they relied on, and the project keeps compiling at each step. The prompts are platform-neutral — the skill applies the right removals on Android, iOS, or React Native.
 
 > **Do it in one prompt (app code only):** *"Remove all bitdrift Capture SDK instrumentation from this app, working in reverse order. Build if permitted; otherwise perform static verification and report the build as DEFERRED."* The skill sequences the work for Steps 1–18 (app code). The per-step prompts below are the reference if you want to remove categories selectively.
 >
@@ -134,7 +134,7 @@ Also inspect ignored local configuration (`.xcconfig`, `local.properties`, and
 environment overrides) for stale backend hosts or recursive includes. Preserve
 those files unless the user explicitly asks to change them, and never include keys
 or secrets in the cleanup report.
-- [ ] No remaining bitdrift references anywhere in the codebase
+- [ ] No remaining Capture SDK, telemetry configuration, or instrumentation references in the target app; sample product identity such as `ai.bitdrift.shop` and Bitdrift Shop branding may remain
 
 ---
 

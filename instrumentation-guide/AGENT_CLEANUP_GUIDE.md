@@ -12,8 +12,8 @@ a strict reverse order, and verification gates phrased as checkable assertions.
 > dependency out last. Stop immediately on any `HALT` and report which gate failed.
 >
 > **This runbook does not gate on the build.** Removal is monotonic toward a known end state, so
-> an intermediate break is transient and a final build tells you nothing the greps in §3 don't.
-> Verifying the project still compiles is the **caller's** responsibility, not a gate here.
+> an intermediate break is transient. Run a final build when permitted as recommended evidence;
+> otherwise report it `DEFERRED`. The static gates in §3 remain the required cleanup contract.
 
 > **Scope modes.** `local-only` removes app instrumentation and local artifacts;
 > `full-revert` also removes the signal catalog and evaluation readout; account-side Step 20 deletion
