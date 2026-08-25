@@ -18,7 +18,7 @@ authorized workflow and dashboard portfolio. Both are included in `bitdriftlabs/
 | [AGENT_INSTRUMENTATION_GUIDE.md](AGENT_INSTRUMENTATION_GUIDE.md) | Agent | You want a fully autonomous run — point your agent at this file and say *"execute this runbook"* |
 | [CLEANUP_GUIDE.md](CLEANUP_GUIDE.md) | Human | You want to remove bitdrift instrumentation and return the app to its baseline state |
 | [AGENT_CLEANUP_GUIDE.md](AGENT_CLEANUP_GUIDE.md) | Agent | Autonomous cleanup — the inverse of the agent instrumentation runbook |
-| [examples/](examples/) | Human | Real worked examples from running this guide against the bitdrift-shop demo app — signal catalogs, build readouts, BDRL scripts, evaluation evidence, funnel pitfalls, and journey-span traps |
+| [examples/](examples/) | Human | Portable patterns plus clearly labeled bitdrift-shop case studies — signal catalogs, build readouts, BDRL scripts, evaluation evidence, funnel pitfalls, and journey-span traps |
 
 ## Prerequisites
 

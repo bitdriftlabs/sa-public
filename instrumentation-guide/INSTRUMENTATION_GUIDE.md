@@ -91,6 +91,12 @@ The skill starts the logger with your SDK key and a session strategy (Step 3), b
 
 **Docs:** [Configuration](https://docs.bitdrift.io/sdk/features/configuration), [Automatic Instrumentation](https://docs.bitdrift.io/sdk/features/automatic-instrumentation)
 
+**Android implementation note:** In current Kotlin artifacts, the fixed strategy is
+constructed as `SessionStrategy.Fixed()` (not `SessionStrategy.Fixed`); confirm the
+signature against the installed SDK before compiling. The Android `startResult` failure
+value is an SDK error value, not necessarily a `Throwable`, so log or stringify it rather
+than passing it to a throwable-only logging overload.
+
 ---
 
 ## 3. Confirm session strategy
@@ -216,6 +222,10 @@ TTI is one opaque number — it tells you launch got slower, not what got slower
 **Worked example:** [examples/journey-span-instrumentation.md](examples/journey-span-instrumentation.md) — §1 for the phase breakdown, §2.5 for the clock-domain trap.
 
 **Docs:** [Automatic Instrumentation → TTI](https://docs.bitdrift.io/sdk/features/automatic-instrumentation)
+
+**Android implementation note:** `Logger.logAppLaunchTTI` currently accepts Kotlin's
+`kotlin.time.Duration`, so convert elapsed milliseconds with
+`elapsedMs.milliseconds` (and import `kotlin.time.Duration.Companion.milliseconds`).
 
 ---
 
@@ -414,7 +424,8 @@ The signal catalog must record exact matcher values and evidence, not a vague fe
 - **Operational data:** stable network path templates, fields suitable for filtering, cardinality concerns, and flag values that have enough traffic to compare.
 - **Crashes and Issues:** observed report types, symbolication state, and fields available for classification. No observed crash is a valid result; record it as *"no matching crash observed"* rather than inducing one or inventing a classifier.
 
-**Discovery gate.** Stop here and repair instrumentation or generate representative traffic if a session is absent, the target journey cannot be observed, required span names have zero events, or the catalog has only source-derived names. An empty funnel is not 0% conversion; it is an unverified matcher. The catalog is the input contract for Step 20.
+**Discovery gate.** Stop here and repair instrumentation or generate representative traffic if a session is absent, the target journey cannot be observed, required span names have zero events, or the catalog has only source-derived names. Before any workflow write, produce a source/runtime parity table: every required screen-load, journey-phase, cold-start, and custom span must have (a) a real SDK start/end call site and (b) at least one observed end event with `_duration_ms` and `_result`. A helper that compiles but does not call `startSpan`/`end` fails this gate. An empty funnel is not 0% conversion; it is an unverified matcher. The catalog is the input contract for Step 20. During discovery, do not add restrictive platform/app filters unless the returned session is known to carry those exact dimensions; an over-scoped query can hide valid ingest and falsely report an empty app.
+
 
 **Unlocks:** A trustworthy, evidence-backed set of workflow matchers and dashboard panels. This prevents technically LIVE workflows from silently charting nothing.
 
@@ -440,7 +451,7 @@ A flow that has branches needs `or_matcher` branches, not a fictional linear seq
 
 **Matcher and chart contract.** Verify the deployed definition with `bd workflow describe <ID>` against the catalog. For duration charts, set `y_axis.unit = MILLISECONDS`, give every series a `TimeSeriesMetadata.title`, and exclude `_result = canceled` when cancellation is routine. Label bd-cuj's screen-to-screen measure **"step duration (wall clock)"** and span `_duration_ms` **"screen load (work)"**: the former includes user think time; the latter measures application work.
 
-**Post-deploy gate.** Confirm every created workflow is LIVE. Re-exercise the journey and require data in its Sankey, funnel, and span charts; empty non-crash charts are failures to investigate. For crash workflows, LIVE status plus a correct observed-data matcher is sufficient when no matching crash occurred.
+**Post-deploy gate.** Confirm every created workflow is LIVE. Re-exercise the journey and require data in its Sankey, funnel, and span charts; empty non-crash charts are failures to investigate. Read charts first with the workflow's own target scope, then narrow by platform/app only after confirming those dimensions are present in the observed session. For crash workflows, LIVE status plus a correct observed-data matcher is sufficient when no matching crash occurred.
 
 **Unlocks:** A substantial, data-backed operating surface: focused crash and operational workflows plus five curated dashboards, instead of a sparse set of panels based on assumed event names.
 
@@ -568,7 +579,7 @@ For the full crash-classification, CUJ, and dashboard treatment, first run **[St
 
 The prompts above are identical across platforms — the skill applies the right APIs. A few specifics it handles for you:
 
-**Android (Kotlin):** `automaticOkHttpInstrumentation` defaults to false and must be turned on in the plugin DSL; its `PROXY` mode preserves an existing `EventListener.Factory`. WebView instrumentation needs the plugin flag, a non-null `WebViewConfiguration`, and its per-capture flags (all default false). The SDK's `Logger.trackSpan` covers a synchronous one-off but not a journey — it forwards no parent span ID, its block isn't `suspend`, and it maps `CancellationException` to FAILURE. Since `LaunchedEffect(key)` cancels on ordinary scrolling, that last one floods duration histograms with partial measurements; the helper in [Step 10c](#10c-add-a-helper-dont-call-trackspan-raw) maps cancellation to CANCELED. Custom span start times are epoch millis, not `SystemClock.uptimeMillis()` (Step 9).
+**Android (Kotlin):** `automaticOkHttpInstrumentation` defaults to false and must be turned on in the plugin DSL; its `PROXY` mode preserves an existing `EventListener.Factory`. WebView instrumentation needs the plugin flag, a non-null `WebViewConfiguration`, and its per-capture flags (all default false). With a version catalog, add both the `io.bitdrift:capture` library and `io.bitdrift.capture-plugin` plugin at the same version, then apply the plugin at the root (`apply false`) and app module. Keep SDK keys in ignored `local.properties` and expose them through a configuration field rather than hard-coding them. The SDK's `Logger.trackSpan` covers a synchronous one-off but not a journey — it forwards no parent span ID, its block isn't `suspend`, and it maps `CancellationException` to FAILURE. Since `LaunchedEffect(key)` cancels on ordinary scrolling, that last one floods duration histograms with partial measurements; the helper in [Step 10c](#10c-add-a-helper-dont-call-trackspan-raw) maps cancellation to CANCELED. Custom span start times are epoch millis, not `SystemClock.uptimeMillis()` (Step 9).
 
 **iOS (Swift):** install via SPM (`bitdriftlabs/capture-ios`) or CocoaPods (`pod 'BitdriftCapture'`, `import Capture`); start in the SwiftUI `@main App` `init()` or UIKit `didFinishLaunchingWithOptions`; integrations (network, log forwarding) are **chained on the start call**, not wired per-client; entity ID is `setEntityID` (capital **ID**); symbols are **dSYMs**, not ProGuard; the SDK is added only to targets that start the logger (avoids duplicate-symbol warnings). Path templates apply on iOS too. For spans, the parent parameter is `parentSpanID` (capital **ID**), and there is no Kotlin-style `trackSpan` counterpart — the helper in [Step 10c](#10c-add-a-helper-dont-call-trackspan-raw) wraps `startSpan`/`end` in sync and `async` forms. Read process start from the kernel rather than a stored `Date()` static (Step 9).
 

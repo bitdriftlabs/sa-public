@@ -4,10 +4,26 @@ Worked example for [Step 4](../INSTRUMENTATION_GUIDE.md#4-instrument-screen-view
 [Step 9](../INSTRUMENTATION_GUIDE.md#9-report-app-launch-tti--cold-start-span-waterfall) and
 [Step 10](../INSTRUMENTATION_GUIDE.md#10-span-every-element-of-the-user-journey), drawn from
 instrumenting the bitdrift-shop demo app on iOS and then porting it to Android for parity.
+The names and workflow IDs in this case study are illustrative; derive replacements from the
+target app's Step 19 signal catalog.
 
 Everything below was hit for real. As with
 [cuj-funnel-pitfalls.md](cuj-funnel-pitfalls.md), the theme is that none of these produce an
 error — the app builds, the spans emit, the charts deploy, and the numbers are wrong or absent.
+
+### Android prerequisite
+
+The Android app must have a real span helper wired to `Logger.startSpan`/`Span.end` before these
+examples can produce data. A placeholder helper whose `end()` is a no-op will compile and let
+span workflows deploy, but every span chart remains empty. Treat `LIVE` and “has matching
+series” as separate verification gates.
+
+### iOS prerequisite
+
+The iOS app must call `Logger.startSpan` and end each span on the completed or canceled path.
+Installing Capture, enabling URLSession integration, and emitting screen views does not create
+journey spans automatically. A workflow can therefore be `LIVE` while every iOS span chart is
+empty; verify source call sites and then confirm non-empty chart series after a simulator loop.
 
 ---
 
@@ -26,9 +42,10 @@ Plus whatever the app's own hot paths are — in the demo, `score_products.parse
 `score_products.similarity_pass` (is a slow recommendation call parsing, or the O(n·m) pass?),
 and `screen_view_persist` / `demo_state_publish` for I/O that runs on every transition.
 
-**Use identical span names on every platform.** The demo shares 21 span names across iOS and
-Android, so a single chart compares the two by filtering on a `platform` global field. Different
-names per platform means two charts that can never be put side by side.
+**Use identical span names on every platform when the operation is equivalent.** The demo shares
+21 span names across iOS and Android, so a single chart compares the two by filtering on a
+`platform` global field. For another app, choose stable names from its own operations and record
+the mapping in the signal catalog.
 
 ### Grouping them into workflows
 
