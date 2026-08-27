@@ -1,6 +1,6 @@
 # Bitdrift Shop (Android — SDK)
 
-**Version 4.3**
+**Version 5.0**
 
 Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.23.10` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
 

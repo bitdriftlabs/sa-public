@@ -134,6 +134,9 @@ export type ChaosState = {
   crashLoopEnabled: boolean;
   anrAEnabled: boolean;
   forceQuitEnabled: boolean;
+  // Drives the recommendations_v2 exposure and the expensive scoring pass, matching
+  // Android's SimulationManager.recommendationsV2Enabled (surfaced as "Slow" in the UI).
+  slowModeEnabled: boolean;
 };
 
 // Apply a variant: records every feature-flag exposure AND its mirror global field,
@@ -143,6 +146,7 @@ export const applyVariant = (variant: SimVariant, chaos: ChaosState): void => {
   const orderSummary = chaos.crashLoopEnabled ? 'v2' : 'v1';
   const anrA = chaos.anrAEnabled ? 'enabled' : 'disabled';
   const forceQuit = chaos.forceQuitEnabled ? 'enabled' : 'disabled';
+  const recommendationsV2 = chaos.slowModeEnabled ? 'enabled' : 'disabled';
 
   // Feature-flag exposures (queryable as flag exposures in the dashboard).
   ScreenLogger.setFeatureFlagExposure('checkout_flow', flags.checkout_flow);
@@ -152,6 +156,7 @@ export const applyVariant = (variant: SimVariant, chaos: ChaosState): void => {
   ScreenLogger.setFeatureFlagExposure('order_summary', orderSummary);
   ScreenLogger.setFeatureFlagExposure('anr_a', anrA);
   ScreenLogger.setFeatureFlagExposure('force_quit', forceQuit);
+  ScreenLogger.setFeatureFlagExposure('recommendations_v2', recommendationsV2);
 
   // Mirror fields (ff_*) so the same values are also filterable as global fields.
   ScreenLogger.addField('ff_checkout_flow', flags.checkout_flow);
@@ -162,6 +167,7 @@ export const applyVariant = (variant: SimVariant, chaos: ChaosState): void => {
   ScreenLogger.addField('ff_order_summary', orderSummary);
   ScreenLogger.addField('ff_anr_a', anrA);
   ScreenLogger.addField('ff_force_quit', forceQuit);
+  ScreenLogger.addField('ff_recommendations_v2', recommendationsV2);
 
   ScreenLogger.logInfo('feature_flag_exposure_set');
 };

@@ -45,12 +45,16 @@ const APP_START_TIME = Date.now();
 // Initialise with an activity-based session so new sessions begin after a
 // period of inactivity, matching how iOS/Android demos are configured.
 // API key is loaded from src/config.ts (reads BITDRIFT_API_KEY from .env).
+const SDK_INIT_STARTED_AT = Date.now();
 init(BITDRIFT_API_KEY, SessionStrategy.Activity, {
   url: BITDRIFT_API_HOST,
   crashReporting: {
     UNSTABLE_enableJsErrors: true,
   },
 });
+// Duration of init() itself, reported below as the `sdk_init` child of `app_cold_start`.
+// Cannot be logged here: the SDK is only just up, and the span has to be back-dated.
+const SDK_INIT_DURATION_MS = Date.now() - SDK_INIT_STARTED_AT;
 
 // Global Fields
 // These fields are automatically attached to every log, span, and network
@@ -112,7 +116,25 @@ const App: React.FC = () => {
     // App Launch TTI
     // Measure time from module evaluation to first render and emit the
     // standard TTI event so the dashboard shows your app's launch latency.
-    logAppLaunchTTI(Date.now() - APP_START_TIME);
+    const ttiMs = Date.now() - APP_START_TIME;
+    logAppLaunchTTI(ttiMs);
+
+    // Cold-start span tree, mirroring Android's `app_cold_start` root with its
+    // `sdk_init` child. The RN SDK has no span API, so these use the app's paired
+    // start/end log convention (_span_id / _span_type / _duration_ms), back-dated
+    // because the work completed before the SDK could accept logs.
+    // Child span name must stay dotted: CaptureBridge.kt and CaptureBridge.swift both
+    // emit `app_cold_start.sdk_init`, and the cold-start workflows filter on that full
+    // name. (Native also emits `.scene_render` and `.state_restore` children, which have
+    // no RN equivalent — see README § Platform parity notes.)
+    const coldStartId = ScreenLogger.logCompletedSpan('app_cold_start', ttiMs);
+    ScreenLogger.logCompletedSpan(
+      'app_cold_start.sdk_init',
+      SDK_INIT_DURATION_MS,
+      undefined,
+      coldStartId,
+    );
+
     ScreenLogger.logInfo('app_launched');
     // Foreground/background lifecycle events (app_open / app_close).
     startLifecycleLogging();

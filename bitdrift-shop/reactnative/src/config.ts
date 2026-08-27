@@ -2,8 +2,15 @@ import {Platform} from 'react-native';
 import {BITDRIFT_API_KEY as ENV_API_KEY, BITDRIFT_API_HOST as ENV_API_HOST, BACKEND_PORT as ENV_BACKEND_PORT} from '@env';
 
 // ─── App version ─────────────────────────────────────────────────────────────
-// Displayed on screen via ScreenContainer. Keep in sync with package.json.
-export const APP_VERSION = '1.0.0';
+// Displayed on screen via ScreenContainer, and kept in step with the iOS and Android
+// demos so all three report the same version. Android derives its string from
+// BuildConfig.VERSION_NAME and iOS from CFBundleShortVersionString; RN has no such
+// runtime source without a native module, so this is hardcoded and must be updated
+// alongside package.json, android/app/build.gradle and ios/*.xcodeproj.
+//
+// Note package.json carries "5.0.0": npm requires a full x.y.z semver, while the
+// value shown in the UI matches the native demos' two-part "5.0".
+export const APP_VERSION = '5.0';
 
 // ─── Global field: app_variant ─────────────────────────────────────────────────
 // Attached to every log. Matches the Android app's value ("sdk-demo") so the two

@@ -107,7 +107,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
   const [supportLogEnabled, setSupportLogState] = useState(false);
 
   const variantRef = useRef(activeVariant);
-  const chaosRef = useRef<ChaosState>({crashLoopEnabled, anrAEnabled, forceQuitEnabled});
+  const chaosRef = useRef<ChaosState>({crashLoopEnabled, anrAEnabled, forceQuitEnabled, slowModeEnabled});
 
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
   const cancelledRef = useRef(false);
@@ -167,7 +167,14 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
     [reapplyFlags],
   );
 
-  const setSlowMode = useCallback((enabled: boolean) => setSlowModeState(enabled), []);
+  const setSlowMode = useCallback(
+    (enabled: boolean) => {
+      chaosRef.current = {...chaosRef.current, slowModeEnabled: enabled};
+      setSlowModeState(enabled);
+      reapplyFlags();
+    },
+    [reapplyFlags],
+  );
 
   const setSupportLog = useCallback((enabled: boolean) => {
     setSupportLogState(enabled);
