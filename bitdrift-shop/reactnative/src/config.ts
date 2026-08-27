@@ -8,8 +8,8 @@ import {BITDRIFT_API_KEY as ENV_API_KEY, BITDRIFT_API_HOST as ENV_API_HOST, BACK
 // runtime source without a native module, so this is hardcoded and must be updated
 // alongside package.json, android/app/build.gradle and ios/*.xcodeproj.
 //
-// Note package.json carries "4.3.0": npm requires a full x.y.z semver, while the
-// value shown in the UI matches the native demos' two-part "4.3".
+// Note package.json carries "5.0.0": npm requires a full x.y.z semver, while the
+// value shown in the UI matches the native demos' two-part "5.0".
 export const APP_VERSION = '5.0';
 
 // ─── Global field: app_variant ─────────────────────────────────────────────────

@@ -123,8 +123,17 @@ const App: React.FC = () => {
     // `sdk_init` child. The RN SDK has no span API, so these use the app's paired
     // start/end log convention (_span_id / _span_type / _duration_ms), back-dated
     // because the work completed before the SDK could accept logs.
+    // Child span name must stay dotted: CaptureBridge.kt and CaptureBridge.swift both
+    // emit `app_cold_start.sdk_init`, and the cold-start workflows filter on that full
+    // name. (Native also emits `.scene_render` and `.state_restore` children, which have
+    // no RN equivalent — see README § Platform parity notes.)
     const coldStartId = ScreenLogger.logCompletedSpan('app_cold_start', ttiMs);
-    ScreenLogger.logCompletedSpan('sdk_init', SDK_INIT_DURATION_MS, undefined, coldStartId);
+    ScreenLogger.logCompletedSpan(
+      'app_cold_start.sdk_init',
+      SDK_INIT_DURATION_MS,
+      undefined,
+      coldStartId,
+    );
 
     ScreenLogger.logInfo('app_launched');
     // Foreground/background lifecycle events (app_open / app_close).

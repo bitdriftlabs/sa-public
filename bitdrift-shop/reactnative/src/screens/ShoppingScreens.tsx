@@ -367,7 +367,11 @@ export const ProductDetailScreen: React.FC<ScreenProps<'ProductDetail'>> = ({nav
   // with two different screen_name values. Fetches the full catalog to score against,
   // matching Android's ApiClient.getFullCatalogJson() call on this screen.
   React.useEffect(() => {
-    if (!slowModeEnabled || !productId) {
+    // Wait for `data`: without it this fires once while the product is still loading,
+    // issuing a second catalog request when getProduct resolves — and if that first
+    // randomised catalog lacks productId there is no reference to prepend, producing
+    // exactly the parse-only score_products span this gating exists to avoid.
+    if (!slowModeEnabled || !productId || !data) {
       return;
     }
     let cancelled = false;
@@ -388,7 +392,7 @@ export const ProductDetailScreen: React.FC<ScreenProps<'ProductDetail'>> = ({nav
       const hasReference = catalog.some(
         p => (p as {id?: string} | null)?.id === productId,
       );
-      const withReference = hasReference || !data ? catalog : [data, ...catalog];
+      const withReference = hasReference ? catalog : [data, ...catalog];
 
       ScreenLogger.trackSpanNested(
         'score_products',

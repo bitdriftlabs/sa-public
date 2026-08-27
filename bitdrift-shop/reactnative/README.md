@@ -252,7 +252,7 @@ been closed; what remains is listed with the reason.
 | `recommendations_v2` | Now the 8th feature-flag exposure plus its `ff_recommendations_v2` mirror field, driven by the Slow toggle — matching Android's `recommendationsV2Enabled`. |
 | `score_products` | `src/sim/recommendations.ts` ports `RecommendationEngine`: an O(n*m) Levenshtein similarity pass with `parse_catalog` and `similarity_pass` nested under the `score_products` span, on Browse and ProductDetail. |
 | The dead `Slow` toggle | `slowModeEnabled` now feeds `chaosRef`, re-broadcasts flags, and gates the scoring pass. Measured on the emulator: ~800 ms of on-thread work per render, `similarity_pass` accounting for ~790 ms of it. |
-| `app_cold_start` | Emitted with an `sdk_init` child via `ScreenLogger.logCompletedSpan`, which back-dates an already-finished span (the work completes before the SDK can accept logs). |
+| `app_cold_start` | Emitted with an `app_cold_start.sdk_init` child via `ScreenLogger.logCompletedSpan`, which back-dates an already-finished span (the work completes before the SDK can accept logs). The dotted child name matches `CaptureBridge.kt`/`.swift` so the existing cold-start workflows match it. Native also emits `app_cold_start.scene_render` and `.state_restore`; those are UIKit/Activity lifecycle phases with no RN equivalent, so the RN tree has one child rather than three. |
 
 **Still open:**
 
