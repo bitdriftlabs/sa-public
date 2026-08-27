@@ -5,10 +5,21 @@ import {ScreenLogger} from './logger';
 // AppLifecycleCallbacks (app_open / app_close). React Native's AppState is the
 // cross-platform equivalent of Android's activity start/stop callbacks.
 //
-// Note on memory events: the Android app also emits `memory_pressure` / `low_memory`
-// from ComponentCallbacks2.onTrimMemory / onLowMemory. React Native core exposes no
-// cross-platform memory-pressure signal, so those require a native hook (Android
-// onTrimMemory, iOS didReceiveMemoryWarning) and are intentionally left unwired here.
+// Note on memory events: the Android and iOS apps both emit `memory_pressure` (Android
+// additionally emits `low_memory`) from ComponentCallbacks2.onTrimMemory / onLowMemory and
+// UIApplicationDidReceiveMemoryWarningNotification respectively. Both are left unwired here,
+// but the two platforms are NOT equally blocked:
+//
+//   iOS    — no native code needed. RN core already bridges the memory warning: RCTAppState
+//            lists `memoryWarning` in supportedEvents and emits it, and AppState types it
+//            (AppStateEvent = 'change' | 'memoryWarning' | 'blur' | 'focus'). Reaching parity
+//            with the iOS app is one listener:
+//              AppState.addEventListener('memoryWarning', () =>
+//                ScreenLogger.logWarning('memory_pressure', {level: 'didReceiveMemoryWarning'}));
+//
+//   Android — needs a native module. AppStateModule.kt emits only `appStateDidChange` and
+//            `appStateFocusChange`; nothing forwards onTrimMemory / onLowMemory to JS, so
+//            matching the Android app's `level` field and `low_memory` requires a bridge.
 
 let started = false;
 let current: AppStateStatus = AppState.currentState;

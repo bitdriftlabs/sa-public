@@ -64,7 +64,7 @@ All secrets and environment-specific values live in `src/config.ts`, which reads
 cp .env.example .env
 ```
 
-Edit `.env` and fill in your bitdrift API key:
+Edit `.env` and fill in your bitdrift SDK key:
 
 ```
 BITDRIFT_API_KEY=your_api_key_here
@@ -132,7 +132,7 @@ curl http://localhost:8081/status           # -> packager-status:running
 ```
 
 Use `--reset-cache` whenever `.env` changes: `react-native-dotenv` inlines those values at
-transform time, so a warm Metro cache will keep serving a bundle built with the old API key.
+transform time, so a warm Metro cache will keep serving a bundle built with the old SDK key.
 
 One Metro serves both platforms — the iOS Simulator reaches it on `localhost:8081` and the
 Android emulator on `10.0.2.2:8081`, both automatically.
@@ -194,7 +194,7 @@ All bitdrift calls funnel through `src/utils/logger.ts`.
 | **Support Log** | `getSessionURL()` button + `supportlog` field toggle | `ShoppingScreens.tsx`, Advanced screen |
 | **Crash reporting** | 20-entry crash catalog + native signal module | `crashes.ts`, native `BdCrash` |
 
-All configuration (API key, backend URL) is centralised in `src/config.ts`.
+All configuration (SDK key, backend URL) is centralised in `src/config.ts`.
 
 ### Personas, simulation modes & chaos (Advanced screen)
 
@@ -206,7 +206,8 @@ The **Advanced** screen (button on Welcome) ports the Android app's controls:
 - **Simulation modes** — **Sim A/B** (5 journeys each across all variants) and **Cardinality**
   (hammers `/inventory/lookup/<item>/<session>` with unique URLs to demonstrate the path-
   template fix).
-- **Fault injection** — **Slow** (heavy on-thread recommendation scoring), **Crash** (cycles
+- **Fault injection** — **Slow** (⚠️ toggle is currently a no-op in RN — see
+  **Platform parity notes**), **Crash** (cycles
   the 20-crash catalog at journey end), **ANR-A** (Variant A + guest checkout, blocks the UI
   thread), **Quit** (hard process exit on ProductDetail). Each records a feature-flag exposure
   and an `*_injected` event.
@@ -222,10 +223,47 @@ are handled gracefully and documented in code:
 - **New session per journey** — not available in the RN SDK; the app uses
   `SessionStrategy.Activity` (rotates on inactivity) and emits a `journey_started` boundary
   marker instead.
-- **Memory events** (`memory_pressure` / `low_memory`) — no cross-platform RN signal; left
-  unwired (would need a native `onTrimMemory` / `didReceiveMemoryWarning` hook).
+- **Memory events** (`memory_pressure` / `low_memory`) — currently unwired. There is no
+  *cross-platform* RN signal, but the two platforms differ and only Android needs native code:
+  - **iOS needs no native hook.** RN core already bridges
+    `UIApplicationDidReceiveMemoryWarningNotification` to JS — `RCTAppState.mm` declares
+    `memoryWarning` as a supported event and emits it, and it is typed in `AppState.d.ts` as
+    `AppStateEvent = 'change' | 'memoryWarning' | 'blur' | 'focus'`. Wiring iOS to parity with
+    the iOS demo's single `memory_pressure` warning is a few lines of JS:
+    `AppState.addEventListener('memoryWarning', () => ScreenLogger.logWarning('memory_pressure', {level: 'didReceiveMemoryWarning'}))`.
+  - **Android does need a native bridge.** `AppStateModule.kt` emits only `appStateDidChange`
+    and `appStateFocusChange`; nothing forwards `onTrimMemory` / `onLowMemory`, so matching the
+    Android demo's `memory_pressure` (with its `level` field) and `low_memory` requires a native
+    module.
 - **Crash auto-restart loop** — Android re-arms via `AlarmManager`; RN/iOS can't self-relaunch,
   so the crash loop fires crashes in sequence but does not auto-restart the process.
+
+### Feature gaps vs the iOS and Android demos
+
+Audited against `../ios` and `../android` by diffing logger call sites. These are present in
+**both** native demos and absent from RN — listed so nobody assumes parity that isn't there:
+
+| Gap | Detail |
+|-----|--------|
+| `memory_pressure` | Unwired. See the memory bullet above — iOS is a few lines of JS, Android needs a native module. |
+| `checkout_failed` | Emitted from `Screens.kt` / `Screens.swift`. RN has `cart_failed`, `checkout_abandoned` and `payment_failed`, but never `checkout_failed`. |
+| `metric_values` + `MetricsDemo` | The whole module is missing: five waveform metrics (sine/square/sawtooth/triangle/dc) plus a counter, and the `metric_work_latency_ms` grouped-metrics demo. **Blocked**, not merely unported — it depends on `Logger.startNewSession()` for session rotation, and the RN SDK exposes no such API. |
+| `recommendations_v2` | Both native demos record **8** feature-flag exposures; RN records **7**. `recommendations_v2` is the missing one, along with its `score_products` span and the `RecommendationEngine` module. |
+| `app_cold_start` | Native builds a cold-start root span with an `sdk_init` child. RN calls `logAppLaunchTTI()` plus an `app_launched` log — no span tree, since the RN SDK has no span API. |
+| `lock_contention` | Fault-injection variant present in both native demos, absent from `src/sim/crashes.ts`. |
+
+**Known bug — the `Slow` toggle does nothing.** `slowModeEnabled` in `SimulationContext.tsx`
+is declared, stored, exposed through context, and rendered as a button in the Advanced
+screen, but no code ever reads it. There is no scoring work and no `score_products` event, so
+flipping it has no observable effect. Either wire it to a real on-thread workload or remove
+the control.
+
+Everything else lines up: 13 shared business events (`add_to_cart`, `add_to_wishlist`,
+`app_open`/`app_close`, `app_launched`, `cart_failed`, `cart_item_removed`,
+`checkout_started`, `confirmation_reached`, `crash_loop_stopped`,
+`feature_flag_exposure_set`, `payment_completed`, `payment_failed`) fire on all three
+platforms, and RN adds its own simulation-control events on top
+(`journey_started`, `simulation_start`/`_end`, `api_response`, the `*_injected` chaos markers).
 
 ### Native crash module (`BdCrash`)
 
@@ -295,13 +333,13 @@ per journey.
 
 ```
 reactnative/
-├── .env.example                     # Copy to .env and add your API key
+├── .env.example                     # Copy to .env and add your SDK key
 ├── App.tsx                          # SDK init, TTI, global fields, root navigator
 ├── index.js                         # Entry point
 ├── start.sh                         # Convenience launch script
 ├── cleanup.sh                       # Remove build artifacts
 └── src/
-    ├── config.ts                    # API key + backend URL + APP_VARIANT (reads from .env)
+    ├── config.ts                    # SDK key + backend URL + APP_VARIANT (reads from .env)
     ├── api/
     │   └── ApiClient.ts             # HTTP client — endpoints, path templates, cardinality demo
     ├── components/
