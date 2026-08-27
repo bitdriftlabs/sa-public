@@ -206,8 +206,8 @@ The **Advanced** screen (button on Welcome) ports the Android app's controls:
 - **Simulation modes** — **Sim A/B** (5 journeys each across all variants) and **Cardinality**
   (hammers `/inventory/lookup/<item>/<session>` with unique URLs to demonstrate the path-
   template fix).
-- **Fault injection** — **Slow** (⚠️ toggle is currently a no-op in RN — see
-  **Platform parity notes**), **Crash** (cycles
+- **Fault injection** — **Slow** (heavy on-thread recommendation scoring — also drives the
+  `recommendations_v2` exposure), **Crash** (cycles
   the 20-crash catalog at journey end), **ANR-A** (Variant A + guest checkout, blocks the UI
   thread), **Quit** (hard process exit on ProductDetail). Each records a feature-flag exposure
   and an `*_injected` event.
@@ -223,47 +223,49 @@ are handled gracefully and documented in code:
 - **New session per journey** — not available in the RN SDK; the app uses
   `SessionStrategy.Activity` (rotates on inactivity) and emits a `journey_started` boundary
   marker instead.
-- **Memory events** (`memory_pressure` / `low_memory`) — currently unwired. There is no
-  *cross-platform* RN signal, but the two platforms differ and only Android needs native code:
-  - **iOS needs no native hook.** RN core already bridges
+- **Memory events** — there is no *cross-platform* RN signal, so the platforms differ:
+  - **iOS is wired** (`appLifecycle.ts`), with no native code needed. RN core already bridges
     `UIApplicationDidReceiveMemoryWarningNotification` to JS — `RCTAppState.mm` declares
-    `memoryWarning` as a supported event and emits it, and it is typed in `AppState.d.ts` as
-    `AppStateEvent = 'change' | 'memoryWarning' | 'blur' | 'focus'`. Wiring iOS to parity with
-    the iOS demo's single `memory_pressure` warning is a few lines of JS:
-    `AppState.addEventListener('memoryWarning', () => ScreenLogger.logWarning('memory_pressure', {level: 'didReceiveMemoryWarning'}))`.
-  - **Android does need a native bridge.** `AppStateModule.kt` emits only `appStateDidChange`
-    and `appStateFocusChange`; nothing forwards `onTrimMemory` / `onLowMemory`, so matching the
-    Android demo's `memory_pressure` (with its `level` field) and `low_memory` requires a native
-    module.
+    `memoryWarning` as a supported event and emits it, and `AppState.d.ts` types it as
+    `AppStateEvent = 'change' | 'memoryWarning' | 'blur' | 'focus'`. Emits
+    `memory_pressure` with `level=didReceiveMemoryWarning`, matching the iOS demo.
+  - **Android is still unwired** and needs a native bridge. `AppStateModule.kt` emits only
+    `appStateDidChange` and `appStateFocusChange`; nothing forwards `onTrimMemory` /
+    `onLowMemory`, so matching the Android demo's `memory_pressure` (with its `level` field)
+    and `low_memory` requires a native module.
 - **Crash auto-restart loop** — Android re-arms via `AlarmManager`; RN/iOS can't self-relaunch,
   so the crash loop fires crashes in sequence but does not auto-restart the process.
 
 ### Feature gaps vs the iOS and Android demos
 
-Audited against `../ios` and `../android` by diffing logger call sites. These are present in
-**both** native demos and absent from RN — listed so nobody assumes parity that isn't there:
+Audited against `../ios` and `../android` by diffing logger call sites. Most gaps have since
+been closed; what remains is listed with the reason.
 
-| Gap | Detail |
-|-----|--------|
-| `memory_pressure` | Unwired. See the memory bullet above — iOS is a few lines of JS, Android needs a native module. |
-| `checkout_failed` | Emitted from `Screens.kt` / `Screens.swift`. RN has `cart_failed`, `checkout_abandoned` and `payment_failed`, but never `checkout_failed`. |
-| `metric_values` + `MetricsDemo` | The whole module is missing: five waveform metrics (sine/square/sawtooth/triangle/dc) plus a counter, and the `metric_work_latency_ms` grouped-metrics demo. **Blocked**, not merely unported — it depends on `Logger.startNewSession()` for session rotation, and the RN SDK exposes no such API. |
-| `recommendations_v2` | Both native demos record **8** feature-flag exposures; RN records **7**. `recommendations_v2` is the missing one, along with its `score_products` span and the `RecommendationEngine` module. |
-| `app_cold_start` | Native builds a cold-start root span with an `sdk_init` child. RN calls `logAppLaunchTTI()` plus an `app_launched` log — no span tree, since the RN SDK has no span API. |
-| `lock_contention` | Fault-injection variant present in both native demos, absent from `src/sim/crashes.ts`. |
+**Closed:**
 
-**Known bug — the `Slow` toggle does nothing.** `slowModeEnabled` in `SimulationContext.tsx`
-is declared, stored, exposed through context, and rendered as a button in the Advanced
-screen, but no code ever reads it. There is no scoring work and no `score_products` event, so
-flipping it has no observable effect. Either wire it to a real on-thread workload or remove
-the control.
+| Fixed | How |
+|-------|-----|
+| `memory_pressure` (iOS) | `AppState` `memoryWarning` listener in `appLifecycle.ts`. No native code — RN core already bridges it. |
+| `checkout_failed` | Both checkout screens previously swallowed API errors with `.catch(() => undefined)`; they now `logError` with the exception and `checkout_type=guest\|signin`. |
+| `recommendations_v2` | Now the 8th feature-flag exposure plus its `ff_recommendations_v2` mirror field, driven by the Slow toggle — matching Android's `recommendationsV2Enabled`. |
+| `score_products` | `src/sim/recommendations.ts` ports `RecommendationEngine`: an O(n*m) Levenshtein similarity pass with `parse_catalog` and `similarity_pass` nested under the `score_products` span, on Browse and ProductDetail. |
+| The dead `Slow` toggle | `slowModeEnabled` now feeds `chaosRef`, re-broadcasts flags, and gates the scoring pass. Measured on the emulator: ~800 ms of on-thread work per render, `similarity_pass` accounting for ~790 ms of it. |
+| `app_cold_start` | Emitted with an `sdk_init` child via `ScreenLogger.logCompletedSpan`, which back-dates an already-finished span (the work completes before the SDK can accept logs). |
 
-Everything else lines up: 13 shared business events (`add_to_cart`, `add_to_wishlist`,
+**Still open:**
+
+| Gap | Why it isn't fixed |
+|-----|--------------------|
+| `memory_pressure` / `low_memory` on **Android** | Needs a native module. Nothing in RN forwards `onTrimMemory` / `onLowMemory` to JS. |
+| `metric_values` + `MetricsDemo` | **SDK-blocked.** The module depends on `Logger.startNewSession()` for its session rotation, and the RN SDK exposes no equivalent. Porting it without that would silently change what the metric-demo workflows measure. |
+| `lock_contention` | **Not reproducible.** The Android variant's value is three real threads in uncorrelated states; JS is single-threaded, so any RN version would be a fake that misrepresents what the crash report shows. |
+
+Everything else lines up: the shared business events (`add_to_cart`, `add_to_wishlist`,
 `app_open`/`app_close`, `app_launched`, `cart_failed`, `cart_item_removed`,
 `checkout_started`, `confirmation_reached`, `crash_loop_stopped`,
 `feature_flag_exposure_set`, `payment_completed`, `payment_failed`) fire on all three
-platforms, and RN adds its own simulation-control events on top
-(`journey_started`, `simulation_start`/`_end`, `api_response`, the `*_injected` chaos markers).
+platforms, and RN adds its own simulation-control events on top (`journey_started`,
+`simulation_start`/`_end`, `api_response`, the `*_injected` chaos markers).
 
 ### Native crash module (`BdCrash`)
 

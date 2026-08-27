@@ -147,6 +147,49 @@ export const ScreenLogger = {
     }
   },
 
+  // Like trackSpan, but hands the span to fn so callees can nest children under it.
+  // Ports Android's CaptureBridge.trackSpanNested — plain trackSpan doesn't expose the
+  // span, so nested children would render as unrelated flat spans.
+  trackSpanNested: <T,>(name: string, fields: Fields | undefined, fn: (span: Span) => T): T => {
+    const span = ScreenLogger.startSpan(name, fields);
+    try {
+      const result = fn(span);
+      span.end('success');
+      return result;
+    } catch (e) {
+      span.end('failure');
+      throw e;
+    }
+  },
+
+  // Emits a start/end pair for work that has ALREADY happened, with an explicit
+  // duration. Needed for cold-start spans: the work finishes before the SDK is
+  // initialised, so it can't be wrapped live — anything logged before init() is
+  // dropped. Ports the back-dating in Android's CaptureBridge cold-start spans.
+  logCompletedSpan: (
+    name: string,
+    durationMs: number,
+    fields?: Fields,
+    parentSpanId?: string,
+    spanId?: string,
+  ): string => {
+    spanCounter += 1;
+    const id = spanId ?? `span_${spanCounter}_${nowMs()}`;
+    const common = {
+      ...(fields ?? {}),
+      _span_id: id,
+      ...(parentSpanId ? {parent_span_id: parentSpanId} : {}),
+    };
+    ScreenLogger.logInfo(name, {...common, _span_type: 'start'});
+    ScreenLogger.logInfo(name, {
+      ...common,
+      _span_type: 'end',
+      _result: 'success',
+      _duration_ms: String(Math.max(0, Math.round(durationMs))),
+    });
+    return id;
+  },
+
   // ── Simulation lifecycle helpers (kept from the original logger) ─────────────────
   logSimulationStart: (totalRuns: number) => {
     ScreenLogger.logInfo('simulation_start', {total_runs: String(totalRuns)});

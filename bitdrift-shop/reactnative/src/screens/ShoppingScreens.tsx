@@ -14,6 +14,7 @@ import {Colors} from '../utils/colors';
 import {useSimulation} from '../context/SimulationContext';
 import {ScreenLogger} from '../utils/logger';
 import {SimVariant, VARIANT_LABELS} from '../sim/variants';
+import {scoreProducts} from '../sim/recommendations';
 import {CategoryRowList, PrimaryButton, ProductRowList, ScreenContainer, SecondaryButton, SimButton} from '../components';
 import type {ScreenProps} from '../navigation/types';
 import type {
@@ -151,12 +152,32 @@ export const WelcomeScreen: React.FC<ScreenProps<'Welcome'>> = ({navigation}) =>
 
 export const BrowseScreen: React.FC<ScreenProps<'Browse'>> = ({navigation}) => {
   const [data, setData] = React.useState<BrowseResponse | null>(null);
+  const {slowModeEnabled} = useSimulation();
 
   React.useEffect(() => {
     ApiClient.getBrowse().then(setData).catch(() => undefined);
   }, []);
 
   const products = data?.products ?? [];
+
+  // Recommendations v2: the expensive on-thread scoring pass, gated on the same flag as
+  // Android's SimulationManager.recommendationsV2Enabled. trackSpanNested hands the span
+  // down so parse_catalog / similarity_pass nest under score_products instead of
+  // rendering as unrelated flat spans.
+  const firstProductId = String(products[0]?.id ?? '');
+  React.useEffect(() => {
+    if (!slowModeEnabled || !firstProductId) {
+      return;
+    }
+    // Score against the products already on screen rather than re-fetching /browse: the
+    // demo backend randomises its catalog per request, so a separate fetch often would
+    // not contain firstProductId, and the similarity pass would be skipped entirely.
+    ScreenLogger.trackSpanNested(
+      'score_products',
+      {product_id: firstProductId, screen_name: 'Browse'},
+      span => scoreProducts(JSON.stringify(products), firstProductId, span.id),
+    );
+  }, [slowModeEnabled, firstProductId, products]);
   const subtitle = data
     ? `Showing ${products.length} of ${data.total_products} products`
     : 'Explore our product catalog';
@@ -336,10 +357,49 @@ export const CategoryBrowseScreen: React.FC<ScreenProps<'CategoryBrowse'>> = ({n
 export const ProductDetailScreen: React.FC<ScreenProps<'ProductDetail'>> = ({navigation, route}) => {
   const {productId, source} = route.params;
   const [data, setData] = React.useState<ProductDetailResponse | null>(null);
+  const {slowModeEnabled} = useSimulation();
 
   React.useEffect(() => {
     ApiClient.getProduct(productId).then(setData).catch(() => undefined);
   }, [productId]);
+
+  // Same scoring pass as Browse — Android runs it on both screens so the span appears
+  // with two different screen_name values. Fetches the full catalog to score against,
+  // matching Android's ApiClient.getFullCatalogJson() call on this screen.
+  React.useEffect(() => {
+    if (!slowModeEnabled || !productId) {
+      return;
+    }
+    let cancelled = false;
+    ApiClient.getFullCatalogJson().then(catalogJson => {
+      if (cancelled) {
+        return;
+      }
+      // The backend randomises /browse per request, so the fetched catalog may not
+      // contain this product. Prepend the one we already loaded, otherwise scoreProducts
+      // finds no reference and skips the similarity pass.
+      let catalog: unknown[];
+      try {
+        const parsed = JSON.parse(catalogJson);
+        catalog = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        catalog = [];
+      }
+      const hasReference = catalog.some(
+        p => (p as {id?: string} | null)?.id === productId,
+      );
+      const withReference = hasReference || !data ? catalog : [data, ...catalog];
+
+      ScreenLogger.trackSpanNested(
+        'score_products',
+        {product_id: productId, screen_name: 'ProductDetail'},
+        span => scoreProducts(JSON.stringify(withReference), productId, span.id),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [slowModeEnabled, productId, data]);
 
   const subtitle = data
     ? `${data.brand} — ${money(data.price)} — ${data.stock_count} in stock`
@@ -560,7 +620,11 @@ export const CheckoutGuestScreen: React.FC<ScreenProps<'CheckoutGuest'>> = ({nav
   const [data, setData] = React.useState<CheckoutResponse | null>(null);
 
   React.useEffect(() => {
-    ApiClient.checkoutGuest().then(setData).catch(() => undefined);
+    // logError with the caught exception records checkout failures in the session
+    // timeline, matching Android/iOS. Previously this catch swallowed the error.
+    ApiClient.checkoutGuest()
+      .then(setData)
+      .catch(err => ScreenLogger.logError('checkout_failed', {checkout_type: 'guest'}, err));
   }, []);
 
   const session = data?.checkout_session ?? '';
@@ -597,7 +661,9 @@ export const CheckoutSignInScreen: React.FC<ScreenProps<'CheckoutSignIn'>> = ({n
   const [data, setData] = React.useState<CheckoutResponse | null>(null);
 
   React.useEffect(() => {
-    ApiClient.checkoutSignIn().then(setData).catch(() => undefined);
+    ApiClient.checkoutSignIn()
+      .then(setData)
+      .catch(err => ScreenLogger.logError('checkout_failed', {checkout_type: 'signin'}, err));
   }, []);
 
   const session = data?.checkout_session ?? '';

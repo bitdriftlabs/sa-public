@@ -29,6 +29,13 @@ export const startLifecycleLogging = (): void => {
     return;
   }
   started = true;
+  // iOS only: RCTAppState bridges UIApplicationDidReceiveMemoryWarningNotification to this
+  // event, so no native module is needed. Matches the iOS app's single `memory_pressure`
+  // warning (BitdriftShopApp.swift). Android never fires this — see the note above.
+  AppState.addEventListener('memoryWarning', () => {
+    ScreenLogger.logWarning('memory_pressure', {level: 'didReceiveMemoryWarning'});
+  });
+
   AppState.addEventListener('change', (next: AppStateStatus) => {
     const wasBackground = current === 'background' || current === 'inactive';
     if (wasBackground && next === 'active') {
