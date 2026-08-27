@@ -1,5 +1,7 @@
 # Bitdrift Shop — React Native (SDK)
 
+**Version 5.0**
+
 A demo React Native app simulating an e-commerce shopping experience with realistic, randomised user journeys. This version is **instrumented with the [bitdrift Capture SDK](https://docs.bitdrift.io)** (`@bitdrift/react-native`), demonstrating screen views, structured logging, HTTP timing, app launch TTI, and global fields.
 
 ---

@@ -1,6 +1,6 @@
 # Bitdrift Shop (iOS — SDK)
 
-**Version 2.0**
+**Version 5.0**
 
 Native SwiftUI demo app simulating an e-commerce shopping experience, **already
 instrumented with the bitdrift Capture SDK** (`capture-ios` 0.23.11 via Swift
