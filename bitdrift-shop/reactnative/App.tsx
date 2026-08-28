@@ -16,14 +16,15 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 // promptly took its place). Warnings are covered too — api_response_error and
 // memory_pressure are demo signals in the same way, and they raise the yellow LogBox
 // notice. Only this app's own logger uses that prefix, so warnings and errors raised
-// by React Native itself still surface normally.
+// by React Native itself still surface normally. Anchored with ^ so a framework
+// message that merely quotes "[ERROR] " somewhere in its text is not swallowed too.
 //
 // This hides only the popup. console.error still fires, so the line is still in
 // logcat / the iOS unified log, and bdError() still ships it to bitdrift — the
 // dashboard-side demonstration of error capture is unaffected. If you see repeated
 // api_request_failed there, the backend is genuinely unreachable; see the README's
 // Troubleshooting section.
-LogBox.ignoreLogs([/\[(ERROR|WARNING)\]\s/]);
+LogBox.ignoreLogs([/^\[(ERROR|WARNING)\]\s/]);
 
 // Workshop 1 — SDK Initialization
 // Import and initialise the bitdrift Capture SDK as early as possible so all

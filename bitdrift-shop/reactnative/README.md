@@ -331,8 +331,9 @@ For App Store distribution open `ios/ShopDemoRN.xcworkspace` in Xcode and use **
 
 **Android release**
 ```bash
-cd android && ./gradlew assembleRelease     # APK: app/build/outputs/apk/release/
-cd android && ./gradlew bundleRelease       # AAB for Play Store
+cd android
+./gradlew assembleRelease     # APK: app/build/outputs/apk/release/
+./gradlew bundleRelease       # AAB for Play Store
 ```
 
 ---
@@ -350,4 +351,9 @@ This app runs on **Hermes**, and the extension ships two attach configs that loo
 
 The trap is that the wrong one reports success, so a clean "connection established" message is not proof you are seeing logs.
 
-Both configs are checked in at [`.vscode/launch.json`](.vscode/launch.json). To use it: launch the app first (`./start.sh ios|android`), then Run and Debug (⇧⌘D) → select **"Attach to Hermes application - Experimental"** → F5, and watch the **Debug Console** tab.
+Both configs are checked in at [`.vscode/launch.json`](.vscode/launch.json). **Open this
+`reactnative/` directory as the VS Code workspace root** — opening the repository root instead
+means VS Code never loads them and the configs simply will not appear in the dropdown.
+
+Then: launch the app first (`./start.sh ios|android`), Run and Debug (⇧⌘D) → select
+**"Attach to Hermes application - Experimental"** → F5, and watch the **Debug Console** tab.

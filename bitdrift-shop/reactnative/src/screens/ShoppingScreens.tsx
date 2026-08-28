@@ -7,7 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import {getSessionURL} from '@bitdrift/react-native';
+import {getDeviceID, getSessionURL} from '@bitdrift/react-native';
 import {BITDRIFT_API_KEY, BITDRIFT_API_HOST} from '../config';
 import {ApiClient} from '../api/ApiClient';
 import {Colors} from '../utils/colors';
@@ -57,7 +57,6 @@ export const WelcomeScreen: React.FC<ScreenProps<'Welcome'>> = ({navigation}) =>
   // because the SDK builds the URL as host:443 which iOS rejects.
   const onDeviceCode = React.useCallback(async () => {
     try {
-      const {getDeviceID} = require('@bitdrift/react-native');
       const deviceId: string = await getDeviceID();
       const apiUrl = BITDRIFT_API_HOST ?? 'https://api.bitdrift.io';
       const res = await fetch(`${apiUrl}/v1/device/code`, {
