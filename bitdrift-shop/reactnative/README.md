@@ -15,10 +15,10 @@ A demo React Native app simulating an e-commerce shopping experience with realis
 | Xcode | 16+ | macOS only; iOS Simulator required |
 | CocoaPods | latest | `brew install cocoapods` |
 | Watchman | latest | `brew install watchman` (required by Metro) |
-| ios-deploy | latest | `brew install ios-deploy` |
+| ios-deploy | latest | Physical iOS device only — not needed for the Simulator. `brew install ios-deploy` |
 | Android Studio | latest | Android emulator only |
 | **JDK 17** | **17 (exactly)** | **Android only. `brew install --cask temurin@17`. See below — newer JDKs do not work.** |
-| Python | 3.10+ | for the backend |
+| Docker | latest | For the backend. This repo uses [Colima](https://github.com/abiquo/colima), not Docker Desktop — see `../backend/README.md`. |
 
 ### JDK 17 is required for Android
 
@@ -39,7 +39,7 @@ curl -L -o /tmp/temurin17.tar.gz \
   "https://api.adoptium.net/v3/binary/latest/17/ga/mac/aarch64/jdk/hotspot/normal/eclipse"
 mkdir -p ~/Library/Java/JavaVirtualMachines
 tar xzf /tmp/temurin17.tar.gz -C ~/Library/Java/JavaVirtualMachines/
-export JAVA_HOME=~/Library/Java/JavaVirtualMachines/jdk-17.0.20.1+1/Contents/Home
+export JAVA_HOME=$(ls -d ~/Library/Java/JavaVirtualMachines/jdk-17*/Contents/Home | head -1)
 ```
 
 Verify with `java -version` — it must report `17.x`, and for Temurin the string reads
@@ -96,21 +96,36 @@ The default is `5173`. The correct host for iOS Simulator (`127.0.0.1`) and Andr
 
 ### 1. Start the Backend
 
+Needs a running Docker daemon — this repo uses [Colima](https://github.com/abiquo/colima),
+not Docker Desktop:
+
 ```bash
+colima start          # first time only / if `docker ps` errors with a connection refused
 cd ../backend
 ./start-backend-docker.sh
 ```
 
-API server runs on `http://localhost:5173`. Docs at `http://localhost:5173/docs`.
+API server runs on `http://localhost:5173`. Docs at `http://localhost:5173/docs`. See
+`../backend/README.md` for the full Colima setup.
 
 ### 2. Run the App
 
 ```bash
-chmod +x start.sh
-
 ./start.sh          # install deps + start Metro bundler
 ./start.sh ios      # install deps + CocoaPods + launch iOS simulator
 ./start.sh android  # install deps + launch Android emulator
+```
+
+`start.sh` is already committed executable; `chmod +x start.sh` is only needed if your
+checkout somehow lost that bit.
+
+**Headless / non-interactive shell (CI, ssh, an agent):** `run-ios` / `run-android` target
+whatever simulator or emulator is already booted — neither auto-boots one for you outside an
+interactive Terminal. Boot it yourself first:
+
+```bash
+xcrun simctl boot "iPhone 16e"     # or: open -a Simulator
+emulator -avd <AVD_NAME> &         # from $ANDROID_HOME/emulator; list AVDs with -list-avds
 ```
 
 Or use npm scripts directly:
@@ -466,7 +481,9 @@ shows only bundling and transform errors, so don't wait on it for app output.
 
 The native log pipelines are unaffected: Android still gets `ReactNativeJS` in `logcat`, and
 iOS still gets `com.facebook.react.log` in the unified log. Those two commands remain the
-quickest way to watch a run, and the only way to watch one headlessly.
+quickest way to watch a run, and the only way to watch one headlessly. If you're working
+interactively in VS Code, see **VS Code (optional)** at the end of this doc for a third
+option.
 
 ### Metro
 
@@ -706,3 +723,41 @@ cd android
 # APK: android/app/build/outputs/apk/release/app-release.apk
 # AAB (Play Store): ./gradlew bundleRelease
 ```
+
+---
+
+## VS Code (optional)
+
+Everything above works from a terminal alone. This section is only for people editing in
+VS Code who want IDE-integrated features instead.
+
+### Live logs via the React Native Tools extension
+
+The `msjsdiag.vscode-react-native` extension can stream live JS console output straight into
+VS Code's **Debug Console** — no terminal command needed — but only with the right launch
+config, and the wrong one fails silently rather than erroring.
+
+This app runs on **Hermes** (the RN default since 0.70), and the extension ships two attach
+configs that look interchangeable but are not:
+
+| Config (`.vscode/launch.json`) | `type` | Result on a Hermes app |
+| --- | --- | --- |
+| "Attach to packager" | `reactnative` | Connects — logs *"Established a connection with the Proxy (Packager)"* — but the Debug Console stays empty forever. This is the legacy JSC remote-debugging path. |
+| "Attach to Hermes application - Experimental" | `reactnativedirect` | Connects **and** streams console output live. |
+
+Both are already checked in at [`.vscode/launch.json`](.vscode/launch.json), along with two
+build-and-launch configs. `.vscode/` is otherwise gitignored repo-wide; this one file is a
+deliberate exception in the root `.gitignore`, because the Hermes distinction above is
+non-obvious enough that it is worth shipping rather than making each person rediscover it.
+
+Use the Hermes one for live logs:
+
+1. Launch the app on a simulator/emulator first (`./start.sh ios|android`).
+2. Run and Debug panel (⇧⌘D) → select **"Attach to Hermes application - Experimental"** from
+   the dropdown at the top → press F5 (not the generic Run ▶ menu — that only offers "Start
+   Debugging" against whatever config is currently selected).
+3. Watch the **Debug Console** tab at the bottom, not the integrated Terminal.
+
+The trap: "Attach to packager" completes its handshake with no error either way, so a clean
+"connection established" message is not proof you're seeing logs — check for actual log
+lines, not just the connection message.

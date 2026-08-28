@@ -108,6 +108,14 @@ yarn-error.log*
 # ── IDE ───────────────────────────────────────────────────────────────────
 .idea/
 .vscode/
+# Exception: the RN demo's debug configs are shared project setup, not personal IDE
+# state. The default "Attach to packager" config silently produces no output on Hermes
+# (which this app uses) — you need the "reactnativedirect" config instead. That is
+# non-obvious enough to be worth shipping rather than making each person rediscover.
+# Both the directory and the file must be re-included: git cannot un-ignore a file
+# whose parent directory is excluded.
+!bitdrift-shop/reactnative/.vscode/
+!bitdrift-shop/reactnative/.vscode/launch.json
 *.swp
 *.swo
 *.tmp

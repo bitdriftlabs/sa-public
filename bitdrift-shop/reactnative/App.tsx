@@ -1,8 +1,15 @@
 import React, {useRef, useEffect} from 'react';
-import {View, StyleSheet, StatusBar, Platform} from 'react-native';
+import {View, StyleSheet, StatusBar, Platform, LogBox} from 'react-native';
 import {NavigationContainer, NavigationContainerRef} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
+
+// payment_failed is a *simulated* failure the infinite demo loop triggers on purpose
+// (see SimulationContext's failProb roll) — it's still logged to bitdrift as a real
+// error via ScreenLogger.logError so the dashboard demonstrates error capture, but it
+// isn't an app bug, so suppress RN's default LogBox popup for it. Other console.error
+// calls still surface normally.
+LogBox.ignoreLogs(['payment_failed']);
 
 // Workshop 1 — SDK Initialization
 // Import and initialise the bitdrift Capture SDK as early as possible so all
