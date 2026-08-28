@@ -7,7 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import {getSessionURL} from '@bitdrift/react-native';
+import {getDeviceID, getSessionURL} from '@bitdrift/react-native';
 import {BITDRIFT_API_KEY, BITDRIFT_API_HOST} from '../config';
 import {ApiClient} from '../api/ApiClient';
 import {Colors} from '../utils/colors';
@@ -57,7 +57,6 @@ export const WelcomeScreen: React.FC<ScreenProps<'Welcome'>> = ({navigation}) =>
   // because the SDK builds the URL as host:443 which iOS rejects.
   const onDeviceCode = React.useCallback(async () => {
     try {
-      const {getDeviceID} = require('@bitdrift/react-native');
       const deviceId: string = await getDeviceID();
       const apiUrl = BITDRIFT_API_HOST ?? 'https://api.bitdrift.io';
       const res = await fetch(`${apiUrl}/v1/device/code`, {
@@ -158,7 +157,10 @@ export const BrowseScreen: React.FC<ScreenProps<'Browse'>> = ({navigation}) => {
     ApiClient.getBrowse().then(setData).catch(() => undefined);
   }, []);
 
-  const products = data?.products ?? [];
+  // useMemo, not a bare `data?.products ?? []`: the array is a dependency of the scoring
+  // effect below, and a fresh identity each render would re-run the ~800ms similarity
+  // pass on every re-render rather than only when the catalog actually changes.
+  const products = React.useMemo(() => data?.products ?? [], [data]);
 
   // Recommendations v2: the expensive on-thread scoring pass, gated on the same flag as
   // Android's SimulationManager.recommendationsV2Enabled. trackSpanNested hands the span

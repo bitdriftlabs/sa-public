@@ -44,7 +44,7 @@ Every build prints which one is active, e.g. `bitdrift capture dependency: LOCAL
 
 ### Step 1: Start the backend
 
-Needs a running Docker daemon — on macOS this repo uses [Colima](https://github.com/abiquo/colima)
+Needs a running Docker daemon — on macOS this repo uses [Colima](https://github.com/abiosoft/colima)
 rather than Docker Desktop; see [backend/README.md](backend/README.md#prerequisites-macos) if
 `docker ps` isn't already working.
 

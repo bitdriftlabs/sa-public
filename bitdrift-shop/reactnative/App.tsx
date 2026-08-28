@@ -1,8 +1,30 @@
 import React, {useRef, useEffect} from 'react';
-import {View, StyleSheet, StatusBar, Platform} from 'react-native';
+import {View, StyleSheet, StatusBar, Platform, LogBox} from 'react-native';
 import {NavigationContainer, NavigationContainerRef} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
+
+// This demo generates errors on purpose — simulated payment failures, cart/checkout
+// failures, and the injected ANR / force-quit / crash faults — so that the bitdrift
+// dashboard has real error capture to show. Every one of them goes through
+// ScreenLogger.logError, which calls console.error, which makes RN's LogBox throw a
+// blocking banner over the app. During a demo that banner is pure noise.
+//
+// Matching the logger's own "[ERROR] / [WARNING] <event> | k=v" prefix rather than
+// listing event names: there are eight logError call sites and naming them one at a
+// time is whack-a-mole (payment_failed was suppressed first and api_request_failed
+// promptly took its place). Warnings are covered too — api_response_error and
+// memory_pressure are demo signals in the same way, and they raise the yellow LogBox
+// notice. Only this app's own logger uses that prefix, so warnings and errors raised
+// by React Native itself still surface normally. Anchored with ^ so a framework
+// message that merely quotes "[ERROR] " somewhere in its text is not swallowed too.
+//
+// This hides only the popup. console.error still fires, so the line is still in
+// logcat / the iOS unified log, and bdError() still ships it to bitdrift — the
+// dashboard-side demonstration of error capture is unaffected. If you see repeated
+// api_request_failed there, the backend is genuinely unreachable; see the README's
+// Troubleshooting section.
+LogBox.ignoreLogs([/^\[(ERROR|WARNING)\]\s/]);
 
 // Workshop 1 — SDK Initialization
 // Import and initialise the bitdrift Capture SDK as early as possible so all
@@ -48,6 +70,17 @@ const APP_START_TIME = Date.now();
 const SDK_INIT_STARTED_AT = Date.now();
 init(BITDRIFT_API_KEY, SessionStrategy.Activity, {
   url: BITDRIFT_API_HOST,
+  // Automatic HTTP capture. iOS only — this flag instruments NSURLSession, which is
+  // what RN's fetch uses. Android ignores it and needs the io.bitdrift.capture-plugin
+  // Gradle plugin instead (see android/app/build.gradle).
+  //
+  // Without this, the SDK emits no NETWORK_RESPONSE events, and every network-based
+  // Instant Insight — API Latency by Endpoint, Network Success Rate, Requests by
+  // Endpoint — stays empty. ApiClient's own `api_response` logs are ordinary
+  // structured logs and do not satisfy those OOTB matches. It is also what makes the
+  // `x-capture-path-template` header ApiClient already sends meaningful; with capture
+  // off the header is inert.
+  enableNetworkInstrumentation: true,
   crashReporting: {
     UNSTABLE_enableJsErrors: true,
   },
