@@ -1,6 +1,16 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+// Automatic HTTP capture on Android. RN's fetch goes through OkHttp, which this
+// plugin instruments at build time. The JS `enableNetworkInstrumentation` flag in
+// App.tsx is iOS-only and does nothing here.
+apply plugin: "io.bitdrift.capture-plugin"
+
+bitdrift {
+    instrumentation {
+        automaticOkHttpInstrumentation = true
+    }
+}
 
 /**
  * This is the configuration block to customize your React Native Android app.

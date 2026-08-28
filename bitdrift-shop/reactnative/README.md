@@ -124,8 +124,8 @@ Every bitdrift call funnels through `src/utils/logger.ts`.
 | **Screen Views** | `logScreenView(name)` on every screen | `ScreenContainer.tsx` |
 | **App Launch TTI** | `logAppLaunchTTI()` + `app_cold_start` span | `App.tsx` |
 | **Lifecycle** | `app_open` / `app_close`; `memory_pressure` (iOS) | `appLifecycle.ts` |
-| **HTTP capture** | method, path, status, duration on every call | `ApiClient.ts` |
-| **Path templates** | `x-capture-path-template` on dynamic routes | `ApiClient.ts` |
+| **HTTP capture** | SDK automatic capture (`NETWORK_RESPONSE`), plus the app's own `api_response` log per call | `App.tsx` (iOS), `android/app/build.gradle` (Android), `ApiClient.ts` |
+| **Path templates** | `x-capture-path-template` on dynamic routes, so URLs group as `/api/product/<id>` | `ApiClient.ts` |
 | **Structured logs** | ~20 business events (`add_to_cart`, `checkout_started`, `payment_completed`, `payment_failed`, …) | `logger.ts`, screens |
 | **Global fields** | `app_variant=sdk-demo` + `platform` + `ff_*` mirrors | `App.tsx`, `variants.ts` |
 | **Entity ID** | `setEntityId()` per journey | `logger.ts` |
@@ -134,6 +134,17 @@ Every bitdrift call funnels through `src/utils/logger.ts`.
 | **Device Code** | `getDeviceID()` + button on Welcome | `ShoppingScreens.tsx` |
 | **Support Log** | `getSessionURL()` button + `supportlog` field | `ShoppingScreens.tsx` |
 | **Crash reporting** | 20-entry crash catalog + native signal module | `crashes.ts`, `BdCrash` |
+
+### Automatic network capture
+
+Enabled differently on each platform, and **both** are required — neither covers the other:
+
+| Platform | How | Where |
+|---|---|---|
+| iOS | `enableNetworkInstrumentation: true` in `init()` (instruments NSURLSession, which RN's `fetch` uses) | `App.tsx` |
+| Android | `io.bitdrift.capture-plugin` Gradle plugin + `bitdrift { instrumentation { automaticOkHttpInstrumentation = true } }` (instruments OkHttp, which RN's `fetch` uses) | `android/build.gradle`, `android/app/build.gradle` |
+
+With these off the SDK emits no `NETWORK_RESPONSE` events, and every network-based Instant Insight — API Latency by Endpoint, Network Success Rate, Requests by Endpoint, Success Rate by Endpoint — renders empty. The app's own `api_response` logs still appear, but they are ordinary structured logs and do not satisfy those built-in matches.
 
 ### Advanced screen (button on Welcome)
 
@@ -304,7 +315,9 @@ cd ios && pod install --repo-update && cd ..   # --repo-update is required
 npx tsc --noEmit                               # catch removed/renamed APIs
 ```
 
-Android needs no extra step — Gradle resolves the Maven artifact on the next build. Because everything the app imports funnels through `logger.ts`, `tsc --noEmit` reliably catches an upgrade that drops an API this demo uses.
+On Android, also bump `io.bitdrift:capture-plugin` in `android/build.gradle` to the same version — it drives the automatic OkHttp instrumentation and should track the `io.bitdrift:capture` version that `@bitdrift/react-native` resolves (see `node_modules/@bitdrift/react-native/android/build.gradle`). Gradle picks up the SDK itself on the next build.
+
+Because everything the app imports funnels through `logger.ts`, `tsc --noEmit` reliably catches an upgrade that drops an API this demo uses.
 
 ---
 

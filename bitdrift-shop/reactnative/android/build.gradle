@@ -15,6 +15,11 @@ buildscript {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        // bitdrift OkHttp instrumentation. Keep this version in step with the
+        // io.bitdrift:capture version that @bitdrift/react-native resolves — see
+        // node_modules/@bitdrift/react-native/android/build.gradle. Applied in
+        // app/build.gradle; without it Android emits no NETWORK_RESPONSE events.
+        classpath("io.bitdrift:capture-plugin:0.23.12")
     }
 }
 

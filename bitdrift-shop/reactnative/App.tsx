@@ -69,6 +69,17 @@ const APP_START_TIME = Date.now();
 const SDK_INIT_STARTED_AT = Date.now();
 init(BITDRIFT_API_KEY, SessionStrategy.Activity, {
   url: BITDRIFT_API_HOST,
+  // Automatic HTTP capture. iOS only — this flag instruments NSURLSession, which is
+  // what RN's fetch uses. Android ignores it and needs the io.bitdrift.capture-plugin
+  // Gradle plugin instead (see android/app/build.gradle).
+  //
+  // Without this, the SDK emits no NETWORK_RESPONSE events, and every network-based
+  // Instant Insight — API Latency by Endpoint, Network Success Rate, Requests by
+  // Endpoint — stays empty. ApiClient's own `api_response` logs are ordinary
+  // structured logs and do not satisfy those OOTB matches. It is also what makes the
+  // `x-capture-path-template` header ApiClient already sends meaningful; with capture
+  // off the header is inert.
+  enableNetworkInstrumentation: true,
   crashReporting: {
     UNSTABLE_enableJsErrors: true,
   },
