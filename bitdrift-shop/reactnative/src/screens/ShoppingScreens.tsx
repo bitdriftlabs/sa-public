@@ -158,7 +158,10 @@ export const BrowseScreen: React.FC<ScreenProps<'Browse'>> = ({navigation}) => {
     ApiClient.getBrowse().then(setData).catch(() => undefined);
   }, []);
 
-  const products = data?.products ?? [];
+  // useMemo, not a bare `data?.products ?? []`: the array is a dependency of the scoring
+  // effect below, and a fresh identity each render would re-run the ~800ms similarity
+  // pass on every re-render rather than only when the catalog actually changes.
+  const products = React.useMemo(() => data?.products ?? [], [data]);
 
   // Recommendations v2: the expensive on-thread scoring pass, gated on the same flag as
   // Android's SimulationManager.recommendationsV2Enabled. trackSpanNested hands the span
