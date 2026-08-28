@@ -29,7 +29,7 @@ payment failures — so the SDK has real errors to capture. See
 ### Prerequisites (macOS)
 
 The scripts wrap `docker compose`, so they need a Docker daemon but **not Docker
-Desktop**. This repo uses [Colima](https://github.com/abiquo/colima):
+Desktop**. This repo uses [Colima](https://github.com/abiosoft/colima):
 
 ```bash
 brew install colima docker docker-compose
