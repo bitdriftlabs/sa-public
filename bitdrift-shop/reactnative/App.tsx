@@ -4,12 +4,26 @@ import {NavigationContainer, NavigationContainerRef} from '@react-navigation/nat
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 
-// payment_failed is a *simulated* failure the infinite demo loop triggers on purpose
-// (see SimulationContext's failProb roll) — it's still logged to bitdrift as a real
-// error via ScreenLogger.logError so the dashboard demonstrates error capture, but it
-// isn't an app bug, so suppress RN's default LogBox popup for it. Other console.error
-// calls still surface normally.
-LogBox.ignoreLogs(['payment_failed']);
+// This demo generates errors on purpose — simulated payment failures, cart/checkout
+// failures, and the injected ANR / force-quit / crash faults — so that the bitdrift
+// dashboard has real error capture to show. Every one of them goes through
+// ScreenLogger.logError, which calls console.error, which makes RN's LogBox throw a
+// blocking banner over the app. During a demo that banner is pure noise.
+//
+// Matching the logger's own "[ERROR] / [WARNING] <event> | k=v" prefix rather than
+// listing event names: there are eight logError call sites and naming them one at a
+// time is whack-a-mole (payment_failed was suppressed first and api_request_failed
+// promptly took its place). Warnings are covered too — api_response_error and
+// memory_pressure are demo signals in the same way, and they raise the yellow LogBox
+// notice. Only this app's own logger uses that prefix, so warnings and errors raised
+// by React Native itself still surface normally.
+//
+// This hides only the popup. console.error still fires, so the line is still in
+// logcat / the iOS unified log, and bdError() still ships it to bitdrift — the
+// dashboard-side demonstration of error capture is unaffected. If you see repeated
+// api_request_failed there, the backend is genuinely unreachable; see the README's
+// Troubleshooting section.
+LogBox.ignoreLogs([/\[(ERROR|WARNING)\]\s/]);
 
 // Workshop 1 — SDK Initialization
 // Import and initialise the bitdrift Capture SDK as early as possible so all
