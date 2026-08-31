@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/client.dart';
 import '../bd/capture.dart';
+import '../config.dart';
 import '../sim/simulator.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -34,6 +35,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final store = (_info['store_name'] ?? 'Bitdrift Shop').toString();
     final tagline = (_info['tagline'] ?? '').toString();
     final promos = _info['promotions'];
+    // Dimmed label, like the Android app's version block.
+    final versionStyle = TextStyle(
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -50,6 +55,20 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         builder: (context, _) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Version block, like the Android app's welcome header.
+            Center(
+              child: Column(
+                children: [
+                  Text(
+                    'SDK v${Config.captureSdkVersion} (alpha)',
+                    style: versionStyle,
+                  ),
+                  const SizedBox(height: 6),
+                  Text('App v${Config.appVersion}', style: versionStyle),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             if (tagline.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),

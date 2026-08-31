@@ -9,6 +9,8 @@ import 'package:flutter/foundation.dart'
 class Config {
   // Kept in step with the other shop demos so sessions slice identically.
   static const String appVersion = '5.0';
+  /// Mirrors the `capture_flutter` git ref in pubspec.yaml (flutter-prototype-0.0.1).
+  static const String captureSdkVersion = '0.0.1';
   static const String appVariant = 'sdk-demo';
   static const String platform = 'flutter';
 
