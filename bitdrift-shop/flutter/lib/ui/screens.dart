@@ -764,7 +764,6 @@ class DiagnosticsScreen extends StatefulWidget {
 
 class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
   Map<String, dynamic> _info = const {};
-  String _deviceCode = '';
   bool _busy = false;
 
   @override
@@ -779,14 +778,12 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     final sessionId = await Bd.sessionId;
     final sessionUrl = await Bd.sessionUrl;
     final deviceId = await Bd.deviceId;
-    final status = await Bd.getSdkStatus();
     if (!mounted) return;
     setState(() {
       _info = {
         'session_id': sessionId ?? '—',
         'session_url': sessionUrl ?? '—',
         'device_id': deviceId ?? '—',
-        'status': status ?? const <String, dynamic>{},
       };
       _busy = false;
     });
@@ -797,21 +794,8 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
     await _load();
   }
 
-  Future<void> _genCode() async {
-    setState(() => _busy = true);
-    final code = await Bd.createDeviceCode();
-    if (!mounted) return;
-    setState(() {
-      _deviceCode = code ?? '';
-      _busy = false;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    final status = (_info['status'] is Map)
-        ? (_info['status'] as Map).cast<String, dynamic>()
-        : const <String, dynamic>{};
     return ScreenShell(
       title: 'Diagnostics',
       actions: [
@@ -831,35 +815,11 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
           _InfoRow(label: 'Session ID', value: _info['session_id']?.toString() ?? '—'),
           _InfoRow(label: 'Session URL', value: _info['session_url']?.toString() ?? '—'),
           _InfoRow(label: 'Device ID', value: _info['device_id']?.toString() ?? '—'),
-          const Divider(height: 24),
-          for (final e in status.entries)
-            _InfoRow(label: e.key, value: e.value.toString()),
-          const Divider(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _busy ? null : _newSession,
-                  child: const Text('New session'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.tonal(
-                  onPressed: _busy ? null : _genCode,
-                  child: const Text('Device code'),
-                ),
-              ),
-            ],
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: _busy ? null : _newSession,
+            child: const Text('New session'),
           ),
-          if (_deviceCode.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text('Temporary device code:',
-                style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 4),
-            SelectableText(_deviceCode,
-                style: const TextStyle(fontFamily: 'monospace')),
-          ],
         ],
       ),
     );

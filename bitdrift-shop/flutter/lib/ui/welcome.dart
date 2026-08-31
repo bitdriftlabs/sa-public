@@ -21,6 +21,8 @@ class WelcomeScreen extends StatefulWidget {
 class _WelcomeScreenState extends State<WelcomeScreen> {
   Map<String, dynamic> _info = const {};
   SimVariant _variant = SimVariant.control;
+  String _deviceCode = '';
+  bool _busy = false;
 
   @override
   void initState() {
@@ -34,6 +36,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       _info = await Api.welcome();
     } catch (_) {}
     if (mounted) setState(() {});
+  }
+
+  /// Like the Android welcome screen: the button label becomes the code.
+  Future<void> _genCode() async {
+    setState(() => _busy = true);
+    final code = await Bd.createDeviceCode();
+    if (!mounted) return;
+    setState(() {
+      _deviceCode = code ?? '⚠ needs_sdk_key';
+      _busy = false;
+    });
   }
 
   @override
@@ -66,6 +79,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         builder: (context, _) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Device code button (like the Android welcome screen): generating
+            // a code turns the button blue and the label becomes the code.
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor:
+                    _deviceCode.isEmpty ? unselectedBg : const Color(0xFF2196F3),
+                foregroundColor: _deviceCode.isEmpty
+                    ? unselectedFg
+                    : Colors.white,
+                textStyle: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: _deviceCode.isEmpty ? 14 : 11,
+                ),
+              ),
+              onPressed: _busy ? null : _genCode,
+              child: Text(_deviceCode.isEmpty ? 'Device Code' : _deviceCode),
+            ),
+            const SizedBox(height: 16),
             // Version block, like the Android app's welcome header.
             Center(
               child: Column(
