@@ -4,6 +4,26 @@ import '../bd/capture.dart';
 import '../config.dart';
 import '../models/models.dart';
 
+/// Per-category accents, matching the Android app (Components.kt `categoryColors`).
+const Map<String, Color> kCategoryColors = {
+  'Electronics': Color(0xFF6196F3),
+  'Clothing': Color(0xFF9C27B0),
+  'Home & Garden': Color(0xFFFF9800),
+  'Sports': Color(0xFF4CAF50),
+};
+
+/// Per-category icons, matching the Android app (Components.kt `categoryIcons`).
+const Map<String, IconData> kCategoryIcons = {
+  'Electronics': Icons.phone_android,
+  'Clothing': Icons.face,
+  'Home & Garden': Icons.home,
+  'Sports': Icons.star,
+};
+
+Color categoryColor(String name) => kCategoryColors[name] ?? Colors.grey;
+
+IconData categoryIcon(String name) => kCategoryIcons[name] ?? Icons.folder;
+
 String money(dynamic v) {
   final d = double.tryParse((v ?? 0).toString()) ?? 0.0;
   return '\$${d.toStringAsFixed(2)}';

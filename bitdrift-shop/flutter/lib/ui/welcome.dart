@@ -5,6 +5,13 @@ import '../bd/capture.dart';
 import '../config.dart';
 import '../sim/simulator.dart';
 
+/// Variant selector accents, matching the Android app's variant buttons.
+const Map<SimVariant, Color> kVariantColors = {
+  SimVariant.control: Color(0xFF607D8B),
+  SimVariant.variantA: Color(0xFF00BCD4),
+  SimVariant.variantB: Color(0xFFFF9800),
+};
+
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
   @override
@@ -39,6 +46,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     final versionStyle = TextStyle(
       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
     );
+    // Unselected variant-button colors, matching the Android app (this
+    // Flutter's resolveWith-less API: theme values are captured here).
+    final unselectedBg = Theme.of(context).colorScheme.surfaceContainerHighest;
+    final unselectedFg = Theme.of(context).colorScheme.onSurfaceVariant;
 
     return Scaffold(
       appBar: AppBar(
@@ -92,17 +103,27 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             const SizedBox(height: 16),
             Text('Persona', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
-            SegmentedButton<SimVariant>(
-              segments: const [
-                ButtonSegment(value: SimVariant.control, label: Text('Control')),
-                ButtonSegment(value: SimVariant.variantA, label: Text('Variant A')),
-                ButtonSegment(value: SimVariant.variantB, label: Text('Variant B')),
+            // Like the Android app: a row of buttons, colored when selected.
+            Row(
+              children: [
+                for (final v in SimVariant.values) ...[
+                  if (v != SimVariant.control) const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _variant == v ? kVariantColors[v] : unselectedBg,
+                        foregroundColor:
+                            _variant == v ? Colors.white : unselectedFg,
+                      ),
+                      onPressed: () {
+                        setState(() => _variant = v);
+                        sim.setVariant(_variant);
+                      },
+                      child: Text(simVariantLabel(v)),
+                    ),
+                  ),
+                ],
               ],
-              selected: {_variant},
-              onSelectionChanged: (s) {
-                setState(() => _variant = s.first);
-                sim.setVariant(_variant);
-              },
             ),
             const SizedBox(height: 24),
             Text('Browse', style: Theme.of(context).textTheme.titleSmall),
@@ -130,7 +151,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             Row(
               children: [
                 Expanded(
+                  // Android "Sim 10" button color.
                   child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF9800),
+                      foregroundColor: Colors.white,
+                      textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     onPressed: sim.running
                         ? sim.stop
                         : () {
@@ -143,7 +170,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: OutlinedButton(
+                  // Android "SIM ∞" button color.
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF9C27B0),
+                      foregroundColor: Colors.white,
+                      textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     onPressed: sim.running
                         ? null
                         : () {

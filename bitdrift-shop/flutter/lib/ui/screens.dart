@@ -90,11 +90,13 @@ class CategoriesScreen extends StatelessWidget {
             itemCount: cats.length,
             itemBuilder: (context, i) {
               final c = cats[i];
+              final cColor = categoryColor(c.name);
               return ListTile(
-                leading: const Icon(Icons.folder),
-                title: Text(c.name),
+                tileColor: cColor.withValues(alpha: 0.15),
+                leading: Icon(categoryIcon(c.name), color: cColor),
+                title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: Text('${c.productCount} products'),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: Icon(Icons.chevron_right, color: cColor),
                 onTap: () =>
                     Navigator.of(context).pushNamed('category', arguments: c.name),
               );
