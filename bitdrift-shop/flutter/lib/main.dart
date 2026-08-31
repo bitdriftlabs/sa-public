@@ -21,17 +21,23 @@ Future<void> main() async {
   await Bd.field('platform', Config.platform);
   await Bd.field('app_version', Config.appVersion);
 
-  final ttiMs = DateTime.now().difference(t0).inMilliseconds;
   // The alpha SDK has no TTI API; emit it as a completed-span pair (the same
   // signal the other demos emit via paired logs).
-  await Bd.logCompletedSpan('app_cold_start', ttiMs,
-      fields: {'sdk_started': '$started'});
   await Bd.logCompletedSpan('app_cold_start.sdk_init', initMs);
   await Bd.info('app_launched', fields: {'sdk_started': '$started'});
 
   final navKey = GlobalKey<NavigatorState>();
   final sim = Simulator(navKey);
   runApp(ShopApp(navKey: navKey, sim: sim));
+
+  // App-launch TTI: from process start until the first frame is on screen —
+  // measured in a post-frame callback so widget build + first frame are
+  // included (like the other demos' TTI).
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    Bd.logCompletedSpan('app_cold_start',
+        DateTime.now().difference(t0).inMilliseconds,
+        fields: {'sdk_started': '$started'});
+  });
 
   // Crash loop (like the Android demo's "crash on payment"): when the loop is
   // active (scripts/crash-loop.sh set the property), run one journey right

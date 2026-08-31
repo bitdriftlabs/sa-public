@@ -213,7 +213,7 @@ class Simulator extends ChangeNotifier {
     await _resetStack();
 
     // 1. Discovery (browse / search / categories).
-    final discoverySpan = await Bd.startSpan('discovery');
+    final discoverySpan = await Bd.startSpan('product_discovery');
     String productId = '';
     var source = '';
     final roll = _rng.nextDouble();
@@ -315,10 +315,9 @@ class Simulator extends ChangeNotifier {
         fields: {'payment_method': method, 'variant': simVariantLabel(_variant)});
     if (await _stopped(journeySpan)) return;
     // Crash loop (like the Android demo's "crash on payment"): when active,
-    // the journey ends here with a random crash. Close the open spans for a
-    // chance to flush, then die — the script relaunches the app.
+    // the journey ends here with a random crash. Close the still-open journey
+    // span for a chance to flush, then die — the script relaunches the app.
     if (await Crash.loopActive()) {
-      await checkoutSpan?.end(success: true);
       await journeySpan?.end(success: false);
       await Crash.injectRandom();
     }

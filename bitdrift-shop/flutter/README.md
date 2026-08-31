@@ -14,8 +14,9 @@ Android / iOS / React Native apps.
 
 - ✅ Same shopping flow: browse / search / featured / categories → product /
   reviews → cart / wishlist → guest / signin checkout → 4 payment methods →
-  confirmation, plus a Diagnostics screen (session id/url, device code, SDK
-  status).
+  confirmation, a Diagnostics screen (session id/url/device id, new session),
+  and a device-code button on the welcome screen (label becomes the code,
+  like the Android app).
 - ✅ bitdrift `Capture.start` + logging, screen views, global fields, native
   spans, and the session/device APIs.
 - ✅ Variant-driven simulation (Control / Variant A / Variant B) that drives the
@@ -31,6 +32,7 @@ Android / iOS / React Native apps.
 
 - macOS (Apple Silicon) — matches the committed `arm64-v8a` system image.
 - Xcode command-line tools: `xcode-select --install`.
+- JDK 21+ (needed by `sdkmanager` and the Gradle build), e.g. `brew install openjdk@21`.
 - A local backend (next step). Docker/Colima or Python.
 
 ## 1. Start the backend (from `../backend`)
@@ -121,8 +123,10 @@ flutter/
 | `logTrace/Debug/Info/Warning/Error`, `logScreenView`  | ✅ via `bd/capture.dart` |
 | `addField` / `removeField`          | ✅ `app_variant`, `platform`, `ff_*`, `entity_id` |
 | `startSpan` / `endSpan`             | ✅ journey / discovery / checkout spans |
-| `sessionId` / `sessionUrl` / `deviceId` / `getSdkStatus` | ✅ Diagnostics screen |
-| `createTemporaryDeviceCode` / `startNewSession` | ✅ Diagnostics screen |
+| `sessionId` / `sessionUrl` / `deviceId` | ✅ Diagnostics screen |
+| `getSdkStatus` | ⚠️ exposed in alpha, not surfaced in the port |
+| `createTemporaryDeviceCode` | ✅ welcome screen (label becomes the code, like Android) |
+| `startNewSession` | ✅ Diagnostics screen ("New session") |
 | Feature-flag exposure API           | ⚠️ not in alpha → recorded as `ff_*` fields |
 | Entity-id API                       | ⚠️ not in alpha → recorded as `entity_id` field |
 | App-launch TTI API                  | ⚠️ not in alpha → emitted as completed-span pair |

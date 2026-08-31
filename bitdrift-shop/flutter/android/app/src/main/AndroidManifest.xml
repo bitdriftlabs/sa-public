@@ -1,8 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The local demo backend is plain http (10.0.2.2:5173); allow cleartext
+         for this local-only traffic (blocked by default on targetSdk 28+). -->
     <application
         android:label="bitdrift_shop_flutter"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

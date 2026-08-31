@@ -135,6 +135,12 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _searched = false;
 
   @override
+  void initState() {
+    super.initState();
+    Bd.screenView('Search');
+  }
+
+  @override
   void dispose() {
     _ctrl.dispose();
     super.dispose();
@@ -149,8 +155,10 @@ class _SearchScreenState extends State<SearchScreen> {
     });
     try {
       final d = query.isEmpty ? await Api.browse() : await Api.search(query);
+      if (!mounted) return;
       setState(() => _results = Product.list(d['products']));
     } catch (e) {
+      if (!mounted) return;
       setState(() => _error = '$e');
     } finally {
       if (mounted) setState(() => _loading = false);
