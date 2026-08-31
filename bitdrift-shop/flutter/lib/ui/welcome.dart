@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/client.dart';
 import '../bd/capture.dart';
 import '../config.dart';
+import '../crash.dart';
 import '../sim/simulator.dart';
 
 /// Variant selector accents, matching the Android app's variant buttons.
@@ -23,12 +24,19 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   SimVariant _variant = SimVariant.control;
   String _deviceCode = '';
   bool _busy = false;
+  bool _loopActive = false;
 
   @override
   void initState() {
     super.initState();
     Bd.screenView('Welcome');
     _loadInfo();
+    _loadLoop();
+  }
+
+  Future<void> _loadLoop() async {
+    _loopActive = await Crash.loopActive();
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadInfo() async {
@@ -79,6 +87,33 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         builder: (context, _) => ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Crash loop (like the Android demo): while the loop is active the
+            // app runs one journey on launch and crashes at payment. The loop
+            // is script-driven (the app can't setprop here) — stop it with
+            // Ctrl-C in scripts/crash-loop.sh.
+            if (_loopActive) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD32F2F),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.report, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Crash loop ACTIVE — journey runs on launch, crashes at payment (random)',
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             // Device code button (like the Android welcome screen): generating
             // a code turns the button blue and the label becomes the code.
             FilledButton(
@@ -229,6 +264,24 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   style: const TextStyle(color: Colors.grey),
                 ),
               ),
+            const SizedBox(height: 24),
+            Text('Crash', style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 8),
+            // Android's random/cycling crash button color.
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFE53935),
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              onPressed: () => Crash.injectRandom(),
+              child: const Text('Crash: random'),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Crash loop: bash scripts/crash-loop.sh (Ctrl-C to stop)',
+              style: TextStyle(color: Colors.grey),
+            ),
           ],
         ),
       ),

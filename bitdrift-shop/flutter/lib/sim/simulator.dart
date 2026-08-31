@@ -3,7 +3,9 @@ import 'package:flutter/widgets.dart';
 
 import '../api/client.dart';
 import '../bd/capture.dart';
+import '../crash.dart';
 import '../models/models.dart';
+
 
 /// Persona presets — exact ports of the other demos' variant profiles.
 enum SimVariant { control, variantA, variantB }
@@ -101,9 +103,11 @@ const List<String> kSearchTerms = [
 /// Best-effort port of the React Native simulation: it drives the real screens
 /// (via the app's root navigator) while emitting the same structured bitdrift
 /// signal — feature-flag fields, entity, and spans (journey / discovery /
-/// checkout). Deliberately **omits** ANR, force-quit and crash-loop injection:
-/// the alpha Flutter SDK has no Dart→native crash bridge, so those would not be
-/// reported. Screen views are logged by the app's route observer, not here.
+/// checkout). Deliberately **omits** ANR and force-quit (the alpha SDK has no
+/// Dart→native bridge for those). Crash loop: when the loop property is set
+/// (scripts/crash-loop.sh), the journey crashes at payment with a random
+/// native-signal crash, like the Android demo's "crash on payment". Screen
+/// views are logged by the app's route observer, not here.
 class Simulator extends ChangeNotifier {
   final GlobalKey<NavigatorState> _navKey;
   final Random _rng = Random();
@@ -151,6 +155,9 @@ class Simulator extends ChangeNotifier {
     } finally {
       _running = false;
       notifyListeners();
+      // If a journey was interrupted by stop(), the stack may not be back at
+      // the welcome screen — bring it back so the app is in a clean state.
+      await _resetStack();
       await Bd.info(
         'simulation_end',
         fields: {'completed_runs': '$_currentRun', 'total_runs': '$_totalRuns'},
@@ -244,15 +251,18 @@ class Simulator extends ChangeNotifier {
       await Bd.info('discovery_completed',
           fields: {'source': source, 'product_id': productId});
     }
+    if (await _stopped(journeySpan)) return;
 
     // 2. Product detail (+ optional reviews / wishlist).
     if (productId.isNotEmpty) {
       await _go('product', args: productId);
       await Bd.info('product_viewed',
           fields: {'product_id': productId, 'source': source});
+      if (await _stopped(journeySpan)) return;
       if (_rng.nextDouble() < profile.reviewsProb) {
         await _go('reviews', args: productId);
       }
+      if (await _stopped(journeySpan)) return;
       if (_rng.nextDouble() < profile.wishlistProb) {
         await _go('wishlist', args: productId);
         await _safe(() => Api.wishlist(productId));
@@ -261,6 +271,7 @@ class Simulator extends ChangeNotifier {
 
     // 3. Cart.
     await _go('cart');
+    if (await _stopped(journeySpan)) return;
     if (productId.isNotEmpty) await _safe(() => Api.addToCart(productId));
     final extra = profile.extraCartMin +
         _rng.nextInt(
@@ -276,6 +287,7 @@ class Simulator extends ChangeNotifier {
     final checkoutSpan = await Bd.startSpan('checkout',
         fields: {'checkout_type': checkoutType});
     await _go(isGuest ? 'checkout_guest' : 'checkout_signin');
+    if (await _stopped(journeySpan, checkoutSpan)) return;
     String session = '';
     try {
       final resp =
@@ -301,6 +313,15 @@ class Simulator extends ChangeNotifier {
     await _go(paymentRoute(method), args: {'session': session});
     await Bd.info('payment_method_selected',
         fields: {'payment_method': method, 'variant': simVariantLabel(_variant)});
+    if (await _stopped(journeySpan)) return;
+    // Crash loop (like the Android demo's "crash on payment"): when active,
+    // the journey ends here with a random crash. Close the open spans for a
+    // chance to flush, then die — the script relaunches the app.
+    if (await Crash.loopActive()) {
+      await checkoutSpan?.end(success: true);
+      await journeySpan?.end(success: false);
+      await Crash.injectRandom();
+    }
     bool paid = false;
     String orderId = '';
     try {
@@ -328,6 +349,16 @@ class Simulator extends ChangeNotifier {
         });
     await journeySpan?.end(success: true);
     await _resetStack();
+  }
+
+  /// If [stop] was pressed while a journey was in flight, close any spans still
+  /// open and abort the journey. Returns true when the journey was stopped.
+  Future<bool> _stopped(SpanHandle? journey, [SpanHandle? child]) async {
+    if (_running) return false;
+    await Bd.info('journey_stopped');
+    await child?.end(success: false);
+    await journey?.end(success: false);
+    return true;
   }
 
   // ── small helpers ───────────────────────────────────────────────────────
