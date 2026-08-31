@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # Alpha Flutter plugin — pinned to the prototype tag from the support doc.
+  # Alpha Flutter plugin — pinned to the alpha prototype tag.
   capture_flutter:
     git:
       url: https://github.com/bitdriftlabs/capture-sdk.git
