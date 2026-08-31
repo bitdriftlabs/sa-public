@@ -59,7 +59,7 @@ class FeaturedScreen extends StatelessWidget {
               if (banner.isNotEmpty)
                 Container(
                   width: double.infinity,
-                  color: const Color(0x334A6CF7),
+                  color: const Color(0x332196F3),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Text(banner,

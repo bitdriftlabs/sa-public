@@ -22,8 +22,12 @@ class ShopApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
           brightness: Brightness.dark,
+          // Match the Android app: dark-navy background (#1A1A2E) and the
+          // blue accent family it uses (#2196F3 and related).
+          scaffoldBackgroundColor: const Color(0xFF1A1A2E),
+          cardColor: const Color(0xFF232342),
           colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF4A6CF7),
+            seedColor: const Color(0xFF2196F3),
             brightness: Brightness.dark,
           ),
         ),
