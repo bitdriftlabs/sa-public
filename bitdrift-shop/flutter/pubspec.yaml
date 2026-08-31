@@ -1,0 +1,27 @@
+name: bitdrift_shop_flutter
+description: Flutter port of the Bitdrift Shop demo (alpha capture_flutter, best-effort).
+publish_to: 'none'
+version: 5.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  # withValues (Color) requires Flutter 3.27+.
+  flutter: '>=3.27.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Alpha Flutter plugin — pinned to the alpha prototype tag.
+  capture_flutter:
+    git:
+      url: https://github.com/bitdriftlabs/capture-sdk.git
+      ref: flutter-prototype-0.0.1
+      path: platform/capture_flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
