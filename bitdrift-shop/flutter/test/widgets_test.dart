@@ -28,7 +28,7 @@ void main() {
     });
 
     testWidgets('omits the Retry button when onRetry is null', (tester) async {
-      await tester.pumpWidget(MaterialApp(home: ErrorView(message: 'boom')));
+      await tester.pumpWidget(MaterialApp(home: const ErrorView(message: 'boom')));
       expect(find.text('Retry'), findsNothing);
     });
   });
