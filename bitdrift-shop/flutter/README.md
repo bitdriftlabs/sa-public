@@ -77,10 +77,10 @@ In the app: pick a persona, then **Start (3 runs)** / **Infinite** to drive a
 full journey, or tap **Browse** to navigate manually. **Diagnostics** (top
 right) shows the session id/url and lets you generate a temporary device code.
 
-## Config (no runtime `.env`)
+## Config
 
-Values are compile-time `--dart-define`s, passed by `scripts/run-app.sh`
-(see `env.example`):
+Values are compile-time `--dart-define`s. `scripts/run-app.sh` loads them from
+`flutter/.env` (see `env.example`) — shell environment variables win over `.env`:
 
 | Var                | Default                  | Notes                                    |
 |--------------------|--------------------------|------------------------------------------|
