@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../bd/capture.dart';
 import '../config.dart';
 import '../models/models.dart';
+import '../sim/simulator.dart';
 
 /// Per-category accents, matching the Android app (Components.kt `categoryColors`).
 const Map<String, Color> kCategoryColors = {
@@ -44,6 +45,24 @@ class ScreenShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sim = SimulatorScope.of(context);
+    // While a simulation is running, every journey screen gets an X to stop it
+    // (in addition to the Stop button on the welcome screen). The check is
+    // inside the ListenableBuilder so the X also disappears on stop.
+    final List<Widget> actions = [
+      ListenableBuilder(
+        listenable: sim,
+        builder: (context, _) => sim.running
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: 'Stop simulation',
+                color: Theme.of(context).colorScheme.onErrorContainer,
+                onPressed: sim.stop,
+              )
+            : const SizedBox.shrink(),
+      ),
+      ...?this.actions,
+    ];
     return Scaffold(appBar: AppBar(title: Text(title), actions: actions), body: body);
   }
 }
@@ -97,11 +116,12 @@ class ProductImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final u = Config.resolveImageUrl(url);
+    final scheme = Theme.of(context).colorScheme;
     final placeholder = Container(
       width: size,
       height: size,
-      color: const Color(0xFF1F2733),
-      child: Icon(Icons.image, size: size * 0.5, color: const Color(0xFF5A6472)),
+      color: scheme.surfaceContainerHighest,
+      child: Icon(Icons.image, size: size * 0.5, color: scheme.onSurfaceVariant),
     );
     if (u.isEmpty) return placeholder;
     return ClipRRect(

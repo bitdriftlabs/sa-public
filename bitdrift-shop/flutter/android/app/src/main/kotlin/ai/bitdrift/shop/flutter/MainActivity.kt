@@ -1,4 +1,4 @@
-package com.example.bitdrift_shop_flutter
+package ai.bitdrift.shop.flutter
 
 import io.flutter.embedding.android.FlutterActivity
 

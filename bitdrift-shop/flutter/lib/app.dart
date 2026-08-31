@@ -21,6 +21,12 @@ class ShopApp extends StatelessWidget {
         initialRoute: '/',
         theme: ThemeData(
           useMaterial3: true,
+          brightness: Brightness.light,
+          // The Android app's light mode is Material 3's default light scheme
+          // (Theme.kt `lightColorScheme()`), so the defaults match it.
+        ),
+        darkTheme: ThemeData(
+          useMaterial3: true,
           brightness: Brightness.dark,
           // Match the Android app: dark-navy background (#1A1A2E) and the
           // blue accent family it uses (#2196F3 and related).
@@ -31,6 +37,7 @@ class ShopApp extends StatelessWidget {
             brightness: Brightness.dark,
           ),
         ),
+        themeMode: ThemeMode.system,
         routes: {
           '/': (_) => const WelcomeScreen(),
           'browse': (_) => const BrowseScreen(),

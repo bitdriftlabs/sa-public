@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 
+import 'generated/key.dart' as generated;
+
 /// Build-time configuration.
 ///
 /// Values are injected at compile time with `--dart-define=KEY=VALUE`
@@ -15,8 +17,17 @@ class Config {
   static const String platform = 'flutter';
 
   // ── bitdrift ────────────────────────────────────────────────────────────
-  static final String bitdriftApiKey =
-      String.fromEnvironment('BITDRIFT_SDK_KEY', defaultValue: '');
+  // bitdrift API key. `--dart-define` values have been observed to be dropped
+  // from the release kernel in this toolchain, so the key is also baked in as
+  // a plain string literal: `scripts/run-app.sh` writes it into
+  // `lib/generated/key.dart` (from `.env`) before each build and restores the
+  // empty committed stub right after installing.
+  static final String bitdriftApiKey = String.fromEnvironment(
+    'BITDRIFT_SDK_KEY',
+    defaultValue: '',
+  ).isNotEmpty
+      ? String.fromEnvironment('BITDRIFT_SDK_KEY')!
+      : generated.generatedApiKey;
   static final String bitdriftApiUrl = String.fromEnvironment(
     'BITDRIFT_API_HOST',
     defaultValue: 'https://api.bitdrift.io',
