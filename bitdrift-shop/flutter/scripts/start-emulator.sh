@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Boot the emulator headlessly and wait until it reports fully booted.
-# Set EMULATOR_WINDOW=1 to show the emulator UI instead of running headless.
-# If the windowed GPU backend crashes, force software rendering:
-#   EMU_GPU=swiftshader_indirect EMULATOR_WINDOW=1 bash scripts/start-emulator.sh
+# Boot the emulator (windowed by default) and wait until it reports fully booted.
+# On macOS the windowed GPU backend is unstable, so software rendering
+# (swiftshader_indirect) is the default there — override with EMU_GPU=host if
+# you want to try the GPU backend. EMULATOR_WINDOW=0 runs headless.
 set -euo pipefail
 
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
@@ -14,9 +14,12 @@ if adb devices | awk 'NR>1 && $2=="device"' | grep -qE '^emulator-'; then
   echo "An emulator is already running."
 else
   EMU_ARGS=(-avd "$AVD_NAME" -no-audio -no-boot-anim)
-  [[ "${EMULATOR_WINDOW:-0}" == "1" ]] || EMU_ARGS+=(-no-window)
-  # EMU_GPU: force a renderer, e.g. EMU_GPU=swiftshader_indirect (software) when
-  # the windowed GPU backend crashes on this machine.
+  [[ "${EMULATOR_WINDOW:-1}" == "0" ]] && EMU_ARGS+=(-no-window)
+  # The windowed GPU backend crashes on macOS (CoreGraphics context errors),
+  # so default to software rendering there. Override with EMU_GPU=host.
+  if [[ -z "${EMU_GPU:-}" && "$(uname -s)" == "Darwin" ]]; then
+    EMU_GPU=swiftshader_indirect
+  fi
   [[ -n "${EMU_GPU:-}" ]] && EMU_ARGS+=(-gpu "$EMU_GPU")
 
   echo "Starting emulator '$AVD_NAME' ..."
