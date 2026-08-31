@@ -65,16 +65,13 @@ packages Flutter needs, and creates the `bitdrift_shop` AVD.
 ## 4. Build & run
 
 ```bash
-# Show the emulator window (on this Mac the windowed GPU backend crashes;
-# software rendering is the workaround — see Troubleshooting):
-EMU_GPU=swiftshader_indirect EMULATOR_WINDOW=1 bash scripts/start-emulator.sh
+# Windowed by default (software rendering on macOS, where the GPU backend
+# crashes). Headless: EMULATOR_WINDOW=0 bash scripts/start-emulator.sh
+bash scripts/start-emulator.sh
 
 export BITDRIFT_SDK_KEY=your_key      # optional — empty = run locally, no bitdrift upload
-bash scripts/run-app.sh               # flutter run --release on the emulator
+bash scripts/run-app.sh               # build + install + launch
 ```
-
-(Headless is the default: plain `bash scripts/start-emulator.sh` boots without a
-window — fine for CI-style runs where you only watch bitdrift for data.)
 
 In the app: pick a persona, then **Start (3 runs)** / **Infinite** to drive a
 full journey, or tap **Browse** to navigate manually. **Diagnostics** (top
@@ -175,8 +172,9 @@ Whether bitdrift groups these as crash issues is best-effort in the alpha SDK
 
 - **Emulator window flashes and dies (CoreGraphics / `Failed to restore
   previous context` error)** — the windowed GPU backend is unstable on this
-  machine. Start with software rendering:
-  `EMU_GPU=swiftshader_indirect EMULATOR_WINDOW=1 bash scripts/start-emulator.sh`
+  machine. `start-emulator.sh` already defaults to software rendering on
+  macOS (`swiftshader_indirect`); if you overrode it with `EMU_GPU=host`,
+  drop the override to get the default back.
 - **`No application found for TargetPlatform.android_arm64`** — the `android/`
   scaffold is missing. Regenerate it (does not touch `lib/`):
   `flutter create . --platforms=android`
