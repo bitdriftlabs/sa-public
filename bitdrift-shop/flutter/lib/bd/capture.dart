@@ -57,9 +57,12 @@ class Bd {
   static Future<void> setFlag(String name, String value) =>
       _run(() => Capture.addField('ff_$name', value));
 
-  /// Alpha has no entity-id API; record as a global field.
+  /// Sets the entity identifier used for backend correlation with this device.
   static Future<void> entity(String id) =>
-      _run(() => Capture.addField('entity_id', id));
+      _run(() => Capture.setEntityId(id));
+
+  /// Clears the entity identifier used for backend correlation with this device.
+  static Future<void> clearEntity() => _run(Capture.clearEntityId);
 
   // -- session ------------------------------------------------------------
   static Future<String?> get sessionId async {
