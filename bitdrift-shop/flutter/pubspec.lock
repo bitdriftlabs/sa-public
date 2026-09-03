@@ -21,11 +21,11 @@ packages:
     dependency: "direct main"
     description:
       path: "platform/capture_flutter"
-      ref: "flutter-prototype-0.0.1"
-      resolved-ref: "47c8469b2b9ed53f57790ace3ad97a70de8c4bea"
+      ref: "flutter-prototype-0.0.2"
+      resolved-ref: "16c7c0180b1d3de2b6a521b9152a811b4a6a4640"
       url: "https://github.com/bitdriftlabs/capture-sdk.git"
     source: git
-    version: "0.22.16"
+    version: "0.0.2"
   characters:
     dependency: transitive
     description:

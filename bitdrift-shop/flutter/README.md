@@ -6,7 +6,7 @@ fields, entity) so its sessions land in the same dashboards as the
 Android / iOS / React Native apps.
 
 > **Alpha, best-effort.** This uses the `capture_flutter` alpha prototype
-> (git tag `flutter-prototype-0.0.1`). The API may change and some native
+> (git tag `flutter-prototype-0.0.2`). The API may change and some native
 > Capture features are not exposed yet — see
 > [What this wires vs. doesn't](#what-this-wires-vs-doesnt).
 
