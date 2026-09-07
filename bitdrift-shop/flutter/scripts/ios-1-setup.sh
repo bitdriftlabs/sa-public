@@ -45,8 +45,11 @@ fi
 
 echo
 echo "== iOS Simulator runtime =="
-if xcrun simctl list runtimes 2>/dev/null | grep -q "^iOS .*(available"; then
-  xcrun simctl list runtimes | grep "^iOS .*(available"
+# `simctl list runtimes` marks unavailable entries with "(unavailable, ...)"
+# but leaves normally-installed ones unmarked — so match "^iOS " lines and
+# exclude the unavailable ones, rather than requiring a literal "(available".
+if xcrun simctl list runtimes 2>/dev/null | grep "^iOS " | grep -qv "unavailable"; then
+  xcrun simctl list runtimes | grep "^iOS " | grep -v "unavailable"
 else
   echo "✗ No iOS simulator runtime installed."
   echo "  Needs ~8.5 GB free disk space, then run: xcodebuild -downloadPlatform iOS"

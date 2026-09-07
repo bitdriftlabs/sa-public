@@ -32,7 +32,7 @@ Android / iOS / React Native apps.
 ## Prerequisites
 
 - macOS (Apple Silicon) — matches the committed `arm64-v8a` system image.
-- JDK 21+ (needed by the Android `cmdline-tools` and the Gradle build), e.g.
+- JDK 21+ (needed by `sdkmanager` and the Gradle build), e.g.
   `brew install openjdk@21`.
 - A local backend (next step). Docker/Colima or Python.
 - **For Android:** just the JDK above — `scripts/android-1-setup.sh` handles the
@@ -68,9 +68,8 @@ Add the printed `PATH` line to your shell profile.
 ```bash
 bash scripts/android-1-setup.sh
 ```
-Installs the command-line tools (no Studio), ensures the packages Flutter
-needs (licenses are accepted automatically by the newer `android` CLI), and
-creates the `bitdrift_shop` AVD.
+Installs the command-line tools (no Studio), accepts SDK licenses, ensures the
+packages Flutter needs, and creates the `bitdrift_shop` AVD.
 
 **iOS:**
 ```bash
