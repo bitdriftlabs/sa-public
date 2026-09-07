@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Set up the Android SDK command-line tooling and an emulator AVD — no Android
-# Studio. Installs cmdline-tools if missing, accepts licenses, ensures the
-# packages Flutter needs, and creates an AVD. Idempotent.
+# Studio. Installs cmdline-tools if missing, ensures the packages Flutter
+# needs, and creates an AVD. Idempotent.
 set -euo pipefail
 
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
@@ -11,8 +11,8 @@ CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-mac
 
 mkdir -p "$SDK_DIR/cmdline-tools"
 
-# 1. cmdline-tools (sdkmanager / avdmanager) — only if missing.
-if [[ ! -x "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" ]]; then
+# 1. cmdline-tools (android CLI / avdmanager) — only if missing.
+if [[ ! -x "$SDK_DIR/cmdline-tools/latest/bin/android" ]]; then
   echo "Installing Android cmdline-tools into $SDK_DIR/cmdline-tools ..."
   TMP="$(mktemp -d)"
   curl -fsSL -o "$TMP/clt.zip" "$CMDLINE_TOOLS_URL"
@@ -24,8 +24,8 @@ fi
 
 export PATH="$SDK_DIR/cmdline-tools/latest/bin:$SDK_DIR/platform-tools:$PATH"
 
-# 2. JDK — sdkmanager and the Gradle build both need one (21+ for this
-#    project's jvmTarget). Android Studio normally provides this; on a
+# 2. JDK — the `android` CLI and the Gradle build both need one (21+ for
+#    this project's jvmTarget). Android Studio normally provides this; on a
 #    CLI-only machine it must already be installed.
 if ! command -v java >/dev/null 2>&1; then
   echo "ERROR: no JDK found on PATH. Install JDK 21+ first, e.g.:" >&2
@@ -35,13 +35,11 @@ if ! command -v java >/dev/null 2>&1; then
 fi
 echo "JDK: $(java -version 2>&1 | head -1)"
 
-# 2. Accept SDK licenses (needed before installing / building anything).
-echo "Accepting SDK licenses ..."
-yes 2>/dev/null | sdkmanager --licenses >/dev/null || true
-
-# 3. Ensure the packages Flutter's Android build needs.
+# 3. Ensure the packages Flutter's Android build needs. The `android` CLI
+#    (replacement for the deprecated `sdkmanager`) accepts licenses for known
+#    packages automatically, so no separate license-acceptance step is needed.
 echo "Ensuring SDK packages ..."
-sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "emulator"
+android sdk install "platform-tools" "platforms;android-36" "build-tools;36.0.0" "emulator"
 
 # 4. Pick an installed arm64 Google-Play image, or install the standard one.
 find_image() {
@@ -61,7 +59,7 @@ if IMG="$(find_image)"; then
   echo "Using installed system image: $IMG"
 else
   echo "No installed arm64 image found; installing android-36 ..."
-  sdkmanager "system-images;android-36;google_apis_playstore;arm64-v8a"
+  android sdk install "system-images;android-36;google_apis_playstore;arm64-v8a"
   IMG="system-images;android-36;google_apis_playstore;arm64-v8a"
 fi
 
@@ -74,4 +72,4 @@ else
 fi
 
 echo
-echo "Done. To boot it: bash scripts/start-emulator.sh"
+echo "Done. To boot it: bash scripts/android-2-start-emulator.sh"
