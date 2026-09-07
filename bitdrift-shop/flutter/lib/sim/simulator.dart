@@ -216,7 +216,11 @@ class Simulator extends ChangeNotifier {
     if (isGuest) {
       await Bd.clearEntity();
     } else {
-      entity = '${kEntities[_rng.nextInt(kEntities.length)]}-run$_currentRun';
+      // _currentRun resets to 0 on every start() call, so it alone can repeat
+      // across separate simulation batches; microsecondsSinceEpoch is the
+      // non-resetting unique component (matches logCompletedSpan's pattern).
+      entity =
+          '${kEntities[_rng.nextInt(kEntities.length)]}-${DateTime.now().microsecondsSinceEpoch}';
       await Bd.entity(entity);
     }
     _lastEntity = entity;

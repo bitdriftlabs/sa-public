@@ -35,12 +35,14 @@ else
 fi
 
 echo
-echo "== CocoaPods =="
+echo "== CocoaPods (optional — this project uses Swift Package Manager, no Podfile) =="
 if command -v pod >/dev/null 2>&1; then
   echo "✓ CocoaPods $(pod --version)"
+elif command -v brew >/dev/null 2>&1; then
+  echo "Installing CocoaPods via Homebrew (best-effort; not required by this project) ..."
+  brew install cocoapods || echo "  CocoaPods install failed — continuing, since it isn't required here."
 else
-  echo "Installing CocoaPods via Homebrew ..."
-  brew install cocoapods
+  echo "  Homebrew not found — skipping CocoaPods (not required by this project)."
 fi
 
 echo

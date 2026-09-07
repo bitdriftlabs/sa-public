@@ -76,10 +76,11 @@ packages Flutter needs, and creates the `bitdrift_shop` AVD.
 bash scripts/ios-1-setup.sh
 ```
 Checks Xcode is fully installed (not just command-line tools), its license is
-accepted, and a simulator runtime is downloaded — installs CocoaPods
-automatically, but reports the rest as manual steps if missing (they require
-`sudo`/interactive prompts this script can't issue for you). Re-run any time
-to check status.
+accepted, and a simulator runtime is downloaded — best-effort installs
+CocoaPods too (not currently required by this project, which uses Swift
+Package Manager), but reports the rest as manual steps if missing (they
+require `sudo`/interactive prompts this script can't issue for you). Re-run
+any time to check status.
 
 ## 4. Build & run
 
@@ -172,7 +173,7 @@ flutter/
 | `getSdkStatus` | ⚠️ exposed in alpha, not surfaced in the port |
 | `createTemporaryDeviceCode` | ✅ welcome screen (label becomes the code, like Android) |
 | `startNewSession` | ✅ Diagnostics screen ("New session") |
-| `setEntityId` / `clearEntityId`     | ✅ real API as of 0.0.3 (previously faked as an `entity_id` field on 0.0.1). `sim/simulator.dart`: signed-in journeys get a fresh, unique entity every run (`Name-runN`, never reused); guest journeys call `clearEntityId` — a real anonymous session, which 0.0.1 had no way to represent |
+| `setEntityId` / `clearEntityId`     | ✅ real API as of 0.0.3 (previously faked as an `entity_id` field on 0.0.1). `sim/simulator.dart`: signed-in journeys get a fresh, unique entity every run (`Name-<microsecond timestamp>`, never reused across batches — the per-batch run counter alone would repeat); guest journeys call `clearEntityId` — a real anonymous session, which 0.0.1 had no way to represent |
 | Feature-flag exposure API           | ⚠️ not in alpha → recorded as `ff_*` fields |
 | App-launch TTI API                  | ⚠️ not in alpha → emitted as completed-span pair |
 | Network request/response capture    | ⚠️ not exposed → `x-capture-path-template` header + `api_*` structured logs |
