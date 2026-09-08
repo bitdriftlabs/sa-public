@@ -11,7 +11,9 @@ CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-mac
 
 mkdir -p "$SDK_DIR/cmdline-tools"
 
-# 1. cmdline-tools (sdkmanager / avdmanager) — only if missing.
+# 1. cmdline-tools (sdkmanager / avdmanager) — only if missing. Google's
+#    distributed archive only ships sdkmanager/avdmanager/etc.; it does not
+#    include a unified `android` binary, so check for sdkmanager here.
 if [[ ! -x "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" ]]; then
   echo "Installing Android cmdline-tools into $SDK_DIR/cmdline-tools ..."
   TMP="$(mktemp -d)"
@@ -35,15 +37,15 @@ if ! command -v java >/dev/null 2>&1; then
 fi
 echo "JDK: $(java -version 2>&1 | head -1)"
 
-# 2. Accept SDK licenses (needed before installing / building anything).
+# 3. Accept SDK licenses (needed before installing / building anything).
 echo "Accepting SDK licenses ..."
 yes 2>/dev/null | sdkmanager --licenses >/dev/null || true
 
-# 3. Ensure the packages Flutter's Android build needs.
+# 4. Ensure the packages Flutter's Android build needs.
 echo "Ensuring SDK packages ..."
 sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" "emulator"
 
-# 4. Pick an installed arm64 Google-Play image, or install the standard one.
+# 5. Pick an installed arm64 Google-Play image, or install the standard one.
 find_image() {
   local d pkg
   for d in "$SDK_DIR"/system-images/*/google_apis_playstore/arm64-v8a; do
@@ -65,7 +67,7 @@ else
   IMG="system-images;android-36;google_apis_playstore;arm64-v8a"
 fi
 
-# 5. Create the AVD if it does not exist.
+# 6. Create the AVD if it does not exist.
 if avdmanager list avd | grep -q "^Name: $AVD_NAME$"; then
   echo "AVD '$AVD_NAME' already exists."
 else
@@ -74,4 +76,4 @@ else
 fi
 
 echo
-echo "Done. To boot it: bash scripts/start-emulator.sh"
+echo "Done. To boot it: bash scripts/android-2-start-emulator.sh"

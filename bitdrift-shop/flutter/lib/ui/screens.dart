@@ -589,10 +589,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Map<String, dynamic> _args = const {};
   bool _busy = false;
   String _error = '';
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ModalRoute.of(context) depends on an InheritedWidget, so it can't be
+    // called from initState() — do it here instead, guarded to run once.
+    if (_initialized) return;
+    _initialized = true;
     final a = ModalRoute.of(context)?.settings.arguments;
     if (a is Map) _args = a.map((k, v) => MapEntry(k.toString(), v));
     Bd.screenView(_payLabel(widget.method));
@@ -687,10 +692,15 @@ class PaymentFailedScreen extends StatefulWidget {
 
 class _PaymentFailedScreenState extends State<PaymentFailedScreen> {
   Map<String, dynamic> _args = const {};
+  bool _initialized = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ModalRoute.of(context) depends on an InheritedWidget, so it can't be
+    // called from initState() — do it here instead, guarded to run once.
+    if (_initialized) return;
+    _initialized = true;
     final a = ModalRoute.of(context)?.settings.arguments;
     if (a is Map) _args = a.map((k, v) => MapEntry(k.toString(), v));
     Bd.screenView('PaymentFailed');

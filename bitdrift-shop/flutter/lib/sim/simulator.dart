@@ -202,11 +202,33 @@ class Simulator extends ChangeNotifier {
 
   Future<void> _journey() async {
     final profile = kProfiles[_variant]!; // every SimVariant has a profile
-    final entity = kEntities[_rng.nextInt(kEntities.length)];
+
+    // Decide guest vs signed-in up front so entity correlation covers the
+    // whole journey, not just checkout, and reuse it at checkout below
+    // instead of re-rolling. Signed-in journeys get a fresh, unique entity
+    // every run (real setEntityId as of SDK 0.0.3) — each run models a
+    // different signed-in user, never a repeat. Guest journeys clear any
+    // prior entity (real clearEntityId, also new in 0.0.3) — a true
+    // anonymous session, which the 0.0.1 alpha had no way to represent.
+    final isGuest = _rng.nextDouble() < profile.guestProb;
+    final checkoutType = isGuest ? 'guest' : 'signin';
+    var entity = '';
+    if (isGuest) {
+      await Bd.clearEntity();
+    } else {
+      // _currentRun resets to 0 on every start() call, so it alone can repeat
+      // across separate simulation batches; microsecondsSinceEpoch is the
+      // non-resetting unique component (matches logCompletedSpan's pattern).
+      entity =
+          '${kEntities[_rng.nextInt(kEntities.length)]}-${DateTime.now().microsecondsSinceEpoch}';
+      await Bd.entity(entity);
+    }
     _lastEntity = entity;
-    await Bd.entity(entity);
-    await Bd.info('journey_start',
-        fields: {'variant': simVariantLabel(_variant), 'entity': entity});
+    await Bd.info('journey_start', fields: {
+      'variant': simVariantLabel(_variant),
+      'checkout_type': checkoutType,
+      if (entity.isNotEmpty) 'entity': entity,
+    });
     final journeySpan = await Bd.startSpan('journey',
         fields: {'variant': simVariantLabel(_variant)});
 
@@ -281,9 +303,8 @@ class Simulator extends ChangeNotifier {
       await _safe(() => Api.addToCart(catalog[_rng.nextInt(catalog.length)].id));
     }
 
-    // 4. Checkout (guest vs signin).
-    final isGuest = _rng.nextDouble() < profile.guestProb;
-    final checkoutType = isGuest ? 'guest' : 'signin';
+    // 4. Checkout (guest vs signin — decided at journey start, see entity
+    //    setup above; reused here rather than re-rolled).
     final checkoutSpan = await Bd.startSpan('checkout',
         fields: {'checkout_type': checkoutType});
     await _go(isGuest ? 'checkout_guest' : 'checkout_signin');
