@@ -41,7 +41,7 @@ fi
 #    key never lingers on disk. Length only is ever printed.
 GEN_KEY="$ROOT/lib/generated/key.dart"
 stub_key_file() {
-  if git -C "$ROOT" cat-file -e HEAD:lib/generated/key.dart 2>/dev/null; then
+  if git -C "$ROOT" cat-file -e HEAD:./lib/generated/key.dart 2>/dev/null; then
     git -C "$ROOT" checkout -- lib/generated/key.dart
   else
     printf '// GENERATED STUB — do not edit by hand or commit with a real key.\n// scripts/android-3-start-app.sh overwrites this with a live key before each build and\n// restores this stub immediately after installing the APK.\nconst String generatedApiKey = %s;\n' "''" > "$GEN_KEY"
@@ -63,8 +63,13 @@ DART_DEFINES=()
 [[ -n "${BACKEND_PORT:-}" ]] && DART_DEFINES+=(--dart-define="BACKEND_PORT=$BACKEND_PORT")
 
 # 5. Build the release APK with the compile-time defines.
+#    GRADLE_OPTS silences the JDK's "restricted method" warning that Gradle's
+#    native-platform library triggers on JDK 24+ (org.gradle.jvmargs in
+#    gradle.properties only reaches the daemon, not the gradlew launcher JVM
+#    that prints this).
 cd "$ROOT"
-flutter build apk --release "${DART_DEFINES[@]}"
+export GRADLE_OPTS="${GRADLE_OPTS:-} --enable-native-access=ALL-UNNAMED"
+flutter build apk --release ${DART_DEFINES[@]+"${DART_DEFINES[@]}"}
 
 # 6. Install and launch.
 APK="$ROOT/build/app/outputs/flutter-apk/app-release.apk"

@@ -62,6 +62,9 @@ bash scripts/0-install-flutter.sh
 Clones Flutter (stable) to `~/development/flutter` and runs `flutter doctor`.
 Add the printed `PATH` line to your shell profile.
 
+Verified against Flutter **3.47.2** (stable channel, Dart 3.13.2) as of
+2026-09-08 — the current stable release at that time.
+
 ## 3. Set up the platform toolchain (one-time)
 
 **Android:**
