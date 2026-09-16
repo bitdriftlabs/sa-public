@@ -13,8 +13,11 @@ class Config {
   static const String appVersion = '5.0';
   /// Mirrors the `capture_flutter` git ref in pubspec.yaml (flutter-prototype-0.0.4).
   static const String captureSdkVersion = '0.0.4';
-  /// Mirrors the "Verified against Flutter" version in README.md — update both together.
-  static const String flutterSdkVersion = '3.47.2';
+  /// The Flutter version this project was last verified against — not
+  /// necessarily the version used for the current build (pubspec only
+  /// requires >=3.44.0). Mirrors the "Verified against Flutter" version in
+  /// README.md — update both together.
+  static const String verifiedFlutterSdkVersion = '3.47.2';
   static const String appVariant = 'sdk-demo';
   static const String platform = 'flutter';
 

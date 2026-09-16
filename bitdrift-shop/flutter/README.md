@@ -63,7 +63,9 @@ Clones Flutter (stable) to `~/development/flutter` and runs `flutter doctor`.
 Add the printed `PATH` line to your shell profile.
 
 Verified against Flutter **3.47.2** (stable channel, Dart 3.13.2) as of
-2026-09-16 — the current stable release at that time.
+2026-09-16. The install step above always clones whatever is current on the
+stable channel, which may be newer — this line just records the last
+verified baseline, not a minimum or a "latest" claim.
 
 ## 3. Set up the platform toolchain (one-time)
 
