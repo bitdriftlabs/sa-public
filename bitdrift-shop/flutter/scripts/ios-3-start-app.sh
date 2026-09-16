@@ -69,7 +69,7 @@ DART_DEFINES=()
 # 5. Build for the simulator (debug — iOS release builds normally require a
 #    codesigning identity even when the destination is a simulator).
 cd "$ROOT"
-flutter build ios --debug --simulator "${DART_DEFINES[@]}"
+flutter build ios --debug --simulator ${DART_DEFINES[@]+"${DART_DEFINES[@]}"}
 
 # 6. Install and launch.
 APP="$ROOT/build/ios/iphonesimulator/Runner.app"

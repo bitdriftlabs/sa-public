@@ -4,9 +4,9 @@ publish_to: 'none'
 version: 5.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
-  # withValues (Color) requires Flutter 3.27+.
-  flutter: '>=3.27.0'
+  sdk: '>=3.12.0 <4.0.0'
+  # capture_flutter 0.0.4+ requires Flutter 3.44+ / Dart 3.12+ (Built-in Kotlin support).
+  flutter: '>=3.44.0'
 
 dependencies:
   flutter:
@@ -15,7 +15,7 @@ dependencies:
   capture_flutter:
     git:
       url: https://github.com/bitdriftlabs/capture-sdk.git
-      ref: flutter-prototype-0.0.3
+      ref: flutter-prototype-0.0.4
       path: platform/capture_flutter
 
 dev_dependencies:

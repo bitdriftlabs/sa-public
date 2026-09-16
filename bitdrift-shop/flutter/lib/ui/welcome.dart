@@ -142,6 +142,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text('App v${Config.appVersion}', style: versionStyle),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Flutter v${Config.flutterSdkVersion}',
+                    style: versionStyle,
+                  ),
                 ],
               ),
             ),

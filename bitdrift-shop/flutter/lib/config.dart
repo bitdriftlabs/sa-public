@@ -11,8 +11,10 @@ import 'generated/key.dart' as generated;
 class Config {
   // Kept in step with the other shop demos so sessions slice identically.
   static const String appVersion = '5.0';
-  /// Mirrors the `capture_flutter` git ref in pubspec.yaml (flutter-prototype-0.0.3).
-  static const String captureSdkVersion = '0.0.3';
+  /// Mirrors the `capture_flutter` git ref in pubspec.yaml (flutter-prototype-0.0.4).
+  static const String captureSdkVersion = '0.0.4';
+  /// Mirrors the "Verified against Flutter" version in README.md — update both together.
+  static const String flutterSdkVersion = '3.47.2';
   static const String appVariant = 'sdk-demo';
   static const String platform = 'flutter';
 
