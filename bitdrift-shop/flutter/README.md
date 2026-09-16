@@ -6,7 +6,7 @@ fields, entity) so its sessions land in the same dashboards as the
 Android / iOS / React Native apps.
 
 > **Alpha, best-effort.** This uses the `capture_flutter` alpha prototype
-> (git tag `flutter-prototype-0.0.3`). The API may change and some native
+> (git tag `flutter-prototype-0.0.4`). The API may change and some native
 > Capture features are not exposed yet — see
 > [What this wires vs. doesn't](#what-this-wires-vs-doesnt).
 
@@ -63,7 +63,9 @@ Clones Flutter (stable) to `~/development/flutter` and runs `flutter doctor`.
 Add the printed `PATH` line to your shell profile.
 
 Verified against Flutter **3.47.2** (stable channel, Dart 3.13.2) as of
-2026-09-08 — the current stable release at that time.
+2026-09-16. The install step above always clones whatever is current on the
+stable channel, which may be newer — this line just records the last
+verified baseline, not a minimum or a "latest" claim.
 
 ## 3. Set up the platform toolchain (one-time)
 
@@ -238,13 +240,15 @@ Whether bitdrift groups these as crash issues is best-effort in the alpha SDK
   scaffold is missing. Regenerate it (does not touch `lib/`):
   `flutter create . --platforms=android`
 - **`Inconsistent JVM Target Compatibility` gradle failure** — `capture_flutter`
-  0.0.3+ sets its own Java *and* Kotlin targets to 17 internally, and the app
-  targets 21 (`android/app/build.gradle.kts`). These don't need to match
-  across modules; if you see this error, check that nothing in
+  sets its own Java *and* Kotlin targets to 17 internally, and the app targets
+  21 (`android/app/build.gradle.kts`). These don't need to match across
+  modules; if you see this error, check that nothing in
   `android/build.gradle.kts` is force-overriding the plugin's Kotlin target
   (an old `flutter-prototype-0.0.1`-era workaround did this and was removed —
   it clobbered only the Kotlin side of the plugin's config, not the Java side,
-  causing exactly this mismatch).
+  causing exactly this mismatch). As of 0.0.4 the plugin migrated to Flutter's
+  Built-in Kotlin support and no longer applies `org.jetbrains.kotlin.android`
+  directly, which removes one source of this class of mismatch.
 - **`No application found for TargetPlatform.iOS` / no `ios/` folder** —
   regenerate it (does not touch `lib/`): `flutter create . --platforms=ios`
 - **`Xcode installation is incomplete` / `xcodebuild requires Xcode`** — only
