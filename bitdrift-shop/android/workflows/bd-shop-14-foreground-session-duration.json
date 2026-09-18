@@ -3,12 +3,20 @@
   "platform_targets": [
     {
       "android": {
-        "apps": []
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
       }
     },
     {
       "apple": {
-        "apps": []
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop.ios"
+          }
+        ]
       }
     }
   ],

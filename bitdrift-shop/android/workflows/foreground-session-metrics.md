@@ -9,7 +9,9 @@ derived from a pure two-step correlated flow (no app-code span) is unresolved �
 Three workflows — `bd-shop-13-foreground-session-count.json`,
 `bd-shop-14-foreground-session-duration.json`, and
 `bd-shop-15-crash-rate-per-foreground.json` — that measure a foreground episode as its own
-concept (session count, session duration, crash-free-session rate). Session count and
+concept (session count, session duration, crash rate per foreground session — the raw
+crashes ÷ sessions ratio, not its complement, so it rises when reliability worsens; see
+`bd-shop-15`'s own description below for the exact computation). Session count and
 crash rate are pure workflow configuration against logs the Capture SDK already emits on
 its own; session duration needs one small manual span, for reasons covered below.
 
@@ -33,17 +35,22 @@ Full background on the two definitions and why they diverge is in the PRD
 foreground/background transition on its own: on Android it emits a plain `LogType.LIFECYCLE`
 log with body `"AppStart"` on foreground entry and `"AppStop"` on backgrounding (on by
 default, gated by the `client_feature.android.application_lifecycle_reporting` remote-config
-flag). iOS has the same mechanism under different names (`SceneWillEnterFG`/`SceneDidEnterBG`),
-which is why these workflows are Android-only for now.
+flag). iOS has the same mechanism under different names (`SceneWillEnterFG`/`SceneDidEnterBG`).
 
-- **Session count** (`bd-shop-13`) — Count chart on `AppStart`. One increment per foreground
+- **Session count** (`bd-shop-13`) — Count chart on `AppStart` (Android) OR
+  `SceneWillEnterFG` (iOS), so this one's cross-platform. One increment per foreground
   episode.
-- **Crash rate per foreground** (`bd-shop-15`) — Rate chart: numerator is crashes where
+- **Crash rate per foreground** (`bd-shop-15`, Android-only — its BDRL crash-attribution
+  program hasn't been adapted to an iOS-equivalent crash-context field) — Rate chart:
+  numerator is crashes where
   `app_metrics.running_state == "foreground"` (the same condition as
   `bd-shop-06-crash-foreground.json`), denominator is the `AppStart` count from `bd-shop-13`.
   Cross-flow numerator/denominator referencing, proven to work by
   `bd-shop-10-attribution-rate.json`. Background crashes are deliberately excluded from the
-  numerator — they can't be attributed to a foreground episode that never started.
+  numerator — they can't be attributed to a foreground episode that never started. This is
+  the raw crashes ÷ sessions ratio — it moves in the same direction as crash volume (up when
+  reliability worsens), **not** its complement. Computing the complement would need a
+  numerator of crash-free sessions, which isn't directly available as a countable event here.
 
 **Duration (`bd-shop-14`) — one manual span.** The obvious zero-app-code approach is a
 `measure_time_rule` (`RuleMeasureTime`) computing elapsed time between an `AppStart` and the
@@ -67,12 +74,13 @@ an `average_count` time series (`foreground-session-duration-average`) as a sing
 line — added because a customer found the histogram harder to read at a glance than one
 number that moves.
 
-**Cross-platform, unlike `bd-shop-13`/`15`.** The iOS app (`BitdriftShopApp.swift`) emits the
-identical `foreground_session` span from its `scenePhase` handling, so `bd-shop-14` charts
-both platforms' session duration on one line/histogram with no per-platform matcher needed.
-`bd-shop-13`/`15` are still Android-only, since they match on `AppStart`, and iOS's SDK-automatic
-lifecycle log uses different names (`SceneWillEnterFG`/`SceneDidEnterBG`) that these two
-workflows don't yet match on.
+**Cross-platform: `bd-shop-13` and `bd-shop-14`, but not `bd-shop-15`.** The iOS app
+(`BitdriftShopApp.swift`) emits the identical `foreground_session` span from its `scenePhase`
+handling, so `bd-shop-14` charts both platforms' session duration on one line/histogram with
+no per-platform matcher needed. `bd-shop-13` matches `AppStart` (Android) OR
+`SceneWillEnterFG` (iOS), so it's cross-platform too. `bd-shop-15` is still Android-only: its
+denominator is the same `AppStart` count, but its BDRL crash-attribution program hasn't been
+adapted to an iOS-equivalent crash-context field.
 
 ## Deploy
 

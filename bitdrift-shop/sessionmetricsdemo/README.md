@@ -1,8 +1,8 @@
 # Session Metrics Demo
 
 **Work in process.** Three deployable bitdrift workflows that measure session-based
-metrics — session count, session duration, and crash-free-session rate — plus the
-one piece of manual instrumentation needed to support them. Originally built and
+metrics — session count, session duration, and crash rate per foreground session — plus
+the one piece of manual instrumentation needed to support them. Originally built and
 validated against bitdrift's own `bitdrift-shop` demo apps (see `../android/` and
 `../ios/`); this folder is the portable, app-agnostic version meant to be copied into
 any customer's own bitdrift org.
@@ -17,7 +17,7 @@ the PRD (`sessionmetrics/PRD - Session-Based Workflow Metrics.docx`, Appendix A)
 workflows/
   bd-shop-13-foreground-session-count.json        # Session count
   bd-shop-14-foreground-session-duration.json     # Session duration
-  bd-shop-15-crash-rate-per-foreground.json       # Crash-free-session rate
+  bd-shop-15-crash-rate-per-foreground.json       # Crash rate per foreground session
   chart-metadata/
     bd-shop-13-foreground-session-count.chart.json
     bd-shop-14-foreground-session-duration.chart.json
@@ -49,8 +49,8 @@ CLI/schema. Instead, wrap the foreground interval in a span named
 `foreground_session` — see **[instrument-foreground-session-span.md](instrument-foreground-session-span.md)**
 for the exact Android/iOS code. A span's end log carries `_duration_ms` on itself, so
 this is a single-step match with no cross-log correlation, and it's the same span
-name on both platforms, which is why `bd-shop-14` is the only one of the three that's
-cross-platform out of the box.
+name on both platforms. `bd-shop-13` and `bd-shop-14` are both cross-platform out of the
+box; only `bd-shop-15` (crash rate) is Android-only for now, per the note above.
 
 ## Deploy
 

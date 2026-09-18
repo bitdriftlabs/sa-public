@@ -3,7 +3,7 @@
     "rule_id": "foreground-session-count",
     "metadata": {
       "title": "Foreground Session Count (Work in Process)",
-      "summary": { "description": "Count of AppStart logs - the Capture SDK's own automatic foreground-lifecycle event, one per foreground episode (activity count 0 -> 1)." },
+      "summary": { "description": "Count of AppStart (Android) or SceneWillEnterFG (iOS) logs - the Capture SDK's own automatic foreground-lifecycle event, one per foreground episode." },
       "metric_chart_metadata": {
         "time_series_display_mode": {},
         "metadata": [

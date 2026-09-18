@@ -94,19 +94,28 @@ mechanisms don't interact.
    }
    ```
 
-   **iOS — UIKit apps (`AppDelegate`/no `scenePhase`):** bracket the span with
-   app active/resign notifications instead (use the `UIScene` equivalents —
-   `sceneDidBecomeActive` / `sceneWillResignActive` — if the app is
+   **iOS — UIKit apps (`AppDelegate`/no `scenePhase`):** don't use
+   `didBecomeActive`/`willResignActive` alone — both fire on the same transient
+   interruptions called out above (Control Center, incoming call, notification
+   banner), so a plain active/resign pairing closes and reopens the span on every
+   interruption instead of only on a real backgrounding. Use
+   `didEnterBackground` to end the span, since — unlike `willResignActive` — it
+   only fires on a genuine transition to the background, never on a transient
+   interruption; guard the start against a span that's already open, since
+   `didBecomeActive` still fires on both a real foreground entry and after a
+   transient interruption clears (use the `UIScene` equivalents —
+   `sceneDidBecomeActive` / `sceneDidEnterBackground` — if the app is
    scene-based without SwiftUI).
 
    ```swift
    NotificationCenter.default.addObserver(
        forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
    ) { _ in
+       guard span == nil else { return }  // already open -- this is a transient interruption clearing, not a real foreground entry
        span = Logger.startSpan(name: "foreground_session", level: .info)
    }
    NotificationCenter.default.addObserver(
-       forName: UIApplication.willResignActiveNotification, object: nil, queue: .main
+       forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
    ) { _ in
        span?.end(.success)
        span = nil

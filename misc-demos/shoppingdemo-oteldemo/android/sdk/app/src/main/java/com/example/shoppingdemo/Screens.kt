@@ -135,7 +135,7 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
 
         }
 
-        val latestSdkVersion = "0.23.8"
+        val latestSdkVersion = "0.24.2"
         val sdkIsLatest = BuildConfig.BITDRIFT_SDK_VERSION == latestSdkVersion
         Row(
             modifier = Modifier
