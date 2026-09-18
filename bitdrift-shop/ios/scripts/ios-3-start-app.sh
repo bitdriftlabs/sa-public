@@ -46,6 +46,14 @@ if [[ -z "$APP" ]]; then
   exit 1
 fi
 
+# Terminate first: `simctl launch` on an already-running process is a no-op
+# that just returns the existing PID rather than restarting it (verified:
+# calling it twice in a row on a running app returns the same PID both
+# times). Without this, reinstalling a freshly-built binary over a process
+# that's still alive from a previous run leaves the *old* in-memory build
+# running indefinitely -- e.g. still reporting a pre-bump SDK version no
+# matter how many times this script re-installs the new one.
+terminate_app
 xcrun simctl install "$TARGET_ID" "$APP"
 launch_app
 echo "Launched $BUNDLE_ID on $TARGET_ID"
