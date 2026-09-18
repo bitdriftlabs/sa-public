@@ -2,8 +2,8 @@
   {
     "rule_id": "crash-rate-per-foreground",
     "metadata": {
-      "title": "Crash Rate per Foreground Session",
-      "summary": { "description": "Foreground crashes (bd-shop-06 condition) divided by foreground session count (bd-shop-13) - bitdrift's equivalent of New Relic's crash-free-session rate." },
+      "title": "Crash Rate per Foreground Session (Work in Process)",
+      "summary": { "description": "Foreground crashes (bd-shop-06 condition) divided by foreground session count (bd-shop-13)." },
       "metric_chart_metadata": {
         "time_series_display_mode": {},
         "metadata": [

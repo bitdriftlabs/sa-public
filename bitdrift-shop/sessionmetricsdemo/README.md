@@ -1,7 +1,7 @@
 # Session Metrics Demo
 
-Three deployable bitdrift workflows that emulate New Relic Mobile's session-based
-metrics — `Session/Start`, `sessionDuration`, and crash-free-session rate — plus the
+**Work in process.** Three deployable bitdrift workflows that measure session-based
+metrics — session count, session duration, and crash-free-session rate — plus the
 one piece of manual instrumentation needed to support them. Originally built and
 validated against bitdrift's own `bitdrift-shop` demo apps (see `../android/` and
 `../ios/`); this folder is the portable, app-agnostic version meant to be copied into
@@ -29,9 +29,9 @@ instrument-foreground-session-span.md             # The one manual span, needed 
 
 | Workflow | Matches on | Platforms | What it charts |
 |----------|-----------|-----------|-----------------|
-| `bd-shop-13-foreground-session-count.json` | SDK-automatic `AppStart` (Android) or `SceneWillEnterFG` (iOS) log | Android + iOS | Count of foreground episodes — New Relic's `Session/Start` equivalent |
-| `bd-shop-14-foreground-session-duration.json` | `foreground_session` span end, `_duration_ms` | Android + iOS | Foreground-episode duration — P50/P90/P99 histogram plus a single-value average-duration line |
-| `bd-shop-15-crash-rate-per-foreground.json` | issue-match BDRL (`app_metrics.running_state == "foreground"`) ÷ `AppStart` count | Android only | Crashes ÷ foreground sessions — crash-free-session-rate equivalent |
+| `bd-shop-13-foreground-session-count.json` **(WIP)** | SDK-automatic `AppStart` (Android) or `SceneWillEnterFG` (iOS) log | Android + iOS | Count of foreground episodes |
+| `bd-shop-14-foreground-session-duration.json` **(WIP)** | `foreground_session` span end, `_duration_ms` | Android + iOS | Foreground-episode duration — P50/P90/P99 histogram plus a single-value average-duration line |
+| `bd-shop-15-crash-rate-per-foreground.json` **(WIP)** | issue-match BDRL (`app_metrics.running_state == "foreground"`) ÷ `AppStart` count | Android only | Crashes ÷ foreground sessions |
 
 **Count and rate (`13`/`15`) — zero app code.** The Capture SDK already logs every
 foreground/background transition on its own — Android emits `AppStart`/`AppStop`,

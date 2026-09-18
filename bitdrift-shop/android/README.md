@@ -138,9 +138,9 @@ Once the app is generating data, use the **bd-cli** skill to deploy the sample w
 | `bd-shop-11-slow-rendering.json` | on-device frame detection, feature flag exposure | Zero-instrumentation dropped-frame count/histogram split by `recommendations_v2` exposure and by screen; alert on frame-drop spikes — see [demo-slow-rendering.md](demo-slow-rendering.md) |
 | `bd-shop-11b-slow-rendering-manual-span.json` | custom span, feature flag exposure | Same shape as bd-shop-11, matched on a manually-instrumented span instead — illustrative comparison, no alert — see [demo-slow-rendering.md](demo-slow-rendering.md) |
 | `bd-shop-12-metric-grouping.json` | custom metric log, custom field | Waveform + counter metrics ported from misc-demos/metricdemo; work-latency average/histogram/table grouped by simulated `sim_app_version` — see [metric-demo.md](metric-demo.md) |
-| `bd-shop-13-foreground-session-count.json` | SDK-automatic `AppStart` log | Count of foreground episodes — New Relic-style session count — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
-| `bd-shop-14-foreground-session-duration.json` | `foreground_session` span end, `_duration_ms` | Foreground-episode duration — a P50/P90/P99 histogram plus a single-value average-duration line chart — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
-| `bd-shop-15-crash-rate-per-foreground.json` | issue-match BDRL, `rate` chart, SDK-automatic `AppStart` log | Crashes ÷ foreground sessions — crash-free-session-rate equivalent — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
+| `bd-shop-13-foreground-session-count.json` **(WIP)** | SDK-automatic `AppStart` log | Count of foreground episodes — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
+| `bd-shop-14-foreground-session-duration.json` **(WIP)** | `foreground_session` span end, `_duration_ms` | Foreground-episode duration — a P50/P90/P99 histogram plus a single-value average-duration line chart — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
+| `bd-shop-15-crash-rate-per-foreground.json` **(WIP)** | issue-match BDRL, `rate` chart, SDK-automatic `AppStart` log | Crashes ÷ foreground sessions — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
 
 ### Span-timing workflows and dashboards
 
@@ -228,7 +228,7 @@ ID, so the placeholder in each file needs resolving first) and the exact deploy 
 - **[workflows/README.md](workflows/README.md)** — deploy and monitor workflows via bd CLI
 - **[dashboards/README.md](dashboards/README.md)** — deploy dashboards that compose workflow charts via bd CLI
 - **[workflows/foreground-background-crashes.md](workflows/foreground-background-crashes.md)** — foreground vs. background crash workflows: why they're separate, the BDRL behind each, and how to cross-check the split against real data
-- **[workflows/foreground-session-metrics.md](workflows/foreground-session-metrics.md)** — session count/duration/crash-rate workflows built on a `foreground_session` span, emulating New Relic's session metrics; includes `scripts/foreground-cycle.sh` for generating foreground/background cycles from the command line
+- **[workflows/foreground-session-metrics.md](workflows/foreground-session-metrics.md)** *(work in process)* — session count/duration/crash-rate workflows built on a `foreground_session` span; includes `scripts/foreground-cycle.sh` for generating foreground/background cycles from the command line
 - **[workflows/advanced-crash-attribution.md](workflows/advanced-crash-attribution.md)** — blocking-thread and vendor-SDK crash attribution workflows, plus the attribution-rate chart that ties them together
 - **[demo-slow-rendering.md](demo-slow-rendering.md)** — feature-flag-gated slow-rendering bug: setup, live trigger, dashboard/alert walkthrough, and how to diagnose + fix the offending code using bitdrift's output
 - **[metric-demo.md](metric-demo.md)** — synthetic waveform metrics ported from misc-demos/metricdemo, plus a work-latency-by-app-version demo showing how to group/break down a custom metric by a dimension

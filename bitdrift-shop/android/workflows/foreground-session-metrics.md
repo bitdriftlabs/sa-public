@@ -1,22 +1,28 @@
-# Foreground Session Metrics (New Relic-style Session Count / Duration / Crash Rate)
+# Foreground Session Metrics — Session Count / Duration / Crash Rate (Work in Process)
+
+**Status: work in process.** The count and crash-rate workflows (`bd-shop-13`/`15`) are
+validated and working. The duration workflow's underlying approach (a manually-instrumented
+span) is also validated, but the broader investigation into whether the same metric can be
+derived from a pure two-step correlated flow (no app-code span) is unresolved — see the
+"Duration" section below for what was tried and what's still open.
 
 Three workflows — `bd-shop-13-foreground-session-count.json`,
 `bd-shop-14-foreground-session-duration.json`, and
-`bd-shop-15-crash-rate-per-foreground.json` — that emulate New Relic Mobile's session
-metrics (`Session/Start`, `sessionDuration`, crash-free-session rate). Session count and
+`bd-shop-15-crash-rate-per-foreground.json` — that measure a foreground episode as its own
+concept (session count, session duration, crash-free-session rate). Session count and
 crash rate are pure workflow configuration against logs the Capture SDK already emits on
 its own; session duration needs one small manual span, for reasons covered below.
 
 ## Why
 
-New Relic defines a "session" as a foreground episode: it starts when the app comes to
-the foreground and ends when it backgrounds. bitdrift's own `session_id` is a different,
+A "session" here means a foreground episode: it starts when the app comes to the
+foreground and ends when it backgrounds. bitdrift's own `session_id` is a different,
 inactivity-timeout-based concept that survives backgrounding (and in this demo app is
 additionally rotated every 60s while the Metrics demo runs — see
 [metric-demo.md](metric-demo.md#session-handling) — so it's a poor stand-in for "foreground
 episode" even before considering the semantic mismatch). These three workflows measure the
-New Relic-style foreground episode directly, as its own concept, without touching
-`session_id` or the SDK's session strategy.
+foreground episode directly, as its own concept, without touching `session_id` or the SDK's
+session strategy.
 
 Full background on the two definitions and why they diverge is in the PRD
 (`sessionmetrics/PRD - Session-Based Workflow Metrics.docx`, Appendix A).
@@ -31,14 +37,13 @@ flag). iOS has the same mechanism under different names (`SceneWillEnterFG`/`Sce
 which is why these workflows are Android-only for now.
 
 - **Session count** (`bd-shop-13`) — Count chart on `AppStart`. One increment per foreground
-  episode. Directly comparable to New Relic's `Session/Start` metric.
+  episode.
 - **Crash rate per foreground** (`bd-shop-15`) — Rate chart: numerator is crashes where
   `app_metrics.running_state == "foreground"` (the same condition as
   `bd-shop-06-crash-foreground.json`), denominator is the `AppStart` count from `bd-shop-13`.
   Cross-flow numerator/denominator referencing, proven to work by
-  `bd-shop-10-attribution-rate.json`. Directly comparable to New Relic's crash-free-session
-  rate. Background crashes are deliberately excluded from the numerator — they can't be
-  attributed to a foreground episode that never started.
+  `bd-shop-10-attribution-rate.json`. Background crashes are deliberately excluded from the
+  numerator — they can't be attributed to a foreground episode that never started.
 
 **Duration (`bd-shop-14`) — one manual span.** The obvious zero-app-code approach is a
 `measure_time_rule` (`RuleMeasureTime`) computing elapsed time between an `AppStart` and the
@@ -51,7 +56,7 @@ introspection exists to debug further). Raising `max_active_runs` and adding a t
 
 Instead, `AppLifecycleCallbacks.kt` wraps the foreground interval in a `Span` named
 `foreground_session` (started in `onActivityStarted`, ended in `onActivityStopped` — the
-same activity-counter boundary New Relic's own Android agent uses). A span's end log carries
+same activity-counter boundary most mobile-agent SDKs use for this concept). A span's end log carries
 `_duration_ms` on itself, so `bd-shop-14` is a single-step match on the span-end log with a
 plain field reference — no cross-log correlation, no flow-instance bookkeeping, same shape as
 `bd-shop-04-span-durations.json`. This is the one place these workflows aren't pure

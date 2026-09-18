@@ -2,8 +2,8 @@
   {
     "rule_id": "foreground-session-duration-histogram",
     "metadata": {
-      "title": "Foreground Session Duration",
-      "summary": { "description": "_duration_ms histogram for the foreground_session span - elapsed time between the app entering and leaving the foreground, equivalent to New Relic's sessionDuration. Uses a manually-instrumented span rather than the Capture SDK's automatic AppStart/AppStop logs (used by bd-shop-13/15) because a two-step measure-time-between-logs correlation proved unreliable at real cycling volume; a span's self-contained duration field avoids that." },
+      "title": "Foreground Session Duration (Work in Process)",
+      "summary": { "description": "_duration_ms histogram for the foreground_session span - elapsed time between the app entering and leaving the foreground. Uses a manually-instrumented span rather than the Capture SDK's automatic AppStart/AppStop logs (used by bd-shop-13/15) because a two-step measure-time-between-logs correlation proved unreliable at real cycling volume; a span's self-contained duration field avoids that." },
       "metric_chart_metadata": {
         "histogram_bar_chart_display_mode": {},
         "metadata": [
@@ -15,7 +15,7 @@
   {
     "rule_id": "foreground-session-duration-average",
     "metadata": {
-      "title": "Foreground Session Duration (Average)",
+      "title": "Foreground Session Duration (Average) (Work in Process)",
       "summary": { "description": "Average _duration_ms for the foreground_session span, as a single trending line rather than a bucketed histogram - easier to read at a glance than the P50/P90/P99 histogram above." },
       "metric_chart_metadata": {
         "time_series_display_mode": {},
