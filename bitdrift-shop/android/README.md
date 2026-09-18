@@ -86,7 +86,7 @@ Every Capture SDK feature below is wired up in this app, mapped to the call used
 |---------|-------------|----------------|
 | **SDK + build plugin** | `io.bitdrift:capture:0.24.2` (or a local AAR under test — see [Optional: test a local build](#optional-test-a-local-build-of-the-sdk)), `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts) |
 | **Logger startup** | `Logger.start(...)` in `Application.onCreate()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
-| **Session strategy** | `SessionStrategy.Fixed()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
+| **Session strategy** | `SessionConfiguration()` with no `inactivityTimeout` — a fresh session on every process start, never persisted/reused. Matches the iOS app's `.fixed()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
 | **Screen views** | `Logger.logScreenView()` via `NavController.OnDestinationChangedListener` | [MainActivity.kt](app/src/main/java/ai/bitdrift/shop/MainActivity.kt), [ScreenLogger.kt](app/src/main/java/ai/bitdrift/shop/ScreenLogger.kt) |
 | **User identity** | `Logger.setEntityId("demo")` on launch, then rotated per simulated user | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt), [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt) |
 | **Network capture** | `CaptureOkHttpEventListenerFactory` on OkHttp | [ApiClient.kt](app/src/main/java/ai/bitdrift/shop/ApiClient.kt) |

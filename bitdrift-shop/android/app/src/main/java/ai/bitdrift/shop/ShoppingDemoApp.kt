@@ -9,9 +9,8 @@ import android.os.Process
 import android.os.SystemClock
 
 import io.bitdrift.capture.Capture.Logger
-import io.bitdrift.capture.providers.FieldProvider
 import io.bitdrift.capture.providers.Fields
-import io.bitdrift.capture.providers.session.SessionStrategy
+import io.bitdrift.capture.providers.session.SessionConfiguration
 import okhttp3.HttpUrl
 
 class ShoppingDemoApp : Application() {
@@ -21,13 +20,22 @@ class ShoppingDemoApp : Application() {
         appContext = applicationContext
 
         // bitdrift SDK: Logger.start() initializes the SDK with the API key, endpoint, session
-        // strategy, and field providers. Must be called before any logging.
+        // configuration, and startup fields. Must be called before any logging.
         // POC: crash detection, memory monitoring, visual performance (OOTB — no extra calls); session management
+        //
+        // SessionConfiguration() with no inactivityTimeout matches the old SessionStrategy.Fixed():
+        // a fresh session ID on every process start, never persisted/reused across restarts.
+        //
+        // user_id is seeded here from SharedPreferences rather than via a FieldProvider (deprecated
+        // in favor of initialFields + addField/removeField) -- the sign-in/sign-out call sites in
+        // Screens.kt already call Logger.addField("user_id", ...)/removeField("user_id") directly,
+        // so this seed only matters for a process restart while already signed in, where addField's
+        // in-memory state from the prior process is gone but the persisted value isn't.
         Logger.start(
             apiKey = BuildConfig.BITDRIFT_SDK_KEY,
             apiUrl = HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST).build(),
-            sessionStrategy = SessionStrategy.Fixed(),
-            fieldProviders = listOf(UserIdFieldProvider(applicationContext)),
+            sessionConfiguration = SessionConfiguration(),
+            initialFields = readPersistedUserIdField(applicationContext),
         )
         Logger.setEntityId("demo")
         // Register lifecycle callbacks
@@ -121,16 +129,14 @@ class ShoppingDemoApp : Application() {
 }
 
 /**
- * FieldProvider that exposes the currently signed-in user_id on every log.
- * Reading from SharedPreferences means the field survives startNewSession() and
- * process restarts. user_id is a special bitdrift field: it appears in the
- * Timeline session header when present.
+ * Reads the currently signed-in user_id from SharedPreferences, if any, to seed as an
+ * initial field at SDK startup. user_id is a special bitdrift field: it appears in the
+ * Timeline session header when present. Kept in sync thereafter by the sign-in/sign-out
+ * addField/removeField calls in Screens.kt, not by re-reading this on every log.
  */
-class UserIdFieldProvider(private val context: Context) : FieldProvider {
-    override fun invoke(): Fields {
-        val id = context
-            .getSharedPreferences("user_session", Context.MODE_PRIVATE)
-            .getString("user_id", null)
-        return if (id.isNullOrEmpty()) emptyMap() else mapOf("user_id" to id)
-    }
+private fun readPersistedUserIdField(context: Context): Fields {
+    val id = context
+        .getSharedPreferences("user_session", Context.MODE_PRIVATE)
+        .getString("user_id", null)
+    return if (id.isNullOrEmpty()) emptyMap() else mapOf("user_id" to id)
 }

@@ -4,13 +4,18 @@
 # EMU_GPU=swiftshader_indirect if you want software rendering instead.
 # EMULATOR_WINDOW=0 runs headless.
 #
-# Mirrors ../../flutter/scripts/android-2-start-emulator.sh — identical logic,
-# same AVD_NAME default, so either app's start-app script can reuse whichever
-# emulator is already running.
+# Mirrors ../../flutter/scripts/android-2-start-emulator.sh — identical logic.
+# AVD_NAME default was "bitdrift_shop" (matching Flutter's own scripts, so
+# either app's start-app script could reuse whichever emulator was already
+# running) until that AVD hit an unresolved boot failure (HVF/mprotect issues
+# on macOS 26, reproduced in Android Studio too, not just this script) and got
+# deleted. Now defaults to "Medium_Phone_Control", one of Android Studio's own
+# default AVDs, confirmed to boot on this machine -- no longer shares a
+# default with Flutter's scripts unless those get updated too.
 set -euo pipefail
 
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
-AVD_NAME="${AVD_NAME:-bitdrift_shop}"
+AVD_NAME="${AVD_NAME:-Medium_Phone_Control}"
 export PATH="$SDK_DIR/emulator:$SDK_DIR/platform-tools:$PATH"
 
 # Already booted?

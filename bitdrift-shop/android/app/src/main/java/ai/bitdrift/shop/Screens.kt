@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -257,7 +258,7 @@ fun AdvancedScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { navController.popBackStack() }) {
-                Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Back")
+                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -646,7 +647,7 @@ fun BrowseScreen(navController: NavController, simulationManager: SimulationMana
         }
         SecondaryButton(
             title = "Shop by Category",
-            icon = Icons.Default.List
+            icon = Icons.AutoMirrored.Filled.List
         ) {
             navController.navigate(Screen.Categories.route)
         }
@@ -694,7 +695,7 @@ fun SearchScreen(navController: NavController) {
         }
         SecondaryButton(
             title = "Shop by Category",
-            icon = Icons.Default.List
+            icon = Icons.AutoMirrored.Filled.List
         ) {
             navController.navigate(Screen.Categories.route)
         }
@@ -779,7 +780,7 @@ fun CategoriesScreen(navController: NavController) {
         title = "Categories",
         subtitle = subtitle,
         step = 3,
-        icon = Icons.Default.List,
+        icon = Icons.AutoMirrored.Filled.List,
         color = Color(0xFF4CAF50),
         onBack = { navController.popBackStack() },
         onCart = { navController.navigate(Screen.Cart().route) }
@@ -831,7 +832,7 @@ fun CategoryBrowseScreen(navController: NavController, category: String?) {
         title = cat,
         subtitle = subtitle,
         step = 3,
-        icon = Icons.Default.List,
+        icon = Icons.AutoMirrored.Filled.List,
         color = Color(0xFF4CAF50),
         onBack = { navController.popBackStack() },
         onCart = { navController.navigate(Screen.Cart().route) }
@@ -1227,7 +1228,8 @@ fun CheckoutSignInScreen(navController: NavController, productId: String?) {
             apiData = ApiClient.checkoutSignIn()
             checkoutSession = apiData?.optString("checkout_session", "") ?: ""
             // bitdrift SDK: addField() sets user_id on the session so every subsequent log is tagged
-            // with this user. Persisted to SharedPreferences so UserIdFieldProvider survives startNewSession().
+            // with this user. Also persisted to SharedPreferences so ShoppingDemoApp can re-seed it as
+            // an initial field if the process restarts while still signed in (see readPersistedUserIdField).
             // POC: per-user debugging — user_id appears in the Timeline session header for instant identification
             val userId = apiData?.optJSONObject("user")?.optString("id", "") ?: ""
             if (userId.isNotEmpty()) {
@@ -1270,7 +1272,7 @@ fun CheckoutSignInScreen(navController: NavController, productId: String?) {
         }
         SecondaryButton(
             title = "PayPal",
-            icon = Icons.Default.Send
+            icon = Icons.AutoMirrored.Filled.Send
         ) {
             navController.navigate(Screen.PaymentPayPal(checkoutSession).route)
         }
@@ -1431,7 +1433,7 @@ fun PaymentPayPalScreen(navController: NavController, checkoutSession: String?) 
         title = "PayPal",
         subtitle = subtitle,
         step = 6,
-        icon = Icons.Default.Send,
+        icon = Icons.AutoMirrored.Filled.Send,
         color = Color(0xFF2196F3),
         onBack = { navController.popBackStack() },
         onCart = { navController.navigate(Screen.Cart().route) }
