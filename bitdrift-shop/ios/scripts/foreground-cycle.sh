@@ -12,6 +12,12 @@
 #   ./foreground-cycle.sh          # cycle forever, until Ctrl-C
 #   ./foreground-cycle.sh -10      # cycle exactly 10 times
 #   ./foreground-cycle.sh --device -10
+#   ./foreground-cycle.sh --slow -5   # 30s foreground / 20s background per cycle,
+#                                      # instead of the default 6s/5s -- use this to
+#                                      # rule out cycling speed as a factor when a
+#                                      # foreground->background workflow isn't
+#                                      # matching (FOREGROUND_SECONDS/BACKGROUND_SECONDS
+#                                      # env vars still override either default).
 set -uo pipefail
 
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,13 +26,32 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "scripts/demo-lib.sh"
 
 usage() {
-  echo "Usage: $(basename "$0") [--simulator|--device] [-N]" >&2
+  local exit_code="${1:-1}"
+  echo "Usage: $(basename "$0") [--simulator|--device] [--slow] [-N]" >&2
   echo "  No -N: cycle forever (Ctrl-C to stop). -N: cycle exactly N times." >&2
-  exit 1
+  echo "  --slow: 30s foreground / 20s background per cycle, instead of 6s/5s." >&2
+  echo "  --simulator|--device: pick the target explicitly (default: auto-detect)." >&2
+  echo "  --help|-h: show this message." >&2
+  exit "$exit_code"
 }
+
+for arg in "$@"; do
+  [[ "$arg" == "--help" || "$arg" == "-h" ]] && usage 0
+done
 
 parse_target_flags "$@"
 set -- ${PARSED_REST[@]+"${PARSED_REST[@]}"}
+
+SLOW=0
+REMAINING=()
+for arg in "$@"; do
+  if [[ "$arg" == "--slow" ]]; then
+    SLOW=1
+  else
+    REMAINING+=("$arg")
+  fi
+done
+set -- ${REMAINING[@]+"${REMAINING[@]}"}
 
 CYCLES=""
 if [[ $# -gt 0 ]]; then
@@ -34,8 +59,13 @@ if [[ $# -gt 0 ]]; then
   CYCLES="${BASH_REMATCH[1]}"
 fi
 
-FOREGROUND_SECONDS="${FOREGROUND_SECONDS:-6}"
-BACKGROUND_SECONDS="${BACKGROUND_SECONDS:-5}"
+if [[ "$SLOW" -eq 1 ]]; then
+  FOREGROUND_SECONDS="${FOREGROUND_SECONDS:-30}"
+  BACKGROUND_SECONDS="${BACKGROUND_SECONDS:-20}"
+else
+  FOREGROUND_SECONDS="${FOREGROUND_SECONDS:-6}"
+  BACKGROUND_SECONDS="${BACKGROUND_SECONDS:-5}"
+fi
 
 if ! resolve_target "$PARSED_KIND" "$PARSED_ID"; then
   if [[ "${RESOLVE_ERROR:-none}" == "none" ]]; then

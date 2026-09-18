@@ -123,7 +123,8 @@ project's `demo-lib.sh` helpers for consistency with `watchdog.sh`:
 
 ```bash
 ./scripts/ios-1-setup.sh          # one-time: Xcode CLT/license, simulator runtime, .local.xcconfig
-./scripts/ios-2-start-simulator.sh # boot a simulator (DEVICE_NAME, default "iPhone 16")
+./scripts/ios-2-start-simulator.sh # boot a simulator (DEVICE_NAME, default "iPhone 16",
+                                    #   falls back to whatever's installed if not found)
 ./scripts/ios-3-start-app.sh       # xcodebuild + simctl install + launch
 ./scripts/ios-4-stop-app.sh        # stop the app, leaves the simulator running
 ./scripts/ios-5-stop-simulator.sh  # shut down the simulator

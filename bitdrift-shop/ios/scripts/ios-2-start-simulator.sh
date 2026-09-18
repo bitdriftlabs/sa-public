@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Boot an iOS Simulator and open the Simulator.app window.
+# Boot an iOS Simulator and open its GUI window (Simulator.app, or DeviceHub.app
+# on Xcode 27+, which renamed/replaced it).
 # Override the device with DEVICE_NAME=<name>; list options with:
 #   xcrun simctl list devices available
 #
@@ -49,7 +50,11 @@ else
   xcrun simctl boot "$UDID"
 fi
 
-open -a Simulator
+# Xcode 27 renamed/replaced Simulator.app with DeviceHub.app (com.apple.dt.Devices) --
+# try both, oldest-name-first, and only note the lack of a GUI if neither exists
+# (e.g. a CLI-only Xcode install) -- the booted device is still usable either way.
+open -a Simulator 2>/dev/null || open -a DeviceHub 2>/dev/null \
+  || echo "(No Simulator/DeviceHub GUI available on this machine — the device is still booted and usable via simctl/xcodebuild.)"
 
 echo "Simulator is up:"
 xcrun simctl list devices booted

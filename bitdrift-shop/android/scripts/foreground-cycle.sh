@@ -15,13 +15,33 @@
 # Usage:
 #   ./foreground-cycle.sh        # cycle forever, until Ctrl-C
 #   ./foreground-cycle.sh -10    # cycle exactly 10 times
+#   ./foreground-cycle.sh --slow -5   # 30s foreground / 20s background per cycle,
+#                                      # instead of the default 6s/5s -- use this to
+#                                      # rule out cycling speed as a factor when a
+#                                      # foreground->background workflow isn't
+#                                      # matching (FOREGROUND_SECONDS/BACKGROUND_SECONDS
+#                                      # env vars still override either default).
 set -euo pipefail
 
 usage() {
-  echo "Usage: $(basename "$0") [-N]" >&2
+  local exit_code="${1:-1}"
+  echo "Usage: $(basename "$0") [--slow] [-N]" >&2
   echo "  No flag: cycle forever (Ctrl-C to stop). -N: cycle exactly N times." >&2
-  exit 1
+  echo "  --slow: 30s foreground / 20s background per cycle, instead of 6s/5s." >&2
+  echo "  --help|-h: show this message." >&2
+  exit "$exit_code"
 }
+
+SLOW=0
+REMAINING=()
+for arg in "$@"; do
+  case "$arg" in
+    --help|-h) usage 0 ;;
+    --slow) SLOW=1 ;;
+    *) REMAINING+=("$arg") ;;
+  esac
+done
+set -- ${REMAINING[@]+"${REMAINING[@]}"}
 
 CYCLES="${CYCLES:-}"
 if [[ $# -gt 0 ]]; then
@@ -33,8 +53,13 @@ SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export PATH="$SDK_DIR/platform-tools:$PATH"
 
 PKG="ai.bitdrift.shop"
-FOREGROUND_SECONDS="${FOREGROUND_SECONDS:-6}"
-BACKGROUND_SECONDS="${BACKGROUND_SECONDS:-5}"
+if [[ "$SLOW" -eq 1 ]]; then
+  FOREGROUND_SECONDS="${FOREGROUND_SECONDS:-30}"
+  BACKGROUND_SECONDS="${BACKGROUND_SECONDS:-20}"
+else
+  FOREGROUND_SECONDS="${FOREGROUND_SECONDS:-6}"
+  BACKGROUND_SECONDS="${BACKGROUND_SECONDS:-5}"
+fi
 
 EMU_ID="$(adb devices | awk 'NR>1 && $2=="device"{print $1}' | head -n1 || true)"
 if [[ -z "$EMU_ID" ]]; then
