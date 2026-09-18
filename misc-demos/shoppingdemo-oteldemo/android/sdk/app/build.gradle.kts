@@ -40,7 +40,7 @@ android {
         buildConfigField("String", "BITDRIFT_API_HOST", "\"$bitdriftApiHost\"")
         buildConfigField("String", "OTEL_DEMO_HOST", "\"$otelDemoHost\"")
         buildConfigField("int", "OTEL_DEMO_PORT", otelDemoPort)
-        buildConfigField("String", "BITDRIFT_SDK_VERSION", "\"0.23.8\"")
+        buildConfigField("String", "BITDRIFT_SDK_VERSION", "\"0.24.2\"")
     }
 
     buildTypes {
@@ -73,7 +73,7 @@ bitdrift {
 
 dependencies {
     // Workshop §1 (Quickstart): add bitdrift Android SDK dependency first
-    implementation("io.bitdrift:capture:0.23.10")
+    implementation("io.bitdrift:capture:0.24.2")
 
     // OkHttp for backend API calls
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

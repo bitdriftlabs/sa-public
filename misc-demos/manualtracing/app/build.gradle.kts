@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-val captureVersion = "0.23.10"
+val captureVersion = "0.24.2"
 
 android {
     namespace = "ai.bitdrift.manualtracing"

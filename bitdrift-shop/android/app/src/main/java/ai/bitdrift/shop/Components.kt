@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -32,8 +33,6 @@ import io.bitdrift.capture.LogLevel
 import io.bitdrift.capture.events.span.Span
 import io.bitdrift.capture.events.span.SpanResult
 import org.json.JSONObject
-
-private const val CAPTURE_SDK_VERSION = "0.23.10"
 
 // Category color mapping
 private val categoryColors = mapOf(
@@ -102,7 +101,7 @@ fun ScreenContainer(
                 if (onBack != null) {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
@@ -130,7 +129,7 @@ fun ScreenContainer(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (logoResId != null) {
-                val isOutdated = latestSdkVersion != null && latestSdkVersion != CAPTURE_SDK_VERSION
+                val isOutdated = latestSdkVersion != null && latestSdkVersion != Logger.sdkVersion
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -150,7 +149,7 @@ fun ScreenContainer(
                         )
                     }
                     Text(
-                        text = "SDK v$CAPTURE_SDK_VERSION${if (isOutdated) " ⚑" else ""}",
+                        text = "SDK v${Logger.sdkVersion}${if (isOutdated) " ⚑" else ""}",
                         style = MaterialTheme.typography.labelMedium,
                         color = if (isOutdated) Color(0xFFF57C00) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                     )
@@ -262,7 +261,7 @@ fun PrimaryButton(
                 Text(title, style = MaterialTheme.typography.titleMedium)
             }
             Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null
             )
         }
@@ -300,7 +299,7 @@ fun SecondaryButton(
                 Text(title, style = MaterialTheme.typography.titleMedium)
             }
             Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null
             )
         }
@@ -532,7 +531,7 @@ fun CategoryRow(categories: List<JSONObject>, onCategoryClick: (String) -> Unit 
             val name = cat.optString("name", "")
             val count = cat.optInt("product_count", 0)
             val color = categoryColors[name] ?: Color.Gray
-            val icon = categoryIcons[name] ?: Icons.Default.List
+            val icon = categoryIcons[name] ?: Icons.AutoMirrored.Filled.List
             Card(
                 onClick = { onCategoryClick(name) },
                 shape = RoundedCornerShape(12.dp),
@@ -562,7 +561,7 @@ fun CategoryRow(categories: List<JSONObject>, onCategoryClick: (String) -> Unit 
                         )
                     }
                     Icon(
-                        imageVector = Icons.Default.KeyboardArrowRight,
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
                         tint = color
                     )

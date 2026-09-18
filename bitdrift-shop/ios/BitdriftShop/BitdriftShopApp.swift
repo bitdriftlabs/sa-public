@@ -1,3 +1,4 @@
+import Capture
 import SwiftUI
 import UIKit
 
@@ -43,6 +44,25 @@ final class AppLifecycleObserver {
     private var registered = false
     private var lastPhase: ScenePhase?
 
+    // Duration-only, alongside app_open/app_close above: brackets the app's
+    // entire time in the foreground in one span, so its end log carries
+    // _duration_ms on itself - no correlating two separate log lines across a
+    // workflow. Matches the Android app's `foreground_session` span in
+    // AppLifecycleCallbacks.kt exactly (same name, same activity-count-style
+    // boundary) - see workflows/foreground-session-metrics.md on the Android
+    // side for why a span was chosen over matching on lifecycle logs directly.
+    private var foregroundSpan: Span?
+
+    private func startForegroundSpan() {
+        guard foregroundSpan == nil else { return }
+        foregroundSpan = Logger.startSpan(name: "foreground_session", level: .info)
+    }
+
+    private func endForegroundSpan() {
+        foregroundSpan?.end(.success)
+        foregroundSpan = nil
+    }
+
     func register() {
         guard !registered else { return }
         registered = true
@@ -70,6 +90,7 @@ final class AppLifecycleObserver {
             // active edge; `.inactive -> .active` (control centre, notification
             // banner) is not a scene update and would fire at the wrong moment.
             ScreenLogger.logInfo("app_open", ["trigger": "scenePhase.active"])
+            startForegroundSpan()
             WatchdogHangs.blockIfArmed(for: .sceneUpdate)
         case .active where lastPhase != .active:
             // bitdrift SDK: logInfo() emits a structured event with a stable name
@@ -77,10 +98,12 @@ final class AppLifecycleObserver {
             // POC: Workflow matching, Timeline breadcrumbs, alert triggers —
             // stable event names are queryable.
             ScreenLogger.logInfo("app_open", ["trigger": "scenePhase.active"])
+            startForegroundSpan()
         case .background where lastPhase != .background:
             // bitdrift SDK: logInfo() emits a structured event for
             // foreground/background transitions.
             ScreenLogger.logInfo("app_close", ["trigger": "scenePhase.background"])
+            endForegroundSpan()
         default:
             break
         }

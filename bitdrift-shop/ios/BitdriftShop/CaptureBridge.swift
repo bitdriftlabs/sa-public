@@ -48,49 +48,21 @@ enum CaptureBridge {
         // per-call code. Equivalent to the Android app's automatic OkHttp
         // instrumentation via the Gradle plugin.
         // POC: network monitoring — unsampled latency, error rates, throughput per endpoint.
-        // `.activityBased` persists the session ID to disk and resumes it on the
-        // next launch if the gap is under `inactivityThresholdMins`, where
-        // `.fixed()` mints a fresh one on every process start.
+        // `.fixed()` mints a fresh session ID on every process start, matching
+        // the Android app's `SessionStrategy.Fixed()` (ShoppingDemoApp.kt).
         //
-        // The reason to care: a crash the OS reports on the *next* launch is
-        // emitted into whatever session is current at that moment. Under
-        // `.fixed()` that is always a brand-new session, so the crash is
-        // permanently divorced from the screen views that preceded it. Under
-        // `.activityBased` the relaunch resumes the session that died, so the
-        // crash report and the journey land together and a session timeline
-        // reads as one continuous story.
-        //
-        // This DOES make a crash-terminal Sankey close (bd-shop-19,
-        // ai.bitdrift.shop.ios: 26/26 flow completions matched exactly against
-        // a standalone crash count). The fatal issue handler reads the crash
-        // report on the next launch and replays it into the timeline carrying
-        // a snapshot of the field state from the moment of death; under
-        // .fixed() that replay lands in a brand-new session, disconnected from
-        // whatever flow was mid-progress when the process died, and the flow
-        // can never see it. Under .activityBased() the replay lands inside the
-        // SAME session the flow was already walking, and it closes.
-        //
-        // The dependency this creates: it only works if the relaunch lands
-        // within `inactivityThresholdMins` of the crash. A slow relaunch ages
-        // the session out and you are back to a `.fixed()`-shaped empty Sankey
-        // with no visible change in configuration — test your own relaunch
-        // latency against the default 30 min before relying on this.
-        //
-        // Untested: whether the same mechanism closes a flow for
-        // APP_IOS_BUILT_IN_ANR (hangs) — plausible, since it is the same
-        // fatal-issue-handler family, but not verified. `unknown` screen
-        // attribution in bd-shop-18's Ripsaw script is a separate,
-        // field-existence question, not a session one: OOM/jetsam kills have
-        // no distinct ExitReason on iOS at all (PreviousRunInfo's enum has no
-        // memory-pressure value), so they may never get this treatment
-        // regardless of session strategy.
-        //
-        // 30 minutes is the SDK default. During a crash loop that merges many
-        // journeys into one long session, which is good for testing continuity
-        // and worse for reading any single journey in isolation.
+        // Tradeoff vs. the `.activityBased()` this replaced: a crash the OS
+        // reports on the *next* launch is emitted into whatever session is
+        // current at that moment. Under `.fixed()` that's always a brand-new
+        // session, so the crash is permanently divorced from the screen views
+        // that preceded it — bd-shop-19's crash-terminal Sankey (previously
+        // verified 26/26 flow completions matching a standalone crash count
+        // under `.activityBased()`) will read as an empty Sankey under this
+        // strategy, since the fatal-issue replay lands in a new session that
+        // the in-progress flow can never see.
         Logger.start(
             withAPIKey: AppConfig.apiKey,
-            sessionStrategy: .activityBased(),
+            sessionStrategy: .fixed(),
             configuration: .init(apiURL: AppConfig.apiURL),
             fieldProviders: [UserIDFieldProvider()]
         )?.enableIntegrations([.urlSession()])

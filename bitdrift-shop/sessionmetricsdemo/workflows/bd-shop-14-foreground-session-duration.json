@@ -1,0 +1,78 @@
+{
+  "name": "bd-shop — Foreground Session Duration (WIP)",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": []
+      }
+    },
+    {
+      "apple": {
+        "apps": []
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "foreground-end",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_name",
+                      "operator": "EQUAL",
+                      "string_value": "foreground_session"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "foreground-session-duration-histogram",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "foreground-end",
+                "name": "_duration_ms"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "foreground-session-duration-average",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "average_count": {
+              "numerator": {
+                "match_id": "foreground-end",
+                "name": "_duration_ms"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

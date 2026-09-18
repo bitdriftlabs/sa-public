@@ -79,7 +79,7 @@ struct ContentView: View {
         .overlay(alignment: .bottom) {
             // Floating simulation overlay — visible on all screens during a run.
             if sim.isSimulating {
-                SimulationOverlay(sim: sim).padding(.bottom, 16)
+                SimulationOverlay(sim: sim, nav: nav).padding(.bottom, 16)
             }
         }
         .overlay {

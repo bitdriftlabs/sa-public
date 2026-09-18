@@ -28,7 +28,7 @@ This section has been wrong twice, so the current answer is stated with the
 evidence attached.
 
 **Under `sessionStrategy: .fixed()`, it cannot close.** Measured on device
-(`capture-ios` 0.23.11):
+(`capture-ios` 0.24.2):
 
 | Flow shape | Result |
 |---|---|

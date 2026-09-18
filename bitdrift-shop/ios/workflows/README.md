@@ -25,7 +25,7 @@ cycle resets the evaluation window and discards accumulated data.
 | `bd-shop-15-crashes-by-final-screen.json` | Crashes grouped by the screen the user was last on |
 | `bd-shop-17-ios-journey-vs-crashes.json` | Journey Sankey to `Confirmation` + 7-step funnel + crash counts by screen |
 | `bd-shop-18-ios-crashes-by-last-screen-live.json` | Ripsaw: reads the screen trail off the crash report itself |
-| `bd-shop-19-ios-crash-terminal-sankey.json` | Sankey ending at the crash — needs `sessionStrategy: .activityBased()` |
+| `bd-shop-19-ios-crash-terminal-sankey.json` | Sankey ending at the crash — needs `sessionStrategy: .activityBased()`. **Currently non-functional**: the app runs `.fixed()` (see `CaptureBridge.swift`), which reads as an empty Sankey per the measurements below |
 | `bd-shop-20-ios-cold-start-span-timings.json` | Cold-start span waterfall (`app_cold_start` root + `sdk_init`/`scene_render`/`state_restore` children): per-phase P50/P90/P99 histograms, plus one chart comparing all three phases |
 | `bd-shop-21-ios-screen-load-timings.json` | Per-screen P50/P90/P99 load histograms: `welcome_screen_load`, `browse_screen_load`, `catalog_serialize`, `product_detail_load`, `cart_screen_load`, `checkout_screen_load`, `payment_screen_load`, `confirmation_screen_load`, `product_image_load`. No combined chart — 9 series is too cluttered for one comparison line chart |
 | `bd-shop-22-ios-journey-subphase-timings.json` | Per-sub-phase P50/P90/P99 histograms for `discovery_fetch`, `product_view`, `wishlist_add`, `cart_assembly`, `checkout.payment`, `checkout.confirmation`, plus one chart comparing all six |
@@ -38,7 +38,7 @@ This was investigated twice with opposite conclusions, so state both, with the
 evidence attached, rather than pick one.
 
 **Under `sessionStrategy: .fixed()`, it never closes.** Measured on device
-(`capture-ios` 0.23.11):
+(`capture-ios` 0.24.2):
 
 | Flow shape | Result |
 |---|---|

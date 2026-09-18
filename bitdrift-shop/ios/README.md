@@ -3,7 +3,7 @@
 **Version 5.0**
 
 Native SwiftUI demo app simulating an e-commerce shopping experience, **already
-instrumented with the bitdrift Capture SDK** (`capture-ios` 0.23.11 via Swift
+instrumented with the bitdrift Capture SDK** (`capture-ios` 0.24.2 via Swift
 Package Manager). It pairs with the same FastAPI backend the Android app uses, so
 it produces realistic sessions, network traffic, crashes, and performance signals
 out of the box.
@@ -116,6 +116,20 @@ xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop \
   -destination 'platform=iOS Simulator,name=iPhone 16' build
 ```
 
+**No Xcode UI at all?** `scripts/ios-{1..5}-*.sh` verify the toolchain, boot a
+simulator, and build+install+launch from the command line — modeled on the
+Flutter app's own no-Xcode scripts (`../flutter/scripts/ios-*.sh`), reusing this
+project's `demo-lib.sh` helpers for consistency with `watchdog.sh`:
+
+```bash
+./scripts/ios-1-setup.sh          # one-time: Xcode CLT/license, simulator runtime, .local.xcconfig
+./scripts/ios-2-start-simulator.sh # boot a simulator (DEVICE_NAME, default "iPhone 16",
+                                    #   falls back to whatever's installed if not found)
+./scripts/ios-3-start-app.sh       # xcodebuild + simctl install + launch
+./scripts/ios-4-stop-app.sh        # stop the app, leaves the simulator running
+./scripts/ios-5-stop-simulator.sh  # shut down the simulator
+```
+
 The app opens on a 5-second **startup config** screen (crash mode, fast crash,
 OOM-only, auto ∞ sim), then goes to Welcome. **Skip → Normal App** bypasses it and
 clears the crash flags.
@@ -167,9 +181,9 @@ the dashboard in real time.
 
 | Feature | SDK surface | Where it lives |
 |---------|-------------|----------------|
-| **SDK dependency** | `capture-ios` 0.23.11 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
+| **SDK dependency** | `capture-ios` 0.24.2 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
 | **Logger startup** | `Logger.start(withAPIKey:sessionStrategy:configuration:fieldProviders:)` in `App.init()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
-| **Session strategy** | `.activityBased()` — resumes the same session across a crash + relaunch if it lands within `inactivityThresholdMins`, which is what lets `bd-shop-19`'s crash-terminal Sankey close | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
+| **Session strategy** | `.fixed()` — mints a fresh session on every process start, matching the Android app's `SessionStrategy.Fixed()`. Was `.activityBased()`, which is what let `bd-shop-19`'s crash-terminal Sankey close (see [workflows/README.md](workflows/README.md#journey-to-crash-sankey-it-depends-on-session-strategy)) — that Sankey now reads empty under `.fixed()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Network capture** | `.enableIntegrations([.urlSession()])` — automatic, no per-call code | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Path templates** | `x-capture-path-template` header on parameterised routes | [ApiClient.swift](BitdriftShop/ApiClient.swift) |
 | **Screen views** | `Logger.logScreenView(screenName:)`, centrally from `Navigator` | [Navigator.swift](BitdriftShop/Navigator.swift), [ScreenLogger.swift](BitdriftShop/ScreenLogger.swift) |
@@ -179,11 +193,11 @@ the dashboard in real time.
 | **Feature flags** | `Logger.setFeatureFlagExposure(withName:variant:)` for `checkout_flow`, `payment_ui`, `cart_abandon_rate`, `recommendations_v2`, … | [SimulationManager.swift](BitdriftShop/SimulationManager.swift) |
 | **Custom metrics** | `metric_values` ticking once/sec, with `metric_work_latency_ms` auto-rotating across `sim_app_version` — same event/field names as Android, so both feed `bd-shop-12`; walkthrough in [android/metric-demo.md](../android/metric-demo.md) | [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
 | **App launch TTI** | `Logger.logAppLaunchTTI()` after first frame | [ContentView.swift](BitdriftShop/ContentView.swift) |
-| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`) and a `trackSpan` helper wrapping `score_products` | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
+| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`, `foreground_session`) and a `trackSpan` helper wrapping `score_products` | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
 | **Support tooling** | `Logger.createTemporaryDeviceCode()`, Support Log toggle | [Screens.swift](BitdriftShop/Screens.swift) |
 | **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
 | **Crash symbolication** | dSYM upload via `bd debug-files upload` in a post-build phase | [scripts/upload-symbols.sh](scripts/upload-symbols.sh) |
-| **Lifecycle events** | `app_open` / `app_close` from SwiftUI `scenePhase`; `memory_pressure` from the UIKit memory-warning notification | [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
+| **Lifecycle events** | `app_open` / `app_close` from SwiftUI `scenePhase`; `memory_pressure` from the UIKit memory-warning notification; a `foreground_session` span bracketing the same foreground interval, for session-duration charting (`_duration_ms` on its end log) — matches the Android app's span exactly | [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
 
 `Logger.trackSpan { }` exists in the Kotlin API but not the Swift one, so
 [`CaptureBridge.trackSpan`](BitdriftShop/CaptureBridge.swift) reimplements the
@@ -330,6 +344,12 @@ are all places where the platform left no choice:
 ## Scripts
 
 ```bash
+./scripts/ios-1-setup.sh                  # verify Xcode CLT/license, simulator runtime, .local.xcconfig
+./scripts/ios-2-start-simulator.sh        # boot a simulator, no Xcode UI
+./scripts/ios-3-start-app.sh              # build + install + launch, no Xcode UI
+./scripts/ios-4-stop-app.sh               # stop the app
+./scripts/ios-5-stop-simulator.sh         # shut down the simulator
+./scripts/foreground-cycle.sh             # cycle in/out of the foreground to exercise bd-shop-14 (session duration)
 ./scripts/release-build.sh                # Release build + dSYM upload (see below)
 ./scripts/watchdog.sh                     # relaunch on death; background the app when a background crash is armed
 ./scripts/watchdog.sh --stop              # stop the watchdog and terminate the app
@@ -480,8 +500,10 @@ That creates and deploys every `bd-shop-*` iOS workflow plus the two-tab
 for what each one shows, the `stop`/`update`/`deploy` rule for editing a live
 workflow, and — measured, not inferred — the conditions under which a crash
 *can* be the terminal node of a Sankey on iOS (`.activityBased()` sessions plus
-a relaunch inside `inactivityThresholdMins`, which is what `bd-shop-19` needs)
-and what `bd-shop-18` does instead when those conditions do not hold.
+a relaunch inside `inactivityThresholdMins`, which is what `bd-shop-19` needs —
+**not currently met**, since the app now runs `.fixed()`, see the Session
+strategy row above) and what `bd-shop-18` does instead when those conditions do
+not hold.
 
 Two API quirks the committed payloads work around: `bd dashboard get` returns
 neither `layout_settings` nor row positions, so the checked-in dashboard JSON is
@@ -568,12 +590,12 @@ pointers for each span.
 
 ```
 ios/
-├── BitdriftShop.xcodeproj/     Xcode project (SPM: capture-ios 0.23.11)
+├── BitdriftShop.xcodeproj/     Xcode project (SPM: capture-ios 0.24.2)
 ├── Info.plist                  Bundle config; xcconfig values surface here
 ├── local.xcconfig              Blank template; includes .local.xcconfig
-├── scripts/                    watchdog.sh, check-demo-state.sh, demo-lib.sh
+├── scripts/                    ios-{1..5}-*.sh (no-Xcode build/run), foreground-cycle.sh, watchdog.sh, check-demo-state.sh, demo-lib.sh
 └── BitdriftShop/
-    ├── BitdriftShopApp.swift   App entry, SDK start, scenePhase lifecycle logging
+    ├── BitdriftShopApp.swift   App entry, SDK start, scenePhase lifecycle logging + foreground_session span
     ├── CaptureBridge.swift     SDK lifecycle, trackSpan, FieldProvider
     ├── ScreenLogger.swift      Central logging surface
     ├── AppConfig.swift         Info.plist/env-backed build config

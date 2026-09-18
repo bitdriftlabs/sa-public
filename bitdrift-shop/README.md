@@ -45,3 +45,4 @@ Build and run instructions live in each app's own folder. Start with the README 
 - [reactnative/](reactnative/) — React Native app (Android + iOS)
 - [kotlin-multiplatform/](kotlin-multiplatform/) — Work in process- Kotlin Multiplatform app (Android + iOS)
 - [backend/](backend/) — FastAPI server, API endpoints, and chaos mode
+- [sessionmetricsdemo/](sessionmetricsdemo/) — portable session count/duration/crash-rate workflows (work in process)

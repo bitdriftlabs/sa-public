@@ -2,7 +2,7 @@
 
 **Version 5.0**
 
-Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.23.10` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
+Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.24.2` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
 
 For the no-SDK comparison target, see [`android-clean/`](../android-clean/). It
 keeps the shopping flow and fault scenarios without Capture SDK configuration or
@@ -33,7 +33,7 @@ For bitdrift-internal testing against a non-production environment, point `BITDR
 
 ### Optional: test a local build of the SDK
 
-By default the app builds against the published `io.bitdrift:capture:0.23.10` Maven Central artifact. To validate an unreleased SDK build instead, set `BITDRIFT_USE_LOCAL_AAR` to the **full path** of the AAR to test, resolved in this order:
+By default the app builds against the published `io.bitdrift:capture:0.24.2` Maven Central artifact. To validate an unreleased SDK build instead, set `BITDRIFT_USE_LOCAL_AAR` to the **full path** of the AAR to test, resolved in this order:
 
 1. Command-line property: `./gradlew assembleDebug -PBITDRIFT_USE_LOCAL_AAR=/full/path/to/capture.aar`
 2. `BITDRIFT_USE_LOCAL_AAR` in `.local.properties` or `local.properties`
@@ -62,6 +62,16 @@ Want to correlate this app's bitdrift sessions with server-side Datadog APM trac
 
 Open in Android Studio and run on an emulator (API 36, 1080×2400, 2GB+ RAM). See [local config](README-refs.md#emulator-requirements) for details.
 
+**No Android Studio?** `scripts/android-{1..5}-*.sh` set up the SDK/AVD, boot the emulator, and build+install+launch from the command line — modeled on the Flutter app's own no-Studio scripts (`../flutter/scripts/android-*.sh`):
+
+```bash
+./scripts/android-1-setup.sh          # one-time: cmdline-tools, SDK packages, AVD
+./scripts/android-2-start-emulator.sh # boot and wait for it to come up
+./scripts/android-3-start-app.sh      # gradlew install<Variant> + launch
+./scripts/android-4-stop-app.sh       # force-stop, leaves the emulator running
+./scripts/android-5-stop-emulator.sh  # kill the emulator
+```
+
 ### Step 3: Generate data
 
 On the emulator, use the Simulation buttons on the Welcome screen — tap **Sim 10** to run 10 journeys or **Sim ∞** for continuous simulation. The Sankey, crashes, network calls, spans, and session timelines populate in the dashboard in real time.
@@ -74,9 +84,9 @@ Every Capture SDK feature below is wired up in this app, mapped to the call used
 
 | Feature | SDK surface | Where it lives |
 |---------|-------------|----------------|
-| **SDK + build plugin** | `io.bitdrift:capture:0.23.10` (or a local AAR under test — see [Optional: test a local build](#optional-test-a-local-build-of-the-sdk)), `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts) |
+| **SDK + build plugin** | `io.bitdrift:capture:0.24.2` (or a local AAR under test — see [Optional: test a local build](#optional-test-a-local-build-of-the-sdk)), `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts) |
 | **Logger startup** | `Logger.start(...)` in `Application.onCreate()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
-| **Session strategy** | `SessionStrategy.Fixed()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
+| **Session strategy** | `SessionConfiguration()` with no `inactivityTimeout` — a fresh session on every process start, never persisted/reused. Matches the iOS app's `.fixed()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
 | **Screen views** | `Logger.logScreenView()` via `NavController.OnDestinationChangedListener` | [MainActivity.kt](app/src/main/java/ai/bitdrift/shop/MainActivity.kt), [ScreenLogger.kt](app/src/main/java/ai/bitdrift/shop/ScreenLogger.kt) |
 | **User identity** | `Logger.setEntityId("demo")` on launch, then rotated per simulated user | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt), [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt) |
 | **Network capture** | `CaptureOkHttpEventListenerFactory` on OkHttp | [ApiClient.kt](app/src/main/java/ai/bitdrift/shop/ApiClient.kt) |
@@ -84,7 +94,7 @@ Every Capture SDK feature below is wired up in this app, mapped to the call used
 | **Global fields** | `Logger.addField()` + `FieldProvider` — `user_id`, `app_variant`, `ff_*`, `supportlog`, `sim_app_version` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt), [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) |
 | **Custom metrics** | `Logger.logInfo()` ticking once/sec (`metric_values`) — ported from misc-demos/metricdemo | [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) — see [metric-demo.md](metric-demo.md) |
 | **App launch TTI** | `Logger.logAppLaunchTTI()` after first frame | [MainActivity.kt](app/src/main/java/ai/bitdrift/shop/MainActivity.kt) |
-| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`), `Logger.trackSpan("score_products")` | [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt) |
+| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`, `foreground_session`), `Logger.trackSpan("score_products")` | [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt), [AppLifecycleCallbacks.kt](app/src/main/java/ai/bitdrift/shop/AppLifecycleCallbacks.kt) |
 | **Granular latency spans** | ~18 more spans: cold-start phases, per-screen loads, journey sub-phases, recommendation-engine internals — via `CaptureBridge.trackSpanSuspend`/`trackSpanNested` (the SDK's own `trackSpan` can't nest, suspend, or distinguish cancellation) | [CaptureBridge.kt](app/src/main/java/ai/bitdrift/shop/CaptureBridge.kt), and see [Span-timing workflows and dashboards](#span-timing-workflows-and-dashboards) |
 | **Support tooling** | `Logger.createTemporaryDeviceCode()`, Support-Mode toggle | [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt) |
 | **Crash symbolication** | ProGuard mapping upload via `bdUpload*` tasks | [build.gradle.kts](build.gradle.kts) |
@@ -111,7 +121,7 @@ With the instrumentation above, the app feeds these bitdrift features — most w
 
 ## Deploy workflows for evaluation
 
-Once the app is generating data, use the **bd-cli** skill to deploy the twelve sample workflows in [`workflows/`](workflows/) — each turns the signals above into metrics, alerts, or funnels:
+Once the app is generating data, use the **bd-cli** skill to deploy the sample workflows in [`workflows/`](workflows/) — each turns the signals above into metrics, alerts, or funnels:
 
 | Workflow | Uses | Focus |
 |----------|------|-------|
@@ -128,6 +138,9 @@ Once the app is generating data, use the **bd-cli** skill to deploy the twelve s
 | `bd-shop-11-slow-rendering.json` | on-device frame detection, feature flag exposure | Zero-instrumentation dropped-frame count/histogram split by `recommendations_v2` exposure and by screen; alert on frame-drop spikes — see [demo-slow-rendering.md](demo-slow-rendering.md) |
 | `bd-shop-11b-slow-rendering-manual-span.json` | custom span, feature flag exposure | Same shape as bd-shop-11, matched on a manually-instrumented span instead — illustrative comparison, no alert — see [demo-slow-rendering.md](demo-slow-rendering.md) |
 | `bd-shop-12-metric-grouping.json` | custom metric log, custom field | Waveform + counter metrics ported from misc-demos/metricdemo; work-latency average/histogram/table grouped by simulated `sim_app_version` — see [metric-demo.md](metric-demo.md) |
+| `bd-shop-13-foreground-session-count.json` **(WIP)** | SDK-automatic `AppStart` log | Count of foreground episodes — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
+| `bd-shop-14-foreground-session-duration.json` **(WIP)** | `foreground_session` span end, `_duration_ms` | Foreground-episode duration — a P50/P90/P99 histogram plus a single-value average-duration line chart — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
+| `bd-shop-15-crash-rate-per-foreground.json` **(WIP)** | issue-match BDRL, `rate` chart, SDK-automatic `AppStart` log | Crashes ÷ foreground sessions — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
 
 ### Span-timing workflows and dashboards
 
@@ -215,6 +228,7 @@ ID, so the placeholder in each file needs resolving first) and the exact deploy 
 - **[workflows/README.md](workflows/README.md)** — deploy and monitor workflows via bd CLI
 - **[dashboards/README.md](dashboards/README.md)** — deploy dashboards that compose workflow charts via bd CLI
 - **[workflows/foreground-background-crashes.md](workflows/foreground-background-crashes.md)** — foreground vs. background crash workflows: why they're separate, the BDRL behind each, and how to cross-check the split against real data
+- **[workflows/foreground-session-metrics.md](workflows/foreground-session-metrics.md)** *(work in process)* — session count/duration/crash-rate workflows built on a `foreground_session` span; includes `scripts/foreground-cycle.sh` for generating foreground/background cycles from the command line
 - **[workflows/advanced-crash-attribution.md](workflows/advanced-crash-attribution.md)** — blocking-thread and vendor-SDK crash attribution workflows, plus the attribution-rate chart that ties them together
 - **[demo-slow-rendering.md](demo-slow-rendering.md)** — feature-flag-gated slow-rendering bug: setup, live trigger, dashboard/alert walkthrough, and how to diagnose + fix the offending code using bitdrift's output
 - **[metric-demo.md](metric-demo.md)** — synthetic waveform metrics ported from misc-demos/metricdemo, plus a work-latency-by-app-version demo showing how to group/break down a custom metric by a dimension
