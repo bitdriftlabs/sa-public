@@ -183,7 +183,7 @@ the dashboard in real time.
 |---------|-------------|----------------|
 | **SDK dependency** | `capture-ios` 0.24.2 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
 | **Logger startup** | `Logger.start(withAPIKey:sessionStrategy:configuration:fieldProviders:)` in `App.init()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
-| **Session strategy** | `.activityBased()` — resumes the same session across a crash + relaunch if it lands within `inactivityThresholdMins`, which is what lets `bd-shop-19`'s crash-terminal Sankey close | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
+| **Session strategy** | `.fixed()` — mints a fresh session on every process start, matching the Android app's `SessionStrategy.Fixed()`. Was `.activityBased()`, which is what let `bd-shop-19`'s crash-terminal Sankey close (see [workflows/README.md](workflows/README.md#journey-to-crash-sankey-it-depends-on-session-strategy)) — that Sankey now reads empty under `.fixed()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Network capture** | `.enableIntegrations([.urlSession()])` — automatic, no per-call code | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Path templates** | `x-capture-path-template` header on parameterised routes | [ApiClient.swift](BitdriftShop/ApiClient.swift) |
 | **Screen views** | `Logger.logScreenView(screenName:)`, centrally from `Navigator` | [Navigator.swift](BitdriftShop/Navigator.swift), [ScreenLogger.swift](BitdriftShop/ScreenLogger.swift) |
@@ -500,8 +500,10 @@ That creates and deploys every `bd-shop-*` iOS workflow plus the two-tab
 for what each one shows, the `stop`/`update`/`deploy` rule for editing a live
 workflow, and — measured, not inferred — the conditions under which a crash
 *can* be the terminal node of a Sankey on iOS (`.activityBased()` sessions plus
-a relaunch inside `inactivityThresholdMins`, which is what `bd-shop-19` needs)
-and what `bd-shop-18` does instead when those conditions do not hold.
+a relaunch inside `inactivityThresholdMins`, which is what `bd-shop-19` needs —
+**not currently met**, since the app now runs `.fixed()`, see the Session
+strategy row above) and what `bd-shop-18` does instead when those conditions do
+not hold.
 
 Two API quirks the committed payloads work around: `bd dashboard get` returns
 neither `layout_settings` nor row positions, so the checked-in dashboard JSON is
