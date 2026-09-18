@@ -461,6 +461,7 @@ Log events emitted by this app (match on `message ==`):
 | Source | Events |
 |--------|--------|
 | Lifecycle | `app_launched`, `app_open`, `app_close`, `memory_pressure`, `low_memory` |
+| Lifecycle (SDK-emitted) | `AppStart`, `AppStop` — logged automatically by the Capture SDK itself on every foreground/background transition (`LogType.LIFECYCLE`, default-on), not app code — see [workflows/foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
 | Product | `add_to_cart`, `add_to_wishlist` |
 | Cart | `cart_item_removed`, `cart_failed` |
 | Checkout | `checkout_started`, `checkout_failed` |
@@ -478,6 +479,7 @@ Query with `name == <span>` and `_span_type == "end"` for `_duration_ms`:
 | `product_discovery` | Welcome → Browse/Search → ProductDetail → first cart add |
 | `checkout` | CheckoutGuest/SignIn → Payment → Confirmation |
 | `score_products` | Recommendation engine scoring (`recommendations_v2` flag only) |
+| `foreground_session` | App's time in the foreground — `onActivityStarted` (0→1) to `onActivityStopped` (1→0) — see [workflows/foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
 
 ## Fields
 

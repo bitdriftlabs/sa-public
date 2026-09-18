@@ -1,0 +1,48 @@
+{
+  "name": "bd-shop — Foreground Session Count",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "app-start",
+            "generic_match": {
+              "base_matcher": {
+                "log_body": true,
+                "operator": "EQUAL",
+                "string_value": "AppStart"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "foreground-session-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "app-start"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

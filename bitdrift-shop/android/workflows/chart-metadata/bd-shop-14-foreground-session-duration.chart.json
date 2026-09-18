@@ -1,0 +1,15 @@
+[
+  {
+    "rule_id": "foreground-session-duration-histogram",
+    "metadata": {
+      "title": "Foreground Session Duration",
+      "summary": { "description": "_duration_ms histogram for the foreground_session span - elapsed time between the app entering and leaving the foreground, equivalent to New Relic's sessionDuration. Uses a manually-instrumented span rather than the Capture SDK's automatic AppStart/AppStop logs (used by bd-shop-13/15) because a two-step measure-time-between-logs correlation proved unreliable at real cycling volume; a span's self-contained duration field avoids that." },
+      "metric_chart_metadata": {
+        "histogram_bar_chart_display_mode": {},
+        "metadata": [
+          { "title": "Foreground duration", "y_axis": { "description": "Duration", "unit": "MILLISECONDS" } }
+        ]
+      }
+    }
+  }
+]
