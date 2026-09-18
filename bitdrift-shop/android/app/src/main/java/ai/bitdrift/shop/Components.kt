@@ -34,8 +34,6 @@ import io.bitdrift.capture.events.span.Span
 import io.bitdrift.capture.events.span.SpanResult
 import org.json.JSONObject
 
-private const val CAPTURE_SDK_VERSION = "0.23.10"
-
 // Category color mapping
 private val categoryColors = mapOf(
     "Electronics" to Color(0xFF6196F3),
@@ -131,7 +129,7 @@ fun ScreenContainer(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (logoResId != null) {
-                val isOutdated = latestSdkVersion != null && latestSdkVersion != CAPTURE_SDK_VERSION
+                val isOutdated = latestSdkVersion != null && latestSdkVersion != Logger.sdkVersion
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -151,7 +149,7 @@ fun ScreenContainer(
                         )
                     }
                     Text(
-                        text = "SDK v$CAPTURE_SDK_VERSION${if (isOutdated) " ⚑" else ""}",
+                        text = "SDK v${Logger.sdkVersion}${if (isOutdated) " ⚑" else ""}",
                         style = MaterialTheme.typography.labelMedium,
                         color = if (isOutdated) Color(0xFFF57C00) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                     )
