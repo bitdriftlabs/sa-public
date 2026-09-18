@@ -38,7 +38,7 @@ This was investigated twice with opposite conclusions, so state both, with the
 evidence attached, rather than pick one.
 
 **Under `sessionStrategy: .fixed()`, it never closes.** Measured on device
-(`capture-ios` 0.23.11):
+(`capture-ios` 0.24.2):
 
 | Flow shape | Result |
 |---|---|

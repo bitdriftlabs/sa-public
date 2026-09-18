@@ -3,7 +3,7 @@
 **Version 5.0**
 
 Native SwiftUI demo app simulating an e-commerce shopping experience, **already
-instrumented with the bitdrift Capture SDK** (`capture-ios` 0.23.11 via Swift
+instrumented with the bitdrift Capture SDK** (`capture-ios` 0.24.2 via Swift
 Package Manager). It pairs with the same FastAPI backend the Android app uses, so
 it produces realistic sessions, network traffic, crashes, and performance signals
 out of the box.
@@ -167,7 +167,7 @@ the dashboard in real time.
 
 | Feature | SDK surface | Where it lives |
 |---------|-------------|----------------|
-| **SDK dependency** | `capture-ios` 0.23.11 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
+| **SDK dependency** | `capture-ios` 0.24.2 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
 | **Logger startup** | `Logger.start(withAPIKey:sessionStrategy:configuration:fieldProviders:)` in `App.init()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
 | **Session strategy** | `.activityBased()` — resumes the same session across a crash + relaunch if it lands within `inactivityThresholdMins`, which is what lets `bd-shop-19`'s crash-terminal Sankey close | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Network capture** | `.enableIntegrations([.urlSession()])` — automatic, no per-call code | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
@@ -568,7 +568,7 @@ pointers for each span.
 
 ```
 ios/
-├── BitdriftShop.xcodeproj/     Xcode project (SPM: capture-ios 0.23.11)
+├── BitdriftShop.xcodeproj/     Xcode project (SPM: capture-ios 0.24.2)
 ├── Info.plist                  Bundle config; xcconfig values surface here
 ├── local.xcconfig              Blank template; includes .local.xcconfig
 ├── scripts/                    watchdog.sh, check-demo-state.sh, demo-lib.sh

@@ -297,7 +297,7 @@
 			repositoryURL = "https://github.com/bitdriftlabs/capture-ios";
 			requirement = {
 				kind = exactVersion;
-				version = "0.22.16";
+				version = "0.24.2";
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
