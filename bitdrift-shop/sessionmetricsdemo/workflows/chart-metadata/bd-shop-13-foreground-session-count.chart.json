@@ -1,0 +1,15 @@
+[
+  {
+    "rule_id": "foreground-session-count",
+    "metadata": {
+      "title": "Foreground Session Count",
+      "summary": { "description": "Count of AppStart logs - the Capture SDK's own automatic foreground-lifecycle event, one per foreground episode (activity count 0 -> 1) - the same boundary New Relic's Session/Start metric counts." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Foreground sessions", "y_axis": { "description": "Sessions", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  }
+]

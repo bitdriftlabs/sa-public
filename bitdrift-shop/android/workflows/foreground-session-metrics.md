@@ -57,6 +57,18 @@ plain field reference — no cross-log correlation, no flow-instance bookkeeping
 `bd-shop-04-span-durations.json`. This is the one place these workflows aren't pure
 zero-app-code configuration, and that's a deliberate trade for reliability, not an oversight.
 
+`bd-shop-14` renders two charts off that same span-end match: a P50/P90/P99 histogram, and
+an `average_count` time series (`foreground-session-duration-average`) as a single trending
+line — added because a customer found the histogram harder to read at a glance than one
+number that moves.
+
+**Cross-platform, unlike `bd-shop-13`/`15`.** The iOS app (`BitdriftShopApp.swift`) emits the
+identical `foreground_session` span from its `scenePhase` handling, so `bd-shop-14` charts
+both platforms' session duration on one line/histogram with no per-platform matcher needed.
+`bd-shop-13`/`15` are still Android-only, since they match on `AppStart`, and iOS's SDK-automatic
+lifecycle log uses different names (`SceneWillEnterFG`/`SceneDidEnterBG`) that these two
+workflows don't yet match on.
+
 ## Deploy
 
 ```bash
@@ -90,7 +102,9 @@ bd workflow deploy "$WORKFLOW_ID"
    backgrounded app from bringing itself back to the foreground (confirmed via
    logcat: `Background activity launch blocked! goo.gle/android-bal`) — `adb`'s
    `am start` isn't subject to that restriction, so the cycling has to be driven
-   from outside the app.
+   from outside the app. The iOS app has the equivalent
+   `../ios/scripts/foreground-cycle.sh` (same `-N`/env-var UX), which drives
+   `bd-shop-14` specifically since that's the cross-platform workflow.
 3. Run `./scripts/watchdog.sh`, then use Crash Loop (Advanced screen) for a few minutes.
    `maybeFireCrash()` already gives each crash a 50% chance of firing in the background via
    `moveTaskToBack`, so this naturally produces both foreground and background crashes to

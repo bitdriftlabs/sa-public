@@ -116,6 +116,19 @@ xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop \
   -destination 'platform=iOS Simulator,name=iPhone 16' build
 ```
 
+**No Xcode UI at all?** `scripts/ios-{1..5}-*.sh` verify the toolchain, boot a
+simulator, and build+install+launch from the command line — modeled on the
+Flutter app's own no-Xcode scripts (`../flutter/scripts/ios-*.sh`), reusing this
+project's `demo-lib.sh` helpers for consistency with `watchdog.sh`:
+
+```bash
+./scripts/ios-1-setup.sh          # one-time: Xcode CLT/license, simulator runtime, .local.xcconfig
+./scripts/ios-2-start-simulator.sh # boot a simulator (DEVICE_NAME, default "iPhone 16")
+./scripts/ios-3-start-app.sh       # xcodebuild + simctl install + launch
+./scripts/ios-4-stop-app.sh        # stop the app, leaves the simulator running
+./scripts/ios-5-stop-simulator.sh  # shut down the simulator
+```
+
 The app opens on a 5-second **startup config** screen (crash mode, fast crash,
 OOM-only, auto ∞ sim), then goes to Welcome. **Skip → Normal App** bypasses it and
 clears the crash flags.
@@ -179,11 +192,11 @@ the dashboard in real time.
 | **Feature flags** | `Logger.setFeatureFlagExposure(withName:variant:)` for `checkout_flow`, `payment_ui`, `cart_abandon_rate`, `recommendations_v2`, … | [SimulationManager.swift](BitdriftShop/SimulationManager.swift) |
 | **Custom metrics** | `metric_values` ticking once/sec, with `metric_work_latency_ms` auto-rotating across `sim_app_version` — same event/field names as Android, so both feed `bd-shop-12`; walkthrough in [android/metric-demo.md](../android/metric-demo.md) | [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
 | **App launch TTI** | `Logger.logAppLaunchTTI()` after first frame | [ContentView.swift](BitdriftShop/ContentView.swift) |
-| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`) and a `trackSpan` helper wrapping `score_products` | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
+| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`, `foreground_session`) and a `trackSpan` helper wrapping `score_products` | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
 | **Support tooling** | `Logger.createTemporaryDeviceCode()`, Support Log toggle | [Screens.swift](BitdriftShop/Screens.swift) |
 | **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
 | **Crash symbolication** | dSYM upload via `bd debug-files upload` in a post-build phase | [scripts/upload-symbols.sh](scripts/upload-symbols.sh) |
-| **Lifecycle events** | `app_open` / `app_close` from SwiftUI `scenePhase`; `memory_pressure` from the UIKit memory-warning notification | [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
+| **Lifecycle events** | `app_open` / `app_close` from SwiftUI `scenePhase`; `memory_pressure` from the UIKit memory-warning notification; a `foreground_session` span bracketing the same foreground interval, for session-duration charting (`_duration_ms` on its end log) — matches the Android app's span exactly | [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
 
 `Logger.trackSpan { }` exists in the Kotlin API but not the Swift one, so
 [`CaptureBridge.trackSpan`](BitdriftShop/CaptureBridge.swift) reimplements the
@@ -330,6 +343,12 @@ are all places where the platform left no choice:
 ## Scripts
 
 ```bash
+./scripts/ios-1-setup.sh                  # verify Xcode CLT/license, simulator runtime, .local.xcconfig
+./scripts/ios-2-start-simulator.sh        # boot a simulator, no Xcode UI
+./scripts/ios-3-start-app.sh              # build + install + launch, no Xcode UI
+./scripts/ios-4-stop-app.sh               # stop the app
+./scripts/ios-5-stop-simulator.sh         # shut down the simulator
+./scripts/foreground-cycle.sh             # cycle in/out of the foreground to exercise bd-shop-14 (session duration)
 ./scripts/release-build.sh                # Release build + dSYM upload (see below)
 ./scripts/watchdog.sh                     # relaunch on death; background the app when a background crash is armed
 ./scripts/watchdog.sh --stop              # stop the watchdog and terminate the app
@@ -571,9 +590,9 @@ ios/
 ├── BitdriftShop.xcodeproj/     Xcode project (SPM: capture-ios 0.24.2)
 ├── Info.plist                  Bundle config; xcconfig values surface here
 ├── local.xcconfig              Blank template; includes .local.xcconfig
-├── scripts/                    watchdog.sh, check-demo-state.sh, demo-lib.sh
+├── scripts/                    ios-{1..5}-*.sh (no-Xcode build/run), foreground-cycle.sh, watchdog.sh, check-demo-state.sh, demo-lib.sh
 └── BitdriftShop/
-    ├── BitdriftShopApp.swift   App entry, SDK start, scenePhase lifecycle logging
+    ├── BitdriftShopApp.swift   App entry, SDK start, scenePhase lifecycle logging + foreground_session span
     ├── CaptureBridge.swift     SDK lifecycle, trackSpan, FieldProvider
     ├── ScreenLogger.swift      Central logging surface
     ├── AppConfig.swift         Info.plist/env-backed build config

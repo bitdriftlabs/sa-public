@@ -139,7 +139,7 @@ Once the app is generating data, use the **bd-cli** skill to deploy the sample w
 | `bd-shop-11b-slow-rendering-manual-span.json` | custom span, feature flag exposure | Same shape as bd-shop-11, matched on a manually-instrumented span instead — illustrative comparison, no alert — see [demo-slow-rendering.md](demo-slow-rendering.md) |
 | `bd-shop-12-metric-grouping.json` | custom metric log, custom field | Waveform + counter metrics ported from misc-demos/metricdemo; work-latency average/histogram/table grouped by simulated `sim_app_version` — see [metric-demo.md](metric-demo.md) |
 | `bd-shop-13-foreground-session-count.json` | SDK-automatic `AppStart` log | Count of foreground episodes — New Relic-style session count — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
-| `bd-shop-14-foreground-session-duration.json` | `foreground_session` span end, `_duration_ms` | Foreground-episode duration histogram — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
+| `bd-shop-14-foreground-session-duration.json` | `foreground_session` span end, `_duration_ms` | Foreground-episode duration — a P50/P90/P99 histogram plus a single-value average-duration line chart — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
 | `bd-shop-15-crash-rate-per-foreground.json` | issue-match BDRL, `rate` chart, SDK-automatic `AppStart` log | Crashes ÷ foreground sessions — crash-free-session-rate equivalent — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
 
 ### Span-timing workflows and dashboards

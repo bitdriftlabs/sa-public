@@ -10,6 +10,14 @@
 #   ./scripts/check-demo-state.sh --reset          # simulator only
 #   ./scripts/check-demo-state.sh --device [UDID]
 #   ./scripts/check-demo-state.sh --simulator [UDID]
+#
+# With no --simulator/--device flag, the target is auto-detected — but only
+# when exactly one is live. If a simulator is booted AND a device is
+# connected at the same time, auto-detection refuses to guess (so this never
+# silently resets the wrong one) and asks you to pass --simulator or --device
+# explicitly, e.g.:
+#
+#   ./scripts/check-demo-state.sh --simulator --reset
 set -uo pipefail
 
 # shellcheck source=demo-lib.sh
@@ -20,7 +28,7 @@ parse_target_flags "$@"
 for arg in ${PARSED_REST[@]+"${PARSED_REST[@]}"}; do
   case "$arg" in
     --reset) RESET=1 ;;
-    -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -51,6 +59,15 @@ if [[ "$RESET" -eq 1 ]]; then
     rm -f "$container/Library/Application Support/bitdrift-demo-state.json"
     restart_prefs_daemon
     sleep 1
+    # Belt and suspenders: relaunch with every flag explicitly off, the same
+    # launch-argument mechanism the device path below relies on exclusively.
+    # NSArgumentDomain outranks the app's persistent UserDefaults domain, so
+    # this forces a disarmed read for this launch even if cfprefsd's in-memory
+    # cache survived the bounce above (its exact launchctl label has drifted
+    # across OS versions before, and failures there are silently swallowed) —
+    # and per Prefs' own doc comment, the app then persists that resolved
+    # value for real, so it sticks on every launch after this one too.
+    disarm_flags
   else
     # A device's plist can't be deleted, so disarm by relaunching with every flag
     # explicitly off — the app persists whatever it resolves at startup.

@@ -335,6 +335,7 @@ struct ToggleChipButton: View {
 
 struct SimulationOverlay: View {
     @ObservedObject var sim: SimulationManager
+    @ObservedObject var nav: Navigator
 
     private var loopFlagStatus: String {
         let flags = [
@@ -373,6 +374,13 @@ struct SimulationOverlay: View {
 
             Button {
                 sim.cancel()
+                // Snap back to Welcome immediately rather than waiting for the
+                // in-flight journey Task to notice isCancelled and unwind on
+                // its own — runSingleJourney/runSimplifiedJourney have no
+                // internal cancellation checks, so left alone this could take
+                // a step or two (or, if a crash fires mid-journey, much
+                // longer) before the back button/dots became usable again.
+                nav.popToWelcome()
             } label: {
                 Image(systemName: "xmark")
                     .foregroundStyle(.white.opacity(0.8))

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Boot the emulator (windowed by default) and wait until it reports fully booted.
-# On macOS the windowed GPU backend is unstable, so software rendering
-# (swiftshader_indirect) is the default there — override with EMU_GPU=host if
-# you want to try the GPU backend. EMULATOR_WINDOW=0 runs headless.
+# Defaults to the hardware GPU backend (-gpu host) on macOS — override with
+# EMU_GPU=swiftshader_indirect if you want software rendering instead.
+# EMULATOR_WINDOW=0 runs headless.
 #
 # Mirrors ../../flutter/scripts/android-2-start-emulator.sh — identical logic,
 # same AVD_NAME default, so either app's start-app script can reuse whichever
@@ -19,14 +19,14 @@ if adb devices | awk 'NR>1 && $2=="device"' | grep -qE '^emulator-'; then
 else
   EMU_ARGS=(-avd "$AVD_NAME" -no-audio -no-boot-anim)
   [[ "${EMULATOR_WINDOW:-1}" == "0" ]] && EMU_ARGS+=(-no-window)
-  # The windowed GPU backend crashes on macOS (CoreGraphics context errors),
-  # so default to software rendering there. Override with EMU_GPU=host.
+  # Default to the hardware GPU backend on macOS. Override with
+  # EMU_GPU=swiftshader_indirect for software rendering.
   if [[ -z "${EMU_GPU:-}" && "$(uname -s)" == "Darwin" ]]; then
-    EMU_GPU=swiftshader_indirect
+    EMU_GPU=host
   fi
   [[ -n "${EMU_GPU:-}" ]] && EMU_ARGS+=(-gpu "$EMU_GPU")
 
-  echo "Starting emulator '$AVD_NAME' ..."
+  echo "Starting emulator '$AVD_NAME' (gpu=${EMU_GPU:-auto}) ..."
   nohup emulator "${EMU_ARGS[@]}" >/tmp/bd-shop-android-emulator.log 2>&1 &
   disown || true
 
