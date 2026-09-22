@@ -202,11 +202,19 @@ ENVOY_PORT=8081 docker compose \
 ENVOY_PORT=8081 docker compose -f compose.yaml restart
 ```
 
-- **Stop everything:**
+- **Stop everything** (just the OTel Demo stack, run from the `opentelemetry-demo` clone):
 
 ```bash
 docker compose -f compose.yaml down
 ```
+
+- **Stop the whole demo** (OTel Demo stack + ClickStack + Portainer, run from this repo) — use this before a Colima/Docker restart if you don't want everything auto-relaunching:
+
+```bash
+./scripts/stop-backend.sh
+```
+
+The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `colima stop && colima start` brings them back on its own — Docker only respects that policy once a container has been explicitly stopped first. This script stops everything (without removing containers/volumes) so a subsequent Colima restart leaves them down until you deliberately bring them back up.
 
 > Colima itself only needs restarting if you changed its VM resources (see [Memory Requirements](#memory-requirements)) or it's not running (`colima status`) — the backend restart commands above don't touch the VM.
 
