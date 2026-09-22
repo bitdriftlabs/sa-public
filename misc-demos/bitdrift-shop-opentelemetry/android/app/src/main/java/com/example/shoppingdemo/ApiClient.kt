@@ -412,7 +412,10 @@ object ApiClient {
     }
 
     suspend fun getBrowse(): JSONObject = withContext(Dispatchers.IO) {
-        JSONObject().put("products", listLegacyProducts())
+        val products = listLegacyProducts()
+        JSONObject()
+            .put("products", products)
+            .put("total_products", products.length())
     }
 
     suspend fun search(query: String): JSONObject = withContext(Dispatchers.IO) {

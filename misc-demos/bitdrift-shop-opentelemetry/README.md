@@ -40,7 +40,7 @@ Reference: [Tracing: Network integration](https://docs.bitdrift.io/sdk/features/
 
 The OTel Demo backend is a `docker compose` stack, so it needs a Docker daemon — but
 **not Docker Desktop**. Like the rest of `bitdrift-shop` in this repo (see
-[bitdrift-shop/backend/README.md#prerequisites-macos](../../../bitdrift-shop/backend/README.md#prerequisites-macos)),
+[bitdrift-shop/backend/README.md#prerequisites-macos](../../bitdrift-shop/backend/README.md#prerequisites-macos)),
 the recommended backend here is [Colima](https://github.com/abiosoft/colima), a
 lightweight Docker daemon that runs in a small Linux VM without Docker Desktop's
 licensing or resource overhead:
@@ -54,7 +54,28 @@ docker ps          # should print an empty table, not a connection error
 `colima start` provisions the VM and points the `docker` CLI at it — no `DOCKER_HOST`
 needed. If a command below reports `Cannot connect to the Docker daemon`, Colima isn't
 running; `colima status` shows the current state. The ClickStack container in step 1
-needs more RAM than Colima's default VM — see the memory note there.
+needs more RAM than Colima's default VM — see [Memory Requirements](#memory-requirements)
+at the bottom.
+
+### Container Monitoring (Optional): Portainer
+
+Between the OTel Demo stack (~20 containers), ClickStack, and optionally Zipkin, `docker ps`/`docker logs` gets unwieldy fast. [Portainer CE](https://github.com/portainer/portainer) is an open-source web GUI for monitoring and managing containers, images, volumes, and logs.
+
+Install and run it, skipping Portainer's own first-run setup-token flow so you land straight in the UI:
+
+```bash
+docker run -d -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce --no-setup-token
+```
+
+Open **http://localhost:9000** — no admin account/token step, straight into the dashboard listing all running containers.
+
+**Stop it:**
+
+```bash
+docker ps -a | grep portainer      # find the container ID/name
+docker stop <container_id_or_name>
+docker rm <container_id_or_name>
+```
 
 You also need a local clone of the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) itself — this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) that layer on top of it, not the backend stack:
 
@@ -77,14 +98,11 @@ rather skip ClickStack entirely and use plain W3C or Zipkin instead, skip to
 
 [ClickStack](https://github.com/ClickHouse/ClickStack) is ClickHouse's open-source observability stack for OpenTelemetry — logs, traces, metrics, and session replay in one UI. (Formerly branded standalone as "HyperDX" — same image, ports, and API, just repackaged/renamed under ClickHouse.) It's an export target for the OTel Collector — no B3 override or propagation change required, it works with the stock W3C setup from step 2.
 
-> **Memory requirement:** the ClickStack all-in-one container bundles ClickHouse + Mongo + the ClickStack app, and needs **at least 4GB RAM** on its own (ClickStack's own recommendation). Combined with the ~20 containers in the OTel Demo stack (started in step 2), give your Docker VM **8GB+** total or ClickHouse will get silently OOM-killed after a few minutes (check `docker inspect <container> --format '{{.State.OOMKilled}}'` if traces stop landing).
->
-> - **Colima** (see [Prerequisites](#prerequisites-macos) above): `colima stop && colima start --memory 8 --cpu 4` (this restarts the whole VM — every running container goes down; the OTel Demo stack's containers have `restart: unless-stopped` so they come back on their own, but the ClickStack container below does not and must be relaunched manually)
-> - **Docker Desktop:** Settings → Resources → bump Memory to 8GB → Apply & Restart
+> **Memory requirement:** the ClickStack container needs significantly more RAM than Colima's/Docker Desktop's default VM — see [Memory Requirements](#memory-requirements) at the bottom before proceeding.
 
 Run the ClickStack all-in-one container standalone (it does **not** join the `opentelemetry-demo` docker network — it's just a container on your host). Name it so it's easy to manage/restart later:
 
-Make sure Colima is running first — with the memory bump above if you haven't already applied it:
+Make sure Colima is running first — with the memory bump from [Memory Requirements](#memory-requirements) if you haven't already applied it:
 
 ```bash
 colima start
@@ -151,6 +169,34 @@ ENVOY_PORT=8081 docker compose \
 
 Frontend proxy starts on `http://localhost:8081`.
 
+**Restarting the backend:**
+
+- **Full recreate** (picks up changes to `compose.yaml`, `.env`, or `otelcol-config-extras.yml`) — safe to run again on top of an already-running stack:
+
+```bash
+ENVOY_PORT=8081 docker compose \
+  -f compose.yaml \
+  up \
+  --scale load-generator=0 \
+  --force-recreate \
+  --remove-orphans \
+  --detach
+```
+
+- **Quick restart** (containers stay, no config changes to pick up):
+
+```bash
+ENVOY_PORT=8081 docker compose -f compose.yaml restart
+```
+
+- **Stop everything:**
+
+```bash
+docker compose -f compose.yaml down
+```
+
+> Colima itself only needs restarting if you changed its VM resources (see [Memory Requirements](#memory-requirements)) or it's not running (`colima status`) — the backend restart commands above don't touch the VM.
+
 > **Troubleshooting — `frontend-proxy` restart-looping:** if `docker ps` shows `frontend-proxy` stuck in a restart loop, check `docker logs frontend-proxy` for an Envoy `Proto constraint validation failed` error on a socket address. This means the image you pulled (`ghcr.io/open-telemetry/demo:latest-frontend-proxy`) is newer than your local `opentelemetry-demo` checkout — its baked-in `envoy.tmpl.yaml` references env vars (e.g. `OPAMP_HOST`/`OPAMP_PORT`) that your local `compose.yaml`/`.env` don't set, so they render empty and Envoy rejects the config. Fix by building the image from your local source instead of the stale pulled one:
 >
 > ```bash
@@ -159,41 +205,20 @@ Frontend proxy starts on `http://localhost:8081`.
 >
 > then re-run the `up` command above.
 
-To view traces once the app (next step) is running and you've generated some traffic: open **http://localhost:8080**, tap **Sim 10** in the app, then search or browse traces/logs/metrics in the ClickStack UI — data lands within a few seconds. To sanity-check ingestion directly in ClickHouse: `docker exec clickstack sh -c "curl -s 'http://localhost:8123/?query=SELECT+count()+FROM+otel_traces'"`.
+To view traces once the app (next step) is running and you've generated some traffic:
 
-> **Zipkin ↔ ClickStack are mutually exclusive** in `otelcol-config-extras.yml` — it only holds one exporter config at a time. To switch to Zipkin, see [Switch to B3 Propagation and Zipkin (Optional)](#switch-to-b3-propagation-and-zipkin-optional) below instead.
+- Open **http://localhost:8080**
+- Tap **Sim 10** in the app
+- Search or browse traces/logs/metrics in the ClickStack UI — data lands within a few seconds
+- To sanity-check ingestion directly in ClickHouse: `docker exec clickstack sh -c "curl -s 'http://localhost:8123/?query=SELECT+count()+FROM+otel_traces'"`
 
-### 3. Run the Android app
-
-Set `OTEL_DEMO_PORT=8081` in `.local.properties` (see [Local Config](#local-config)), then open the project in Android Studio and run on an emulator. The app connects via `http://10.0.2.2:8081`.
-
-**Emulator requirements:**
-
-| Setting | Value |
-|---------|-------|
-| API level | API 36 (Android 16) |
-| Screen resolution | 1080×2400 (FHD+) |
-| Device profile | Medium Phone / Pixel 7 / 6a |
-| RAM | 2 GB+ |
-
-**(Optional) No Android Studio?** `scripts/android-{1..5}-*.sh` set up the SDK/AVD, boot the emulator, and build+install+launch from the command line instead — modeled on [bitdrift-shop/android's own no-Studio scripts](../../../bitdrift-shop/android/scripts/):
-
-```bash
-cd android
-./scripts/android-1-setup.sh          # one-time: cmdline-tools, SDK packages, AVD
-./scripts/android-2-start-emulator.sh # boot and wait for it to come up
-./scripts/android-3-start-app.sh      # gradlew install<Variant> + launch
-./scripts/android-4-stop-app.sh       # force-stop, leaves the emulator running
-./scripts/android-5-stop-emulator.sh  # kill the emulator
-```
-
-### 4. Deploy the session-capture workflow
+### 3. Deploy the session-capture workflow
 
 Before running the live demo, publish the workflow that guarantees every session gets fully
 captured — a capture workflow only sees sessions that start *after* it deploys, so this needs to
 happen before you start driving traffic through the app, not mid-demo.
 
-This step needs the `bd` CLI, authenticated:
+Run from the `android/` directory. This step needs the `bd` CLI, authenticated:
 
 ```bash
 # Install (see https://github.com/bitdriftlabs/bd-cli-releases for other platforms)
@@ -213,7 +238,32 @@ Then deploy the workflow:
 ```
 
 Idempotent — safe to re-run; it reuses the existing workflow instead of creating a duplicate. See
-[workflows/README.md](workflows/README.md) for what it deploys and how to do it by hand with `bd`.
+[android/workflows/README.md](android/workflows/README.md) for what it deploys and how to do it by hand with `bd`.
+
+### 4. Run the Android app
+
+Set `OTEL_DEMO_PORT=8081` in `.local.properties` (see [Local Config](#local-config)), then open the project in Android Studio and run on an emulator. The app connects via `http://10.0.2.2:8081`. See [Emulator Requirements](#emulator-requirements) at the bottom for supported configs.
+
+**(Optional) No Android Studio?** `scripts/android-{1..5}-*.sh` set up the SDK/AVD, boot the emulator, and build+install+launch from the command line instead — modeled on [bitdrift-shop/android's own no-Studio scripts](../../bitdrift-shop/android/scripts/):
+
+```bash
+cd android
+./scripts/android-1-setup.sh          # one-time: cmdline-tools, SDK packages, AVD
+./scripts/android-2-start-emulator.sh # boot and wait for it to come up
+./scripts/android-3-start-app.sh      # gradlew install<Variant> + launch
+./scripts/android-4-stop-app.sh       # force-stop, leaves the emulator running
+./scripts/android-5-stop-emulator.sh  # kill the emulator
+```
+
+### 5. Appendix
+
+See [APPENDIX.md](APPENDIX.md) for troubleshooting notes that don't fit the quick-start flow above:
+
+- Colima not mounting an external-drive checkout, causing `otel-collector` to crash-loop (and how to make the mount permanent)
+- `astronomy-db` missing its `astronomy_user` role after a broken first boot, causing `product-catalog` to crash-loop and product images to go missing
+- A full audit runbook for checking the rest of the stack after a Colima mount fix, so no other services are silently running on bad first-boot state
+- A missing `OTEL_DEMO_HOST`/`OTEL_DEMO_PORT` in `.local.properties` silently pointing the app at ClickStack's port instead of the backend — looks exactly like a backend bug but never reaches the OTel Demo stack at all
+- Fully purging ClickStack/HyperDX's hidden anonymous data volume when the UI errors out or shows stale data
 
 ## Screens
 
@@ -237,16 +287,6 @@ Idempotent — safe to re-run; it reuses the existing workflow instead of creati
 | `PaymentAndroidPay` | Android Pay |
 | `Confirmation` | Order confirmation |
 
-## Simulation
-
-The Welcome screen has simulation buttons (**Sim 10**, **∞ Sim**, **Sim A/B**) that run automated journeys through the app using a probabilistic state machine. Three variant presets bias the simulator toward different user personas:
-
-- **Control** — fully random baseline
-- **Variant A (Guest)** — non-member, high cart-abandon rate, digital wallet payments
-- **Variant B (Member)** — signed-in loyalty member, low abandon rate, card payments
-
-**Sim A/B** cycles through variants across 15 journeys (5 per variant), guaranteeing flag transitions for bitdrift workflow matching.
-
 ## Requirements
 
 - Android API 36 (targetSdk / compileSdk), API 26+ minimum
@@ -256,7 +296,7 @@ The Welcome screen has simulation buttons (**Sim 10**, **∞ Sim**, **Sim A/B**)
 ## Project Structure
 
 ```
-app/src/main/java/com/example/shoppingdemo/
+android/app/src/main/java/com/example/shoppingdemo/
 ├── ShoppingDemoApp.kt         # Application class, SDK init
 ├── MainActivity.kt            # Main activity with NavHost
 ├── Screen.kt                  # Navigation routes (sealed class)
@@ -287,71 +327,20 @@ app/src/main/java/com/example/shoppingdemo/
 
 ## Switch to B3 Propagation and Zipkin (Optional)
 
-The bitdrift SDK is configured remotely to emit **B3 multi-header** trace context (`X-B3-TraceId`, `X-B3-SpanId`, `X-B3-Sampled`). The compose override makes every backend service propagate those headers, and Zipkin provides a visual trace viewer.
+See [B3_ZIPKIN.md](B3_ZIPKIN.md) for switching the backend from ClickStack to Zipkin with B3 multi-header trace propagation.
 
-Copy the B3 override file from this repo to your `opentelemetry-demo` clone root:
+## Memory Requirements
 
-```bash
-cp /path/to/bitdrift-shop-opentelemetry/docker-compose.b3-propagation.yaml /path/to/opentelemetry-demo/
-```
+The ClickStack all-in-one container bundles ClickHouse + Mongo + the ClickStack app, and needs **at least 4GB RAM** on its own (ClickStack's own recommendation). Combined with the ~20 containers in the OTel Demo stack, give your Docker VM **8GB+** total or ClickHouse will get silently OOM-killed after a few minutes (check `docker inspect <container> --format '{{.State.OOMKilled}}'` if traces stop landing).
 
-This adds a Zipkin container on port 9411, joined to the `opentelemetry-demo` network, and sets `OTEL_PROPAGATORS=b3multi,baggage` on all backend services that support it.
+- **Colima** (see [Prerequisites](#prerequisites-macos) above): `colima stop && colima start --memory 8 --cpu 4` (this restarts the whole VM — every running container goes down; the OTel Demo stack's containers have `restart: unless-stopped` so they come back on their own, but the ClickStack container does not and must be relaunched manually)
+- **Docker Desktop:** Settings → Resources → bump Memory to 8GB → Apply & Restart
 
-> **Note on `recommendation`:** The Python-based `recommendation` service requires the `opentelemetry-propagator-b3` package which is not installed in the OTel Demo image. It is intentionally excluded from the B3 override and continues to use W3C propagation. This does not affect the core shopping flow or Zipkin traces.
+## Emulator Requirements
 
-Add the Zipkin exporter to `src/otel-collector/otelcol-config-extras.yml` in your `opentelemetry-demo` clone (create the file if it doesn't exist):
-
-```yaml
-exporters:
-  zipkin:
-    endpoint: http://zipkin:9411/api/v2/spans
-
-service:
-  pipelines:
-    traces:
-      exporters: [debug, span_metrics, zipkin]
-    metrics:
-      receivers: [docker_stats, http_check/frontend-proxy, host_metrics, nginx, otlp, redis, span_metrics]
-      exporters: [debug]
-    logs:
-      exporters: [debug]
-```
-
-Restart the backend with the B3 override layered on top:
-
-Make sure Colima is running first (see [Prerequisites](#prerequisites-macos) — `colima start` is a no-op if it's already up):
-
-```bash
-colima start
-ENVOY_PORT=8081 docker compose \
-  -f compose.yaml \
-  -f docker-compose.b3-propagation.yaml \
-  up \
-  --scale load-generator=0 \
-  --force-recreate \
-  --remove-orphans \
-  --detach
-```
-
-Zipkin starts on `http://localhost:9411`.
-
-> **Note:** Always use `--force-recreate` when switching between compose configurations (stock ↔ B3). Without it, containers may keep stale environment variables from a previous run (e.g. a `recommendation` container that still has old propagator settings), which can block `frontend-proxy` from starting.
-
-To view traces: open **http://localhost:9411**, tap **Sim 10** in the app, then click **Run Query** in Zipkin — traces appear within a few seconds. Click any trace to see the full waterfall across OTel Demo microservices, with B3 trace/span IDs matching what bitdrift recorded on the mobile side.
-
-**bitdrift backend config** (to deep-link trace IDs from bitdrift into Zipkin):
-
-```yaml
-frontend_features:
-  tracing_features:
-    trace_id_deep_link_url_template: http://localhost:9411/zipkin/traces/{traceId}
-  views_ui_enabled: true
-runtime_set:
-  runtimes:
-  - matcher:
-      always: true
-    runtime:
-      values:
-        client_config.trace.propagation_mode:
-          string_value: b3-multi
-```
+| Setting | Value |
+|---------|-------|
+| API level | API 36 (Android 16) |
+| Screen resolution | 1080×2400 (FHD+) |
+| Device profile | Medium Phone / Pixel 7 / 6a |
+| RAM | 2 GB+ |
