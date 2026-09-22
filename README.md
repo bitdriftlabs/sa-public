@@ -58,7 +58,7 @@ Standalone demos and reference artifacts from customer engagements and internal 
 
 - **[manualtracing/](misc-demos/manualtracing/)** — Android app demonstrating manual vs automatic OkHttp network instrumentation with the bitdrift Capture SDK. Shows how both approaches produce identical span structure in the timeline and how `_trace_id` appears on response logs when a tracing workflow is active.
 
-- **[shoppingdemo-oteldemo/](misc-demos/shoppingdemo-oteldemo/)** — Android shopping demo backed by the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store microservices. Demonstrates OpenTelemetry tracing as well as B3 multi-header trace propagation end-to-end: bitdrift SDK on mobile → OTel Demo backend → Zipkin for visual trace inspection.
+- **[bitdrift-shop-opentelemetry/](misc-demos/bitdrift-shop-opentelemetry/)** — Android shopping demo backed by the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store microservices. Demonstrates OpenTelemetry tracing as well as B3 multi-header trace propagation end-to-end: bitdrift SDK on mobile → OTel Demo backend → Zipkin for visual trace inspection.
 
 - **[pii/](misc-demos/pii/)** — Reference regex configuration and validation artifacts for PII scrubbing via bitdrift's `regex_match_and_substitute_field` filter. Includes the regex YAML, change documentation, and validation test results.
 

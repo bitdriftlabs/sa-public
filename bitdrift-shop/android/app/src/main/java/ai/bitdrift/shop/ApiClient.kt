@@ -157,19 +157,15 @@ object ApiClient {
         val hex = "0123456789abcdef"
         val session = buildString { repeat(16) { append(hex.random()) } }
         // Without a path template every request lands as a unique URL in the Bitdrift
-        // dashboard (e.g. /api/inventory/lookup/headphones/a3f92b1e4d7c0e85). The block
-        // below is the FIX: passing the x-capture-path-template header tells the SDK to
-        // record all requests under the single canonical path, collapsing the cardinality
-        // explosion into one dashboard entry. To apply: uncomment the block and delete the
-        // get() call beneath it.
+        // dashboard (e.g. /api/inventory/lookup/headphones/a3f92b1e4d7c0e85). The FIX:
+        // passing the x-capture-path-template header tells the SDK to record all requests
+        // under the single canonical path, collapsing the cardinality explosion into one
+        // dashboard entry.
         // Docs: https://docs.bitdrift.io/sdk/features/http-traffic-logs#http-request-fields
-        //
-        // val request = Request.Builder()
-        //     .url("$BASE_URL/inventory/lookup/${item}/${session}")
-        //     .header("x-capture-path-template", "/api/inventory/lookup/<item>/<session>")
-        //     .build()
-        // return@withContext client.newCall(request).execute()
-        //     .use { r -> JSONObject(r.body?.string() ?: "{}") }
-        get("/inventory/lookup/${item}/${session}")
+        val request = Request.Builder()
+            .url("$BASE_URL/inventory/lookup/${item}/${session}")
+            .header("x-capture-path-template", "/api/inventory/lookup/<item>/<session>")
+            .build()
+        client.newCall(request).execute().use { r -> JSONObject(r.body?.string() ?: "{}") }
     }
 }

@@ -1,26 +1,17 @@
 #!/usr/bin/env bash
-# Repeatedly foregrounds and backgrounds ai.bitdrift.shop via adb, to generate
-# AppStart/AppStop lifecycle logs for the bd-shop-13/14/15 workflows (session
-# count, session duration, crash rate per foreground) without a human
-# switching apps by hand. See workflows/foreground-session-metrics.md for
-# what those workflows chart and why.
+# Repeatedly foregrounds and backgrounds ai.bitdrift.shop via adb, without a
+# human switching apps by hand. Mirrors ../../android/scripts/foreground-cycle.sh.
 #
-# A genuinely in-app version of this (a toggle that backgrounds itself and
-# then self-resumes on a timer) was tried and dropped: Android's
-# background-activity-launch policy blocks a backgrounded app from bringing
-# itself back to the foreground (confirmed via logcat: "Background activity
-# launch blocked! goo.gle/android-bal"). adb's `am start` is not subject to
-# that restriction, so this stays external.
+# Backgrounding goes through ActivityManager (`am start` with a HOME intent)
+# rather than `input keyevent KEYCODE_HOME`: the keyevent passes through the
+# input dispatcher and can get silently dropped if focus/IME state is mid-
+# transition, which is exactly the flakiness this was written to avoid.
 #
 # Usage:
-#   ./foreground-cycle.sh        # cycle forever, until Ctrl-C
-#   ./foreground-cycle.sh -10    # cycle exactly 10 times
-#   ./foreground-cycle.sh --slow -5   # 30s foreground / 20s background per cycle,
-#                                      # instead of the default 6s/5s -- use this to
-#                                      # rule out cycling speed as a factor when a
-#                                      # foreground->background workflow isn't
-#                                      # matching (FOREGROUND_SECONDS/BACKGROUND_SECONDS
-#                                      # env vars still override either default).
+#   ./android-foreground-cycle.sh        # cycle forever, until Ctrl-C
+#   ./android-foreground-cycle.sh -10    # cycle exactly 10 times
+#   ./android-foreground-cycle.sh --slow -5   # 30s foreground / 20s background per cycle,
+#                                              # instead of the default 6s/5s.
 set -euo pipefail
 
 usage() {
@@ -97,9 +88,7 @@ go_foreground() {
   return 1
 }
 
-# Goes through ActivityManager directly instead of KEYCODE_HOME, which passes
-# through the input dispatcher and can get dropped if focus/IME state is mid-
-# transition (the flakiness this was written to fix).
+# Goes through ActivityManager directly instead of KEYCODE_HOME — see header.
 go_background() {
   local out attempt
   for attempt in 1 2 3; do
@@ -128,4 +117,4 @@ while [[ -z "$CYCLES" || "$i" -lt "$CYCLES" ]]; do
   fi
 done
 
-echo "Done. Charts: bd workflow charts <bd-shop-13/14/15 workflow id> -ojson --last 1h"
+echo "Done."

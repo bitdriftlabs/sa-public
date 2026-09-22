@@ -1,0 +1,36 @@
+{
+  "name": "bitdrift-shop-opentelemetry — Capture All Sessions (Demo)",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.oteldemo"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "session-start",
+            "ootb_match": {
+              "generic_condition": "APP_LAUNCH"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "capture-all-sessions",
+      "flush_rule": {
+        "match_id": "session-start"
+      }
+    }
+  ]
+}

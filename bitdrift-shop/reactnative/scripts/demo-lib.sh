@@ -1,30 +1,22 @@
-#!/usr/bin/env bash
-# Shared helpers for watchdog.sh and check-demo-state.sh.
+# Shared helpers for ios-4-stop-app.sh and ios-foreground-cycle.sh.
 #
 # Targets either a booted Simulator (via simctl) or a connected physical device
 # (via devicectl) behind one set of functions, so the callers don't branch.
 #
-# The app publishes its fault-injection state to a JSON file in its container
-# (see BitdriftShop/DemoStateFile.swift). We read that rather than the app's
-# UserDefaults plist: on the Simulator that plist is owned by cfprefsd, which
-# caches the domain in memory, so a host-side read can return values the app
-# abandoned minutes ago. On a device the plist isn't reachable at all.
+# Trimmed from ../../ios/scripts/demo-lib.sh (native app): this app has no
+# demo-state JSON file or fault-injection watchdog yet, so refresh_state /
+# state_value / disarm_flags / drive_pending_watchdog / restart_prefs_daemon
+# aren't included. Add them here the same way if RN grows that functionality.
 
-# Must match BITDRIFT_SHOP_BUNDLE_ID in .local.xcconfig. These scripts cannot read
-# xcconfig, so if you override the bundle identifier there, export it here too or
-# every script will look for an app that is not installed:
-#
-#   export BUNDLE_ID=com.example.bitdriftshop
-BUNDLE_ID="${BUNDLE_ID:-ai.bitdrift.shop.ios}"
+# Must match PRODUCT_BUNDLE_IDENTIFIER in ios/ShopDemoRN.xcodeproj. Unlike the
+# native iOS app (bundle id ai.bitdrift.shop.ios), this app is "ai.bitdrift.shop"
+# with no .ios suffix — no bundle-id collision with the native app, unlike the
+# Android side (see android-1-setup.sh's header comment).
+BUNDLE_ID="${BUNDLE_ID:-ai.bitdrift.shop}"
 
 # Set by resolve_target: "sim" or "device", plus the identifier.
 TARGET_KIND=""
 TARGET_ID=""
-
-# Cache for the pulled state file — copying off a device takes seconds, so a
-# poll cycle refreshes once and then reads as many keys as it likes.
-STATE_CACHE="${TMPDIR:-/tmp}/bitdrift-shop-state-$$.json"
-trap 'rm -f "$STATE_CACHE"' EXIT
 
 booted_simulator() {
   xcrun simctl list devices booted 2>/dev/null | grep -oE '[0-9A-F-]{36}' | head -1
@@ -60,8 +52,8 @@ resolve_target() {
       ;;
     auto)
       # Refuse to guess when both are live. Silently preferring one meant a bare
-      # `watchdog.sh` could sit watching an idle Simulator while the phone you were
-      # actually testing waited, armed, forever.
+      # invocation could sit watching an idle Simulator while the phone you were
+      # actually testing waited.
       local sim dev; sim="$(booted_simulator)"; dev="$(connected_device)"
       if [[ -n "$sim" && -n "$dev" ]]; then
         RESOLVE_ERROR="ambiguous"
@@ -103,12 +95,12 @@ app_pid() {
     device)
       # Matching on the executable name alone (as before) can return the
       # wrong app's PID: BitdriftShop.app/BitdriftShop is the product name
-      # shared with the React Native app's iOS build (see
-      # ../../reactnative/scripts/demo-lib.sh), so if both are installed and
-      # running on the same physical device this would silently pick either
-      # one. Resolve this bundle's on-device container path instead (it
-      # embeds a per-install UUID that can't collide with another app's) and
-      # only match a process whose executable path carries that same UUID.
+      # shared with the native iOS app's PRODUCT_NAME too (see
+      # ../../ios/scripts/demo-lib.sh), so if both are installed and running
+      # on the same physical device this would silently pick either one.
+      # Resolve this bundle's on-device container path instead (it embeds a
+      # per-install UUID that can't collide with another app's) and only
+      # match a process whose executable path carries that same UUID.
       bundle_process_pid "$TARGET_ID" "$BUNDLE_ID"
       ;;
   esac
@@ -213,38 +205,7 @@ terminate_app() {
   esac
 }
 
-# Pulls the app's published state into STATE_CACHE. Returns non-zero if there is
-# nothing to read yet (app has never launched).
-refresh_state() {
-  case "$TARGET_KIND" in
-    sim)
-      local container
-      container="$(xcrun simctl get_app_container "$TARGET_ID" "$BUNDLE_ID" data 2>/dev/null)"
-      local src="$container/Library/Application Support/bitdrift-demo-state.json"
-      [[ -f "$src" ]] || return 1
-      cp -f "$src" "$STATE_CACHE" 2>/dev/null || return 1
-      ;;
-    device)
-      rm -f "$STATE_CACHE"
-      xcrun devicectl device copy from --device "$TARGET_ID" \
-        --domain-type appDataContainer --domain-identifier "$BUNDLE_ID" --user mobile \
-        --source "Library/Application Support/bitdrift-demo-state.json" \
-        --destination "$STATE_CACHE" >/dev/null 2>&1 || return 1
-      [[ -s "$STATE_CACHE" ]] || return 1
-      ;;
-  esac
-}
-
-# state_value <key> [default] — reads from the last refresh_state.
-state_value() {
-  local v
-  [[ -s "$STATE_CACHE" ]] || { echo "${2:-}"; return 0; }
-  v="$(plutil -extract "$1" raw -o - "$STATE_CACHE" 2>/dev/null || true)"
-  [[ -z "$v" ]] && v="${2:-}"
-  echo "$v"
-}
-
-# Sends the app to the background so a background-half crash can fire.
+# Sends the app to the background so a background-half demo can run.
 #
 # Neither platform lets the app background itself, so this is done from outside
 # by giving something else the foreground:
@@ -268,87 +229,6 @@ background_app() {
     sleep 1
   done
   return 1
-}
-
-# Turns every fault flag (and Rec v2, so a device reset actually matches what
-# check-demo-state.sh reports afterward) off by relaunching the app with them
-# all set to 0.
-#
-# Works on a device, where the plist cannot be deleted: launch arguments land in
-# NSArgumentDomain, and the app promotes whatever it resolves at startup into its
-# persistent store — so one disarmed launch sticks. Note the `--` before the app's
-# own arguments, without which devicectl claims them as its own flags.
-DISARM_ARGS=(
-  -crash_loop.pending_watchdog ""
-  -crash_loop.active 0
-  -crash_loop.fast_mode 0
-  -crash_loop.oom_only 0
-  -crash_loop.resume_infinite_with_crash 0
-  -crash_loop.awaiting_background 0
-  -app_hang.active 0
-  -app_hang.restart_pending 0
-  -app_hang.resume_infinite 0
-  -force_quit.active 0
-  -force_quit.restart_pending 0
-  -force_quit.resume_infinite 0
-  -auto_infinite.active 0
-  -recommendations.active 0
-)
-
-disarm_flags() {
-  terminate_app
-  sleep 2
-  case "$TARGET_KIND" in
-    sim) xcrun simctl launch "$TARGET_ID" "$BUNDLE_ID" "${DISARM_ARGS[@]}" >/dev/null 2>&1 ;;
-    device) xcrun devicectl device process launch --device "$TARGET_ID" "$BUNDLE_ID" \
-              -- "${DISARM_ARGS[@]}" >/dev/null 2>&1 ;;
-  esac
-  # Give the app time to start, resolve, persist and republish its state.
-  sleep 8
-}
-
-# Sends SIGTERM — a *graceful* termination request, which is what makes the
-# 0x8BADF00D "Failed to terminate gracefully after 5.0s" watchdog fire when the
-# app blocks its main thread instead of exiting. SIGKILL would just kill it with
-# no report at all, so the default (SIGTERM) is exactly what is wanted here.
-request_graceful_terminate() {
-  local pid; pid="$(app_pid)"
-  [[ -z "$pid" ]] && return 1
-  case "$TARGET_KIND" in
-    sim) xcrun simctl spawn "$TARGET_ID" kill -TERM "$pid" >/dev/null 2>&1 ;;
-    device) xcrun devicectl device process terminate --device "$TARGET_ID" --pid "$pid" >/dev/null 2>&1 ;;
-  esac
-}
-
-# Drives the lifecycle transition an armed watchdog hang is waiting on. Returns
-# non-zero when there is nothing armed.
-#
-#   scene_create  relaunch, so the hang lands in the launch window
-#   scene_update  background then foreground, so it lands on resume
-#   process_exit  graceful SIGTERM, so it lands in the 5s exit budget
-drive_pending_watchdog() {
-  local kind; kind="$(state_value pending_watchdog "")"
-  [[ -z "$kind" || "$kind" == "null" ]] && return 1
-  case "$kind" in
-    scene_create)
-      terminate_app; sleep 1; launch_app ;;
-    scene_update)
-      background_app; sleep 3; launch_app ;;
-    process_exit)
-      request_graceful_terminate ;;
-    *) return 1 ;;
-  esac
-  echo "$kind"
-}
-
-# Bounces the Simulator's preferences daemon so it drops its cached copy of the
-# app's domain and re-reads from disk. Needed after deleting the plist from the
-# host, otherwise the daemon just writes its stale values back.
-restart_prefs_daemon() {
-  [[ "$TARGET_KIND" == "sim" ]] || return 0
-  xcrun simctl spawn "$TARGET_ID" launchctl kill SIGTERM system/com.apple.cfprefsd.xpc.daemon >/dev/null 2>&1 \
-    || xcrun simctl spawn "$TARGET_ID" launchctl stop com.apple.cfprefsd.xpc.daemon >/dev/null 2>&1 \
-    || true
 }
 
 # Parses the shared --simulator/--device flags out of "$@".

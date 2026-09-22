@@ -37,9 +37,11 @@ import org.json.JSONObject
 @Composable
 fun WelcomeScreen(navController: NavController, simulationManager: SimulationManager) {
     var apiData by remember { mutableStateOf<JSONObject?>(null) }
+    var latestSdkVersion by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         try { apiData = ApiClient.getWelcome() } catch (_: Exception) {}
+        try { latestSdkVersion = ApiClient.fetchLatestSdkVersion() } catch (_: Exception) {}
     }
 
     val subtitle = apiData?.let {
@@ -61,7 +63,9 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
         imageModifier = Modifier
             .fillMaxWidth()
             .height(84.dp)
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = 8.dp),
+        showSdkVersion = true,
+        latestSdkVersion = latestSdkVersion
     ) {
         PrimaryButton(
             title = "Browse Products",

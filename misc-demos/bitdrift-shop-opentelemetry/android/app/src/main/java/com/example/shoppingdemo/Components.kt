@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import io.bitdrift.capture.Capture.Logger
 import org.json.JSONObject
 
 // Category color mapping — aligned with OTel Demo Telescope Store catalog
@@ -82,6 +83,8 @@ fun ScreenContainer(
     imageModifier: Modifier = Modifier
         .size(120.dp)
         .clip(CircleShape),
+    showSdkVersion: Boolean = false,
+    latestSdkVersion: String? = null,
     onBack: (() -> Unit)? = null,
     onCart: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
@@ -152,6 +155,32 @@ fun ScreenContainer(
                         contentDescription = null,
                         tint = color,
                         modifier = Modifier.size(44.dp)
+                    )
+                }
+            }
+
+            if (showSdkVersion) {
+                val isOutdated = latestSdkVersion != null && latestSdkVersion != Logger.sdkVersion
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = "SDK v${Logger.sdkVersion}${if (isOutdated) " ⚑" else ""}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isOutdated) Color(0xFFF57C00) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                    )
+                    if (isOutdated) {
+                        Text(
+                            text = "v$latestSdkVersion available",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFF57C00).copy(alpha = 0.75f)
+                        )
+                    }
+                    Text(
+                        text = "App v${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                     )
                 }
             }

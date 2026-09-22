@@ -2,8 +2,8 @@
 # NOTE: intentionally no `set -e` — the main loop must survive transient adb failures
 set -uo pipefail
 
-PKG="com.example.shoppingdemo"
-ACTIVITY="com.example.shoppingdemo/.MainActivity"
+PKG="ai.bitdrift.oteldemo"
+ACTIVITY="ai.bitdrift.oteldemo/com.example.shoppingdemo.MainActivity"
 SERIAL=""
 INTERVAL_SECS=2
 TAP_X=""
@@ -25,8 +25,8 @@ only handles ANR dialogs which the app cannot dismiss itself.
 Options:
   -s SERIAL   ADB device serial (recommended). If omitted, script auto-selects
               only when exactly one emulator is connected.
-  -p PACKAGE  Android package name (default: com.example.shoppingdemo)
-  -a ACTIVITY Fully qualified launch activity (default: com.example.shoppingdemo/.MainActivity)
+  -p PACKAGE  Android package name (default: ai.bitdrift.oteldemo)
+  -a ACTIVITY Fully qualified launch activity (default: ai.bitdrift.oteldemo/com.example.shoppingdemo.MainActivity)
   -i SECONDS  Poll interval in seconds (default: 2)
   -h          Show help
 EOF
