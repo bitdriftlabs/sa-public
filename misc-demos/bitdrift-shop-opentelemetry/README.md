@@ -2,6 +2,17 @@
 
 A demo Android app simulating an e-commerce shopping experience, instrumented with the **bitdrift Capture SDK** and backed by the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store.
 
+## Quick Links
+
+Once the stack is running ([Quick Start](#quick-start) below), these are the local URLs you'll come back to most:
+
+| Service | URL | What it's for |
+|---|---|---|
+| **HyperDX / ClickStack** | [http://localhost:8080](http://localhost:8080) | Logs, traces, metrics, session replay |
+| **OTel Demo (app backend)** | [http://localhost:8081](http://localhost:8081) | The frontend proxy the Android app talks to |
+| **Portainer** (optional) | [http://localhost:9000](http://localhost:9000) | Container manager/dashboard — see [Container Monitoring](#container-monitoring-optional-portainer) |
+| **Zipkin** (if using B3 instead of ClickStack) | [http://localhost:9411](http://localhost:9411) | See [B3_ZIPKIN.md](B3_ZIPKIN.md) |
+
 ## What This Is
 
 - **bitdrift Capture SDK** — logging, screen views, network capture, feature flag exposure, ANR simulation.
