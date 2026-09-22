@@ -385,6 +385,19 @@ object ApiClient {
         return payment
     }
 
+    suspend fun fetchLatestSdkVersion(): String? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("https://api.github.com/repos/bitdriftlabs/capture-sdk/releases/latest")
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                JSONObject(response.body?.string() ?: return@withContext null)
+                    .optString("tag_name", "").removePrefix("v").ifEmpty { null }
+            }
+        } catch (_: Exception) { null }
+    }
+
     suspend fun getWelcome(): JSONObject = withContext(Dispatchers.IO) {
         JSONObject()
             .put("store_name", "Telescope Store")
