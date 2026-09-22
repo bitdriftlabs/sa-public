@@ -1,6 +1,6 @@
 # Appendix
 
-Troubleshooting notes for issues that don't fit neatly into the main [README](README.md) quick-start flow.
+Troubleshooting notes and reference material that don't fit neatly into the main [README](README.md) quick-start flow.
 
 ## Colima can't see an external-drive checkout (`otel-collector` crash-loops)
 
@@ -102,7 +102,7 @@ Fixing the Colima mount only repairs what containers see *going forward* — any
 
 ## Fully purging ClickStack / HyperDX
 
-The main README notes the `clickstack` container has "no persistence" because it's run without an explicit `-v` volume flag — but the `docker.hyperdx.io/hyperdx/hyperdx-all-in-one` image declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker silently creates an **anonymous volume** for it. A plain `docker stop`/`docker rm` leaves that volume behind, so old (possibly corrupted) ClickHouse state can survive what looks like a full reset.
+The `clickstack` container is run without an explicit `-v` volume flag, but the `docker.hyperdx.io/hyperdx/hyperdx-all-in-one` image declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker silently creates an **anonymous volume** for it — data survives a `docker stop`/restart (see the main README's [Persistence note](README.md#1-set-up-clickstack)). A plain `docker stop`/`docker rm` (without `-v`) leaves that volume behind, so old (possibly corrupted) ClickHouse state can survive what looks like a full reset.
 
 **Symptom:** HyperDX UI errors like `Failed to fetch` on `DESCRIBE default.otel_logs`, or traces/logs missing even after restarting the container.
 
@@ -121,3 +121,83 @@ docker run -d --name clickstack -p 8080:8080 -p 4317:4317 -p 4318:4318 docker.hy
 ```
 
 This gives a brand-new ClickHouse instance — you'll need to sign up again and grab a new API key (see [Set up ClickStack](README.md#1-set-up-clickstack) in the main README).
+
+## Screens
+
+| Screen | Description |
+|--------|-------------|
+| `Welcome` | Entry point, simulation controls |
+| `Browse` | Full product listing |
+| `Search` | Keyword search |
+| `Featured` | Curated featured products |
+| `Categories` | Category listing |
+| `CategoryBrowse` | Products within a category |
+| `ProductDetail` | Full product info with images |
+| `Reviews` | Customer reviews + ratings |
+| `Cart` | Shopping cart |
+| `Wishlist` | Saved items |
+| `CheckoutGuest` | Guest checkout |
+| `CheckoutSignIn` | Member checkout with loyalty points |
+| `PaymentCard` | Credit card payment |
+| `PaymentApplePay` | Apple Pay |
+| `PaymentPayPal` | PayPal |
+| `PaymentAndroidPay` | Android Pay |
+| `Confirmation` | Order confirmation |
+
+## Requirements
+
+- Android API 36 (targetSdk / compileSdk), API 26+ minimum
+- Emulator: 1080×2400 resolution (Medium Phone / Pixel 7)
+- [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) running on port 8081 (see [Local Config](README.md#local-config) in the main README)
+
+## Project Structure
+
+```
+android/app/src/main/java/com/example/shoppingdemo/
+├── ShoppingDemoApp.kt         # Application class, SDK init
+├── MainActivity.kt            # Main activity with NavHost
+├── Screen.kt                  # Navigation routes (sealed class)
+├── Screens.kt                 # All screen composables
+├── Components.kt              # Reusable UI components
+├── ApiClient.kt               # OTel Demo compatibility adapter (OkHttp)
+├── SimulationManager.kt       # Probabilistic state machine simulator
+├── RecommendationEngine.kt    # Product recommendation scoring engine
+├── ScreenLogger.kt            # Centralized logging wrapper
+├── AppLifecycleCallbacks.kt   # App lifecycle event logging
+└── ui/theme/
+    └── Theme.kt               # Material 3 theme
+```
+
+## Architecture
+
+```
+┌─────────────────────┐        HTTP (OkHttp)        ┌──────────────────────────────────────┐
+│   Android Emulator   │ ◄─────────────────────────► │  OTel Demo Frontend Proxy (Envoy)    │
+│   (10.0.2.2:8081)    │    JSON request/response    │  (localhost:8081)                    │
+└─────────────────────┘                              │                                      │
+                                                     │  /api/products  → product-catalog    │
+                                                     │  /api/cart      → cart service       │
+                                                     │  /api/checkout  → checkout service   │
+                                                     │  /images/       → image-provider     │
+                                                     └──────────────────────────────────────┘
+```
+
+## Switch to B3 Propagation and Zipkin (Optional)
+
+See [B3_ZIPKIN.md](B3_ZIPKIN.md) for switching the backend from ClickStack to Zipkin with B3 multi-header trace propagation.
+
+## Memory Requirements
+
+The ClickStack all-in-one container bundles ClickHouse + Mongo + the ClickStack app, and needs **at least 4GB RAM** on its own (ClickStack's own recommendation). Combined with the ~20 containers in the OTel Demo stack, give your Docker VM **8GB+** total or ClickHouse will get silently OOM-killed after a few minutes (check `docker inspect <container> --format '{{.State.OOMKilled}}'` if traces stop landing).
+
+- **Colima** (see [Prerequisites](README.md#prerequisites-macos) in the main README): `colima stop && colima start --memory 8 --cpu 4` (this restarts the whole VM — every running container goes down; the OTel Demo stack's containers have `restart: unless-stopped` so they come back on their own, but the ClickStack container does not and must be relaunched manually)
+- **Docker Desktop:** Settings → Resources → bump Memory to 8GB → Apply & Restart
+
+## Emulator Requirements
+
+| Setting | Value |
+|---------|-------|
+| API level | API 36 (Android 16) |
+| Screen resolution | 1080×2400 (FHD+) |
+| Device profile | Medium Phone / Pixel 7 / 6a |
+| RAM | 2 GB+ |
