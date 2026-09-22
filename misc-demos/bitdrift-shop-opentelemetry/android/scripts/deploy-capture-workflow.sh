@@ -27,12 +27,15 @@ EXISTING="$(bd workflow list -ojson --jq "[.items[] | select(.workflow.name == \
 if [[ -n "$EXISTING" && "$EXISTING" != "null" ]]; then
   ID="$(echo "$EXISTING" | python3 -c 'import json,sys; print(json.load(sys.stdin)["workflow"]["id"])')"
   STATE="$(echo "$EXISTING" | python3 -c 'import json,sys; print(json.load(sys.stdin)["workflow"]["state"])')"
-  if [[ "$STATE" != "LIVE" ]]; then
-    echo "Workflow $ID exists but is $STATE — deploying it ..."
-    bd workflow deploy "$ID"
-  else
-    echo "Workflow $ID is already LIVE — nothing to do."
-  fi
+  # Always reconcile rather than trusting STATE alone — a LIVE workflow could
+  # have drifted from the committed files (edited in the UI, or from an older
+  # version of this repo), and "already LIVE" would then report success while
+  # the server keeps running stale rules. Workflow logic can't be edited
+  # while LIVE, so stop it first if needed.
+  echo "Workflow $ID exists ($STATE) — reconciling with $WORKFLOW_FILE ..."
+  [[ "$STATE" == "LIVE" ]] && bd workflow stop "$ID"
+  bd workflow update --workflow-id "$ID" --workflow-file "$WORKFLOW_FILE" --metadata-file "$METADATA_FILE"
+  bd workflow deploy "$ID"
 else
   echo "Creating and deploying workflow from $WORKFLOW_FILE ..."
   ID="$(bd workflow create "$WORKFLOW_FILE" --metadata-file "$METADATA_FILE" --deploy -ojson --jq '.id' -r)"
