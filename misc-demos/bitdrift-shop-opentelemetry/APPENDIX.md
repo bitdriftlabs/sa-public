@@ -59,24 +59,17 @@ docker compose -f compose.yaml up -d astronomy-db
 
 ## Android app has no product images, no crash, no obvious error
 
-If the backend is confirmed healthy (product API returns data via `curl`/browser, containers healthy) but the app still shows no product images and no data on Browse/Featured/Product Detail, check `android/.local.properties` **before** looking at the backend at all:
+`build.gradle.kts` defaults `OTEL_DEMO_PORT` to `8081` (the real OTel Demo backend), so a clean checkout without any `.local.properties` override works out of the box. But if you've explicitly set `OTEL_DEMO_PORT` somewhere — `.local.properties`, a shell env var, CI config — and mistype or copy-paste the wrong value (e.g. `8080`), the symptom is worth knowing because it's easy to misdiagnose:
+
+If the backend is confirmed healthy (product API returns data via `curl`/browser, containers healthy) but the app still shows no product images and no data on Browse/Featured/Product Detail, check what port the app actually built against **before** looking at the backend at all:
 
 ```bash
-grep -c OTEL_DEMO .local.properties   # should print 2 (OTEL_DEMO_HOST and OTEL_DEMO_PORT)
+grep OTEL_DEMO android/.local.properties android/local.properties 2>/dev/null
 ```
 
-If either line is missing, Gradle silently falls back to `build.gradle.kts`'s default `OTEL_DEMO_PORT`, which is **8080** — not 8081. Port 8080 is ClickStack/HyperDX's own web UI (see [Set up ClickStack](README.md#1-set-up-clickstack)), not the OTel Demo backend, so the app ends up making every request to HyperDX's server instead. HyperDX has no `/api/products` route, so this manifests as 404s or hung "Loading..." states — with **zero** matching log lines in `frontend`'s or `product-catalog`'s container logs, because the request never reaches the OTel Demo stack at all.
+Port `8080` happens to be ClickStack/HyperDX's own web UI (see [Set up ClickStack](README.md#1-set-up-clickstack)), not the OTel Demo backend — so a request that lands there instead gets 404s or hangs on "Loading...", with **zero** matching log lines in `frontend`'s or `product-catalog`'s container logs, because the request never reaches the OTel Demo stack at all. Every infra-side check (container health, direct `curl` to the real backend, Colima mounts) comes back clean, since the bug is entirely in what port the client is configured to hit.
 
-**This is easy to miss** because the failure looks exactly like a backend problem (404s, timeouts) and every infra-side check (container health, direct `curl` to the real backend, Colima mounts) comes back clean — the bug is entirely client-side and never reaches the containers you'd naturally go debug first.
-
-**Fix:** add the two missing lines to `android/.local.properties` (gitignored, not something `git status` will ever surface), matching [Local Config](README.md#local-config):
-
-```properties
-OTEL_DEMO_HOST=10.0.2.2
-OTEL_DEMO_PORT=8081
-```
-
-Rebuild and reinstall (`./gradlew :app:installDebug`) — `BuildConfig` values are baked in at build time, so editing `.local.properties` alone does nothing until you rebuild.
+**Fix:** correct (or remove) the `OTEL_DEMO_PORT` override so it resolves to `8081`, then rebuild and reinstall (`./gradlew :app:installDebug`) — `BuildConfig` values are baked in at build time, so editing `.local.properties` alone does nothing until you rebuild.
 
 **To confirm this is the issue** before touching the backend: check `android/app/build/generated/source/buildConfig/debug/.../BuildConfig.java` for the actual baked-in `OTEL_DEMO_PORT`, or open `http://10.0.2.2:8081/api/products?currencyCode=USD` directly in the emulator's browser (`adb shell am start -a android.intent.action.VIEW -d "..."`) — if that succeeds but the app doesn't, the app isn't hitting the URL you think it is.
 

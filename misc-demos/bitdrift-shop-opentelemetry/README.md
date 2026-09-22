@@ -69,6 +69,8 @@ docker run -d -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock portaine
 
 Open **http://localhost:9000** — no admin account/token step, straight into the dashboard listing all running containers.
 
+> **Local dev only:** `--no-setup-token` skips authentication entirely, and the container has full access to the host's Docker socket — anyone who can reach port 9000 has root-equivalent control over your Docker daemon. Fine for a `localhost`-only dev setup; don't expose this port beyond your own machine.
+
 **Stop it:**
 
 ```bash
@@ -117,7 +119,7 @@ Open **http://localhost:8080** and sign up (any email/password works locally) �
 
 > **Grab the key now and hold onto it** — the next step (starting the OTel Demo backend) uses it to configure the collector's ClickStack exporter before the backend's first boot.
 
-> **No persistence:** this container has no volume mounts, so a restart (crash, `docker stop`, Colima/Docker VM restart) wipes all data and creates a **new** team + API key on next signup. If traces stop showing up after a restart, re-check the key.
+> **Persistence:** this container is run without an explicit `-v` volume flag, but the image itself declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker silently creates an anonymous volume for it — data survives a `docker stop`/`start` or a Colima/Docker VM restart. It's only lost if the container is removed (`docker rm`) without also removing that volume. If you need a true reset (e.g. after corrupted state), see [Fully purging ClickStack / HyperDX](APPENDIX.md#fully-purging-clickstack--hyperdx) in the appendix — that also creates a **new** team + API key on next signup, so re-check the key if traces stop showing up after a purge.
 
 ### 2. Start the OTel Demo backend (configured for ClickStack)
 

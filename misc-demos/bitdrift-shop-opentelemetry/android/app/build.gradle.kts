@@ -35,7 +35,7 @@ android {
             ?: "10.0.2.2"
         val otelDemoPort = localProps.getProperty("OTEL_DEMO_PORT")
             ?: System.getenv("OTEL_DEMO_PORT")
-            ?: "8080"
+            ?: "8081"
         buildConfigField("String", "BITDRIFT_SDK_KEY", "\"$bitdriftSdkKey\"")
         buildConfigField("String", "BITDRIFT_API_HOST", "\"$bitdriftApiHost\"")
         buildConfigField("String", "OTEL_DEMO_HOST", "\"$otelDemoHost\"")
