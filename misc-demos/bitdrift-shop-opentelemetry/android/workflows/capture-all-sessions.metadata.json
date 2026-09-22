@@ -1,9 +1,13 @@
 {
-  "description": "Guarantees full session capture for every session of the bitdrift-shop-opentelemetry demo app (ai.bitdrift.oteldemo), scoped to that app ID only. Deployed ahead of live demos so every run — including the walkthrough itself — lands a full timeline for playback, instead of relying on a workflow that happened to be watching. Fires on APP_LAUNCH with no sampling and no additional match conditions, so it captures 100% of sessions for this app; it is not narrowed to a single device.",
+  "description": "Guarantees full session capture and backend trace propagation for every session of the bitdrift-shop-opentelemetry demo app (ai.bitdrift.oteldemo), scoped to that app ID only. Deployed ahead of live demos so every run — including the walkthrough itself — lands a full timeline for playback, instead of relying on a workflow that happened to be watching. Fires on APP_LAUNCH with no sampling and no additional match conditions, so it captures 100% of sessions for this app; it is not narrowed to a single device.",
   "per_rule_metadata": [
     {
       "rule_id": "capture-all-sessions",
       "title": "Capture All Sessions"
+    },
+    {
+      "rule_id": "trace-all-sessions",
+      "title": "Trace All Sessions"
     }
   ]
 }
