@@ -208,10 +208,10 @@ ENVOY_PORT=8081 docker compose -f compose.yaml restart
 docker compose -f compose.yaml down
 ```
 
-- **Stop the whole demo** (OTel Demo stack + ClickStack + Portainer, run from this repo) — use this before a Colima/Docker restart if you don't want everything auto-relaunching:
+- **Stop the whole demo** (OTel Demo stack + ClickStack + Portainer) — use this before a Colima/Docker restart if you don't want everything auto-relaunching:
 
 ```bash
-./scripts/stop-backend.sh
+android/scripts/stop-backend.sh
 ```
 
 The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `colima stop && colima start` brings them back on its own — Docker only respects that policy once a container has been explicitly stopped first. This script stops everything (without removing containers/volumes) so a subsequent Colima restart leaves them down until you deliberately bring them back up.
