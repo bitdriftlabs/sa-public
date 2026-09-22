@@ -109,11 +109,21 @@ app_pid() {
   esac
 }
 
+# Launches, then confirms the process actually came up (simctl/devicectl both
+# exit 0 even when the launch silently no-ops, e.g. simctl against a booting-
+# but-not-yet-ready Simulator) and retries once rather than assuming success.
 launch_app() {
-  case "$TARGET_KIND" in
-    sim) xcrun simctl launch "$TARGET_ID" "$BUNDLE_ID" >/dev/null 2>&1 ;;
-    device) xcrun devicectl device process launch --device "$TARGET_ID" "$BUNDLE_ID" >/dev/null 2>&1 ;;
-  esac
+  local out attempt
+  for attempt in 1 2; do
+    case "$TARGET_KIND" in
+      sim) out="$(xcrun simctl launch "$TARGET_ID" "$BUNDLE_ID" 2>&1)" ;;
+      device) out="$(xcrun devicectl device process launch --device "$TARGET_ID" "$BUNDLE_ID" 2>&1)" ;;
+    esac
+    [[ -n "$(app_pid)" ]] && return 0
+    echo "warning: launch_app attempt $attempt did not produce a running process: $out" >&2
+    sleep 1
+  done
+  return 1
 }
 
 terminate_app() {
@@ -166,12 +176,22 @@ state_value() {
 #   - Device: there is no SpringBoard equivalent over devicectl, but launching
 #     any other app has the same effect. Settings is used because it is present
 #     on every device, harmless to open, and cheap to launch.
+#
+# There's no CLI-visible "is X frontmost" signal on either target (unlike
+# Android's dumpsys), so unlike launch_app this can't verify the transition
+# actually happened — it can only stop swallowing errors and retry once on a
+# reported failure instead of assuming success.
 background_app() {
-  case "$TARGET_KIND" in
-    sim) xcrun simctl launch "$TARGET_ID" com.apple.springboard >/dev/null 2>&1 || true ;;
-    device) xcrun devicectl device process launch --device "$TARGET_ID" com.apple.Preferences >/dev/null 2>&1 || true ;;
-  esac
-  return 0
+  local out attempt
+  for attempt in 1 2; do
+    case "$TARGET_KIND" in
+      sim) out="$(xcrun simctl launch "$TARGET_ID" com.apple.springboard 2>&1)" && return 0 ;;
+      device) out="$(xcrun devicectl device process launch --device "$TARGET_ID" com.apple.Preferences 2>&1)" && return 0 ;;
+    esac
+    echo "warning: background_app attempt $attempt failed: $out" >&2
+    sleep 1
+  done
+  return 1
 }
 
 # Turns every fault flag (and Rec v2, so a device reset actually matches what

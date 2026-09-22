@@ -75,15 +75,52 @@ else
     "(${FOREGROUND_SECONDS}s foreground, ${BACKGROUND_SECONDS}s background each)"
 fi
 
-adb -s "$EMU_ID" shell am start -n "$PKG/.MainActivity" >/dev/null
+# True when $PKG's activity is the resumed (foreground) one.
+is_foreground() {
+  adb -s "$EMU_ID" shell dumpsys activity activities 2>/dev/null \
+    | grep -q "mResumedActivity:.*$PKG"
+}
+
+# am start's own exit code is not reliable — it exits 0 even when it prints an
+# on-device "Error: ..." (e.g. activity not found, ActivityManager busy). Check
+# the output instead, and confirm the transition actually happened rather than
+# assuming the adb call landed.
+go_foreground() {
+  local out attempt
+  for attempt in 1 2 3; do
+    out="$(adb -s "$EMU_ID" shell am start -n "$PKG/.MainActivity" 2>&1)"
+    [[ "$out" == *Error* ]] && echo "warning: am start reported: $out" >&2
+    sleep 1
+    is_foreground && return 0
+  done
+  echo "warning: $PKG did not reach the foreground after $attempt attempts" >&2
+  return 1
+}
+
+# Goes through ActivityManager directly instead of KEYCODE_HOME, which passes
+# through the input dispatcher and can get dropped if focus/IME state is mid-
+# transition (the flakiness this was written to fix).
+go_background() {
+  local out attempt
+  for attempt in 1 2 3; do
+    out="$(adb -s "$EMU_ID" shell am start -a android.intent.action.MAIN -c android.intent.category.HOME 2>&1)"
+    [[ "$out" == *Error* ]] && echo "warning: am start (HOME) reported: $out" >&2
+    sleep 1
+    is_foreground || return 0
+  done
+  echo "warning: $PKG still foreground after $attempt attempts to background it" >&2
+  return 1
+}
+
+go_foreground || true
 
 i=0
 while [[ -z "$CYCLES" || "$i" -lt "$CYCLES" ]]; do
   i=$((i + 1))
   sleep "$FOREGROUND_SECONDS"
-  adb -s "$EMU_ID" shell input keyevent KEYCODE_HOME
+  go_background || true
   sleep "$BACKGROUND_SECONDS"
-  adb -s "$EMU_ID" shell am start -n "$PKG/.MainActivity" >/dev/null
+  go_foreground || true
   if [[ -n "$CYCLES" ]]; then
     echo "cycle $i/$CYCLES done"
   else
