@@ -79,7 +79,7 @@ is_foreground() {
 go_foreground() {
   local out attempt
   for attempt in 1 2 3; do
-    out="$(adb -s "$EMU_ID" shell am start -n "$PKG/.MainActivity" 2>&1)"
+    out="$(adb -s "$EMU_ID" shell am start -n "$PKG/.MainActivity" 2>&1)" || true
     [[ "$out" == *Error* ]] && echo "warning: am start reported: $out" >&2
     sleep 1
     is_foreground && return 0
@@ -92,7 +92,7 @@ go_foreground() {
 go_background() {
   local out attempt
   for attempt in 1 2 3; do
-    out="$(adb -s "$EMU_ID" shell am start -a android.intent.action.MAIN -c android.intent.category.HOME 2>&1)"
+    out="$(adb -s "$EMU_ID" shell am start -a android.intent.action.MAIN -c android.intent.category.HOME 2>&1)" || true
     [[ "$out" == *Error* ]] && echo "warning: am start (HOME) reported: $out" >&2
     sleep 1
     is_foreground || return 0

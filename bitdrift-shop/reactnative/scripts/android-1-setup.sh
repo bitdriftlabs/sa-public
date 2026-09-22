@@ -86,7 +86,7 @@ fi
 
 # 6. Create the AVD if it does not exist. Falls back to pixel_7 if this SDK
 #    tools version doesn't know the "medium_phone" device id yet.
-if avdmanager list avd | grep -q "^Name: $AVD_NAME$"; then
+if avdmanager list avd | grep -q "^[[:space:]]*Name: $AVD_NAME$"; then
   echo "AVD '$AVD_NAME' already exists."
 else
   if ! avdmanager list device | grep -q "id: .*or \"$DEVICE_PROFILE\""; then

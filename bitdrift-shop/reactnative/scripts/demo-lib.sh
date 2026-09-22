@@ -93,15 +93,88 @@ app_pid() {
         | awk -v id="$BUNDLE_ID" '$3 ~ id && $1 ~ /^[0-9]+$/ { print $1; exit }'
       ;;
     device)
-      # devicectl pads its table columns, so the executable path is followed by
-      # trailing spaces — anchoring with a bare `$` never matches. Note the
-      # executable name (BitdriftShop) is shared with the native iOS app's
-      # PRODUCT_NAME too; this only matters if both were ever installed and
-      # running on the same physical device at once.
-      xcrun devicectl device info processes --device "$TARGET_ID" 2>/dev/null \
-        | awk '/BitdriftShop\.app\/BitdriftShop[[:space:]]*$/ && $1 ~ /^[0-9]+$/ { print $1; exit }'
+      # Matching on the executable name alone (as before) can return the
+      # wrong app's PID: BitdriftShop.app/BitdriftShop is the product name
+      # shared with the native iOS app's PRODUCT_NAME too (see
+      # ../../ios/scripts/demo-lib.sh), so if both are installed and running
+      # on the same physical device this would silently pick either one.
+      # Resolve this bundle's on-device container path instead (it embeds a
+      # per-install UUID that can't collide with another app's) and only
+      # match a process whose executable path carries that same UUID.
+      bundle_process_pid "$TARGET_ID" "$BUNDLE_ID"
       ;;
   esac
+}
+
+# Prints the PID of the process belonging to $2 (a bundle ID) on device $1, by
+# cross-referencing `device info apps --bundle-id` (this app's on-device
+# container path, which embeds a per-install UUID) against `device info
+# processes` (which only exposes an executable path, not a bundle ID) —
+# scanned generically over whatever JSON fields devicectl reports, since the
+# exact field names aren't documented and shouldn't be assumed stable across
+# devicectl versions.
+bundle_process_pid() {
+  local device="$1" bundle_id="$2" apps_json procs_json
+  apps_json="$(mktemp)"; procs_json="$(mktemp)"
+  xcrun devicectl device info apps --device "$device" --bundle-id "$bundle_id" \
+    --include-container-paths --json-output "$apps_json" >/dev/null 2>&1
+  xcrun devicectl device info processes --device "$device" \
+    --json-output "$procs_json" >/dev/null 2>&1
+  python3 - "$apps_json" "$procs_json" <<'PY'
+import json, re, sys
+
+UUID_RE = re.compile(r'[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}')
+
+def strings(obj):
+    if isinstance(obj, str):
+        yield obj
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            yield from strings(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from strings(v)
+
+def find_list(obj):
+    if isinstance(obj, dict):
+        for v in obj.values():
+            if isinstance(v, list) and v and isinstance(v[0], dict):
+                return v
+            found = find_list(v)
+            if found is not None:
+                return found
+    return None
+
+try:
+    apps = find_list(json.load(open(sys.argv[1]))) or []
+    procs = find_list(json.load(open(sys.argv[2]))) or []
+except Exception:
+    sys.exit(1)
+
+if not apps:
+    sys.exit(1)
+
+app_uuids = set()
+for s in strings(apps[0]):
+    app_uuids.update(UUID_RE.findall(s))
+if not app_uuids:
+    sys.exit(1)
+
+for proc in procs:
+    proc_uuids = set()
+    for s in strings(proc):
+        proc_uuids.update(UUID_RE.findall(s))
+    if app_uuids & proc_uuids:
+        pid = proc.get("pid") or proc.get("processIdentifier") or proc.get("processID")
+        if pid is not None:
+            print(pid)
+            sys.exit(0)
+
+sys.exit(1)
+PY
+  local status=$?
+  rm -f "$apps_json" "$procs_json"
+  return $status
 }
 
 # Launches, then confirms the process actually came up (simctl/devicectl both
@@ -111,8 +184,8 @@ launch_app() {
   local out attempt
   for attempt in 1 2; do
     case "$TARGET_KIND" in
-      sim) out="$(xcrun simctl launch "$TARGET_ID" "$BUNDLE_ID" 2>&1)" ;;
-      device) out="$(xcrun devicectl device process launch --device "$TARGET_ID" "$BUNDLE_ID" 2>&1)" ;;
+      sim) out="$(xcrun simctl launch "$TARGET_ID" "$BUNDLE_ID" 2>&1)" || true ;;
+      device) out="$(xcrun devicectl device process launch --device "$TARGET_ID" "$BUNDLE_ID" 2>&1)" || true ;;
     esac
     [[ -n "$(app_pid)" ]] && return 0
     echo "warning: launch_app attempt $attempt did not produce a running process: $out" >&2

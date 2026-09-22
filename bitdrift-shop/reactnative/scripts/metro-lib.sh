@@ -23,14 +23,21 @@ metro_is_ours() {
 start_metro_background() {
   if metro_running; then
     if metro_is_ours; then
-      echo "Metro already running on port 8081"
-      return
+      echo "Metro already running on port 8081 for this project — restarting with" \
+        "--reset-cache so any .env change (e.g. an updated API key) actually takes effect."
+      local pid; pid="$(lsof -ti :8081 -sTCP:LISTEN 2>/dev/null | head -1)"
+      [[ -n "$pid" ]] && kill "$pid" 2>/dev/null
+      for _ in $(seq 1 10); do
+        metro_running || break
+        sleep 1
+      done
+    else
+      echo "ERROR: Port 8081 is already serving a DIFFERENT React Native project." >&2
+      echo "       Owner: $(lsof -a -p "$(lsof -ti :8081 -sTCP:LISTEN | head -1)" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)" >&2
+      echo "       This:  $(cd "$ROOT" && pwd -P)" >&2
+      echo "       Stop it and re-run:  lsof -ti :8081 | xargs kill" >&2
+      exit 1
     fi
-    echo "ERROR: Port 8081 is already serving a DIFFERENT React Native project." >&2
-    echo "       Owner: $(lsof -a -p "$(lsof -ti :8081 -sTCP:LISTEN | head -1)" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)" >&2
-    echo "       This:  $(cd "$ROOT" && pwd -P)" >&2
-    echo "       Stop it and re-run:  lsof -ti :8081 | xargs kill" >&2
-    exit 1
   fi
   echo "Starting Metro in the background (log: /tmp/metro-shop-rn.log) ..."
   (cd "$ROOT" && npx react-native start --reset-cache) >/tmp/metro-shop-rn.log 2>&1 &
