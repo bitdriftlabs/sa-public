@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Boot an iOS Simulator and open the Simulator.app window.
+# Boot an iOS Simulator and open its window (Simulator.app, or Xcode's
+# device UI on newer Xcode versions that no longer ship a standalone app).
 # Override the device with DEVICE_NAME=<name>; list options with:
 #   xcrun simctl list devices available
 set -euo pipefail
@@ -24,7 +25,15 @@ else
   xcrun simctl boot "$UDID"
 fi
 
-open -a Simulator
+
+# Newer Xcode versions folded the standalone Simulator.app into Xcode's own
+# device management UI, so there may be no separate "Simulator" app to open.
+if open -a Simulator 2>/dev/null; then
+  :
+else
+  echo "No standalone Simulator.app found; opening Xcode instead (use its device/simulator UI)." >&2
+  open -a Xcode
+fi
 
 echo "Simulator is up:"
 xcrun simctl list devices booted
