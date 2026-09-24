@@ -11,16 +11,16 @@
 #
 # AVD_NAME default was "bitdrift_shop" (shared with the Flutter script on
 # purpose, so both apps' APKs could install on one shared AVD) until that AVD
-# hit an unresolved boot failure (HVF/mprotect issues on macOS 26, reproduced
-# in Android Studio too) and got deleted. Now defaults to
-# "Medium_Phone_Control", one of Android Studio's own default AVDs, confirmed
-# to boot on this machine -- if it doesn't already exist, this script creates
-# it same as before; no longer shares a default with Flutter's scripts unless
-# those get updated too.
+# hit an unresolved boot failure (HVF/mprotect issues on macOS 26) and got
+# deleted. Now defaults to "Medium_Phone", one of Android Studio's own default
+# AVDs, confirmed to boot on this machine once -gpu host is avoided (see
+# android-2-start-emulator.sh) -- if it doesn't already exist, this script
+# creates it same as before; no longer shares a default with Flutter's
+# scripts unless those get updated too.
 set -euo pipefail
 
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
-AVD_NAME="${AVD_NAME:-Medium_Phone_Control}"
+AVD_NAME="${AVD_NAME:-Medium_Phone}"
 DEVICE_PROFILE="${DEVICE_PROFILE:-medium_phone}"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip"
 
