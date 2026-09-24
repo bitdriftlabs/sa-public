@@ -11,10 +11,10 @@ A demo React Native app simulating an e-commerce shopping experience with realis
 | Tool | Version | Notes |
 |------|---------|-------|
 | Node.js | 18+ | |
-| Xcode | 16+ | macOS only; iOS Simulator required |
+| Xcode | 26+ | macOS only; iOS Simulator required (app targets `IPHONEOS_DEPLOYMENT_TARGET = 26.0`) |
 | CocoaPods | latest | `brew install cocoapods` |
 | Watchman | latest | `brew install watchman` (required by Metro) |
-| Android Studio | latest | Android emulator only |
+| Android SDK | — | No Android Studio needed — `scripts/android-1-setup.sh` installs cmdline-tools, an emulator AVD, and everything else from scratch |
 | **JDK 17** | **17 exactly** | Android only — newer JDKs fail, see below |
 | Docker | latest | For the backend. This repo uses [Colima](https://github.com/abiosoft/colima), not Docker Desktop |
 | ios-deploy | latest | Physical iOS device only. `brew install ios-deploy` |
@@ -57,7 +57,7 @@ cp .env.example .env
 
 | Variable | Required | Notes |
 |----------|----------|-------|
-| `BITDRIFT_API_KEY` | yes | Your bitdrift SDK key — get one at [app.bitdrift.io](https://app.bitdrift.io) |
+| `BITDRIFT_SDK_KEY` | yes | Your bitdrift SDK key — get one at [app.bitdrift.io](https://app.bitdrift.io) |
 | `BITDRIFT_API_HOST` | no | Passed as `url` to `init()`. Omit for the default endpoint; set for staging/on-premise |
 | `BACKEND_PORT` | no | Defaults to `5173` |
 
@@ -161,7 +161,7 @@ The RN SDK has no span API, so spans are emitted as paired start/end logs carryi
 
 Native-signal crashes (`SIGSEGV/SIGBUS/SIGABRT/SIGFPE`), true ANR and force-quit need a native module:
 
-- **Android** — `android/app/src/main/java/ai/bitdrift/shop/BdCrashModule.kt` (+ `BdCrashPackage.kt`). Works after a Gradle rebuild.
+- **Android** — `android/app/src/main/java/ai/bitdrift/rn/shop/BdCrashModule.kt` (+ `BdCrashPackage.kt`). Works after a Gradle rebuild.
 - **iOS** — `ios/ShopDemoRN/BdCrash.m`. **Add it to the `ShopDemoRN` target in Xcode** before it compiles.
 
 Without it these fall back to a labelled JS error so the app still runs. JS-portable crashes (null deref, stack overflow, …) need no native code.
@@ -287,14 +287,16 @@ Then clean (⌘⇧K) and rebuild.
 
 **First Android build takes 10+ minutes** — Gradle downloads NDK 27.1.12297006 (~2.4 GB) and CMake 3.22.1. One-time.
 
+**Android emulator opens to a black screen, pegs one CPU core, or crashes** — `-gpu host` is broken on some macOS/Xcode combos (confirmed on Xcode 27 / macOS 26.6: either hangs at ~100% CPU or crashes with a NULL-pointer dereference in the emulator's own hang-detector startup — not fixable via AVD config). `android-2-start-emulator.sh` defaults to `-gpu swiftshader_indirect` (software rendering, slower but reliable) for this reason; only pass `EMU_GPU=host` if you've confirmed it actually works on your machine.
+
 **Android emulator `offline` / `authorizing`** — `adb kill-server && adb start-server`. If still offline, cold boot it: `adb emu kill`, wait for it to exit, then `emulator -avd <AVD_NAME> -no-snapshot-load &`.
 
-**`INSTALL_FAILED_UPDATE_INCOMPATIBLE`** — an old build with a different signing key is installed. `adb uninstall ai.bitdrift.shop`.
+**`INSTALL_FAILED_UPDATE_INCOMPATIBLE`** — an old build with a different signing key is installed. `adb uninstall ai.bitdrift.rn.shop`.
 
 **`INSTALL_FAILED_INSUFFICIENT_STORAGE`** — the emulator's `/data` is full (`adb shell df -h /data`). The debug APK is ~120 MB across four ABIs and needs roughly double that free; a default 6 GB AVD is mostly consumed by the Google Play system image. In increasing order of destructiveness:
 ```bash
 adb shell pm trim-caches 3000M          # rarely enough alone
-adb uninstall ai.bitdrift.shop
+adb uninstall ai.bitdrift.rn.shop
 # raise the partition (non-destructive, needs restart):
 #   ~/.android/avd/<AVD_NAME>.avd/config.ini -> disk.dataPartition.size=12G
 # factory reset (destroys all device data) — stop the emulator first or this fails:

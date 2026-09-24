@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Repeatedly foregrounds and backgrounds ai.bitdrift.shop via adb, without a
+# Repeatedly foregrounds and backgrounds ai.bitdrift.rn.shop via adb, without a
 # human switching apps by hand. Mirrors ../../android/scripts/foreground-cycle.sh.
 #
 # Backgrounding goes through ActivityManager (`am start` with a HOME intent)
@@ -43,7 +43,7 @@ fi
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export PATH="$SDK_DIR/platform-tools:$PATH"
 
-PKG="ai.bitdrift.shop"
+PKG="ai.bitdrift.rn.shop"
 if [[ "$SLOW" -eq 1 ]]; then
   FOREGROUND_SECONDS="${FOREGROUND_SECONDS:-30}"
   BACKGROUND_SECONDS="${BACKGROUND_SECONDS:-20}"

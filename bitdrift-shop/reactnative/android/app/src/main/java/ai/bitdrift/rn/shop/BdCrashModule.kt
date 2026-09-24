@@ -1,4 +1,4 @@
-package ai.bitdrift.shop
+package ai.bitdrift.rn.shop
 
 import android.os.Handler
 import android.os.Looper

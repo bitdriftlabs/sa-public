@@ -100,6 +100,9 @@ yarn-error.log*
 **/fastlane/screenshots
 **/fastlane/test_output
 
+# ── Local scratch/handoff notes (not for the PR/repo) ──────────────────────
+bitdrift-shop/*/plans/
+
 # ── macOS ─────────────────────────────────────────────────────────────────
 .DS_Store
 .AppleDouble

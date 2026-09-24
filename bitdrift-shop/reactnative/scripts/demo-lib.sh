@@ -8,11 +8,11 @@
 # state_value / disarm_flags / drive_pending_watchdog / restart_prefs_daemon
 # aren't included. Add them here the same way if RN grows that functionality.
 
-# Must match PRODUCT_BUNDLE_IDENTIFIER in ios/ShopDemoRN.xcodeproj. Unlike the
-# native iOS app (bundle id ai.bitdrift.shop.ios), this app is "ai.bitdrift.shop"
-# with no .ios suffix — no bundle-id collision with the native app, unlike the
-# Android side (see android-1-setup.sh's header comment).
-BUNDLE_ID="${BUNDLE_ID:-ai.bitdrift.shop}"
+# Must match PRODUCT_BUNDLE_IDENTIFIER in ios/ShopDemoRN.xcodeproj. Carries a
+# ".rn." segment so it can never collide with the native iOS app's bundle id
+# (ai.bitdrift.shop.ios) or the native Android app's applicationId — see
+# android-1-setup.sh's header comment for the collision this used to cause.
+BUNDLE_ID="${BUNDLE_ID:-ai.bitdrift.rn.shop}"
 
 # Set by resolve_target: "sim" or "device", plus the identifier.
 TARGET_KIND=""
@@ -25,9 +25,13 @@ booted_simulator() {
 connected_device() {
   # The State column wording varies — "connected" when actively attached,
   # "available (paired)" when known but idle — so match either rather than the
-  # literal "connected", and skip the header and separator rows.
+  # literal "connected", and skip the header and separator rows. Newer
+  # devicectl versions also list booted Simulators here (with a "Reality"
+  # column of "simulated" rather than "physical"), which would otherwise get
+  # double-counted as a connected device alongside booted_simulator() and make
+  # resolve_target's auto mode report a false "ambiguous" — exclude those.
   xcrun devicectl list devices 2>/dev/null \
-    | awk '$0 !~ /^(Name|-+[[:space:]])/ && /connected|available/ {
+    | awk '$0 !~ /^(Name|-+[[:space:]])/ && /connected|available/ && $0 !~ /simulated/ {
              for (i=1;i<=NF;i++)
               if ($i ~ /^([0-9A-Fa-f]{8}-([0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}|[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16})$/) { print $i; exit }
            }'

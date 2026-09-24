@@ -19,12 +19,12 @@ metro_is_ours() {
 
 # Clears Metro's transform cache so react-native-dotenv (@env) is re-evaluated —
 # without --reset-cache a stale bundle keeps serving the previous .env values
-# (e.g. an old API key).
+# (e.g. an old SDK key).
 start_metro_background() {
   if metro_running; then
     if metro_is_ours; then
       echo "Metro already running on port 8081 for this project — restarting with" \
-        "--reset-cache so any .env change (e.g. an updated API key) actually takes effect."
+        "--reset-cache so any .env change (e.g. an updated SDK key) actually takes effect."
       local pid; pid="$(lsof -ti :8081 -sTCP:LISTEN 2>/dev/null | head -1)"
       [[ -n "$pid" ]] && kill "$pid" 2>/dev/null
       for _ in $(seq 1 10); do

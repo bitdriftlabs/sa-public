@@ -7,19 +7,15 @@
 # Mirrors ../../android/scripts/android-1-setup.sh (native app) and
 # ../../flutter/scripts/android-1-setup.sh.
 #
-# AVD_NAME defaults to "Medium_Phone_Control", the same AVD the native
-# Android app (../../android) uses by default. That's deliberate, not an
-# oversight: this app's applicationId is "ai.bitdrift.shop" — IDENTICAL to
-# the native app's (compare android/app/build.gradle to
-# ../../android/app/build.gradle.kts). The two can't be installed side by
-# side; installing one replaces the other on whatever device/emulator they
-# share. If you hit a signature-mismatch install error switching between
-# them (their debug keystores differ), run:
-#   adb uninstall ai.bitdrift.shop
+# AVD_NAME defaults to "Medium_Phone", the same AVD the native
+# Android app (../../android) uses by default — safe to share since this
+# app's applicationId is "ai.bitdrift.rn.shop" (compare android/app/build.gradle
+# to ../../android/app/build.gradle.kts), not identical to the native app's
+# "ai.bitdrift.shop", so the two install side by side without collision.
 set -euo pipefail
 
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
-AVD_NAME="${AVD_NAME:-Medium_Phone_Control}"
+AVD_NAME="${AVD_NAME:-Medium_Phone}"
 DEVICE_PROFILE="${DEVICE_PROFILE:-medium_phone}"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip"
 

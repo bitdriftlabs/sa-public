@@ -18,11 +18,11 @@ else
   npm install
 fi
 
-if [[ -f .env ]] && grep -q "^BITDRIFT_API_KEY=" .env && ! grep -q "^BITDRIFT_API_KEY=your_api_key_here$" .env; then
-  echo ".env exists and sets BITDRIFT_API_KEY."
+if [[ -f .env ]] && grep -q "^BITDRIFT_SDK_KEY=" .env && ! grep -q "^BITDRIFT_SDK_KEY=your_sdk_key_here$" .env; then
+  echo ".env exists and sets BITDRIFT_SDK_KEY."
 else
-  echo "WARNING: no .env with a real BITDRIFT_API_KEY — the app will start without a key." >&2
-  echo "  cp .env.example .env  # then add your API key" >&2
+  echo "WARNING: no .env with a real BITDRIFT_SDK_KEY — the app will start without a key." >&2
+  echo "  cp .env.example .env  # then add your SDK key" >&2
 fi
 
 echo

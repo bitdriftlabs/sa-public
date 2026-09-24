@@ -76,7 +76,7 @@ metro_is_ours() {
 }
 
 # Clear Metro transform cache so react-native-dotenv (@env) is re-evaluated. Without
-# this a stale bundle keeps serving the previous .env values (e.g. an old API key).
+# this a stale bundle keeps serving the previous .env values (e.g. an old SDK key).
 start_metro_background() {
   if metro_running; then
     if metro_is_ours; then
@@ -120,9 +120,15 @@ case "$PLATFORM" in
     exec npx react-native start --reset-cache
     ;;
   ios)
-    start_metro_background
-    echo "==> Starting app on iOS simulator..."
-    npx react-native run-ios --scheme BitdriftShop --simulator "iPhone 16e"
+    # Delegates to ios-2/ios-3 rather than `react-native run-ios --simulator
+    # "iPhone 16e"` directly: that CLI path hardcodes a device model that
+    # isn't installed on every machine, and unconditionally opens
+    # Simulator.app before building — which no longer exists as of Xcode 27
+    # (folded into DeviceHub.app) and aborts the whole command. See
+    # scripts/ios-2-start-simulator.sh and scripts/ios-3-start-app.sh for the
+    # fallback/workaround logic; both also start Metro themselves.
+    bash "$(dirname "${BASH_SOURCE[0]}")/scripts/ios-2-start-simulator.sh"
+    bash "$(dirname "${BASH_SOURCE[0]}")/scripts/ios-3-start-app.sh"
     ;;
   android)
     start_metro_background
