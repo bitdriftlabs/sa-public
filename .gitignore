@@ -30,6 +30,9 @@ output/
 *.apk
 *.aab
 *.aar
+# bitdrift-shop-opentelemetry ships these local capture-sdk AARs directly (not yet in a
+# published io.bitdrift:capture release) so the demo builds without a capture-sdk checkout.
+!misc-demos/bitdrift-shop-opentelemetry/android/libs/*.aar
 *.hprof
 *.keystore
 !debug.keystore
