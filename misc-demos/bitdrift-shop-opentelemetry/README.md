@@ -25,6 +25,16 @@ OTEL_DEMO_HOST=10.0.2.2
 OTEL_DEMO_PORT=8081
 ```
 
+To also export bitdrift-side spans to ClickStack (see [OTel span export](#otel-span-export-experimental) below), add:
+
+```properties
+BITDRIFT_USE_LOCAL_AAR=/absolute/path/to/libs/capture-release.aar
+CLICKSTACK_ENDPOINT=http://10.0.2.2:4318/v1/traces
+CLICKSTACK_INGESTION_API_KEY=your_clickstack_ingestion_key
+```
+
+`CLICKSTACK_INGESTION_API_KEY` is minted per ClickStack team on signup (Team Settings → API Keys in the ClickStack UI, step 1 below) — it changes if the ClickStack container is ever removed and recreated (a `docker stop`/`start` keeps it; `docker rm` does not), so re-check it here if spans stop showing up.
+
 ## Tracing (bitdrift)
 
 `ApiClient.kt` uses bitdrift's manual OkHttp tracing integration:
@@ -35,6 +45,45 @@ OTEL_DEMO_PORT=8081
 Gradle auto OkHttp instrumentation is disabled (`automaticOkHttpInstrumentation=false`) to avoid duplicate paths. Trace propagation format and sampling are controlled remotely via the bitdrift dashboard.
 
 Reference: [Tracing: Network integration](https://docs.bitdrift.io/sdk/features/tracing.html#network-integration)
+
+### OTel span export (experimental)
+
+On top of the trace-header injection above, the SDK can also emit an OpenTelemetry `CLIENT`
+span for each traced network request — same trace ID and span ID already in the header — and
+export it directly to an OTLP/HTTP endpoint (ClickStack here). This turns the mobile app into
+the root of the trace instead of an invisible caller ahead of the OTel Demo backend's own spans.
+
+This isn't in a published `io.bitdrift:capture` release yet — it needs a locally built AAR from
+the `slerner/bit-9050-otel-span-poc` branch of
+[capture-sdk](https://github.com/bitdriftlabs/capture-sdk):
+
+```bash
+git clone https://github.com/bitdriftlabs/capture-sdk
+cd capture-sdk
+git checkout slerner/bit-9050-otel-span-poc
+cd platform/jvm
+./gradlew :capture:assembleRelease :replay:assembleRelease :common:assembleRelease
+```
+
+Copy the three resulting AARs into this project's `android/libs/` (gitignored, not committed):
+
+```bash
+cp capture/build/outputs/aar/capture-release.aar \
+   replay/build/outputs/aar/replay-release.aar \
+   common/build/outputs/aar/common-release.aar \
+   /path/to/bitdrift-shop-opentelemetry/android/libs/
+```
+
+Then set `BITDRIFT_USE_LOCAL_AAR`/`CLICKSTACK_ENDPOINT`/`CLICKSTACK_INGESTION_API_KEY` in
+`.local.properties` as shown in [Local Config](#local-config) — `:replay` and `:common` are
+capture-sdk's own internal Gradle modules, not published Maven coordinates, so all three AARs
+are required together or the app crashes at startup with `NoClassDefFoundError` on
+`io.bitdrift.capture.replay.SessionReplayConfiguration`.
+
+A span only exports once tracing is actually active for the session — the "Deploy the
+session-capture workflow" step below already covers this, since
+[capture-all-sessions.json](android/workflows/README.md) includes a `start_tracing_rule`
+alongside the capture/flush rule.
 
 ## Prerequisites (macOS)
 
