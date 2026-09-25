@@ -75,7 +75,7 @@ Between the OTel Demo stack (~20 containers), ClickStack, and optionally Zipkin,
 Install and run it, skipping Portainer's own first-run setup-token flow so you land straight in the UI:
 
 ```bash
-docker run -d -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce --no-setup-token
+docker run -d --name portainer -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce --no-setup-token
 ```
 
 Open **http://localhost:9000** — no admin account/token step, straight into the dashboard listing all running containers.
@@ -85,9 +85,8 @@ Open **http://localhost:9000** — no admin account/token step, straight into th
 **Stop it:**
 
 ```bash
-docker ps -a | grep portainer      # find the container ID/name
-docker stop <container_id_or_name>
-docker rm <container_id_or_name>
+docker stop portainer
+docker rm portainer
 ```
 
 You also need a local clone of the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) itself — this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) that layer on top of it, not the backend stack:

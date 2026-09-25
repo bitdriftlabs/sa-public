@@ -20,7 +20,7 @@ set -euo pipefail
 stop_by_filter() {
   local label="$1"; shift
   local ids
-  ids="$(docker ps -q "$@" || true)"
+  ids="$(docker ps -q "$@")"
   if [[ -n "$ids" ]]; then
     echo "Stopping $label: $(docker ps --format '{{.Names}}' "$@" | tr '\n' ' ')"
     # shellcheck disable=SC2086
@@ -31,7 +31,9 @@ stop_by_filter() {
 }
 
 stop_by_filter "OTel Demo stack" --filter "label=com.docker.compose.project=opentelemetry-demo"
-stop_by_filter "ClickStack" --filter "ancestor=docker.hyperdx.io/hyperdx/hyperdx-all-in-one"
-stop_by_filter "Portainer" --filter "ancestor=portainer/portainer-ce"
+# Filtered by exact container name, not image ancestor -- an ancestor filter would stop
+# any container on the host running that image, not just this demo's own instance.
+stop_by_filter "ClickStack" --filter "name=^clickstack$"
+stop_by_filter "Portainer" --filter "name=^portainer$"
 
 echo "Done. Containers are stopped, not removed — 'docker start <name>' or re-running the Quick Start commands brings them back."

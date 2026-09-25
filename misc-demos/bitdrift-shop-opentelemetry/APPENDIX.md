@@ -69,7 +69,7 @@ grep OTEL_DEMO android/.local.properties android/local.properties 2>/dev/null
 
 Port `8080` happens to be ClickStack/HyperDX's own web UI (see [Set up ClickStack](README.md#1-set-up-clickstack)), not the OTel Demo backend — so a request that lands there instead gets 404s or hangs on "Loading...", with **zero** matching log lines in `frontend`'s or `product-catalog`'s container logs, because the request never reaches the OTel Demo stack at all. Every infra-side check (container health, direct `curl` to the real backend, Colima mounts) comes back clean, since the bug is entirely in what port the client is configured to hit.
 
-**Fix:** correct (or remove) the `OTEL_DEMO_PORT` override so it resolves to `8081`, then rebuild and reinstall (`./gradlew :app:installDebug`) — `BuildConfig` values are baked in at build time, so editing `.local.properties` alone does nothing until you rebuild.
+**Fix:** correct (or remove) the `OTEL_DEMO_PORT` override so it resolves to `8081`, then rebuild and reinstall (`android/gradlew :app:installDebug`) — `BuildConfig` values are baked in at build time, so editing `.local.properties` alone does nothing until you rebuild.
 
 **To confirm this is the issue** before touching the backend: check `android/app/build/generated/source/buildConfig/debug/.../BuildConfig.java` for the actual baked-in `OTEL_DEMO_PORT`, or open `http://10.0.2.2:8081/api/products?currencyCode=USD` directly in the emulator's browser (`adb shell am start -a android.intent.action.VIEW -d "..."`) — if that succeeds but the app doesn't, the app isn't hitting the URL you think it is.
 
@@ -102,7 +102,7 @@ Fixing the Colima mount only repairs what containers see *going forward* — any
 
 ## Fully purging ClickStack / HyperDX
 
-The `clickstack` container is run without an explicit `-v` volume flag, but the `docker.hyperdx.io/hyperdx/hyperdx-all-in-one` image declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker silently creates an **anonymous volume** for it — data survives a `docker stop`/restart (see the main README's [Persistence note](README.md#1-set-up-clickstack)). A plain `docker stop`/`docker rm` (without `-v`) leaves that volume behind, so old (possibly corrupted) ClickHouse state can survive what looks like a full reset.
+The `clickstack` container is run without an explicit `-v` volume flag, but the `docker.hyperdx.io/hyperdx/hyperdx-all-in-one` image declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker silently creates an **anonymous volume** for it — data survives a `docker stop`/restart (see the main README's [Persistence note](README.md#1-set-up-clickstack)). Removing the container (with or without `-v`) and relaunching it with the same `docker run` command always gets a fresh ClickHouse instance either way — Docker never reattaches an old anonymous volume to a new container. `-v` just also deletes the now-orphaned old volume from disk; skip it and that data stays on disk unused, but it has no effect on whether the new container starts clean.
 
 **Symptom:** HyperDX UI errors like `Failed to fetch` on `DESCRIBE default.otel_logs`, or traces/logs missing even after restarting the container.
 
@@ -110,8 +110,7 @@ The `clickstack` container is run without an explicit `-v` volume flag, but the 
 
 ```bash
 docker stop clickstack
-docker rm -v clickstack        # -v removes the anonymous ClickHouse data volume too
-docker volume ls | grep -i clickhouse   # sanity check — should print nothing
+docker rm -v clickstack        # -v also deletes the orphaned anonymous volume from disk
 ```
 
 Then relaunch it fresh (same command as the main README's ClickStack step):

@@ -27,14 +27,14 @@
   ],
   "actions": [
     {
-      "rule_id": "capture-all-sessions",
-      "flush_rule": {
+      "rule_id": "trace-all-sessions",
+      "start_tracing_rule": {
         "match_id": "session-start"
       }
     },
     {
-      "rule_id": "trace-all-sessions",
-      "start_tracing_rule": {
+      "rule_id": "capture-all-sessions",
+      "flush_rule": {
         "match_id": "session-start"
       }
     }
