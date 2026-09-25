@@ -73,6 +73,14 @@ android {
         buildConfigField("String", "BITDRIFT_SDK_VERSION", "\"0.25.0\"")
         buildConfigField("String", "CLICKSTACK_ENDPOINT", "\"$clickstackEndpoint\"")
         buildConfigField("String", "CLICKSTACK_INGESTION_API_KEY", "\"$clickstackIngestionApiKey\"")
+        // Surfaced in the UI (see Components.kt) so it's obvious at a glance which capture
+        // dependency a given build/install was made with.
+        buildConfigField("String", "BITDRIFT_CAPTURE_SOURCE", "\"${if (bitdriftUseLocalAar) "AAR" else "SDK"}\"")
+        buildConfigField(
+            "String",
+            "BITDRIFT_LOCAL_AAR_NAME",
+            "\"${if (bitdriftUseLocalAar) File(bitdriftLocalAarPath).name else ""}\""
+        )
     }
 
     buildTypes {

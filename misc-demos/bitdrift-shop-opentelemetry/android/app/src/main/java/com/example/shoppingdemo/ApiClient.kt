@@ -544,12 +544,26 @@ object ApiClient {
     suspend fun addToWishlist(productId: String): JSONObject = withContext(Dispatchers.IO) {
         val wishlistIds = currentWishlistIds()
         wishlistIds.add(productId)
-        prefs.edit().putStringSet(WISHLIST_KEY, wishlistIds).apply()
 
+        // Wishlist IDs persist in SharedPreferences across app runs/reinstalls. Fetch each
+        // one independently rather than letting a single bad ID (stale/invalid, e.g. from an
+        // earlier bug) throw and abort the whole call -- that both loses the other items and,
+        // since it's swallowed by the caller's try/catch, silently never self-heals. Dropping
+        // ids that no longer resolve prevents one bad entry from failing every future call to
+        // this function forever.
         val items = JSONArray()
+        val invalidIds = mutableSetOf<String>()
         wishlistIds.forEach { itemId ->
-            items.put(productToLegacy(getOtelProduct(itemId)))
+            try {
+                items.put(productToLegacy(getOtelProduct(itemId)))
+            } catch (_: Exception) {
+                invalidIds.add(itemId)
+            }
         }
+        if (invalidIds.isNotEmpty()) {
+            wishlistIds.removeAll(invalidIds)
+        }
+        prefs.edit().putStringSet(WISHLIST_KEY, wishlistIds).apply()
 
         JSONObject()
             .put("item_count", items.length())

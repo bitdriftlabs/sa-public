@@ -340,23 +340,28 @@ class SimulationManager : ViewModel() {
 
     // ─── API helpers ─────────────────────────────────────────────────────
 
+    // Fetch helpers return only real product IDs from the backend's own response --
+    // never a fabricated placeholder. "prod_a1b2c3" (this demo's pre-OTel-Demo FastAPI
+    // backend's ID scheme) doesn't exist in the OpenTelemetry Demo catalog, so using it
+    // as a fallback caused every downstream call (add-to-cart, checkout) to fail with a
+    // real backend 500/NOT_FOUND instead of the simulation just skipping this journey.
     private suspend fun fetchBrowseIds(): List<String> = try {
         val arr = ApiClient.getBrowse().optJSONArray("products")
-        if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
-        else listOf("prod_a1b2c3")
-    } catch (_: Exception) { listOf("prod_a1b2c3") }
+        if (arr != null) (0 until arr.length()).mapNotNull { arr.getJSONObject(it).optString("id", "").takeIf(String::isNotBlank) }
+        else emptyList()
+    } catch (_: Exception) { emptyList() }
 
     private suspend fun fetchSearchIds(): List<String> = try {
         val arr = ApiClient.search(searchQueries.random()).optJSONArray("products")
-        if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
-        else listOf("prod_a1b2c3")
-    } catch (_: Exception) { listOf("prod_a1b2c3") }
+        if (arr != null) (0 until arr.length()).mapNotNull { arr.getJSONObject(it).optString("id", "").takeIf(String::isNotBlank) }
+        else emptyList()
+    } catch (_: Exception) { emptyList() }
 
     private suspend fun fetchFeaturedIds(): List<String> = try {
         val arr = ApiClient.getFeatured().optJSONArray("featured_products")
-        if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
-        else listOf("prod_a1b2c3")
-    } catch (_: Exception) { listOf("prod_a1b2c3") }
+        if (arr != null) (0 until arr.length()).mapNotNull { arr.getJSONObject(it).optString("id", "").takeIf(String::isNotBlank) }
+        else emptyList()
+    } catch (_: Exception) { emptyList() }
 
     private suspend fun fetchCategoryNames(): List<String> = try {
         val arr = ApiClient.getCategories().optJSONArray("categories")
@@ -366,9 +371,9 @@ class SimulationManager : ViewModel() {
 
     private suspend fun fetchCategoryProductIds(cat: String): List<String> = try {
         val arr = ApiClient.getCategoryProducts(cat).optJSONArray("products")
-        if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
-        else listOf("prod_a1b2c3")
-    } catch (_: Exception) { listOf("prod_a1b2c3") }
+        if (arr != null) (0 until arr.length()).mapNotNull { arr.getJSONObject(it).optString("id", "").takeIf(String::isNotBlank) }
+        else emptyList()
+    } catch (_: Exception) { emptyList() }
 
     /**
      * Simulates an ANR on the CheckoutGuest screen — as if a synchronous
@@ -483,8 +488,15 @@ class SimulationManager : ViewModel() {
         if (Math.random() < featuredProb) {
             nav(nc, Screen.FeaturedProducts.route)
             val featIds = fetchFeaturedIds()
-            productIds = featIds
-            source = "featured"
+            if (featIds.isNotEmpty()) {
+                productIds = featIds
+                source = "featured"
+            }
+        }
+
+        if (productIds.isEmpty()) {
+            android.util.Log.w("SimNav", "✗ no real product IDs available from $source; aborting journey")
+            return
         }
 
         val pid = productIds.random()
