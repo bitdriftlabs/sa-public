@@ -9,12 +9,17 @@ import android.os.Process
 import android.os.SystemClock
 
 import io.bitdrift.capture.Capture.Logger
+import io.bitdrift.capture.Configuration
+import io.bitdrift.capture.experimental.ExperimentalBitdriftApi
+import io.bitdrift.capture.network.okhttp.otel.OtelExportConfiguration
 import io.bitdrift.capture.providers.Fields
 import io.bitdrift.capture.providers.session.SessionConfiguration
 import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 class ShoppingDemoApp : Application() {
 
+    @OptIn(ExperimentalBitdriftApi::class)
     override fun onCreate() {
         super.onCreate()
         appContext = applicationContext
@@ -31,11 +36,23 @@ class ShoppingDemoApp : Application() {
         // Screens.kt already call Logger.addField("user_id", ...)/removeField("user_id") directly,
         // so this seed only matters for a process restart while already signed in, where addField's
         // in-memory state from the prior process is gone but the persisted value isn't.
+        //
+        // otelExportConfiguration (BIT-9050 local ClickStack demo): only set when
+        // CLICKSTACK_ENDPOINT is configured (.local.properties / env var), so the feature stays
+        // off by default rather than pointing at a blank URL.
+        val otelExportConfiguration =
+            BuildConfig.CLICKSTACK_ENDPOINT.takeIf { it.isNotBlank() }?.let { endpoint ->
+                OtelExportConfiguration(
+                    endpoint = endpoint.toHttpUrl(),
+                    authHeaderValue = BuildConfig.CLICKSTACK_INGESTION_API_KEY,
+                )
+            }
         Logger.start(
             apiKey = BuildConfig.BITDRIFT_SDK_KEY,
             apiUrl = HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST).build(),
             sessionConfiguration = SessionConfiguration(),
             initialFields = readPersistedUserIdField(applicationContext),
+            configuration = Configuration(otelExportConfiguration = otelExportConfiguration),
         )
         Logger.setEntityId("demo")
         // Register lifecycle callbacks
