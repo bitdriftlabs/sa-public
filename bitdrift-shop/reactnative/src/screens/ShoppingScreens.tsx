@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import {getDeviceID, getSessionURL} from '@bitdrift/react-native';
-import {BITDRIFT_API_KEY, BITDRIFT_API_HOST} from '../config';
+import {BITDRIFT_SDK_KEY, BITDRIFT_API_HOST} from '../config';
 import {ApiClient} from '../api/ApiClient';
 import {Colors} from '../utils/colors';
 import {useSimulation} from '../context/SimulationContext';
@@ -63,7 +63,7 @@ export const WelcomeScreen: React.FC<ScreenProps<'Welcome'>> = ({navigation}) =>
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-bitdrift-api-key': BITDRIFT_API_KEY,
+          'x-bitdrift-api-key': BITDRIFT_SDK_KEY,
         },
         body: JSON.stringify({device_id: deviceId}),
       });

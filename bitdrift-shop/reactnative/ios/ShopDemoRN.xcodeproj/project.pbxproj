@@ -284,7 +284,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.bitdrift.shop;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.bitdrift.rn.shop;
 				PRODUCT_NAME = BitdriftShop;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -312,7 +312,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = ai.bitdrift.shop;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.bitdrift.rn.shop;
 				PRODUCT_NAME = BitdriftShop;
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";

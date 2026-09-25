@@ -2,6 +2,17 @@
 
 A demo Android app simulating an e-commerce shopping experience, instrumented with the **bitdrift Capture SDK** and backed by the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store.
 
+## Quick Links
+
+Once the stack is running ([Quick Start](#quick-start) below), these are the local URLs you'll come back to most:
+
+| Service | URL | What it's for |
+|---|---|---|
+| **HyperDX / ClickStack** | [http://localhost:8080](http://localhost:8080) | Logs, traces, metrics, session replay |
+| **OTel Demo (app backend)** | [http://localhost:8081](http://localhost:8081) | The frontend proxy the Android app talks to |
+| **Portainer** (optional) | [http://localhost:9000](http://localhost:9000) | Container manager/dashboard — see [Container Monitoring](#container-monitoring-optional-portainer) |
+| **Zipkin** (if using B3 instead of ClickStack) | [http://localhost:9411](http://localhost:9411) | See [B3_ZIPKIN.md](B3_ZIPKIN.md) |
+
 ## What This Is
 
 - **bitdrift Capture SDK** — logging, screen views, network capture, feature flag exposure, ANR simulation.
@@ -54,8 +65,8 @@ docker ps          # should print an empty table, not a connection error
 `colima start` provisions the VM and points the `docker` CLI at it — no `DOCKER_HOST`
 needed. If a command below reports `Cannot connect to the Docker daemon`, Colima isn't
 running; `colima status` shows the current state. The ClickStack container in step 1
-needs more RAM than Colima's default VM — see [Memory Requirements](#memory-requirements)
-at the bottom.
+needs more RAM than Colima's default VM — see [Memory Requirements](APPENDIX.md#memory-requirements)
+in the appendix.
 
 ### Container Monitoring (Optional): Portainer
 
@@ -64,7 +75,7 @@ Between the OTel Demo stack (~20 containers), ClickStack, and optionally Zipkin,
 Install and run it, skipping Portainer's own first-run setup-token flow so you land straight in the UI:
 
 ```bash
-docker run -d -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce --no-setup-token
+docker run -d --name portainer -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce --no-setup-token
 ```
 
 Open **http://localhost:9000** — no admin account/token step, straight into the dashboard listing all running containers.
@@ -74,9 +85,8 @@ Open **http://localhost:9000** — no admin account/token step, straight into th
 **Stop it:**
 
 ```bash
-docker ps -a | grep portainer      # find the container ID/name
-docker stop <container_id_or_name>
-docker rm <container_id_or_name>
+docker stop portainer
+docker rm portainer
 ```
 
 You also need a local clone of the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) itself — this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) that layer on top of it, not the backend stack:
@@ -96,15 +106,15 @@ Set this up **before** starting the OTel Demo backend, so the backend's collecto
 wired to export to ClickStack the first time it boots — no need to restart it afterward. (If you'd
 rather skip ClickStack entirely and use plain W3C or Zipkin instead, skip to
 [step 2](#2-start-the-otel-demo-backend-configured-for-clickstack) and see
-[Switch to B3 Propagation and Zipkin (Optional)](#switch-to-b3-propagation-and-zipkin-optional).)
+[Switch to B3 Propagation and Zipkin (Optional)](APPENDIX.md#switch-to-b3-propagation-and-zipkin-optional).)
 
 [ClickStack](https://github.com/ClickHouse/ClickStack) is ClickHouse's open-source observability stack for OpenTelemetry — logs, traces, metrics, and session replay in one UI. (Formerly branded standalone as "HyperDX" — same image, ports, and API, just repackaged/renamed under ClickHouse.) It's an export target for the OTel Collector — no B3 override or propagation change required, it works with the stock W3C setup from step 2.
 
-> **Memory requirement:** the ClickStack container needs significantly more RAM than Colima's/Docker Desktop's default VM — see [Memory Requirements](#memory-requirements) at the bottom before proceeding.
+> **Memory requirement:** the ClickStack container needs significantly more RAM than Colima's/Docker Desktop's default VM — see [Memory Requirements](APPENDIX.md#memory-requirements) in the appendix before proceeding.
 
 Run the ClickStack all-in-one container standalone (it does **not** join the `opentelemetry-demo` docker network — it's just a container on your host). Name it so it's easy to manage/restart later:
 
-Make sure Colima is running first — with the memory bump from [Memory Requirements](#memory-requirements) if you haven't already applied it:
+Make sure Colima is running first — with the memory bump from [Memory Requirements](APPENDIX.md#memory-requirements) if you haven't already applied it:
 
 ```bash
 colima start
@@ -191,13 +201,21 @@ ENVOY_PORT=8081 docker compose \
 ENVOY_PORT=8081 docker compose -f compose.yaml restart
 ```
 
-- **Stop everything:**
+- **Stop everything** (just the OTel Demo stack, run from the `opentelemetry-demo` clone):
 
 ```bash
 docker compose -f compose.yaml down
 ```
 
-> Colima itself only needs restarting if you changed its VM resources (see [Memory Requirements](#memory-requirements)) or it's not running (`colima status`) — the backend restart commands above don't touch the VM.
+- **Stop the whole demo** (OTel Demo stack + ClickStack + Portainer) — use this before a Colima/Docker restart if you don't want everything auto-relaunching:
+
+```bash
+android/scripts/stop-backend.sh
+```
+
+The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `colima stop && colima start` brings them back on its own — Docker only respects that policy once a container has been explicitly stopped first. This script stops everything (without removing containers/volumes) so a subsequent Colima restart leaves them down until you deliberately bring them back up.
+
+> Colima itself only needs restarting if you changed its VM resources (see [Memory Requirements](APPENDIX.md#memory-requirements)) or it's not running (`colima status`) — the backend restart commands above don't touch the VM.
 
 > **Troubleshooting — `frontend-proxy` restart-looping:** if `docker ps` shows `frontend-proxy` stuck in a restart loop, check `docker logs frontend-proxy` for an Envoy `Proto constraint validation failed` error on a socket address. This means the image you pulled (`ghcr.io/open-telemetry/demo:latest-frontend-proxy`) is newer than your local `opentelemetry-demo` checkout — its baked-in `envoy.tmpl.yaml` references env vars (e.g. `OPAMP_HOST`/`OPAMP_PORT`) that your local `compose.yaml`/`.env` don't set, so they render empty and Envoy rejects the config. Fix by building the image from your local source instead of the stale pulled one:
 >
@@ -244,7 +262,7 @@ Idempotent — safe to re-run; it reuses the existing workflow instead of creati
 
 ### 4. Run the Android app
 
-Set `OTEL_DEMO_PORT=8081` in `.local.properties` (see [Local Config](#local-config)), then open the project in Android Studio and run on an emulator. The app connects via `http://10.0.2.2:8081`. See [Emulator Requirements](#emulator-requirements) at the bottom for supported configs.
+Set `OTEL_DEMO_PORT=8081` in `.local.properties` (see [Local Config](#local-config)), then open the project in Android Studio and run on an emulator. The app connects via `http://10.0.2.2:8081`. See [Emulator Requirements](APPENDIX.md#emulator-requirements) in the appendix for supported configs.
 
 **(Optional) No Android Studio?** `scripts/android-{1..5}-*.sh` set up the SDK/AVD, boot the emulator, and build+install+launch from the command line instead — modeled on [bitdrift-shop/android's own no-Studio scripts](../../bitdrift-shop/android/scripts/):
 
@@ -259,90 +277,11 @@ cd android
 
 ### 5. Appendix
 
-See [APPENDIX.md](APPENDIX.md) for troubleshooting notes that don't fit the quick-start flow above:
+See [APPENDIX.md](APPENDIX.md) for troubleshooting notes and reference material that don't fit the quick-start flow above:
 
 - Colima not mounting an external-drive checkout, causing `otel-collector` to crash-loop (and how to make the mount permanent)
 - `astronomy-db` missing its `astronomy_user` role after a broken first boot, causing `product-catalog` to crash-loop and product images to go missing
 - A full audit runbook for checking the rest of the stack after a Colima mount fix, so no other services are silently running on bad first-boot state
 - A missing `OTEL_DEMO_HOST`/`OTEL_DEMO_PORT` in `.local.properties` silently pointing the app at ClickStack's port instead of the backend — looks exactly like a backend bug but never reaches the OTel Demo stack at all
 - Fully purging ClickStack/HyperDX's hidden anonymous data volume when the UI errors out or shows stale data
-
-## Screens
-
-| Screen | Description |
-|--------|-------------|
-| `Welcome` | Entry point, simulation controls |
-| `Browse` | Full product listing |
-| `Search` | Keyword search |
-| `Featured` | Curated featured products |
-| `Categories` | Category listing |
-| `CategoryBrowse` | Products within a category |
-| `ProductDetail` | Full product info with images |
-| `Reviews` | Customer reviews + ratings |
-| `Cart` | Shopping cart |
-| `Wishlist` | Saved items |
-| `CheckoutGuest` | Guest checkout |
-| `CheckoutSignIn` | Member checkout with loyalty points |
-| `PaymentCard` | Credit card payment |
-| `PaymentApplePay` | Apple Pay |
-| `PaymentPayPal` | PayPal |
-| `PaymentAndroidPay` | Android Pay |
-| `Confirmation` | Order confirmation |
-
-## Requirements
-
-- Android API 36 (targetSdk / compileSdk), API 26+ minimum
-- Emulator: 1080×2400 resolution (Medium Phone / Pixel 7)
-- [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) running on port 8081 (see [Local Config](#local-config))
-
-## Project Structure
-
-```
-android/app/src/main/java/com/example/shoppingdemo/
-├── ShoppingDemoApp.kt         # Application class, SDK init
-├── MainActivity.kt            # Main activity with NavHost
-├── Screen.kt                  # Navigation routes (sealed class)
-├── Screens.kt                 # All screen composables
-├── Components.kt              # Reusable UI components
-├── ApiClient.kt               # OTel Demo compatibility adapter (OkHttp)
-├── SimulationManager.kt       # Probabilistic state machine simulator
-├── RecommendationEngine.kt    # Product recommendation scoring engine
-├── ScreenLogger.kt            # Centralized logging wrapper
-├── AppLifecycleCallbacks.kt   # App lifecycle event logging
-└── ui/theme/
-    └── Theme.kt               # Material 3 theme
-```
-
-## Architecture
-
-```
-┌─────────────────────┐        HTTP (OkHttp)        ┌──────────────────────────────────────┐
-│   Android Emulator   │ ◄─────────────────────────► │  OTel Demo Frontend Proxy (Envoy)    │
-│   (10.0.2.2:8081)    │    JSON request/response    │  (localhost:8081)                    │
-└─────────────────────┘                              │                                      │
-                                                     │  /api/products  → product-catalog    │
-                                                     │  /api/cart      → cart service       │
-                                                     │  /api/checkout  → checkout service   │
-                                                     │  /images/       → image-provider     │
-                                                     └──────────────────────────────────────┘
-```
-
-## Switch to B3 Propagation and Zipkin (Optional)
-
-See [B3_ZIPKIN.md](B3_ZIPKIN.md) for switching the backend from ClickStack to Zipkin with B3 multi-header trace propagation.
-
-## Memory Requirements
-
-The ClickStack all-in-one container bundles ClickHouse + Mongo + the ClickStack app, and needs **at least 4GB RAM** on its own (ClickStack's own recommendation). Combined with the ~20 containers in the OTel Demo stack, give your Docker VM **8GB+** total or ClickHouse will get silently OOM-killed after a few minutes (check `docker inspect <container> --format '{{.State.OOMKilled}}'` if traces stop landing).
-
-- **Colima** (see [Prerequisites](#prerequisites-macos) above): `colima stop && colima start --memory 8 --cpu 4` (this restarts the whole VM — every running container goes down; the OTel Demo stack's containers have `restart: unless-stopped` so they come back on their own, but the ClickStack container does not and must be relaunched manually)
-- **Docker Desktop:** Settings → Resources → bump Memory to 8GB → Apply & Restart
-
-## Emulator Requirements
-
-| Setting | Value |
-|---------|-------|
-| API level | API 36 (Android 16) |
-| Screen resolution | 1080×2400 (FHD+) |
-| Device profile | Medium Phone / Pixel 7 / 6a |
-| RAM | 2 GB+ |
+- The Screens list, Project Structure, Architecture diagram, and the B3/Zipkin, Memory, and Emulator requirements reference material

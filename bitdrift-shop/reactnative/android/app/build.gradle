@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "ai.bitdrift.shop"
+    namespace "ai.bitdrift.rn.shop"
     defaultConfig {
-        applicationId "ai.bitdrift.shop"
+        applicationId "ai.bitdrift.rn.shop"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 12

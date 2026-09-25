@@ -1,4 +1,4 @@
-package ai.bitdrift.shop
+package ai.bitdrift.rn.shop
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

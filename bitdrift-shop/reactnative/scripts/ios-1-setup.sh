@@ -84,12 +84,12 @@ fi
 
 echo
 echo "== Credentials (.env) =="
-if [[ -f "$ROOT/.env" ]] && grep -q "^BITDRIFT_API_KEY=" "$ROOT/.env" \
-   && ! grep -q "^BITDRIFT_API_KEY=your_api_key_here$" "$ROOT/.env"; then
-  echo "✓ .env exists and sets BITDRIFT_API_KEY."
+if [[ -f "$ROOT/.env" ]] && grep -q "^BITDRIFT_SDK_KEY=" "$ROOT/.env" \
+   && ! grep -q "^BITDRIFT_SDK_KEY=your_sdk_key_here$" "$ROOT/.env"; then
+  echo "✓ .env exists and sets BITDRIFT_SDK_KEY."
 else
-  echo "✗ .env missing or has no real BITDRIFT_API_KEY."
-  echo "  cp .env.example .env  # then add your API key"
+  echo "✗ .env missing or has no real BITDRIFT_SDK_KEY."
+  echo "  cp .env.example .env  # then add your SDK key"
   ok=0
 fi
 

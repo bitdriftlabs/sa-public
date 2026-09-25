@@ -4,7 +4,7 @@
 #
 # Unlike ../../android/scripts/android-3-start-app.sh (native app, gradlew
 # directly) and ../../flutter/scripts/android-3-start-app.sh (flutter build
-# apk), there's no key-baking step here: this app reads BITDRIFT_API_KEY from
+# apk), there's no key-baking step here: this app reads BITDRIFT_SDK_KEY from
 # .env via react-native-dotenv at Metro *bundle* time (src/config.ts), so
 # restarting Metro with --reset-cache (metro-lib.sh does this) is all that's
 # needed to pick up a changed .env.
@@ -29,8 +29,8 @@ fi
 echo "Targeting emulator: $EMU_ID"
 
 # 2. Warn (don't fail) if no key is configured.
-if [[ ! -f "$ROOT/.env" ]] && [[ -z "${BITDRIFT_API_KEY:-}" ]]; then
-  echo "WARNING: no .env and no BITDRIFT_API_KEY in the environment — the app" >&2
+if [[ ! -f "$ROOT/.env" ]] && [[ -z "${BITDRIFT_SDK_KEY:-}" ]]; then
+  echo "WARNING: no .env and no BITDRIFT_SDK_KEY in the environment — the app" >&2
   echo "will build without a key. See README.md § Configuration." >&2
 fi
 
@@ -61,5 +61,5 @@ start_metro_background
 cd "$ROOT"
 npx react-native run-android --no-packager
 
-echo "Launched ai.bitdrift.shop on $EMU_ID"
+echo "Launched ai.bitdrift.rn.shop on $EMU_ID"
 echo "Stop it with: bash scripts/android-4-stop-app.sh"

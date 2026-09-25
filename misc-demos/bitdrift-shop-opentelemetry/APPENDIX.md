@@ -1,6 +1,6 @@
 # Appendix
 
-Troubleshooting notes for issues that don't fit neatly into the main [README](README.md) quick-start flow.
+Troubleshooting notes and reference material that don't fit neatly into the main [README](README.md) quick-start flow.
 
 ## Colima can't see an external-drive checkout (`otel-collector` crash-loops)
 
@@ -69,7 +69,7 @@ grep OTEL_DEMO android/.local.properties android/local.properties 2>/dev/null
 
 Port `8080` happens to be ClickStack/HyperDX's own web UI (see [Set up ClickStack](README.md#1-set-up-clickstack)), not the OTel Demo backend — so a request that lands there instead gets 404s or hangs on "Loading...", with **zero** matching log lines in `frontend`'s or `product-catalog`'s container logs, because the request never reaches the OTel Demo stack at all. Every infra-side check (container health, direct `curl` to the real backend, Colima mounts) comes back clean, since the bug is entirely in what port the client is configured to hit.
 
-**Fix:** correct (or remove) the `OTEL_DEMO_PORT` override so it resolves to `8081`, then rebuild and reinstall (`./gradlew :app:installDebug`) — `BuildConfig` values are baked in at build time, so editing `.local.properties` alone does nothing until you rebuild.
+**Fix:** correct (or remove) the `OTEL_DEMO_PORT` override so it resolves to `8081`, then rebuild and reinstall (`android/gradlew :app:installDebug`) — `BuildConfig` values are baked in at build time, so editing `.local.properties` alone does nothing until you rebuild.
 
 **To confirm this is the issue** before touching the backend: check `android/app/build/generated/source/buildConfig/debug/.../BuildConfig.java` for the actual baked-in `OTEL_DEMO_PORT`, or open `http://10.0.2.2:8081/api/products?currencyCode=USD` directly in the emulator's browser (`adb shell am start -a android.intent.action.VIEW -d "..."`) — if that succeeds but the app doesn't, the app isn't hitting the URL you think it is.
 
@@ -102,7 +102,7 @@ Fixing the Colima mount only repairs what containers see *going forward* — any
 
 ## Fully purging ClickStack / HyperDX
 
-The main README notes the `clickstack` container has "no persistence" because it's run without an explicit `-v` volume flag — but the `docker.hyperdx.io/hyperdx/hyperdx-all-in-one` image declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker silently creates an **anonymous volume** for it. A plain `docker stop`/`docker rm` leaves that volume behind, so old (possibly corrupted) ClickHouse state can survive what looks like a full reset.
+The `clickstack` container is run without an explicit `-v` volume flag, but the `docker.hyperdx.io/hyperdx/hyperdx-all-in-one` image declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker silently creates an **anonymous volume** for it — data survives a `docker stop`/restart (see the main README's [Persistence note](README.md#1-set-up-clickstack)). Removing the container (with or without `-v`) and relaunching it with the same `docker run` command always gets a fresh ClickHouse instance either way — Docker never reattaches an old anonymous volume to a new container. `-v` just also deletes the now-orphaned old volume from disk; skip it and that data stays on disk unused, but it has no effect on whether the new container starts clean.
 
 **Symptom:** HyperDX UI errors like `Failed to fetch` on `DESCRIBE default.otel_logs`, or traces/logs missing even after restarting the container.
 
@@ -110,8 +110,7 @@ The main README notes the `clickstack` container has "no persistence" because it
 
 ```bash
 docker stop clickstack
-docker rm -v clickstack        # -v removes the anonymous ClickHouse data volume too
-docker volume ls | grep -i clickhouse   # sanity check — should print nothing
+docker rm -v clickstack        # -v also deletes the orphaned anonymous volume from disk
 ```
 
 Then relaunch it fresh (same command as the main README's ClickStack step):
@@ -121,3 +120,83 @@ docker run -d --name clickstack -p 8080:8080 -p 4317:4317 -p 4318:4318 docker.hy
 ```
 
 This gives a brand-new ClickHouse instance — you'll need to sign up again and grab a new API key (see [Set up ClickStack](README.md#1-set-up-clickstack) in the main README).
+
+## Screens
+
+| Screen | Description |
+|--------|-------------|
+| `Welcome` | Entry point, simulation controls |
+| `Browse` | Full product listing |
+| `Search` | Keyword search |
+| `Featured` | Curated featured products |
+| `Categories` | Category listing |
+| `CategoryBrowse` | Products within a category |
+| `ProductDetail` | Full product info with images |
+| `Reviews` | Customer reviews + ratings |
+| `Cart` | Shopping cart |
+| `Wishlist` | Saved items |
+| `CheckoutGuest` | Guest checkout |
+| `CheckoutSignIn` | Member checkout with loyalty points |
+| `PaymentCard` | Credit card payment |
+| `PaymentApplePay` | Apple Pay |
+| `PaymentPayPal` | PayPal |
+| `PaymentAndroidPay` | Android Pay |
+| `Confirmation` | Order confirmation |
+
+## Requirements
+
+- Android API 36 (targetSdk / compileSdk), API 26+ minimum
+- Emulator: 1080×2400 resolution (Medium Phone / Pixel 7)
+- [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) running on port 8081 (see [Local Config](README.md#local-config) in the main README)
+
+## Project Structure
+
+```
+android/app/src/main/java/com/example/shoppingdemo/
+├── ShoppingDemoApp.kt         # Application class, SDK init
+├── MainActivity.kt            # Main activity with NavHost
+├── Screen.kt                  # Navigation routes (sealed class)
+├── Screens.kt                 # All screen composables
+├── Components.kt              # Reusable UI components
+├── ApiClient.kt               # OTel Demo compatibility adapter (OkHttp)
+├── SimulationManager.kt       # Probabilistic state machine simulator
+├── RecommendationEngine.kt    # Product recommendation scoring engine
+├── ScreenLogger.kt            # Centralized logging wrapper
+├── AppLifecycleCallbacks.kt   # App lifecycle event logging
+└── ui/theme/
+    └── Theme.kt               # Material 3 theme
+```
+
+## Architecture
+
+```
+┌─────────────────────┐        HTTP (OkHttp)        ┌──────────────────────────────────────┐
+│   Android Emulator   │ ◄─────────────────────────► │  OTel Demo Frontend Proxy (Envoy)    │
+│   (10.0.2.2:8081)    │    JSON request/response    │  (localhost:8081)                    │
+└─────────────────────┘                              │                                      │
+                                                     │  /api/products  → product-catalog    │
+                                                     │  /api/cart      → cart service       │
+                                                     │  /api/checkout  → checkout service   │
+                                                     │  /images/       → image-provider     │
+                                                     └──────────────────────────────────────┘
+```
+
+## Switch to B3 Propagation and Zipkin (Optional)
+
+See [B3_ZIPKIN.md](B3_ZIPKIN.md) for switching the backend from ClickStack to Zipkin with B3 multi-header trace propagation.
+
+## Memory Requirements
+
+The ClickStack all-in-one container bundles ClickHouse + Mongo + the ClickStack app, and needs **at least 4GB RAM** on its own (ClickStack's own recommendation). Combined with the ~20 containers in the OTel Demo stack, give your Docker VM **8GB+** total or ClickHouse will get silently OOM-killed after a few minutes (check `docker inspect <container> --format '{{.State.OOMKilled}}'` if traces stop landing).
+
+- **Colima** (see [Prerequisites](README.md#prerequisites-macos) in the main README): `colima stop && colima start --memory 8 --cpu 4` (this restarts the whole VM — every running container goes down; the OTel Demo stack's containers have `restart: unless-stopped` so they come back on their own, but the ClickStack container does not and must be relaunched manually)
+- **Docker Desktop:** Settings → Resources → bump Memory to 8GB → Apply & Restart
+
+## Emulator Requirements
+
+| Setting | Value |
+|---------|-------|
+| API level | API 36 (Android 16) |
+| Screen resolution | 1080×2400 (FHD+) |
+| Device profile | Medium Phone / Pixel 7 / 6a |
+| RAM | 2 GB+ |

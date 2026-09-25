@@ -36,7 +36,7 @@ import {SimulationOverlay} from './src/components';
 import {Colors} from './src/utils/colors';
 import {ScreenLogger} from './src/utils/logger';
 import {startLifecycleLogging} from './src/utils/appLifecycle';
-import {BITDRIFT_API_KEY, BITDRIFT_API_HOST, APP_VARIANT} from './src/config';
+import {BITDRIFT_SDK_KEY, BITDRIFT_API_HOST, APP_VARIANT} from './src/config';
 import type {RootStackParamList} from './src/navigation/types';
 
 import {
@@ -66,9 +66,9 @@ const APP_START_TIME = Date.now();
 
 // Initialise with an activity-based session so new sessions begin after a
 // period of inactivity, matching how iOS/Android demos are configured.
-// API key is loaded from src/config.ts (reads BITDRIFT_API_KEY from .env).
+// SDK key is loaded from src/config.ts (reads BITDRIFT_SDK_KEY from .env).
 const SDK_INIT_STARTED_AT = Date.now();
-init(BITDRIFT_API_KEY, SessionStrategy.Activity, {
+init(BITDRIFT_SDK_KEY, SessionStrategy.Activity, {
   url: BITDRIFT_API_HOST,
   // Automatic HTTP capture. iOS only — this flag instruments NSURLSession, which is
   // what RN's fetch uses. Android ignores it and needs the io.bitdrift.capture-plugin

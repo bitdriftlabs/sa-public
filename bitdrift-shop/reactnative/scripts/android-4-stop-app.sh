@@ -5,7 +5,7 @@ set -euo pipefail
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export PATH="$SDK_DIR/platform-tools:$PATH"
 
-PKG="ai.bitdrift.shop"
+PKG="ai.bitdrift.rn.shop"
 
 EMU_ID="$(adb devices | awk 'NR>1 && $2=="device"{print $1}' | grep -E '^emulator-' | head -n1 || true)"
 if [[ -z "$EMU_ID" ]]; then

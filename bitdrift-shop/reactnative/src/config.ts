@@ -1,5 +1,5 @@
 import {Platform} from 'react-native';
-import {BITDRIFT_API_KEY as ENV_API_KEY, BITDRIFT_API_HOST as ENV_API_HOST, BACKEND_PORT as ENV_BACKEND_PORT} from '@env';
+import {BITDRIFT_SDK_KEY as ENV_SDK_KEY, BITDRIFT_API_HOST as ENV_API_HOST, BACKEND_PORT as ENV_BACKEND_PORT} from '@env';
 
 // ─── App version ─────────────────────────────────────────────────────────────
 // Displayed on screen via ScreenContainer, and kept in step with the iOS and Android
@@ -18,10 +18,10 @@ export const APP_VERSION = '5.0';
 export const APP_VARIANT = 'sdk-demo';
 
 // ─── bitdrift SDK ────────────────────────────────────────────────────────────
-// Set BITDRIFT_API_KEY in your .env file.
+// Set BITDRIFT_SDK_KEY in your .env file.
 // Values are injected at Metro bundle time via react-native-dotenv.
 // See README.md § "Configuration" for details.
-export const BITDRIFT_API_KEY: string = ENV_API_KEY ?? '';
+export const BITDRIFT_SDK_KEY: string = ENV_SDK_KEY ?? '';
 
 // Normalise to a full URL — the SDK's generateDeviceCode() needs https://
 // so accept both 'api.bitdrift.dev' and 'https://api.bitdrift.dev'.
