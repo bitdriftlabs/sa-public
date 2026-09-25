@@ -29,6 +29,7 @@ output/
 *.class
 *.apk
 *.aab
+*.aar
 *.hprof
 *.keystore
 !debug.keystore

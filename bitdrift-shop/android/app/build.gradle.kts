@@ -54,6 +54,17 @@ android {
             ?: "api.bitdrift.io"
         buildConfigField("String", "BITDRIFT_SDK_KEY", "\"$bitdriftSdkKey\"")
         buildConfigField("String", "BITDRIFT_API_HOST", "\"$bitdriftApiHost\"")
+
+        // OTel span export (BIT-9050 local ClickStack demo). Blank endpoint means the feature
+        // stays off (see OtelExportConfiguration wiring in ShoppingDemoApp.kt).
+        val clickstackEndpoint = localProps.getProperty("CLICKSTACK_ENDPOINT")
+            ?: System.getenv("CLICKSTACK_ENDPOINT")
+            ?: ""
+        val clickstackIngestionApiKey = localProps.getProperty("CLICKSTACK_INGESTION_API_KEY")
+            ?: System.getenv("CLICKSTACK_INGESTION_API_KEY")
+            ?: ""
+        buildConfigField("String", "CLICKSTACK_ENDPOINT", "\"$clickstackEndpoint\"")
+        buildConfigField("String", "CLICKSTACK_INGESTION_API_KEY", "\"$clickstackIngestionApiKey\"")
         buildConfigField("boolean", "SHOW_CARDINALITY", project.findProperty("SHOW_CARDINALITY")?.toString() ?: "false")
         buildConfigField("boolean", "SHOW_SIM_AB", project.findProperty("SHOW_SIM_AB")?.toString() ?: "false")
         // Surfaced in the UI (see Components.kt) so it's obvious at a glance which
@@ -100,6 +111,21 @@ dependencies {
     // of the SDK against this app without editing this block.
     if (bitdriftUseLocalAar) {
         implementation(files(bitdriftLocalAarPath))
+
+        // capture depends on the capture-sdk repo's separate :replay and :common Gradle
+        // modules (api(project(":replay")) / implementation(project(":common"))), which are
+        // internal-only and never published as their own Maven coordinates -- Maven Central
+        // mode gets them bundled/resolved automatically via the real release pipeline, but a
+        // bare `./gradlew :capture:assembleRelease` AAR does not include their classes at all.
+        // Without this, app startup crashes with NoClassDefFoundError on
+        // io.bitdrift.capture.replay.SessionReplayConfiguration. Assumes the standard
+        // platform/jvm/<module>/build/outputs/aar/<module>-release.aar layout, i.e. that
+        // :replay:assembleRelease and :common:assembleRelease were also run alongside
+        // :capture:assembleRelease.
+        val captureAarFile = File(bitdriftLocalAarPath)
+        val platformJvmDir = captureAarFile.parentFile.parentFile.parentFile.parentFile.parentFile
+        implementation(files(File(platformJvmDir, "replay/build/outputs/aar/replay-release.aar")))
+        implementation(files(File(platformJvmDir, "common/build/outputs/aar/common-release.aar")))
 
         // capture.aar is a bare local file with no POM, so its runtime dependencies
         // (mirrored from the published capture:0.24.2 POM) must be declared explicitly.
