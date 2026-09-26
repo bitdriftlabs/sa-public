@@ -177,6 +177,13 @@ fun ScreenContainer(
                             color = Color(0xFFF57C00).copy(alpha = 0.75f)
                         )
                     }
+                    if (BuildConfig.BITDRIFT_CAPTURE_SOURCE == "AAR") {
+                        Text(
+                            text = "${BuildConfig.BITDRIFT_LOCAL_AAR_NAME} [AAR]",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                        )
+                    }
                     Text(
                         text = "App v${BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.labelMedium,

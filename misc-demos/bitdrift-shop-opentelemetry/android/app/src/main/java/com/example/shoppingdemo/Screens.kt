@@ -96,6 +96,10 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
             var deviceCode by remember { mutableStateOf<String?>(null) }
             val clipboardManager = LocalClipboardManager.current
 
+            SimButton(title = "Sim 5", color = Color(0xFFFF9800)) {
+                simulationManager.simulate(5, navController)
+            }
+
             SimButton(title = "Sim 10", color = Color(0xFFFF9800)) {
                 simulationManager.simulate(10, navController)
             }
@@ -137,37 +141,6 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
                 )
             }
 
-        }
-
-        val latestSdkVersion = "0.24.2"
-        val sdkIsLatest = BuildConfig.BITDRIFT_SDK_VERSION == latestSdkVersion
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (!sdkIsLatest) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = Color(0xFFFF9800),
-                    modifier = Modifier.size(12.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-            Text(
-                text = if (sdkIsLatest)
-                    "bitdrift SDK ${BuildConfig.BITDRIFT_SDK_VERSION}"
-                else
-                    "bitdrift SDK ${BuildConfig.BITDRIFT_SDK_VERSION} · update to $latestSdkVersion",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (sdkIsLatest)
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                else
-                    Color(0xFFFF9800)
-            )
         }
     }
 }
@@ -289,7 +262,10 @@ fun SearchScreen(navController: NavController) {
 @Composable
 fun FeaturedProductsScreen(navController: NavController) {
     var apiData by remember { mutableStateOf<JSONObject?>(null) }
-    var firstProductId by remember { mutableStateOf("prod_a1b2c3") }
+    // Null (not a fake placeholder ID) until the real fetch below resolves -- the "View Product
+    // Details"/"Read Reviews First" buttons below are disabled while this is null, so nothing
+    // ever navigates using a product ID that doesn't exist in the real catalog.
+    var firstProductId by remember { mutableStateOf<String?>(null) }
     var products by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
 
     LaunchedEffect(Unit) {
@@ -297,7 +273,7 @@ fun FeaturedProductsScreen(navController: NavController) {
             apiData = ApiClient.getFeatured()
             val arr = apiData?.optJSONArray("featured_products")
             if (arr != null && arr.length() > 0) {
-                firstProductId = arr.getJSONObject(0).optString("id", firstProductId)
+                firstProductId = arr.getJSONObject(0).optString("id", "").takeIf(String::isNotBlank)
                 products = (0 until arr.length()).map { arr.getJSONObject(it) }
             }
         } catch (_: Exception) {}
@@ -325,15 +301,17 @@ fun FeaturedProductsScreen(navController: NavController) {
         }
         PrimaryButton(
             title = "View Product Details",
-            icon = Icons.Default.Info
+            icon = Icons.Default.Info,
+            enabled = firstProductId != null
         ) {
-            navController.navigate(Screen.ProductDetail("featured", firstProductId).route)
+            firstProductId?.let { navController.navigate(Screen.ProductDetail("featured", it).route) }
         }
         SecondaryButton(
             title = "Read Reviews First",
-            icon = Icons.Default.Email
+            icon = Icons.Default.Email,
+            enabled = firstProductId != null
         ) {
-            navController.navigate(Screen.Reviews("featured", firstProductId).route)
+            firstProductId?.let { navController.navigate(Screen.Reviews("featured", it).route) }
         }
     }
 }
@@ -367,20 +345,11 @@ fun CategoriesScreen(navController: NavController) {
         onBack = { navController.popBackStack() },
         onCart = { navController.navigate(Screen.Cart().route) }
     ) {
+        // No "View Product Details"/"Read Reviews First" shortcut here -- this screen only
+        // ever fetches category names, never a specific product, so there was never a real
+        // product ID to back those buttons (they used to hardcode the fake "prod_a1b2c3" ID).
         CategoryRow(categories) { categoryName ->
             navController.navigate(Screen.CategoryBrowse(categoryName).route)
-        }
-        PrimaryButton(
-            title = "View Product Details",
-            icon = Icons.Default.Info
-        ) {
-            navController.navigate(Screen.ProductDetail("categories", "prod_a1b2c3").route)
-        }
-        SecondaryButton(
-            title = "Read Reviews First",
-            icon = Icons.Default.Email
-        ) {
-            navController.navigate(Screen.Reviews("categories", "prod_a1b2c3").route)
         }
     }
 }
@@ -392,7 +361,9 @@ fun CategoryBrowseScreen(navController: NavController, category: String?) {
     val cat = category ?: "Electronics"
     var apiData by remember { mutableStateOf<JSONObject?>(null) }
     var products by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
-    var firstProductId by remember { mutableStateOf("prod_a1b2c3") }
+    // Null (not a fake placeholder ID) until the real fetch below resolves -- see
+    // FeaturedProductsScreen above for why this can't default to "prod_a1b2c3".
+    var firstProductId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(cat) {
         try {
@@ -400,7 +371,7 @@ fun CategoryBrowseScreen(navController: NavController, category: String?) {
             val arr = apiData?.optJSONArray("products")
             if (arr != null && arr.length() > 0) {
                 products = (0 until arr.length()).map { arr.getJSONObject(it) }
-                firstProductId = products[0].optString("id", firstProductId)
+                firstProductId = products[0].optString("id", "").takeIf(String::isNotBlank)
             }
         } catch (_: Exception) {}
     }
@@ -424,15 +395,17 @@ fun CategoryBrowseScreen(navController: NavController, category: String?) {
         }
         PrimaryButton(
             title = "View Product Details",
-            icon = Icons.Default.Info
+            icon = Icons.Default.Info,
+            enabled = firstProductId != null
         ) {
-            navController.navigate(Screen.ProductDetail("categories", firstProductId).route)
+            firstProductId?.let { navController.navigate(Screen.ProductDetail("categories", it).route) }
         }
         SecondaryButton(
             title = "Read Reviews First",
-            icon = Icons.Default.Email
+            icon = Icons.Default.Email,
+            enabled = firstProductId != null
         ) {
-            navController.navigate(Screen.Reviews("categories", firstProductId).route)
+            firstProductId?.let { navController.navigate(Screen.Reviews("categories", it).route) }
         }
     }
 }
@@ -441,11 +414,15 @@ fun CategoryBrowseScreen(navController: NavController, category: String?) {
 
 @Composable
 fun ProductDetailScreen(navController: NavController, source: String?, productId: String?, simulationManager: SimulationManager? = null) {
-    val pid = productId ?: "prod_a1b2c3"
+    // productId is nullable rather than falling back to a fake ID ("prod_a1b2c3", left over
+    // from this demo's pre-OpenTelemetry-Demo backend) -- that ID doesn't exist in the real
+    // catalog, so calling getProduct() with it always fails with a real backend NOT_FOUND.
+    val pid = productId
     var apiData by remember { mutableStateOf<JSONObject?>(null) }
     var catalogJson by remember { mutableStateOf("[]") }
 
     LaunchedEffect(pid) {
+        if (pid == null) return@LaunchedEffect
         try {
             apiData = ApiClient.getProduct(pid)
             if (simulationManager?.slowModeEnabled == true) {
@@ -454,7 +431,7 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
         } catch (_: Exception) {}
     }
 
-    val recommendations = if (simulationManager?.slowModeEnabled == true) {
+    val recommendations = if (simulationManager?.slowModeEnabled == true && pid != null) {
         RecommendationEngine.scoreProducts(catalogJson, pid)
     } else emptyList()
 
@@ -485,32 +462,37 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
         }
         PrimaryButton(
             title = "Add to Cart",
-            icon = Icons.Default.Add
+            icon = Icons.Default.Add,
+            enabled = pid != null
         ) {
+            val id = pid ?: return@PrimaryButton
             // Workshop 4c — Logging (android, basic sdk)
             // workshop-301.md § "4c — Logging Examples"
             // Stable event name with structured fields enables aggregation in the dashboard.
-            Logger.logInfo(mapOf("product_id" to pid, "source_screen" to (source ?: "unknown"))) { "add_to_cart" }
-            navController.navigate(Screen.Cart(pid).route)
+            Logger.logInfo(mapOf("product_id" to id, "source_screen" to (source ?: "unknown"))) { "add_to_cart" }
+            navController.navigate(Screen.Cart(id).route)
         }
         SecondaryButton(
             title = "Save to Wishlist",
-            icon = Icons.Default.Favorite
+            icon = Icons.Default.Favorite,
+            enabled = pid != null
         ) {
+            val id = pid ?: return@SecondaryButton
             // Workshop 4c — Logging (android, basic sdk)
             // workshop-301.md § "4c — Logging Examples"
-            Logger.logInfo(mapOf("product_id" to pid, "source_screen" to (source ?: "unknown"))) { "add_to_wishlist" }
-            navController.navigate(Screen.Wishlist(pid).route)
+            Logger.logInfo(mapOf("product_id" to id, "source_screen" to (source ?: "unknown"))) { "add_to_wishlist" }
+            navController.navigate(Screen.Wishlist(id).route)
         }
     }
 }
 
 @Composable
 fun ReviewsScreen(navController: NavController, source: String?, productId: String?) {
-    val pid = productId ?: "prod_a1b2c3"
+    val pid = productId
     var apiData by remember { mutableStateOf<JSONObject?>(null) }
 
     LaunchedEffect(pid) {
+        if (pid == null) return@LaunchedEffect
         try { apiData = ApiClient.getReviews(pid) } catch (_: Exception) {}
     }
 
@@ -534,21 +516,25 @@ fun ReviewsScreen(navController: NavController, source: String?, productId: Stri
     ) {
         PrimaryButton(
             title = "Add to Cart",
-            icon = Icons.Default.Add
+            icon = Icons.Default.Add,
+            enabled = pid != null
         ) {
+            val id = pid ?: return@PrimaryButton
             // Workshop 4c — Logging (android, basic sdk)
             // workshop-301.md § "4c — Logging Examples"
-            Logger.logInfo(mapOf("product_id" to pid, "source_screen" to (source ?: "unknown"))) { "add_to_cart" }
-            navController.navigate(Screen.Cart(pid).route)
+            Logger.logInfo(mapOf("product_id" to id, "source_screen" to (source ?: "unknown"))) { "add_to_cart" }
+            navController.navigate(Screen.Cart(id).route)
         }
         SecondaryButton(
             title = "Save to Wishlist",
-            icon = Icons.Default.Favorite
+            icon = Icons.Default.Favorite,
+            enabled = pid != null
         ) {
+            val id = pid ?: return@SecondaryButton
             // Workshop 4c — Logging (android, basic sdk)
             // workshop-301.md § "4c — Logging Examples"
-            Logger.logInfo(mapOf("product_id" to pid, "source_screen" to (source ?: "unknown"))) { "add_to_wishlist" }
-            navController.navigate(Screen.Wishlist(pid).route)
+            Logger.logInfo(mapOf("product_id" to id, "source_screen" to (source ?: "unknown"))) { "add_to_wishlist" }
+            navController.navigate(Screen.Wishlist(id).route)
         }
     }
 }
@@ -682,10 +668,11 @@ fun CartScreen(navController: NavController, productId: String?) {
 
 @Composable
 fun WishlistScreen(navController: NavController, productId: String?) {
-    val pid = productId ?: "prod_a1b2c3"
+    val pid = productId
     var apiData by remember { mutableStateOf<JSONObject?>(null) }
 
     LaunchedEffect(pid) {
+        if (pid == null) return@LaunchedEffect
         try { apiData = ApiClient.addToWishlist(pid) } catch (_: Exception) {}
     }
 
@@ -710,13 +697,13 @@ fun WishlistScreen(navController: NavController, productId: String?) {
             title = "Checkout as Guest",
             icon = Icons.Default.Person
         ) {
-            navController.navigate(Screen.CheckoutGuest(pid).route)
+            navController.navigate(Screen.CheckoutGuest(pid ?: "").route)
         }
         SecondaryButton(
             title = "Sign In to Checkout",
             icon = Icons.Default.Lock
         ) {
-            navController.navigate(Screen.CheckoutSignIn(pid).route)
+            navController.navigate(Screen.CheckoutSignIn(pid ?: "").route)
         }
     }
 }
