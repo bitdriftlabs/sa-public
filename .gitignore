@@ -38,6 +38,7 @@ output/
 !debug.keystore
 local.properties
 .local.properties*
+!misc-demos/bitdrift-shop-opentelemetry/android/.local.properties.example
 .gradle/
 captures/
 build/

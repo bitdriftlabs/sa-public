@@ -33,6 +33,32 @@ println(
         if (bitdriftUseLocalAar) "LOCAL AAR ($bitdriftLocalAarPath)" else "Maven Central (io.bitdrift:capture:0.25.0)"
 )
 
+// OtelExportConfiguration (and the otelExportConfiguration param on Configuration) only exist in
+// the local capture-sdk AAR (BIT-9050 branch), not in the published io.bitdrift:capture Maven
+// Central artifact -- so the code that references them can only compile when the local AAR is in
+// use. Defaults to whatever BITDRIFT_USE_LOCAL_AAR resolves to (on when using the local AAR, off
+// otherwise) so existing setups don't change behavior; set to "false" explicitly to build against
+// the local AAR *without* compiling in the OTel wiring (e.g. testing the AAR as a drop-in
+// replacement, without exercising the new experimental surface).
+val bitdriftEnableOtelExportRaw = (
+    project.findProperty("BITDRIFT_ENABLE_OTEL_EXPORT")?.toString()
+        ?: localProps.getProperty("BITDRIFT_ENABLE_OTEL_EXPORT")
+        ?: System.getenv("BITDRIFT_ENABLE_OTEL_EXPORT")
+        ?: ""
+    ).trim()
+val bitdriftEnableOtelExport = if (bitdriftEnableOtelExportRaw.isBlank()) {
+    bitdriftUseLocalAar
+} else {
+    bitdriftEnableOtelExportRaw.equals("true", ignoreCase = true)
+}
+if (bitdriftEnableOtelExport && !bitdriftUseLocalAar) {
+    throw GradleException(
+        "BITDRIFT_ENABLE_OTEL_EXPORT=true requires BITDRIFT_USE_LOCAL_AAR to also be set -- " +
+            "the OTel export wiring references classes that only exist in the local capture-sdk AAR."
+    )
+}
+println("bitdrift OTel export wiring: " + if (bitdriftEnableOtelExport) "ENABLED" else "disabled")
+
 android {
     namespace = "com.example.shoppingdemo"
     compileSdk = 36
@@ -99,6 +125,15 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // Picks which variant of buildBitdriftConfiguration() compiles in, per
+    // bitdriftEnableOtelExport above -- see app/src/otelExportEnabled and
+    // app/src/otelExportDisabled.
+    sourceSets {
+        getByName("main") {
+            kotlin.srcDir(if (bitdriftEnableOtelExport) "src/otelExportEnabled/kotlin" else "src/otelExportDisabled/kotlin")
+        }
     }
 }
 

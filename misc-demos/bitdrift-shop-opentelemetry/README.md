@@ -22,7 +22,8 @@ The OTel Demo backend generates rich distributed traces across its microservices
 
 ## Local Config
 
-`local.properties` is committed as a blank template. Add real values to `.local.properties` (gitignored):
+Copy `android/.local.properties.example` to `android/.local.properties` (gitignored) and fill in
+real values — the example file documents every flag below, plus its default and env-var fallback.
 
 ```properties
 BITDRIFT_SDK_KEY=your_key_here
@@ -40,11 +41,22 @@ To also export bitdrift-side spans to ClickStack (see [OTel span export](#otel-s
 
 ```properties
 BITDRIFT_USE_LOCAL_AAR=/absolute/path/to/libs/capture-release.aar
+BITDRIFT_ENABLE_OTEL_EXPORT=true
 CLICKSTACK_ENDPOINT=http://10.0.2.2:4318/v1/traces
 CLICKSTACK_INGESTION_API_KEY=your_clickstack_ingestion_key
 ```
 
 `CLICKSTACK_INGESTION_API_KEY` is minted per ClickStack team on signup (Team Settings → API Keys in the ClickStack UI, step 1 below) — it changes if the ClickStack container is ever removed and recreated (a `docker stop`/`start` keeps it; `docker rm` does not), so re-check it here if spans stop showing up.
+
+`BITDRIFT_ENABLE_OTEL_EXPORT` defaults to whatever `BITDRIFT_USE_LOCAL_AAR` resolves to (on when
+using the local AAR, off otherwise), so most setups never need to set it explicitly. It exists
+because `OtelExportConfiguration` only exists in the local AAR, not the published
+`io.bitdrift:capture` Maven Central artifact — so this flag picks between two Gradle source sets
+(`app/src/otelExportEnabled`/`app/src/otelExportDisabled`) at build time rather than being a plain
+runtime toggle. Set it to `false` to build against the local AAR *without* the OTel wiring (e.g.
+testing the AAR as a drop-in replacement), or leave everything above unset/commented to build
+against the published SDK — either way the build fails fast with a clear error if you set it to
+`true` without also setting `BITDRIFT_USE_LOCAL_AAR`.
 
 ## Tracing (bitdrift)
 
@@ -85,7 +97,7 @@ cp capture/build/outputs/aar/capture-release.aar \
    /path/to/bitdrift-shop-opentelemetry/android/libs/
 ```
 
-Then set `BITDRIFT_USE_LOCAL_AAR`/`CLICKSTACK_ENDPOINT`/`CLICKSTACK_INGESTION_API_KEY` in
+Then set `BITDRIFT_USE_LOCAL_AAR`/`BITDRIFT_ENABLE_OTEL_EXPORT`/`CLICKSTACK_ENDPOINT`/`CLICKSTACK_INGESTION_API_KEY` in
 `.local.properties` as shown in [Local Config](#local-config) — `:replay` and `:common` are
 capture-sdk's own internal Gradle modules, not published Maven coordinates, so all three AARs
 are required together or the app crashes at startup with `NoClassDefFoundError` on

@@ -1,0 +1,37 @@
+# Copy this file to .local.properties (gitignored) and fill in real values.
+# Every key here is read in app/build.gradle.kts via localProps.getProperty(...) -- falls back
+# to an environment variable of the same name if unset here, then to a hardcoded default if
+# neither is set (noted per key below). All are optional except BITDRIFT_SDK_KEY.
+
+# Required: your bitdrift SDK key (Project Settings -> API Keys in the bitdrift dashboard).
+BITDRIFT_SDK_KEY=
+
+# bitdrift API host. Default: api.bitdrift.io
+BITDRIFT_API_HOST=api.bitdrift.io
+
+# OTel Demo backend the app talks to. Defaults assume an Android emulator hitting the host
+# machine's Docker-exposed frontend-proxy port (see README.md "Quick Start").
+OTEL_DEMO_HOST=10.0.2.2
+OTEL_DEMO_PORT=8081
+
+# --- Local capture-sdk AAR (BIT-9050 OTel span export POC) ---
+# See README.md "OTel span export (experimental)" for how to build these AARs.
+
+# Absolute path to a locally built capture-release.aar. Unset, blank, or "false" means use the
+# published io.bitdrift:capture Maven Central artifact instead.
+# BITDRIFT_USE_LOCAL_AAR=/absolute/path/to/libs/capture-release.aar
+
+# Compiles in the OTel span-export wiring (OtelExportConfiguration), which only exists in the
+# local AAR above -- requires BITDRIFT_USE_LOCAL_AAR to also be set, or the Gradle build fails
+# fast with a clear error. Defaults to whatever BITDRIFT_USE_LOCAL_AAR resolves to (on when using
+# the local AAR, off otherwise); set explicitly to "false" to use the local AAR as a drop-in
+# replacement without compiling in the new experimental surface.
+# BITDRIFT_ENABLE_OTEL_EXPORT=true
+
+# Where the SDK exports OTel spans (a local ClickStack/HyperDX instance's OTLP/HTTP endpoint).
+# Blank means the feature stays off even if BITDRIFT_ENABLE_OTEL_EXPORT is true.
+# CLICKSTACK_ENDPOINT=http://10.0.2.2:4318/v1/traces
+
+# ClickStack ingestion API key (Team Settings -> API Keys in the ClickStack UI). Changes if the
+# ClickStack container is ever removed and recreated (docker rm), not just stopped/started.
+# CLICKSTACK_INGESTION_API_KEY=
