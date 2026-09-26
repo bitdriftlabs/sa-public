@@ -76,9 +76,13 @@ span for each traced network request — same trace ID and span ID already in th
 export it directly to an OTLP/HTTP endpoint (ClickStack here). This turns the mobile app into
 the root of the trace instead of an invisible caller ahead of the OTel Demo backend's own spans.
 
-This isn't in a published `io.bitdrift:capture` release yet — it needs a locally built AAR from
-the `slerner/bit-9050-otel-span-poc` branch of
-[capture-sdk](https://github.com/bitdriftlabs/capture-sdk):
+This isn't in a published `io.bitdrift:capture` release yet, so this repo bundles a locally
+built AAR from the `slerner/bit-9050-otel-span-poc` branch of
+[capture-sdk](https://github.com/bitdriftlabs/capture-sdk) directly under `android/libs/`
+(tracked in git, despite the general `*.aar` gitignore rule — see the exception in `.gitignore`)
+so you don't need a capture-sdk checkout just to try this out.
+
+**(Optional) Refreshing the bundled AARs**, e.g. after a capture-sdk change on that branch:
 
 ```bash
 git clone https://github.com/bitdriftlabs/capture-sdk
@@ -86,11 +90,6 @@ cd capture-sdk
 git checkout slerner/bit-9050-otel-span-poc
 cd platform/jvm
 ./gradlew :capture:assembleRelease :replay:assembleRelease :common:assembleRelease
-```
-
-Copy the three resulting AARs into this project's `android/libs/` (gitignored, not committed):
-
-```bash
 cp capture/build/outputs/aar/capture-release.aar \
    replay/build/outputs/aar/replay-release.aar \
    common/build/outputs/aar/common-release.aar \

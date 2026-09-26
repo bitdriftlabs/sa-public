@@ -33,6 +33,32 @@ println(
         if (bitdriftUseLocalAar) "LOCAL AAR ($bitdriftLocalAarPath)" else "Maven Central (io.bitdrift:capture:0.24.2)"
 )
 
+// OtelExportConfiguration (and the otelExportConfiguration param on Configuration) only exist in
+// the local capture-sdk AAR (BIT-9050 branch), not in the published io.bitdrift:capture Maven
+// Central artifact -- so the code that references them can only compile when the local AAR is in
+// use. Defaults to whatever BITDRIFT_USE_LOCAL_AAR resolves to (on when using the local AAR, off
+// otherwise) so existing setups don't change behavior; set to "false" explicitly to build against
+// the local AAR *without* compiling in the OTel wiring (e.g. testing the AAR as a drop-in
+// replacement, without exercising the new experimental surface).
+val bitdriftEnableOtelExportRaw = (
+    project.findProperty("BITDRIFT_ENABLE_OTEL_EXPORT")?.toString()
+        ?: localProps.getProperty("BITDRIFT_ENABLE_OTEL_EXPORT")
+        ?: System.getenv("BITDRIFT_ENABLE_OTEL_EXPORT")
+        ?: ""
+    ).trim()
+val bitdriftEnableOtelExport = if (bitdriftEnableOtelExportRaw.isBlank()) {
+    bitdriftUseLocalAar
+} else {
+    bitdriftEnableOtelExportRaw.equals("true", ignoreCase = true)
+}
+if (bitdriftEnableOtelExport && !bitdriftUseLocalAar) {
+    throw GradleException(
+        "BITDRIFT_ENABLE_OTEL_EXPORT=true requires BITDRIFT_USE_LOCAL_AAR to also be set -- " +
+            "the OTel export wiring references classes that only exist in the local capture-sdk AAR."
+    )
+}
+println("bitdrift OTel export wiring: " + if (bitdriftEnableOtelExport) "ENABLED" else "disabled")
+
 android {
     namespace = "ai.bitdrift.shop"
     compileSdk = 36
@@ -94,6 +120,15 @@ android {
         compose = true
         buildConfig = true
     }
+
+    // Picks which variant of buildBitdriftConfiguration() compiles in, per
+    // bitdriftEnableOtelExport above -- see app/src/otelExportEnabled and
+    // app/src/otelExportDisabled.
+    sourceSets {
+        getByName("main") {
+            kotlin.srcDir(if (bitdriftEnableOtelExport) "src/otelExportEnabled/kotlin" else "src/otelExportDisabled/kotlin")
+        }
+    }
 }
 
 // Workshop §1b (Automatic Network Capture): enable the Gradle plugin's automatic
@@ -118,14 +153,47 @@ dependencies {
         // mode gets them bundled/resolved automatically via the real release pipeline, but a
         // bare `./gradlew :capture:assembleRelease` AAR does not include their classes at all.
         // Without this, app startup crashes with NoClassDefFoundError on
-        // io.bitdrift.capture.replay.SessionReplayConfiguration. Assumes the standard
-        // platform/jvm/<module>/build/outputs/aar/<module>-release.aar layout, i.e. that
-        // :replay:assembleRelease and :common:assembleRelease were also run alongside
-        // :capture:assembleRelease.
-        val captureAarFile = File(bitdriftLocalAarPath)
-        val platformJvmDir = captureAarFile.parentFile.parentFile.parentFile.parentFile.parentFile
-        implementation(files(File(platformJvmDir, "replay/build/outputs/aar/replay-release.aar")))
-        implementation(files(File(platformJvmDir, "common/build/outputs/aar/common-release.aar")))
+        // io.bitdrift.capture.replay.SessionReplayConfiguration.
+        //
+        // Default: derives replay/common's path from BITDRIFT_USE_LOCAL_AAR assuming the
+        // standard platform/jvm/<module>/build/outputs/aar/<module>-release.aar layout (i.e.
+        // capture.aar wasn't moved out of a capture-sdk checkout's own build output tree). If
+        // you've copied the AARs elsewhere (e.g. a flat libs/ dir) -- or the path is too shallow
+        // for that layout to exist at all -- that assumption breaks; set
+        // BITDRIFT_LOCAL_REPLAY_AAR/BITDRIFT_LOCAL_COMMON_AAR explicitly instead.
+        fun deriveCompanionAarPath(moduleName: String): String? {
+            val platformJvmDir = File(bitdriftLocalAarPath)
+                .parentFile?.parentFile?.parentFile?.parentFile?.parentFile
+                ?: return null
+            return File(platformJvmDir, "$moduleName/build/outputs/aar/$moduleName-release.aar").path
+        }
+        val bitdriftLocalReplayAarPath = (
+            project.findProperty("BITDRIFT_LOCAL_REPLAY_AAR")?.toString()
+                ?: localProps.getProperty("BITDRIFT_LOCAL_REPLAY_AAR")
+                ?: System.getenv("BITDRIFT_LOCAL_REPLAY_AAR")
+                ?: deriveCompanionAarPath("replay")
+                ?: ""
+            ).trim()
+        val bitdriftLocalCommonAarPath = (
+            project.findProperty("BITDRIFT_LOCAL_COMMON_AAR")?.toString()
+                ?: localProps.getProperty("BITDRIFT_LOCAL_COMMON_AAR")
+                ?: System.getenv("BITDRIFT_LOCAL_COMMON_AAR")
+                ?: deriveCompanionAarPath("common")
+                ?: ""
+            ).trim()
+        listOf("replay" to bitdriftLocalReplayAarPath, "common" to bitdriftLocalCommonAarPath).forEach { (name, path) ->
+            if (path.isBlank() || !File(path).exists()) {
+                throw GradleException(
+                    "BITDRIFT_USE_LOCAL_AAR is set, but the companion $name AAR could not be " +
+                        (if (path.isBlank()) "derived -- capture.aar's path is too shallow for the standard platform/jvm layout" else "found at $path") +
+                        ". Either build it alongside capture.aar (the standard " +
+                        "platform/jvm/$name/build/outputs/aar/$name-release.aar layout), or set " +
+                        "BITDRIFT_LOCAL_${name.uppercase()}_AAR to its actual path."
+                )
+            }
+        }
+        implementation(files(bitdriftLocalReplayAarPath))
+        implementation(files(bitdriftLocalCommonAarPath))
 
         // capture.aar is a bare local file with no POM, so its runtime dependencies
         // (mirrored from the published capture:0.24.2 POM) must be declared explicitly.

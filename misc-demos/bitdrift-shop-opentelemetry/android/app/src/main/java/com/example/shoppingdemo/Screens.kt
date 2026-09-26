@@ -462,22 +462,26 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
         }
         PrimaryButton(
             title = "Add to Cart",
-            icon = Icons.Default.Add
+            icon = Icons.Default.Add,
+            enabled = pid != null
         ) {
+            val id = pid ?: return@PrimaryButton
             // Workshop 4c — Logging (android, basic sdk)
             // workshop-301.md § "4c — Logging Examples"
             // Stable event name with structured fields enables aggregation in the dashboard.
-            Logger.logInfo(mapOf("product_id" to (pid ?: "unknown"), "source_screen" to (source ?: "unknown"))) { "add_to_cart" }
-            navController.navigate(Screen.Cart(pid ?: "").route)
+            Logger.logInfo(mapOf("product_id" to id, "source_screen" to (source ?: "unknown"))) { "add_to_cart" }
+            navController.navigate(Screen.Cart(id).route)
         }
         SecondaryButton(
             title = "Save to Wishlist",
-            icon = Icons.Default.Favorite
+            icon = Icons.Default.Favorite,
+            enabled = pid != null
         ) {
+            val id = pid ?: return@SecondaryButton
             // Workshop 4c — Logging (android, basic sdk)
             // workshop-301.md § "4c — Logging Examples"
-            Logger.logInfo(mapOf("product_id" to (pid ?: "unknown"), "source_screen" to (source ?: "unknown"))) { "add_to_wishlist" }
-            navController.navigate(Screen.Wishlist(pid ?: "").route)
+            Logger.logInfo(mapOf("product_id" to id, "source_screen" to (source ?: "unknown"))) { "add_to_wishlist" }
+            navController.navigate(Screen.Wishlist(id).route)
         }
     }
 }
@@ -512,21 +516,25 @@ fun ReviewsScreen(navController: NavController, source: String?, productId: Stri
     ) {
         PrimaryButton(
             title = "Add to Cart",
-            icon = Icons.Default.Add
+            icon = Icons.Default.Add,
+            enabled = pid != null
         ) {
+            val id = pid ?: return@PrimaryButton
             // Workshop 4c — Logging (android, basic sdk)
             // workshop-301.md § "4c — Logging Examples"
-            Logger.logInfo(mapOf("product_id" to (pid ?: "unknown"), "source_screen" to (source ?: "unknown"))) { "add_to_cart" }
-            navController.navigate(Screen.Cart(pid ?: "").route)
+            Logger.logInfo(mapOf("product_id" to id, "source_screen" to (source ?: "unknown"))) { "add_to_cart" }
+            navController.navigate(Screen.Cart(id).route)
         }
         SecondaryButton(
             title = "Save to Wishlist",
-            icon = Icons.Default.Favorite
+            icon = Icons.Default.Favorite,
+            enabled = pid != null
         ) {
+            val id = pid ?: return@SecondaryButton
             // Workshop 4c — Logging (android, basic sdk)
             // workshop-301.md § "4c — Logging Examples"
-            Logger.logInfo(mapOf("product_id" to (pid ?: "unknown"), "source_screen" to (source ?: "unknown"))) { "add_to_wishlist" }
-            navController.navigate(Screen.Wishlist(pid ?: "").route)
+            Logger.logInfo(mapOf("product_id" to id, "source_screen" to (source ?: "unknown"))) { "add_to_wishlist" }
+            navController.navigate(Screen.Wishlist(id).route)
         }
     }
 }

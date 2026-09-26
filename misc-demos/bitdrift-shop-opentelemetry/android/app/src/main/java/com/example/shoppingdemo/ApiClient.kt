@@ -72,11 +72,16 @@ object ApiClient {
         return builder.build().toString()
     }
 
+    // Distinct from IllegalStateException so callers that need to tell a definitive "not found"
+    // apart from other HTTP failures (5xx, etc.) can catch this specifically -- see
+    // addToWishlist().
+    private class HttpStatusException(val code: Int, message: String) : Exception(message)
+
     private fun execute(request: Request, allowHttpError: Boolean = false): String {
         client.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful && !allowHttpError) {
-                throw IllegalStateException("HTTP ${response.code}: $body")
+                throw HttpStatusException(response.code, "HTTP ${response.code}: $body")
             }
             return body
         }
@@ -548,16 +553,18 @@ object ApiClient {
         // Wishlist IDs persist in SharedPreferences across app runs/reinstalls. Fetch each
         // one independently rather than letting a single bad ID (stale/invalid, e.g. from an
         // earlier bug) throw and abort the whole call -- that both loses the other items and,
-        // since it's swallowed by the caller's try/catch, silently never self-heals. Dropping
-        // ids that no longer resolve prevents one bad entry from failing every future call to
-        // this function forever.
+        // since it's swallowed by the caller's try/catch, silently never self-heals. Only a
+        // definitive 404 means the ID itself is invalid; a timeout, DNS failure, or 5xx is
+        // transient and must not permanently drop the ID from the persisted set.
         val items = JSONArray()
         val invalidIds = mutableSetOf<String>()
         wishlistIds.forEach { itemId ->
             try {
                 items.put(productToLegacy(getOtelProduct(itemId)))
+            } catch (e: HttpStatusException) {
+                if (e.code == 404) invalidIds.add(itemId)
             } catch (_: Exception) {
-                invalidIds.add(itemId)
+                // Network-level failure (timeout, DNS, etc.) -- transient, retain the ID.
             }
         }
         if (invalidIds.isNotEmpty()) {

@@ -1,4 +1,4 @@
-package com.example.shoppingdemo
+package ai.bitdrift.shop
 
 import io.bitdrift.capture.Configuration
 import io.bitdrift.capture.experimental.ExperimentalBitdriftApi
