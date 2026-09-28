@@ -6,7 +6,7 @@ import android.os.SystemClock
 import android.util.Log
 
 import io.bitdrift.capture.Capture.Logger
-import io.bitdrift.capture.providers.session.SessionStrategy
+import io.bitdrift.capture.providers.session.SessionConfiguration
 import okhttp3.HttpUrl
 
 class ShoppingDemoApp : Application() {
@@ -18,10 +18,15 @@ class ShoppingDemoApp : Application() {
         // Workshop 1 - Initialization (android, basic sdk)
         // Uncomment this block during the workshop to enable bitdrift startup.
 
+        // buildBitdriftConfiguration() resolves to one of two source-set variants based on
+        // BITDRIFT_ENABLE_OTEL_EXPORT (see app/build.gradle.kts) -- app/src/otelExportEnabled
+        // wires up OTel span export, app/src/otelExportDisabled is a no-op Configuration(), for
+        // building against the published SDK (which lacks OtelExportConfiguration entirely).
         Logger.start(
         apiKey = BuildConfig.BITDRIFT_SDK_KEY,
         apiUrl = HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST).build(),
-        sessionStrategy = SessionStrategy.Fixed(),
+        sessionConfiguration = SessionConfiguration(),
+        configuration = buildBitdriftConfiguration(),
         )
         // Register lifecycle callbacks
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())

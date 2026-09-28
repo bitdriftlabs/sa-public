@@ -1,0 +1,49 @@
+{
+  "name": "bitdrift-shop-opentelemetry-ios — Capture All Sessions (Demo)",
+  "platform_targets": [
+    {
+      "apple": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.oteldemo.ios"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "session-start",
+            "ootb_match": {
+              "generic_condition": "SCREEN_VIEW",
+              "generic_match": {
+                "base_matcher": {
+                  "log_field": "_screen_name",
+                  "operator": "EQUAL",
+                  "string_value": "Welcome"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "trace-all-sessions",
+      "start_tracing_rule": {
+        "match_id": "session-start"
+      }
+    },
+    {
+      "rule_id": "capture-all-sessions",
+      "flush_rule": {
+        "match_id": "session-start"
+      }
+    }
+  ]
+}

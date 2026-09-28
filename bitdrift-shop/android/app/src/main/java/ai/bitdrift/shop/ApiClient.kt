@@ -3,7 +3,6 @@ package ai.bitdrift.shop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
-import io.bitdrift.capture.network.okhttp.CaptureOkHttpEventListenerFactory
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -20,13 +19,17 @@ object ApiClient {
     private const val BASE_URL = "http://10.0.2.2:$PORT/api"
     private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
 
-    // bitdrift SDK: CaptureOkHttpEventListenerFactory() attaches to every OkHttp call and
-    // automatically logs requests and responses in the bitdrift session timeline.
-    // POC: network monitoring — unsampled latency, error rates, and throughput per endpoint
+    // bitdrift SDK: this client is deliberately plain. Request/response logging, trace header
+    // injection, and OTel span export are all added automatically via bytecode instrumentation
+    // (automaticOkHttpInstrumentation = true in build.gradle.kts), matching how most production
+    // integrations use the SDK -- see https://docs.bitdrift.io/sdk/integrations#okhttp-android.
+    // Do not also add CaptureOkHttpEventListenerFactory/CaptureOkHttpTracingInterceptor here:
+    // combining manual and automatic instrumentation on the same client double-instruments every
+    // request (confirmed: duplicate spans, same trace/span ID, from the automatic path wrapping
+    // an already-manually-attached listener).
     private val client = OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
-        .eventListenerFactory(CaptureOkHttpEventListenerFactory())
         .build()
 
     // ---- GET helpers ----

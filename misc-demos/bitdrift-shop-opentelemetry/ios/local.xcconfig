@@ -1,0 +1,42 @@
+// Blank template — committed. Put your real values in `.local.xcconfig` (gitignored), which
+// this file includes at the bottom and which overrides everything here. Mirrors the android/
+// app's local.properties/.local.properties split.
+
+// Your bitdrift SDK key (Project Settings -> API Keys in the bitdrift dashboard).
+BITDRIFT_SDK_KEY =
+
+// bitdrift API host. Blank uses the SDK's own default (api.bitdrift.io) via AppConfig.swift.
+BITDRIFT_API_HOST =
+
+// The OTel Demo backend this app talks to. iOS Simulator shares the Mac's network directly, so
+// `localhost` just works (unlike Android's emulator, which needs the `10.0.2.2` NAT alias) --
+// leave blank for Simulator. REQUIRED on a physical device: set to your Mac's LAN address
+// (`ipconfig getifaddr en0`). xcconfig treats `//` as a comment, so a bare host/IP (no scheme) is
+// fine here -- ApiClient.swift builds the full URL itself.
+OTEL_DEMO_HOST =
+OTEL_DEMO_PORT =
+
+// OTel span export (BIT-9050 local ClickStack demo) -- see README.md "OTel span export" section.
+// Blank endpoint or key means the feature stays off. xcconfig treats `//` as a comment, so a URL
+// has to break it with the empty-variable trick: CLICKSTACK_ENDPOINT = http:/$()/10.0.2.2:4318/v1/traces
+CLICKSTACK_ENDPOINT =
+CLICKSTACK_INGESTION_API_KEY =
+
+// Bundle identifier / signing team, mirroring bitdrift-shop/ios-clean/local.xcconfig.
+BITDRIFT_SHOP_OTEL_BUNDLE_ID = ai.bitdrift.oteldemo.ios
+DEVELOPMENT_TEAM =
+
+// Local vs. published Capture SDK -- unlike android/'s BITDRIFT_USE_LOCAL_AAR, this is not a
+// toggle here. project.yml's `dependencies:` points at a fixed path (Frameworks/Capture.xcframework)
+// that's resolved once by `xcodegen generate`, not at build time, so an xcconfig variable can't
+// switch it. This app only ever links the local xcframework built by scripts/ios-1-build-sdk.sh
+// (see that script's own header comment). To make this genuinely configurable, you'd need to:
+//   1. Stop referencing a fixed path in project.yml's `dependencies:` and instead reference the
+//      framework by name, linked via a FRAMEWORK_SEARCH_PATHS build setting.
+//   2. Add a variable here, e.g. BITDRIFT_FRAMEWORK_DIR = Frameworks/local (or Frameworks/published),
+//      and wire FRAMEWORK_SEARCH_PATHS to $(BITDRIFT_FRAMEWORK_DIR) in project.yml.
+//   3. Keep both xcframework variants present on disk under their respective directories.
+// Until then, re-run scripts/ios-1-build-sdk.sh (and ios-2-generate-project.sh if project.yml
+// changed) to pick up local SDK changes -- there's no published-SDK fallback path wired in.
+
+#include? ".local.xcconfig"

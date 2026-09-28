@@ -18,14 +18,19 @@
 # AVD_NAME default was "bitdrift_shop" (matching Flutter's own scripts, so
 # either app's start-app script could reuse whichever emulator was already
 # running) until that AVD hit an unresolved boot failure (HVF/mprotect issues
-# on macOS 26) and got deleted. Now defaults to "Medium_Phone", one of Android
-# Studio's own default AVDs, confirmed to boot on this machine once -gpu host
-# is avoided (see above) -- no longer shares a default with Flutter's scripts
+# on macOS 26, reproduced in Android Studio too, not just this script) and got
+# deleted. Now defaults to "Medium_Phone", matching the AVD android-1-setup.sh
+# actually creates by default (must stay in sync with that script's own
+# AVD_NAME default) -- no longer shares a default with Flutter's scripts
 # unless those get updated too.
 set -euo pipefail
 
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 AVD_NAME="${AVD_NAME:-Medium_Phone}"
+# Newer emulator builds require ANDROID_SDK_ROOT specifically and log
+# "ANDROID_SDK_ROOT is undefined" (then fail) if only ANDROID_HOME is set.
+export ANDROID_HOME="$SDK_DIR"
+export ANDROID_SDK_ROOT="$SDK_DIR"
 export PATH="$SDK_DIR/emulator:$SDK_DIR/platform-tools:$PATH"
 
 # Already booted?

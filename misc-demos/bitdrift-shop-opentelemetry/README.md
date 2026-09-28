@@ -1,6 +1,18 @@
-# Bitdrift Shop - OpenTelemetry (Android — SDK)
+# Bitdrift Shop - OpenTelemetry
 
-A demo Android app simulating an e-commerce shopping experience, instrumented with the **bitdrift Capture SDK** and backed by the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store.
+Demo e-commerce shopping apps instrumented with the **bitdrift Capture SDK** and backed by the
+[OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store.
+
+Two client apps live in this repo, both driving the same backend and simulation logic:
+
+| App | Stack | Docs |
+|---|---|---|
+| `android/` | Kotlin, Jetpack Compose | [android/README.md](android/README.md) |
+| `ios/` | Swift, SwiftUI | [ios/README.md](ios/README.md) |
+
+This README covers what's shared between them: the backend stack (OTel Demo + ClickStack),
+Docker/Colima prerequisites, and the Quick Start through getting that backend running. Once it's
+up, jump to the platform README for SDK configuration and how to run that app.
 
 ## Quick Links
 
@@ -9,43 +21,18 @@ Once the stack is running ([Quick Start](#quick-start) below), these are the loc
 | Service | URL | What it's for |
 |---|---|---|
 | **HyperDX / ClickStack** | [http://localhost:8080](http://localhost:8080) | Logs, traces, metrics, session replay |
-| **OTel Demo (app backend)** | [http://localhost:8081](http://localhost:8081) | The frontend proxy the Android app talks to |
+| **OTel Demo (app backend)** | [http://localhost:8081](http://localhost:8081) | The frontend proxy both apps talk to |
 | **Portainer** (optional) | [http://localhost:9000](http://localhost:9000) | Container manager/dashboard — see [Container Monitoring](#container-monitoring-optional-portainer) |
 | **Zipkin** (if using B3 instead of ClickStack) | [http://localhost:9411](http://localhost:9411) | See [B3_ZIPKIN.md](B3_ZIPKIN.md) |
 
 ## What This Is
 
-- **bitdrift Capture SDK** — logging, screen views, network capture, feature flag exposure, ANR simulation.
-- **OpenTelemetry Demo backend** — the open-source OTel Demo microservices stack (Telescope Store), not the original FastAPI backend. The app talks to its frontend proxy on port 8081 (moved off the default 8080 to leave that port free for ClickStack).
+- **bitdrift Capture SDK** — logging, screen views, network capture, feature flag exposure. The
+  Android app also includes ANR simulation (see [android/README.md](android/README.md)); there's
+  no OS equivalent to simulate on iOS.
+- **OpenTelemetry Demo backend** — the open-source OTel Demo microservices stack (Telescope Store), not the original FastAPI backend. Each app talks to its frontend proxy on port 8081 (moved off the default 8080 to leave that port free for ClickStack).
 
 The OTel Demo backend generates rich distributed traces across its microservices as the app drives cart and checkout flows. The bitdrift SDK captures the mobile-side story: screen views, structured logs, network timing, and session context.
-
-## Local Config
-
-`local.properties` is committed as a blank template. Add real values to `.local.properties` (gitignored):
-
-```properties
-BITDRIFT_SDK_KEY=your_key_here
-BITDRIFT_API_HOST=api.bitdrift.io
-```
-
-The OTel Demo backend in this setup runs on **8081**, not the default 8080 (8080 is left free for ClickStack — set up in step 1 below). Add these to the same `.local.properties` file so the app points at it (defaults to Android emulator → host):
-
-```properties
-OTEL_DEMO_HOST=10.0.2.2
-OTEL_DEMO_PORT=8081
-```
-
-## Tracing (bitdrift)
-
-`ApiClient.kt` uses bitdrift's manual OkHttp tracing integration:
-
-- `CaptureOkHttpTracingInterceptor()` — injects trace context headers
-- `CaptureOkHttpEventListenerFactory()` — records network spans
-
-Gradle auto OkHttp instrumentation is disabled (`automaticOkHttpInstrumentation=false`) to avoid duplicate paths. Trace propagation format and sampling are controlled remotely via the bitdrift dashboard.
-
-Reference: [Tracing: Network integration](https://docs.bitdrift.io/sdk/features/tracing.html#network-integration)
 
 ## Prerequisites (macOS)
 
@@ -207,13 +194,13 @@ ENVOY_PORT=8081 docker compose -f compose.yaml restart
 docker compose -f compose.yaml down
 ```
 
-- **Stop the whole demo** (OTel Demo stack + ClickStack + Portainer) — use this before a Colima/Docker restart if you don't want everything auto-relaunching:
+- **Stop and remove the whole demo** (OTel Demo stack + ClickStack + Portainer) — use this before a Colima/Docker restart if you don't want everything auto-relaunching:
 
 ```bash
-android/scripts/stop-backend.sh
+./stop-backend.sh
 ```
 
-The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `colima stop && colima start` brings them back on its own — Docker only respects that policy once a container has been explicitly stopped first. This script stops everything (without removing containers/volumes) so a subsequent Colima restart leaves them down until you deliberately bring them back up.
+The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `colima stop && colima start` brings them back on its own — Docker only respects that policy once a container has been explicitly stopped first. This script stops and removes every container so a subsequent Colima restart leaves them down until you deliberately bring them back up. `astronomy-db`'s named volume survives and gets reattached correctly; **ClickStack's does not** — its volume is anonymous (no `-v` in the Quick Start's `docker run`), so removing that container orphans it for good, and the next ClickStack container starts with an empty database (new signup, new ingestion API key). See the comment at the top of `stop-backend.sh` for how to avoid that.
 
 > Colima itself only needs restarting if you changed its VM resources (see [Memory Requirements](APPENDIX.md#memory-requirements)) or it's not running (`colima status`) — the backend restart commands above don't touch the VM.
 
@@ -225,63 +212,28 @@ The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `co
 >
 > then re-run the `up` command above.
 
-To view traces once the app (next step) is running and you've generated some traffic:
+To view traces once an app (next step) is running and you've generated some traffic:
 
 - Open **http://localhost:8080**
 - Tap **Sim 10** in the app
 - Search or browse traces/logs/metrics in the ClickStack UI — data lands within a few seconds
 - To sanity-check ingestion directly in ClickHouse: `docker exec clickstack sh -c "curl -s 'http://localhost:8123/?query=SELECT+count()+FROM+otel_traces'"`
 
-### 3. Deploy the session-capture workflow
+### 3. Run an app
 
-Before running the live demo, publish the workflow that guarantees every session gets fully
-captured — a capture workflow only sees sessions that start *after* it deploys, so this needs to
-happen before you start driving traffic through the app, not mid-demo.
+The backend is platform-agnostic — both apps point at the same `http://localhost:8081`. From here,
+follow the app-specific README for SDK configuration, the (experimental) OTel span export wiring,
+and how to build/run:
 
-Run from the `android/` directory. This step needs the `bd` CLI, authenticated:
+- [android/README.md](android/README.md) — Kotlin/Jetpack Compose, run via Android Studio or the no-Studio scripts
+- [ios/README.md](ios/README.md) — Swift/SwiftUI, run via Xcode
 
-```bash
-# Install (see https://github.com/bitdriftlabs/bd-cli-releases for other platforms)
-brew tap bitdriftlabs/bd && brew install bd
+### 4. Appendix
 
-# Authenticate — opens a browser; safe to re-run, it skips login if already authenticated
-bd auth
-
-# Confirm
-bd auth --status
-```
-
-Then deploy the workflow:
-
-```bash
-./scripts/deploy-capture-workflow.sh
-```
-
-Idempotent — safe to re-run; it reuses the existing workflow instead of creating a duplicate. See
-[android/workflows/README.md](android/workflows/README.md) for what it deploys and how to do it by hand with `bd`.
-
-### 4. Run the Android app
-
-Set `OTEL_DEMO_PORT=8081` in `.local.properties` (see [Local Config](#local-config)), then open the project in Android Studio and run on an emulator. The app connects via `http://10.0.2.2:8081`. See [Emulator Requirements](APPENDIX.md#emulator-requirements) in the appendix for supported configs.
-
-**(Optional) No Android Studio?** `scripts/android-{1..5}-*.sh` set up the SDK/AVD, boot the emulator, and build+install+launch from the command line instead — modeled on [bitdrift-shop/android's own no-Studio scripts](../../bitdrift-shop/android/scripts/):
-
-```bash
-cd android
-./scripts/android-1-setup.sh          # one-time: cmdline-tools, SDK packages, AVD
-./scripts/android-2-start-emulator.sh # boot and wait for it to come up
-./scripts/android-3-start-app.sh      # gradlew install<Variant> + launch
-./scripts/android-4-stop-app.sh       # force-stop, leaves the emulator running
-./scripts/android-5-stop-emulator.sh  # kill the emulator
-```
-
-### 5. Appendix
-
-See [APPENDIX.md](APPENDIX.md) for troubleshooting notes and reference material that don't fit the quick-start flow above:
+See [APPENDIX.md](APPENDIX.md) for troubleshooting notes and reference material that don't fit the quick-start flow above (most of it backend/infra-focused and shared across both apps; a few sections are Android-specific, called out there):
 
 - Colima not mounting an external-drive checkout, causing `otel-collector` to crash-loop (and how to make the mount permanent)
 - `astronomy-db` missing its `astronomy_user` role after a broken first boot, causing `product-catalog` to crash-loop and product images to go missing
 - A full audit runbook for checking the rest of the stack after a Colima mount fix, so no other services are silently running on bad first-boot state
-- A missing `OTEL_DEMO_HOST`/`OTEL_DEMO_PORT` in `.local.properties` silently pointing the app at ClickStack's port instead of the backend — looks exactly like a backend bug but never reaches the OTel Demo stack at all
 - Fully purging ClickStack/HyperDX's hidden anonymous data volume when the UI errors out or shows stale data
-- The Screens list, Project Structure, Architecture diagram, and the B3/Zipkin, Memory, and Emulator requirements reference material
+- Memory requirements, plus Android-specific reference material (Screens list, Project Structure, Architecture diagram, Emulator requirements) and the B3/Zipkin switch

@@ -31,11 +31,17 @@ class ShoppingDemoApp : Application() {
         // Screens.kt already call Logger.addField("user_id", ...)/removeField("user_id") directly,
         // so this seed only matters for a process restart while already signed in, where addField's
         // in-memory state from the prior process is gone but the persisted value isn't.
+        //
+        // buildBitdriftConfiguration() resolves to one of two source-set variants based on
+        // BITDRIFT_ENABLE_OTEL_EXPORT (see app/build.gradle.kts) -- app/src/otelExportEnabled
+        // wires up OTel span export, app/src/otelExportDisabled is a no-op Configuration(), for
+        // building against the published SDK (which lacks OtelExportConfiguration entirely).
         Logger.start(
             apiKey = BuildConfig.BITDRIFT_SDK_KEY,
             apiUrl = HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST).build(),
             sessionConfiguration = SessionConfiguration(),
             initialFields = readPersistedUserIdField(applicationContext),
+            configuration = buildBitdriftConfiguration(),
         )
         Logger.setEntityId("demo")
         // Register lifecycle callbacks
