@@ -124,7 +124,7 @@ Idempotent — safe to re-run; it reuses the existing workflow instead of creati
 
 Set `OTEL_DEMO_PORT=8081` in `.local.properties` (see [Local Config](#local-config)), then open the project in Android Studio and run on an emulator. The app connects via `http://10.0.2.2:8081`. See [Emulator Requirements](../APPENDIX.md#emulator-requirements) in the appendix for supported configs.
 
-**(Optional) No Android Studio?** `scripts/android-{1..5}-*.sh` set up the SDK/AVD, boot the emulator, and build+install+launch from the command line instead — modeled on [bitdrift-shop/android's own no-Studio scripts](../../bitdrift-shop/android/scripts/):
+**(Optional) No Android Studio?** `scripts/android-{1..5}-*.sh` set up the SDK/AVD, boot the emulator, and build+install+launch from the command line instead — modeled on [bitdrift-shop/android's own no-Studio scripts](../../../bitdrift-shop/android/scripts/):
 
 ```bash
 ./scripts/android-1-setup.sh          # one-time: cmdline-tools, SDK packages, AVD

@@ -11,4 +11,4 @@ if ! command -v xcodegen >/dev/null 2>&1; then
 fi
 
 xcodegen generate
-echo "Generated BitdriftShopOtel.xcodeproj -- open it, or run ./scripts/ios-3-build-and-run.sh"
+echo "Generated BitdriftShopOtel.xcodeproj -- open it, or run ./scripts/ios-3-start-simulator.sh && ./scripts/ios-4-start-app.sh"

@@ -437,8 +437,8 @@ struct CheckoutGuestScreen: View {
             systemIcon: "person.fill", color: Color(red: 0x3F / 255, green: 0x51 / 255, blue: 0xB5 / 255),
             onBack: { router.popBackStack() }, onCart: { router.navigate(to: .cart(productId: nil)) }
         ) {
-            PrimaryButton(title: "Pay with Card", systemIcon: "checkmark") { router.navigate(to: .paymentCard(checkoutSession: checkoutSession)) }
-            SecondaryButton(title: "Apple Pay", systemIcon: "phone.fill") { router.navigate(to: .paymentApplePay(checkoutSession: checkoutSession)) }
+            PrimaryButton(title: "Pay with Card", systemIcon: "checkmark", enabled: !checkoutSession.isEmpty) { router.navigate(to: .paymentCard(checkoutSession: checkoutSession)) }
+            SecondaryButton(title: "Apple Pay", systemIcon: "phone.fill", enabled: !checkoutSession.isEmpty) { router.navigate(to: .paymentApplePay(checkoutSession: checkoutSession)) }
         }
         .task {
             do {
@@ -473,8 +473,8 @@ struct CheckoutSignInScreen: View {
             systemIcon: "lock.fill", color: Color(red: 0x00 / 255, green: 0x96 / 255, blue: 0x88 / 255),
             onBack: { router.popBackStack() }, onCart: { router.navigate(to: .cart(productId: nil)) }
         ) {
-            PrimaryButton(title: "Pay with Card", systemIcon: "checkmark") { router.navigate(to: .paymentCard(checkoutSession: checkoutSession)) }
-            SecondaryButton(title: "PayPal", systemIcon: "paperplane.fill") { router.navigate(to: .paymentPayPal(checkoutSession: checkoutSession)) }
+            PrimaryButton(title: "Pay with Card", systemIcon: "checkmark", enabled: !checkoutSession.isEmpty) { router.navigate(to: .paymentCard(checkoutSession: checkoutSession)) }
+            SecondaryButton(title: "PayPal", systemIcon: "paperplane.fill", enabled: !checkoutSession.isEmpty) { router.navigate(to: .paymentPayPal(checkoutSession: checkoutSession)) }
         }
         .task {
             do {
@@ -510,15 +510,15 @@ struct PaymentCardScreen: View {
             systemIcon: "checkmark", color: Color(red: 0x21 / 255, green: 0x96 / 255, blue: 0xF3 / 255),
             onBack: { router.popBackStack() }, onCart: { router.navigate(to: .cart(productId: nil)) }
         ) {
-            PrimaryButton(title: "Visa ending 4242", systemIcon: "checkmark") {
+            PrimaryButton(title: "Visa ending 4242", systemIcon: "checkmark", enabled: !orderId.isEmpty) {
                 Capture.Logger.shared?.logInfo("payment_completed", fields: ["payment_method": "visa", "card_last4": "4242", "order_id": orderId])
                 router.navigate(to: .confirmation(orderId: orderId))
             }
-            SecondaryButton(title: "Mastercard ending 8888", systemIcon: "checkmark") {
+            SecondaryButton(title: "Mastercard ending 8888", systemIcon: "checkmark", enabled: !orderId.isEmpty) {
                 Capture.Logger.shared?.logInfo("payment_completed", fields: ["payment_method": "mastercard", "card_last4": "8888", "order_id": orderId])
                 router.navigate(to: .confirmation(orderId: orderId))
             }
-            SecondaryButton(title: "Amex ending 1001", systemIcon: "checkmark") {
+            SecondaryButton(title: "Amex ending 1001", systemIcon: "checkmark", enabled: !orderId.isEmpty) {
                 Capture.Logger.shared?.logInfo("payment_completed", fields: ["payment_method": "amex", "card_last4": "1001", "order_id": orderId])
                 router.navigate(to: .confirmation(orderId: orderId))
             }
@@ -549,7 +549,7 @@ struct PaymentApplePayScreen: View {
             systemIcon: "phone.fill", color: .black,
             onBack: { router.popBackStack() }, onCart: { router.navigate(to: .cart(productId: nil)) }
         ) {
-            PrimaryButton(title: "Complete Purchase", systemIcon: "checkmark.circle.fill") { router.navigate(to: .confirmation(orderId: orderId)) }
+            PrimaryButton(title: "Complete Purchase", systemIcon: "checkmark.circle.fill", enabled: !orderId.isEmpty) { router.navigate(to: .confirmation(orderId: orderId)) }
         }
         .task(id: checkoutSession) {
             guard let session = checkoutSession else { return }
@@ -577,7 +577,7 @@ struct PaymentPayPalScreen: View {
             systemIcon: "paperplane.fill", color: Color(red: 0x21 / 255, green: 0x96 / 255, blue: 0xF3 / 255),
             onBack: { router.popBackStack() }, onCart: { router.navigate(to: .cart(productId: nil)) }
         ) {
-            PrimaryButton(title: "Complete Purchase", systemIcon: "checkmark.circle.fill") { router.navigate(to: .confirmation(orderId: orderId)) }
+            PrimaryButton(title: "Complete Purchase", systemIcon: "checkmark.circle.fill", enabled: !orderId.isEmpty) { router.navigate(to: .confirmation(orderId: orderId)) }
         }
         .task(id: checkoutSession) {
             guard let session = checkoutSession else { return }
@@ -605,7 +605,7 @@ struct PaymentAndroidPayScreen: View {
             systemIcon: "phone.fill", color: Color(red: 0x4C / 255, green: 0xAF / 255, blue: 0x50 / 255),
             onBack: { router.popBackStack() }, onCart: { router.navigate(to: .cart(productId: nil)) }
         ) {
-            PrimaryButton(title: "Complete Purchase", systemIcon: "checkmark.circle.fill") { router.navigate(to: .confirmation(orderId: orderId)) }
+            PrimaryButton(title: "Complete Purchase", systemIcon: "checkmark.circle.fill", enabled: !orderId.isEmpty) { router.navigate(to: .confirmation(orderId: orderId)) }
         }
         .task(id: checkoutSession) {
             guard let session = checkoutSession else { return }

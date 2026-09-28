@@ -47,8 +47,19 @@ final class JSONObject {
         return self
     }
 
+    /// Mirrors `org.json.JSONObject.optString`, which stringifies any value type (not just
+    /// actual strings) via `String.valueOf` -- e.g. a numeric `score` field still round-trips
+    /// through `optString(...).toIntOrNull()` on Android. Without this, a JSON number here would
+    /// silently fall back to `fallback` instead.
     func optString(_ key: String, _ fallback: String = "") -> String {
-        (self.storage[key] as? String) ?? fallback
+        switch self.storage[key] {
+        case let value as String: value
+        case let value as Bool: value ? "true" : "false"
+        case let value as NSNumber: value.stringValue
+        case let value as Int: String(value)
+        case let value as Double: String(value)
+        default: fallback
+        }
     }
 
     func optInt(_ key: String, _ fallback: Int = 0) -> Int {

@@ -200,7 +200,7 @@ docker compose -f compose.yaml down
 ./stop-backend.sh
 ```
 
-The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `colima stop && colima start` brings them back on its own — Docker only respects that policy once a container has been explicitly stopped first. This script stops and removes every container (volumes are kept — ClickStack's/astronomy-db's data survives and gets reattached next time a same-named container is created) so a subsequent Colima restart leaves them down until you deliberately bring them back up.
+The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `colima stop && colima start` brings them back on its own — Docker only respects that policy once a container has been explicitly stopped first. This script stops and removes every container so a subsequent Colima restart leaves them down until you deliberately bring them back up. `astronomy-db`'s named volume survives and gets reattached correctly; **ClickStack's does not** — its volume is anonymous (no `-v` in the Quick Start's `docker run`), so removing that container orphans it for good, and the next ClickStack container starts with an empty database (new signup, new ingestion API key). See the comment at the top of `stop-backend.sh` for how to avoid that.
 
 > Colima itself only needs restarting if you changed its VM resources (see [Memory Requirements](APPENDIX.md#memory-requirements)) or it's not running (`colima status`) — the backend restart commands above don't touch the VM.
 

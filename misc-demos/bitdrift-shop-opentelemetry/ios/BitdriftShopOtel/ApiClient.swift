@@ -394,13 +394,17 @@ enum ApiClient {
 
     static func getCategories() async throws -> JSONObject {
         let products = try await listLegacyProducts()
-        var seen = Set<String>()
-        var categories: [JSONObject] = []
+        var order: [String] = []
+        var counts: [String: Int] = [:]
         for product in products {
             let name = product.optString("category", "Products")
-            if seen.insert(name).inserted {
-                categories.append(JSONObject().put("name", name))
+            if counts[name] == nil {
+                order.append(name)
             }
+            counts[name, default: 0] += 1
+        }
+        let categories = order.map { name in
+            JSONObject().put("name", name).put("product_count", counts[name] ?? 0)
         }
         return JSONObject().put("categories", categories)
     }
@@ -417,15 +421,20 @@ enum ApiClient {
 
     static func getReviews(_ productId: String) async throws -> JSONObject {
         let reviews = try await getArray("/product-reviews/\(productId)")
-        let mapped = reviews.map { review -> JSONObject in
+        let ratings = reviews.map { Int($0.optString("score", "0")) ?? 0 }
+        let mapped = zip(reviews, ratings).map { review, rating -> JSONObject in
             let author = review.optString("username", "Anonymous")
             return JSONObject()
                 .put("title", "Review by \(author)")
                 .put("author", author)
-                .put("rating", Int(review.optString("score", "0")) ?? 0)
+                .put("rating", rating)
                 .put("content", review.optString("description"))
         }
-        return JSONObject().put("reviews", mapped)
+        let averageRating = ratings.isEmpty ? 0.0 : Double(ratings.reduce(0, +)) / Double(ratings.count)
+        return JSONObject()
+            .put("reviews", mapped)
+            .put("average_rating", averageRating)
+            .put("total_reviews", reviews.count)
     }
 
     static func addToCart(_ productId: String, quantity: Int = 1) async throws -> JSONObject {

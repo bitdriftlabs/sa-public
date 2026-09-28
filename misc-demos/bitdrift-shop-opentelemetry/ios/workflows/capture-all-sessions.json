@@ -18,7 +18,14 @@
           "match_rule": {
             "match_id": "session-start",
             "ootb_match": {
-              "generic_condition": "APP_LAUNCH"
+              "generic_condition": "SCREEN_VIEW",
+              "generic_match": {
+                "base_matcher": {
+                  "log_field": "_screen_name",
+                  "operator": "EQUAL",
+                  "string_value": "Welcome"
+                }
+              }
             }
           }
         }

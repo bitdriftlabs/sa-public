@@ -137,7 +137,7 @@ the SDK itself supports back to iOS 15.0 per `capture-sdk/CLAUDE.md`).
 
 **(Optional) No Xcode UI?** `scripts/ios-{3..6}-*.sh` boot a simulator and build+install+launch
 from the command line instead — modeled on
-[bitdrift-shop/ios's own no-Xcode scripts](../../bitdrift-shop/ios/scripts/), after the two steps
+[bitdrift-shop/ios's own no-Xcode scripts](../../../bitdrift-shop/ios/scripts/), after the two steps
 above have built the SDK and generated the project:
 
 ```bash

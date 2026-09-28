@@ -30,10 +30,14 @@ struct ShoppingDemoApp: App {
             return OtelExportConfiguration(endpoint: url, authHeaderValue: AppConfig.clickstackIngestionAPIKey)
         }()
 
+        // Matches Android's `HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST)` --
+        // AppConfig only stores the host, so build the full URL Configuration expects.
+        let apiURL = URL(string: "https://\(AppConfig.bitdriftAPIHost)") ?? URL(string: "https://api.bitdrift.io")!
+
         let integrator = Capture.Logger.start(
             withAPIKey: AppConfig.bitdriftSDKKey,
             sessionConfiguration: .init(),
-            configuration: Configuration(otelExportConfiguration: otelExportConfiguration)
+            configuration: Configuration(apiURL: apiURL, otelExportConfiguration: otelExportConfiguration)
         )
 
         // Unlike Android's per-client OkHttp interceptor (which this demo wires manually, as a
