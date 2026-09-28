@@ -1,0 +1,66 @@
+name: BitdriftShopOtel
+options:
+  bundleIdPrefix: ai.bitdrift
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+configs:
+  Debug: debug
+  Release: release
+
+configFiles:
+  Debug: local.xcconfig
+  Release: local.xcconfig
+
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: $(BITDRIFT_SHOP_OTEL_BUNDLE_ID)
+    DEVELOPMENT_TEAM: $(DEVELOPMENT_TEAM)
+    SWIFT_VERSION: "5.0"
+    GENERATE_INFOPLIST_FILE: NO
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+
+targets:
+  BitdriftShopOtel:
+    type: application
+    platform: iOS
+    sources:
+      - path: BitdriftShopOtel
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Bitdrift Shop (OTel)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSAppTransportSecurity:
+          # The OTel Demo backend and a local ClickStack instance are plain HTTP on localhost --
+          # this is a local demo app, not a production build.
+          NSAllowsArbitraryLoads: true
+        # Populated from local.xcconfig/.local.xcconfig via xcconfig build settings of the same
+        # name -- read back in AppConfig.swift, mirroring the Android app's BuildConfig.
+        BITDRIFT_SDK_KEY: $(BITDRIFT_SDK_KEY)
+        BITDRIFT_API_HOST: $(BITDRIFT_API_HOST)
+        OTEL_DEMO_HOST: $(OTEL_DEMO_HOST)
+        OTEL_DEMO_PORT: $(OTEL_DEMO_PORT)
+        CLICKSTACK_ENDPOINT: $(CLICKSTACK_ENDPOINT)
+        CLICKSTACK_INGESTION_API_KEY: $(CLICKSTACK_INGESTION_API_KEY)
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Capture.xcframework is a static library, and its URLSession network-capture hook is a
+        # Swift extension adding an @objc method to Foundation's URLSessionTask -- i.e. an
+        # Objective-C category. The linker drops object files containing only
+        # categories/unreferenced methods from a static library unless -ObjC forces it to load
+        # them, so without this flag the category never registers and the runtime swizzle
+        # silently fails (visible as "failed to find cap_resume in ... class" in the device log)
+        # -- no network request/response logs or OTel spans, even though everything else (screen
+        # views, plain logging) works fine since those are ordinary referenced Swift symbols.
+        OTHER_LDFLAGS: -ObjC
+    dependencies:
+      - framework: Frameworks/Capture.xcframework
+        embed: false

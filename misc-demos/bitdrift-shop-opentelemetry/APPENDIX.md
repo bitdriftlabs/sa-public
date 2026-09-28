@@ -121,7 +121,10 @@ docker run -d --name clickstack -p 8080:8080 -p 4317:4317 -p 4318:4318 docker.hy
 
 This gives a brand-new ClickHouse instance — you'll need to sign up again and grab a new API key (see [Set up ClickStack](README.md#1-set-up-clickstack) in the main README).
 
-## Screens
+## Screens (Android)
+
+Same screen set on iOS (`ios/BitdriftShopOtel/Screen.swift`), minus the `Welcome`
+entry point (SwiftUI's `NavigationStack` root instead of a routable case).
 
 | Screen | Description |
 |--------|-------------|
@@ -143,13 +146,15 @@ This gives a brand-new ClickHouse instance — you'll need to sign up again and 
 | `PaymentAndroidPay` | Android Pay |
 | `Confirmation` | Order confirmation |
 
-## Requirements
+## Requirements (Android)
 
 - Android API 36 (targetSdk / compileSdk), API 26+ minimum
 - Emulator: 1080×2400 resolution (Medium Phone / Pixel 7)
-- [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) running on port 8081 (see [Local Config](README.md#local-config) in the main README)
+- [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) running on port 8081 (see [Local Config](android/README.md#local-config) in the Android README)
 
-## Project Structure
+See [ios/README.md](ios/README.md) for iOS's equivalents (deployment target, Xcode/xcodegen version).
+
+## Project Structure (Android)
 
 ```
 android/app/src/main/java/com/example/shoppingdemo/
@@ -167,7 +172,7 @@ android/app/src/main/java/com/example/shoppingdemo/
     └── Theme.kt               # Material 3 theme
 ```
 
-## Architecture
+## Architecture (Android)
 
 ```
 ┌─────────────────────┐        HTTP (OkHttp)        ┌──────────────────────────────────────┐
@@ -180,6 +185,10 @@ android/app/src/main/java/com/example/shoppingdemo/
                                                      │  /images/       → image-provider     │
                                                      └──────────────────────────────────────┘
 ```
+
+iOS is architecturally the same shape, swapping the emulator's `10.0.2.2` NAT alias for the
+Simulator's direct `localhost` access (see [ios/README.md](ios/README.md#local-config)) and
+OkHttp for `URLSession`.
 
 ## Switch to B3 Propagation and Zipkin (Optional)
 

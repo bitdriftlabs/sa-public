@@ -179,8 +179,13 @@ fun ScreenContainer(
                     }
                     if (BuildConfig.BITDRIFT_CAPTURE_SOURCE == "AAR") {
                         Text(
-                            text = "${BuildConfig.BITDRIFT_LOCAL_AAR_NAME} [AAR]",
+                            text = "${BuildConfig.BITDRIFT_LOCAL_AAR_NAME} [AAR] ${BuildConfig.BITDRIFT_LOCAL_AAR_STAMP}",
                             style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                        )
+                        Text(
+                            text = "Rust span builder: ${if (aarHasRustSpanBuilder) "yes" else "NO (old AAR?)"}",
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                         )
                     }
@@ -530,4 +535,15 @@ fun RecommendedSection(
             }
         }
     }
+}
+
+
+// True only when the AAR on the classpath declares the Rust-backed `buildOtelSpanPayload` JNI
+// function, i.e. it was built from the capture-sdk branch that moved span building into shared-core.
+private val aarHasRustSpanBuilder: Boolean by lazy {
+    runCatching {
+        Class.forName("io.bitdrift.capture.CaptureJniLibrary")
+            .declaredMethods
+            .any { it.name == "buildOtelSpanPayload" }
+    }.getOrDefault(false)
 }

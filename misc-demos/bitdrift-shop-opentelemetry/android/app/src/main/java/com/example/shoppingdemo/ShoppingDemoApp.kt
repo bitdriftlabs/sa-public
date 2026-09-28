@@ -6,7 +6,7 @@ import android.os.SystemClock
 import android.util.Log
 
 import io.bitdrift.capture.Capture.Logger
-import io.bitdrift.capture.providers.session.SessionStrategy
+import io.bitdrift.capture.providers.session.SessionConfiguration
 import okhttp3.HttpUrl
 
 class ShoppingDemoApp : Application() {
@@ -25,7 +25,7 @@ class ShoppingDemoApp : Application() {
         Logger.start(
         apiKey = BuildConfig.BITDRIFT_SDK_KEY,
         apiUrl = HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST).build(),
-        sessionStrategy = SessionStrategy.Fixed(),
+        sessionConfiguration = SessionConfiguration(),
         configuration = buildBitdriftConfiguration(),
         )
         // Register lifecycle callbacks

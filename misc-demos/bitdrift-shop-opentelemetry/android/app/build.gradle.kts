@@ -1,3 +1,6 @@
+import java.security.MessageDigest
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Properties
 
 plugins {
@@ -27,6 +30,27 @@ val bitdriftLocalAarPathRaw = (
     ).trim()
 val bitdriftLocalAarPath = if (bitdriftLocalAarPathRaw.equals("false", ignoreCase = true)) "" else bitdriftLocalAarPathRaw
 val bitdriftUseLocalAar = bitdriftLocalAarPath.isNotBlank()
+
+// Identity of the local AAR actually being compiled in (short SHA-256 of the file plus its
+// modification time), shown in the app header so it's easy to confirm a rebuilt AAR was picked up:
+// compare against `shasum -a 256 <aar>`.
+val bitdriftLocalAarStamp: String =
+    if (!bitdriftUseLocalAar) {
+        ""
+    } else {
+        File(bitdriftLocalAarPath).let { aar ->
+            if (!aar.exists()) {
+                "missing"
+            } else {
+                val sha = MessageDigest.getInstance("SHA-256")
+                    .digest(aar.readBytes())
+                    .joinToString("") { "%02x".format(it) }
+                    .take(8)
+                val modified = SimpleDateFormat("MM-dd HH:mm").format(Date(aar.lastModified()))
+                "$sha $modified"
+            }
+        }
+    }
 
 println(
     "bitdrift capture dependency: " +
@@ -107,6 +131,7 @@ android {
             "BITDRIFT_LOCAL_AAR_NAME",
             "\"${if (bitdriftUseLocalAar) File(bitdriftLocalAarPath).name else ""}\""
         )
+        buildConfigField("String", "BITDRIFT_LOCAL_AAR_STAMP", "\"$bitdriftLocalAarStamp\"")
     }
 
     buildTypes {
