@@ -1,0 +1,15 @@
+// bitdrift Capture settings for the Wikipedia app target.
+//
+// Put your API key, and optionally another API host, in Configurations/BitdriftLocal.xcconfig
+// (gitignored):
+//
+//   BITDRIFT_API_KEY = <your API key>
+//   BITDRIFT_API_HOST = api.bitdrift.io
+//
+// xcconfig treats "//" as the start of a comment, so give the host without a scheme. If your
+// API key contains "//", write it as "/$()/".
+
+BITDRIFT_API_KEY =
+BITDRIFT_API_HOST = api.bitdrift.io
+
+#include? "BitdriftLocal.xcconfig"

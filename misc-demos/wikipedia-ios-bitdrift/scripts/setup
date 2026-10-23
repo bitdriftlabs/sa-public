@@ -1,0 +1,10 @@
+#!/bin/bash
+# installs required tools for development
+
+scripts/brew_install
+scripts/setup_git_hooks
+scripts/setup_bundle_id "$@"
+
+if ! xcode-select -p > /dev/null ; then \
+	xcode-select --install; \
+fi

@@ -1,0 +1,28 @@
+import WMFComponents
+import WMFData
+import WMF
+import WMFNativeLocalizations
+
+extension UIViewController {
+    
+    func tabsButtonConfig(target: Any, action: Selector, dataStore: MWKDataStore, leadingBarButtonItem: UIBarButtonItem? = nil, leadingBarButtonItemTitle: String? = nil) -> WMFNavigationBarTabsButtonConfig {
+        return WMFNavigationBarTabsButtonConfig(title: CommonStrings.tabsTitle, accessibilityLabel: CommonStrings.tabsButtonAccessibilityLabel, accessibilityHint: CommonStrings.tabsButtonAccessibilityHint, target: target, action: action, leadingBarButtonItem: leadingBarButtonItem, leadingBarButtonItemTitle: leadingBarButtonItemTitle)
+    }
+    
+    func profileButtonConfig(target: Any, action: Selector, dataStore: MWKDataStore, yirDataController: WMFYearInReviewDataController?) -> WMFNavigationBarProfileButtonConfig {
+        var hasUnreadNotifications: Bool = false
+        
+        let isTemporaryAccount = WMFTempAccountDataController.shared.primaryWikiHasTempAccountsEnabled && dataStore.authenticationManager.authStateIsTemporary
+        
+        if dataStore.authenticationManager.authStateIsPermanent || isTemporaryAccount {
+            let numberOfUnreadNotifications = try? dataStore.remoteNotificationsController.numberOfUnreadNotifications()
+            hasUnreadNotifications = (numberOfUnreadNotifications?.intValue ?? 0) != 0
+        } else {
+            hasUnreadNotifications = false
+        }
+        
+        let accessibilityHint = CommonStrings.profileButtonAccessibilityHint
+        
+        return WMFNavigationBarProfileButtonConfig(title: CommonStrings.account, accessibilityLabelNoNotifications: CommonStrings.profileButtonTitle, accessibilityLabelHasNotifications: CommonStrings.profileButtonBadgeTitle, accessibilityHint: accessibilityHint, needsBadge: hasUnreadNotifications, target: target, action: action)
+    }
+}

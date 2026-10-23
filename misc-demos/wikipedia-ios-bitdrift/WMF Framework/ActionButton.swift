@@ -1,0 +1,45 @@
+import WMFComponents
+
+class ActionButton: SetupButton {
+    
+    var titleLabelFont = WMFFont.body
+
+    override func setup() {
+        super.setup()
+        var deprecatedSelf = self as DeprecatedButton
+        deprecatedSelf.deprecatedContentEdgeInsets = UIEdgeInsets(top: layoutMargins.top + 1, left: layoutMargins.left + 7, bottom: layoutMargins.bottom + 1, right: layoutMargins.right + 7)
+        titleLabel?.numberOfLines = 0
+        updateFonts(with: traitCollection)
+        
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self, UITraitHorizontalSizeClass.self, UITraitVerticalSizeClass.self]) { [weak self] (viewController: Self, previousTraitCollection: UITraitCollection) in
+            guard let self else { return }
+            self.maybeUpdateFonts(with: self.traitCollection)
+        }
+    }
+    
+    // MARK: - Dynamic Type
+    // Only applies new fonts if the content size category changes
+    
+    var contentSizeCategory: UIContentSizeCategory?
+    fileprivate func maybeUpdateFonts(with traitCollection: UITraitCollection) {
+        guard contentSizeCategory == nil || contentSizeCategory != traitCollection.preferredContentSizeCategory else {
+            return
+        }
+        contentSizeCategory = traitCollection.preferredContentSizeCategory
+        updateFonts(with: traitCollection)
+    }
+    
+    // Override this method and call super
+    open func updateFonts(with traitCollection: UITraitCollection) {
+        titleLabel?.font = WMFFont.for(titleLabelFont, compatibleWith: traitCollection)
+    }
+}
+
+extension ActionButton: Themeable {
+    func apply(theme: Theme) {
+        setTitleColor(theme.colors.link, for: .normal)
+        backgroundColor = theme.colors.cardButtonBackground
+        layer.cornerRadius = 5
+    }
+    
+}

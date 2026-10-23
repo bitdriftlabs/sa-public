@@ -1,0 +1,56 @@
+import CoreData
+
+// @unchecked: `isEvaluated` is mutable, but instances are confined to the sequential
+// populate flow in WMFYearInReviewDataController (mutated in a loop, then read in a
+// single Core Data perform closure) — see YearInReviewSlideDataControllerProtocol.
+final class YearInReviewViewCountSlideDataController: YearInReviewSlideDataControllerProtocol, @unchecked Sendable {
+    let id = WMFYearInReviewPersonalizedSlideID.viewCount.rawValue
+    let year: Int
+    var isEvaluated: Bool = false
+    static let personalizationSources: Set<WMFYearInReviewPersonalizationSource> = [.account]
+    static let shouldFreeze = false
+    
+    private var viewCount: Int?
+    
+    private let userID: Int?
+    
+    private let languageCode: String?
+    private let project: WMFProject?
+    
+    private let userImpactDataProvider: any YearInReviewUserImpactDataProviding
+    
+    init(year: Int, yirConfig: WMFFeatureConfigResponse.Common.YearInReview, dependencies: YearInReviewSlideDataControllerDependencies) {
+        self.year = year
+        self.userID = dependencies.userID
+        self.languageCode = dependencies.languageCode
+        self.project = dependencies.project
+        self.userImpactDataProvider = dependencies.userImpactDataProvider ?? WMFUserImpactDataController.shared
+    }
+
+    func populateSlideData(in context: NSManagedObjectContext) async throws {
+        guard let userID, let languageCode else { return }
+        viewCount = try await self.fetchEditViews(project: project, userId: userID, language: languageCode)
+        isEvaluated = true
+    }
+
+    func makeCDSlide(in context: NSManagedObjectContext) throws -> CDYearInReviewSlide {
+        let slide = CDYearInReviewSlide(context: context)
+        slide.id = id
+        slide.year = Int32(year)
+        slide.data = try viewCount.map { try JSONEncoder().encode($0) }
+        return slide
+    }
+
+    static func shouldPopulate(from config: WMFFeatureConfigResponse.Common.YearInReview, userInfo: YearInReviewUserInfo) -> Bool {
+        return config.isActive(for: Date()) && userInfo.userID != nil
+    }
+    
+    private func fetchEditViews(project: WMFProject?, userId: Int, language: String) async throws -> (Int?) {
+        
+        guard let project = project else {
+            throw WMFDataControllerError.mediaWikiServiceUnavailable
+        }
+        
+        return try await userImpactDataProvider.fetchTotalPageViewsCount(userID: userId, project: project, language: language)
+    }
+}

@@ -1,0 +1,2072 @@
+[
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "random",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingRandomArticles.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingPrefixSearch.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "search",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingRandomArticles.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "random",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingRandomArticles.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingPrefixSearch.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "search",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingRandomArticles.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "random",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingRandomArticles.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingPrefixSearch.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "search",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingRandomArticles.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "random",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingRandomArticles.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingPrefixSearch.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "search",
+      "formatversion": "2"
+    },
+    "bodyResource": "Onboarding/en/OnboardingRandomArticles.json"
+  },
+  {
+    "method": "GET",
+    "host": "meta.wikimedia.org",
+    "path": "/api/rest_v1/data/javascript/mobile/pcs",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/javascript"
+    },
+    "bodyResource": "PageContentService/mobile-pcs.js"
+  },
+  {
+    "method": "GET",
+    "host": "meta.wikimedia.org",
+    "path": "/api/rest_v1/data/css/mobile/pcs",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/css"
+    },
+    "bodyResource": "PageContentService/mobile-pcs.css"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "pathPrefix": "/api/rest_v1/feed/featured/",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Cache-Control": "s-maxage=18000"
+    },
+    "bodyResource": "ArticleControls/en/DogFeedResponse.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/Dog",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/DogArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/Dog",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/en/DogMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/page/media-list/Dog",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/DogMediaList.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "langlinks",
+      "titles": "Dog",
+      "lllimit": "500",
+      "llprop": "langname|autonym",
+      "format": "json"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/DogLanguageLinks.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "titles": "Dog",
+      "prop": "categories",
+      "formatversion": "2"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/DogArticleInfo.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "D"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Do"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Dog"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/Canis",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/CanisArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/Canis",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/en/CanisMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Canis"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/CanisSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/CanisLepophagusSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/Canis_lepophagus",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/CanisLepophagusArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/Canis_lepophagus",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/en/CanisLepophagusMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "revisions",
+      "rvdir": "newer",
+      "rvlimit": "1",
+      "titles": "Canis lepophagus"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/CanisLepophagusFirstRevision.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "revisions",
+      "rvdir": "older",
+      "rvlimit": "51",
+      "rvprop": "ids|timestamp|user|size|parsedcomment|flags",
+      "titles": "Canis lepophagus"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/CanisLepophagusPageHistory.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Canis_lepophagus/history/counts/edits",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"count\":90,\"limit\":false}"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Canis_lepophagus/history/counts/anonymous",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"count\":12,\"limit\":false}"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Canis_lepophagus/history/counts/bot",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"count\":7,\"limit\":false}"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Canis_lepophagus/history/counts/temporary",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"count\":1,\"limit\":false}"
+  },
+  {
+    "method": "GET",
+    "host": "wikimedia.org",
+    "pathPrefix": "/api/rest_v1/metrics/edits/per-page/en.wikipedia.org/Canis_lepophagus/all-editor-types/monthly/",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/CanisLepophagusMonthlyEditMetrics.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/data/i18n/pcs",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/PCSI18N.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "titles": "File:Dog_morphological_variation.png"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/DogNonLeadImageInfo.json"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "pathSuffix": "/320px-Collage_of_Nine_Dogs.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "bodyResource": "ArticleControls/en/CollageOfNineDogs.jpg"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "pathSuffix": "/1280px-Collage_of_Nine_Dogs.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "bodyResource": "ArticleControls/en/CollageOfNineDogs.jpg"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "pathSuffix": "/Collage_of_Nine_Dogs.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "bodyResource": "ArticleControls/en/CollageOfNineDogs.jpg"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "pathSuffix": "/640px-Dog_morphological_variation.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/png"
+    },
+    "bodyResource": "ArticleControls/en/640pxDogMorphologicalVariation.png"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "pathSuffix": "/1280px-Dog_morphological_variation.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/png"
+    },
+    "bodyResource": "ArticleControls/en/640pxDogMorphologicalVariation.png"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "pathSuffix": "/Dog_morphological_variation.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/png"
+    },
+    "bodyResource": "ArticleControls/en/640pxDogMorphologicalVariation.png"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "pathPrefix": "/api/rest_v1/feed/featured/",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogFeedResponse.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/Haushund",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/Haushund",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/de/DogMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/api/rest_v1/page/media-list/Haushund",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogMediaList.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "langlinks",
+      "titles": "Haushund",
+      "lllimit": "500",
+      "llprop": "langname|autonym",
+      "format": "json"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogLanguageLinks.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "titles": "Haushund",
+      "prop": "categories",
+      "formatversion": "2"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogArticleInfo.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "H"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ha"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Hau"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Haus"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Haush"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Haushu"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Haushun"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Haushund"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/Wolfs-_und_Schakalartige",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/CanisArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/Wolfs-_und_Schakalartige",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/de/CanisMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "S"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Sc"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Sch"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Scha"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Schak"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Schaka"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Schakal"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/Schakal",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/Schakal",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/de/SchakalMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/CanisSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "revisions",
+      "rvdir": "newer",
+      "rvlimit": "1",
+      "titles": "Schakal"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalFirstRevision.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "revisions",
+      "rvdir": "older",
+      "rvlimit": "51",
+      "rvprop": "ids|timestamp|user|size|parsedcomment|flags",
+      "titles": "Schakal"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalPageHistory.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Schakal/history/counts/edits",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalHistoryCount-edits.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Schakal/history/counts/anonymous",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalHistoryCount-anonymous.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Schakal/history/counts/bot",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalHistoryCount-bot.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Schakal/history/counts/temporary",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalHistoryCount-temporary.json"
+  },
+  {
+    "method": "GET",
+    "host": "wikimedia.org",
+    "pathPrefix": "/api/rest_v1/metrics/edits/per-page/de.wikipedia.org/Schakal/all-editor-types/monthly/",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/SchakalMonthlyEditMetrics.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/api/rest_v1/data/i18n/pcs",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/de/PCSI18N.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "pathPrefix": "/api/rest_v1/feed/featured/",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogFeedResponse.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/\u05db\u05dc\u05d1_\u05d4\u05d1\u05d9\u05ea",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/\u05db\u05dc\u05d1_\u05d4\u05d1\u05d9\u05ea",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/he/DogMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/api/rest_v1/page/media-list/\u05db\u05dc\u05d1_\u05d4\u05d1\u05d9\u05ea",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogMediaList.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "langlinks",
+      "titles": "\u05db\u05dc\u05d1 \u05d4\u05d1\u05d9\u05ea",
+      "lllimit": "500",
+      "llprop": "langname|autonym",
+      "format": "json"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogLanguageLinks.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "titles": "\u05db\u05dc\u05d1 \u05d4\u05d1\u05d9\u05ea",
+      "prop": "categories",
+      "formatversion": "2"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogArticleInfo.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "\u05db"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "\u05db\u05dc"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "\u05db\u05dc\u05d1"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "\u05db\u05dc\u05d1 "
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "\u05db\u05dc\u05d1 \u05d4"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "\u05db\u05dc\u05d1 \u05d4\u05d1"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "\u05db\u05dc\u05d1 \u05d4\u05d1\u05d9"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "\u05db\u05dc\u05d1 \u05d4\u05d1\u05d9\u05ea"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/\u05db\u05dc\u05d1_(\u05e1\u05d5\u05d2)",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/CanisArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/\u05db\u05dc\u05d1_(\u05e1\u05d5\u05d2)",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/he/CanisMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/CanisSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "revisions",
+      "rvdir": "newer",
+      "rvlimit": "1",
+      "titles": "\u05db\u05dc\u05d1 (\u05e1\u05d5\u05d2)"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/CanisFirstRevision.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "revisions",
+      "rvdir": "older",
+      "rvlimit": "51",
+      "rvprop": "ids|timestamp|user|size|parsedcomment|flags",
+      "titles": "\u05db\u05dc\u05d1 (\u05e1\u05d5\u05d2)"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/CanisPageHistory.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/rest.php/v1/page/\u05db\u05dc\u05d1_(\u05e1\u05d5\u05d2)/history/counts/edits",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/CanisHistoryCount-edits.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/rest.php/v1/page/\u05db\u05dc\u05d1_(\u05e1\u05d5\u05d2)/history/counts/anonymous",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/CanisHistoryCount-anonymous.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/rest.php/v1/page/\u05db\u05dc\u05d1_(\u05e1\u05d5\u05d2)/history/counts/bot",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/CanisHistoryCount-bot.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/rest.php/v1/page/\u05db\u05dc\u05d1_(\u05e1\u05d5\u05d2)/history/counts/temporary",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/CanisHistoryCount-temporary.json"
+  },
+  {
+    "method": "GET",
+    "host": "wikimedia.org",
+    "pathPrefix": "/api/rest_v1/metrics/edits/per-page/he.wikipedia.org/\u05db\u05dc\u05d1_(\u05e1\u05d5\u05d2)/all-editor-types/monthly/",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/CanisMonthlyEditMetrics.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/api/rest_v1/data/i18n/pcs",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/PCSI18N.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "titles": "\u05e7\u05d5\u05d1\u05e5:CanaanDogChakede1.jpg"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/he/DogNonLeadImageInfo.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "pathPrefix": "/api/rest_v1/feed/featured/",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/DogFeedResponse.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/Ch\u00f3",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/DogArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/Ch\u00f3",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/vi/DogMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/api/rest_v1/page/media-list/Ch\u00f3",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/DogMediaList.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "langlinks",
+      "titles": "Ch\u00f3",
+      "lllimit": "500",
+      "llprop": "langname|autonym",
+      "format": "json"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/DogLanguageLinks.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "titles": "Ch\u00f3",
+      "prop": "categories",
+      "formatversion": "2"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/DogArticleInfo.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "C"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/DogSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 "
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eeb"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eebng"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eebng "
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eebng l"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eebng l\u00f4"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eebng l\u00f4ng"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eebng l\u00f4ng "
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eebng l\u00f4ng v"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eebng l\u00f4ng v\u00e0"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eebng l\u00f4ng v\u00e0n"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch",
+      "gpssearch": "Ch\u00f3 r\u1eebng l\u00f4ng v\u00e0ng"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/Ch\u00f3_r\u1eebng_l\u00f4ng_v\u00e0ng",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/Ch\u00f3_r\u1eebng_l\u00f4ng_v\u00e0ng",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/Chi_Ch\u00f3",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/CanisArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/Chi_Ch\u00f3",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/vi/CanisMobileHTML.html"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "generator": "prefixsearch"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/CanisSearchResults.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "revisions",
+      "rvdir": "newer",
+      "rvlimit": "1",
+      "titles": "Ch\u00f3 r\u1eebng l\u00f4ng v\u00e0ng"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalFirstRevision.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "prop": "revisions",
+      "rvdir": "older",
+      "rvlimit": "51",
+      "rvprop": "ids|timestamp|user|size|parsedcomment|flags",
+      "titles": "Ch\u00f3 r\u1eebng l\u00f4ng v\u00e0ng"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalPageHistory.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Ch\u00f3_r\u1eebng_l\u00f4ng_v\u00e0ng/history/counts/edits",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalHistoryCount-edits.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Ch\u00f3_r\u1eebng_l\u00f4ng_v\u00e0ng/history/counts/anonymous",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalHistoryCount-anonymous.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Ch\u00f3_r\u1eebng_l\u00f4ng_v\u00e0ng/history/counts/bot",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalHistoryCount-bot.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/rest.php/v1/page/Ch\u00f3_r\u1eebng_l\u00f4ng_v\u00e0ng/history/counts/temporary",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalHistoryCount-temporary.json"
+  },
+  {
+    "method": "GET",
+    "host": "wikimedia.org",
+    "pathPrefix": "/api/rest_v1/metrics/edits/per-page/vi.wikipedia.org/Ch\u00f3_r\u1eebng_l\u00f4ng_v\u00e0ng/all-editor-types/monthly/",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/GoldenJackalMonthlyEditMetrics.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/api/rest_v1/data/i18n/pcs",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/PCSI18N.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "titles": "T\u1eadp tin:Mix breed dog.jpg"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/DogNonLeadImageInfo.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "titles": "T\u1eadp_tin:Mix_breed_dog.jpg"
+    },
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/vi/DogNonLeadImageInfo.json"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "pathSuffix": "Collage_of_Nine_Dogs.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "bodyResource": "ArticleControls/en/CollageOfNineDogs.jpg"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "pathSuffix": "Harzer_Fuchs_H\u00fcndin_2.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "bodyResource": "ArticleControls/de/HarzerFuchsHuendin2.jpg"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "pathSuffix": "CanaanDogChakede1.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "bodyResource": "ArticleControls/he/CanaanDogChakede1.jpg"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "pathSuffix": "Mix_breed_dog.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "bodyResource": "ArticleControls/vi/MixBreedDog.jpg"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/page/summary/Cat",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "ArticleControls/en/DogArticleSummary.json"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/page/mobile-html/Cat",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8"
+    },
+    "bodyResource": "ArticleControls/en/DogMobileHTML.html"
+  },
+  {
+    "method": "POST",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "UserInfoGroups.json"
+  },
+  {
+    "method": "GET",
+    "host": "wikimedia.org",
+    "pathPrefix": "/api/rest_v1/metrics/edits/per-page/en.wikipedia.org/Dog/all-editor-types/daily/",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "bodyResource": "DogDailyMetrics.json"
+  },
+  {
+    "method": "GET",
+    "host": "meta.wikimedia.org",
+    "path": "/api/rest_v1/data/css/mobile/base",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/css"
+    },
+    "bodyResource": "MobileBase.css"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/api/rest_v1/data/css/mobile/site",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "text/css"
+    },
+    "bodyResource": "MobileSite.css"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/thumb/d/d9/Collage_of_Nine_Dogs.jpg/1280px-Collage_of_Nine_Dogs.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "bodyResource": "ArticleControls/en/CollageOfNineDogs.jpg"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/thumb/6/69/Dog_morphological_variation.png/640px-Dog_morphological_variation.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/png"
+    },
+    "bodyResource": "ArticleControls/en/640pxDogMorphologicalVariation.png"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/thumb/a/a0/Llop.jpg/320px-Llop.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/png"
+    },
+    "bodyResource": "ArticleControls/en/640pxDogMorphologicalVariation.png"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/7/74/Red_Pencil_Icon.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/png"
+    },
+    "bodyResource": "RedPencilIcon.png"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/en/thumb/4/4a/Commons-logo.svg/59px-Commons-logo.svg.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/webp"
+    },
+    "bodyResource": "59pxCommonsLogo.svg.webp"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/thumb/d/da/Aussie-blacktri.jpg/64px-Aussie-blacktri.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "bodyResource": "64pxAussieBlacktri.jpg"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/thumb/1/18/Okapi2.jpg/64px-Okapi2.jpg",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/jpeg"
+    },
+    "bodyResource": "64pxOkapi2.jpg"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/en/thumb/0/06/Wiktionary-logo-v2.svg/54px-Wiktionary-logo-v2.svg.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/webp"
+    },
+    "bodyResource": "54pxWiktionaryLogoV2.svg.webp"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/en/thumb/4/4a/Commons-logo.svg/40px-Commons-logo.svg.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/webp"
+    },
+    "bodyResource": "40pxCommonsLogo.svg.webp"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/thumb/2/24/Wikinews-logo.svg/54px-Wikinews-logo.svg.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/webp"
+    },
+    "bodyResource": "54pxWikinewsLogo.svg.webp"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/thumb/f/fa/Wikiquote-logo.svg/46px-Wikiquote-logo.svg.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/webp"
+    },
+    "bodyResource": "46pxWikiquoteLogo.svg.webp"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/thumb/4/4c/Wikisource-logo.svg/51px-Wikisource-logo.svg.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/webp"
+    },
+    "bodyResource": "51pxWikisourceLogo.svg.webp"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/thumb/f/fa/Wikibooks-logo.svg/54px-Wikibooks-logo.svg.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/webp"
+    },
+    "bodyResource": "54pxWikibooksLogo.svg.webp"
+  },
+  {
+    "method": "GET",
+    "host": "upload.wikimedia.org",
+    "path": "/wikipedia/commons/thumb/d/df/Wikispecies-logo.svg/46px-Wikispecies-logo.svg.png",
+    "statusCode": 200,
+    "headers": {
+      "Content-Type": "image/webp"
+    },
+    "bodyResource": "46pxWikispeciesLogo.svg.webp"
+  },
+  {
+    "method": "GET",
+    "host": "en.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "meta": "siteinfo",
+      "siprop": "autocreatetempuser"
+    },
+    "bodyResource": "TempAccounts/en/SiteInfoAutoCreateTempUser.json"
+  },
+  {
+    "method": "GET",
+    "host": "de.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "meta": "siteinfo",
+      "siprop": "autocreatetempuser"
+    },
+    "bodyResource": "TempAccounts/de/SiteInfoAutoCreateTempUser.json"
+  },
+  {
+    "method": "GET",
+    "host": "he.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "meta": "siteinfo",
+      "siprop": "autocreatetempuser"
+    },
+    "bodyResource": "TempAccounts/he/SiteInfoAutoCreateTempUser.json"
+  },
+  {
+    "method": "GET",
+    "host": "vi.wikipedia.org",
+    "path": "/w/api.php",
+    "queryItems": {
+      "action": "query",
+      "meta": "siteinfo",
+      "siprop": "autocreatetempuser"
+    },
+    "bodyResource": "TempAccounts/vi/SiteInfoAutoCreateTempUser.json"
+  }
+]

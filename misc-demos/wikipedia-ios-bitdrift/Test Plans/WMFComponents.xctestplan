@@ -1,0 +1,27 @@
+{
+  "configurations" : [
+    {
+      "id" : "E75A34A3-2195-43D9-9533-9893685F783C",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : true,
+    "language" : "en",
+    "region" : "US",
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:",
+        "identifier" : "WMFComponentsTests",
+        "name" : "WMFComponentsTests"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -1,0 +1,115 @@
+import WMFData
+
+/// MEP interface for the legacy schema available here:
+/// https://github.com/wikimedia/schemas-event-secondary/blob/master/jsonschema/analytics/legacy/editattemptstep/current.yaml
+public final class EditAttemptFunnel {
+    static let shared = EditAttemptFunnel()
+    
+    private struct EventContainer: EventInterface {
+        static let schema: EventPlatformClient.Schema = .editAttempt
+        let event: Event
+        let wiki: String?
+    }
+
+    private struct Event: Codable {
+        let action: EditAction
+        let editing_session_id: String
+        let app_install_id: String?
+        let editor_interface: String
+        let integration: String
+        let is_anon: Bool
+        let mw_version: String
+        let platform: String
+        let user_editcount: Int
+        let user_id: Int
+        let user_is_temp: Bool
+        let version: Int
+        let page_title: String?
+        let page_ns: Int?
+        let revision_id: Int?
+        let dt: Date
+    }
+
+    private enum EditAction: String, Codable {
+        case start = "init"
+        case ready = "ready"
+        case loaded = "loaded"
+        case first = "firstChange"
+        case saveIntent = "saveIntent"
+        case saveAttempt = "saveAttempt"
+        case saveSuccess = "saveSuccess"
+        case saveFailure = "saveFailure"
+        case abort = "abort"
+    }
+    
+    private var isAnon: Bool {
+        return !MWKDataStore.shared().authenticationManager.authStateIsPermanent
+    }
+    
+    private var isTemp: Bool {
+        return MWKDataStore.shared().authenticationManager.authStateIsTemporary
+    }
+
+    private func logEvent(pageURL: URL, action: EditAction, revisionId: Int? = nil, project: WikimediaProject? = nil) {
+        let editorInterface = "wikitext"
+        let integrationID = "app-ios"
+        let platform = UIDevice.current.userInterfaceIdiom == .pad ? "tablet" : "phone"
+
+        let resolvedProject = project ?? WikimediaProject(siteURL: pageURL)
+        let authenticationManager = MWKDataStore.shared().authenticationManager
+        let currentUser = authenticationManager.permanentUser(siteURL: pageURL)
+        if currentUser == nil {
+            authenticationManager.hydrateUserCacheIfNeeded(siteURL: pageURL)
+        }
+        let userId = currentUser?.userID ?? 0
+        let editCount = Int(currentUser?.editCount ?? 0)
+
+        let appInstallID: String? = try? WMFDataEnvironment.current.crossProcessUserDefaultsStore?.load(key: WMFUserDefaultsKey.appInstallID.rawValue)
+
+        let event = Event(
+            action: action,
+            editing_session_id: "",
+            app_install_id: appInstallID,
+            editor_interface: editorInterface,
+            integration: integrationID,
+            is_anon: isAnon,
+            mw_version: "",
+            platform: platform,
+            user_editcount: editCount,
+            user_id: userId,
+            user_is_temp: isTemp,
+            version: 1,
+            page_title: pageURL.wmf_title,
+            page_ns: pageURL.namespace?.rawValue,
+            revision_id: revisionId,
+            dt: Date()
+        )
+
+        let container = EventContainer(event: event, wiki: resolvedProject?.notificationsApiWikiIdentifier)
+        EventPlatformClient.shared.submit(stream: .editAttempt, event: container, needsMinimal: true)
+    }
+
+    func logInit(pageURL: URL) {
+        logEvent(pageURL: pageURL, action: .start)
+    }
+
+    func logSaveIntent(pageURL: URL) {
+        logEvent(pageURL: pageURL, action: .saveIntent)
+    }
+
+    func logSaveAttempt(pageURL: URL) {
+        logEvent(pageURL: pageURL, action: .saveAttempt)
+    }
+
+    func logSaveSuccess(pageURL: URL, revisionId: Int?, project: WikimediaProject?) {
+        logEvent(pageURL: pageURL, action: .saveSuccess, revisionId: revisionId, project: project)
+    }
+
+    func logSaveFailure(pageURL: URL) {
+        logEvent(pageURL: pageURL, action: .saveFailure)
+    }
+
+    func logAbort(pageURL: URL) {
+        logEvent(pageURL: pageURL, action: .abort)
+    }
+}

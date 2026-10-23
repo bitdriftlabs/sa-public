@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>donation-reminder-card-body</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%1$@ ತಾನಿ, %2$#@v2@ ಓದಿನ ಬೊಕ್ಕ ದಾನ ಮಲ್ಪೆರೆ ನೆಂಪು ಮಲ್ಪೆರೆ ಈರ್ ಕೇಂಡರ್. ವಿಕಿಪೀಡಿಯ ಈರೆಗ್ %3$@ ಮೌಲ್ಯೊದ ಜ್ಞಾನೊನು ಕೊರ್ತ್ಂಡ, ದಾನ ಮಲ್ಪುನ 2%% ಓದುಗೆರೆ ಒಟ್ಟುಗು ಸೇರ್ದ್ ಈರೆನ ಸಂಕಲ್ಪೊನು ಇನಿಯೇ ಮಲ್ಪುಲೆ.</string>
+		<key>v2</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>d</string>
+			<key>one</key>
+			<string>%2$d ಲೇಕನ</string>
+			<key>other</key>
+			<string>%2$d ಲೇಕನೊಲೆನ್</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

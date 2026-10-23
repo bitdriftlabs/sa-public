@@ -1,0 +1,679 @@
+import UIKit
+import WMFComponents
+import WMFData
+import CocoaLumberjackSwift
+import SwiftUI
+import WMFNativeLocalizations
+import Combine
+import Capture
+import WMFTestKitchen
+
+/// Standalone view controller for searching Wikipedia articles. Designed to be used within a navigation controller, as its search bar leans on navigationItem.searchController behavior.
+class SearchViewController: ThemeableViewController, WMFNavigationBarConfiguring, MEPEventsProviding, ShareableArticlesProvider, SearchResultsHosting {
+    
+    let source: SearchResultsViewController.EventLoggingSource
+
+    // MARK: - MEP / Hint
+
+    var eventLoggingCategory: EventCategoryMEP { .history }
+    var eventLoggingLabel: EventLabelMEP? { nil }
+
+    // MARK: - Dependencies
+
+    @objc var dataStore: MWKDataStore?
+
+    // MARK: - Private state
+
+    private var isSearchActive = false
+    /// Where the pushed article was opened from. The reader returns from it to the same search.
+    private enum PushedArticleSource {
+        /// A search result. The keyboard comes back on return.
+        case searchResults
+        /// The semantic search sheet. The sheet comes back on return.
+        case semanticSearchSheet
+    }
+
+    /// Set while an article opened from the search is pushed, so the search stays active under it.
+    private var pushedArticleSource: PushedArticleSource?
+    private var cancellables = Set<AnyCancellable>()
+    
+    var disableSearchCancelLogging: Bool = false
+    
+    // MARK: - Public configuration (set before pushing)
+
+    /// Hides history display entirely
+    var shouldHideHistory: Bool = false
+
+    /// Forwarded to the container. Default `true`.
+    var showLanguageBar: Bool = true
+
+    /// Forwarded to the container to scope searches to a specific wiki.
+    var siteURL: URL?
+
+    /// If set, the search bar is pre-populated with this term and a search is triggered on appear.
+    var prefilledSearchTerm: String?
+
+    /// Override the default article-push behavior. If nil, uses `LinkCoordinator`.
+    var articleTappedAction: ((URL) -> Void)?
+    
+    /// Computed property to help determine if this is a root tab view or not. If true, profile and tabs navigation buttons are added and navigation bar title alignment is adjusted.
+    private var isRootTabView: Bool {
+        guard tabBarController != nil else {
+            return false
+        }
+        
+        guard let navigationController,
+              navigationController.viewControllers.count > 0,
+              navigationController.viewControllers[0] == self else {
+            return false
+        }
+        
+        return true
+    }
+
+    // MARK: - Coordinators
+
+    private var semanticSearchResultsCoordinator: SemanticSearchResultsCoordinator?
+    private var _yirCoordinator: YearInReviewCoordinator?
+    private var yirCoordinator: YearInReviewCoordinator? {
+        guard let navigationController, let yirDataController, let dataStore else { return nil }
+        if let existing = _yirCoordinator { return existing }
+        _yirCoordinator = YearInReviewCoordinator(
+            navigationController: navigationController,
+            theme: theme,
+            dataStore: dataStore,
+            dataController: yirDataController
+        )
+        _yirCoordinator?.badgeDelegate = self
+        return _yirCoordinator
+    }
+
+    private var _profileCoordinator: ProfileCoordinator?
+    private var profileCoordinator: ProfileCoordinator? {
+        guard let navigationController, let yirCoordinator, let dataStore else { return nil }
+        if let existing = _profileCoordinator { return existing }
+        _profileCoordinator = ProfileCoordinator(
+            navigationController: navigationController,
+            theme: theme,
+            dataStore: dataStore,
+            donateSouce: .searchProfile,
+            logoutDelegate: self,
+            sourcePage: .search,
+            yirCoordinator: yirCoordinator
+        )
+        _profileCoordinator?.badgeDelegate = self
+        return _profileCoordinator
+    }
+
+    private lazy var tabsCoordinator: TabsOverviewCoordinator? = { [weak self] in
+        guard let self, let nav = navigationController, let dataStore else { return nil }
+        return TabsOverviewCoordinator(navigationController: nav, theme: theme, dataStore: dataStore)
+    }()
+
+    private var yirDataController: WMFYearInReviewDataController? { try? WMFYearInReviewDataController() }
+
+    // MARK: - Delete button (shown leading when history is visible)
+
+    private lazy var deleteButton: UIBarButtonItem = {
+        UIBarButtonItem(
+            title: CommonStrings.clearTitle,
+            style: .plain,
+            target: self,
+            action: #selector(deleteButtonPressed(_:))
+        )
+    }()
+
+    // MARK: - Search results container
+
+    lazy var searchResultsVC: SearchResultsViewController = {
+        let vc = SearchResultsViewController(source: source, dataStore: dataStore ?? MWKDataStore.shared())
+        vc.apply(theme: theme)
+        vc.parentSearchControllerDelegate = self
+        vc.populateSearchBarAction = { [weak self] searchTerm in
+            self?.navigationItem.searchController?.searchBar.text = searchTerm
+            self?.navigationItem.searchController?.searchBar.becomeFirstResponder()
+        }
+        vc.semanticSearchTappedAction = { [weak self] query, project in
+            self?.showSemanticSearchResults(query: query, project: project)
+        }
+        vc.semanticSearchSettingsTappedAction = { [weak self] in
+            self?.showSearchSettings()
+        }
+        vc.articleTappedAction = { [weak self] articleURL, needsNewTab in
+            guard let self, let dataStore, let navVC = navigationController else { return }
+            
+            if let customAction = self.articleTappedAction {
+                customAction(articleURL)
+            } else {
+                pushedArticleSource = .searchResults
+                let coordinator = LinkCoordinator(
+                    navigationController: navVC,
+                    url: articleURL,
+                    dataStore: dataStore,
+                    theme: theme,
+                    articleSource: .search,
+                    tabConfig: needsNewTab ? .appendArticleAndAssignNewTabAndSetToCurrent : .appendArticleAndAssignCurrentTab
+                )
+                if !coordinator.start() {
+                    navigate(to: articleURL)
+                }
+            }
+            
+        }
+        return vc
+    }()
+
+    // MARK: - Semantic search results
+
+    private func showSemanticSearchResults(query: String, project: WMFProject) {
+        guard let navigationController else { return }
+
+        navigationItem.searchController?.searchBar.resignFirstResponder()
+
+        let coordinator = SemanticSearchResultsCoordinator(
+            navigationController: navigationController,
+            query: query,
+            project: project,
+            didSelectResult: { [weak self] result, needsFeedback in
+                self?.openSemanticSearchResult(result, project: project, needsFeedback: needsFeedback)
+            }
+        )
+
+        semanticSearchResultsCoordinator = coordinator
+        coordinator.start()
+    }
+
+    private func showSearchSettings() {
+        guard let navigationController else { return }
+
+        navigationItem.searchController?.searchBar.resignFirstResponder()
+        SearchSettingsCoordinator(navigationController: navigationController).start()
+    }
+
+    /// Opens the article at the section of the passage and highlights the passage in it.
+    private func openSemanticSearchResult(_ result: WMFSemanticSearchResult, project: WMFProject, needsFeedback: Bool) {
+        guard let dataStore, let navigationController,
+              let siteURL = project.siteURL,
+              var articleURL = siteURL.wmf_URL(withTitle: result.title)?.wmf_URL(withOptionalFragment: result.sectionTitle.map(Self.sectionAnchor))
+        else { return }
+
+        articleURL.wmf_languageVariantCode = project.languageVariantCode
+
+        let coordinator = ArticleCoordinator(
+            navigationController: navigationController,
+            articleURL: articleURL,
+            dataStore: dataStore,
+            theme: theme,
+            source: .search,
+            semanticSearchPassages: WMFSemanticSearchSnippet.highlightedTexts(html: result.snippetHTML),
+            needsSemanticSearchFeedback: needsFeedback
+        )
+        pushedArticleSource = .semanticSearchSheet
+        if !coordinator.start() {
+            navigate(to: articleURL)
+        }
+    }
+
+    /// The id MediaWiki gives the heading of a section: the title with underscores for spaces.
+    private static func sectionAnchor(for sectionTitle: String) -> String {
+        sectionTitle.replacingOccurrences(of: " ", with: "_")
+    }
+
+    // MARK: - History
+
+    lazy var historyDataController: WMFHistoryDataController = {
+        let recordsProvider: WMFHistoryDataController.RecordsProvider = { [weak self] in
+            guard let self, let dataStore else { return [] }
+
+            let request: NSFetchRequest<WMFArticle> = WMFArticle.fetchRequest()
+            request.predicate = NSPredicate(format: "viewedDate != NULL")
+            request.sortDescriptors = [
+                NSSortDescriptor(keyPath: \WMFArticle.viewedDateWithoutTime, ascending: false),
+                NSSortDescriptor(keyPath: \WMFArticle.viewedDate, ascending: false)
+            ]
+            request.fetchLimit = 1000
+
+            do {
+                return try dataStore.viewContext.fetch(request).compactMap { article -> HistoryRecord? in
+                    guard let viewedDate = article.viewedDate, let pageID = article.pageID else { return nil }
+                    let thumbnailWidth = ImageUtils.listThumbnailWidth()
+                    return HistoryRecord(
+                        id: Int(truncating: pageID),
+                        title: article.displayTitle ?? article.displayTitleHTML,
+                        descriptionOrSnippet: article.capitalizedWikidataDescriptionOrSnippet,
+                        shortDescription: article.snippet,
+                        articleURL: article.url,
+                        imageURL: article.imageURL(forWidth: thumbnailWidth)?.absoluteString,
+                        viewedDate: viewedDate,
+                        isSaved: article.isSaved,
+                        snippet: article.snippet,
+                        variant: article.variant
+                    )
+                }
+            } catch {
+                DDLogError("Error fetching history: \(error)")
+                return []
+            }
+        }
+
+        let deleteRecordAction: WMFHistoryDataController.DeleteRecordAction = { [weak self] historyItem in
+            guard let self, let dataStore else { return }
+            guard let databaseKey = historyItem.url?.wmf_databaseKey else { return }
+            let request: NSFetchRequest<WMFArticle> = WMFArticle.fetchRequest()
+            request.predicate = NSPredicate(format: "key == %@", databaseKey)
+            request.fetchLimit = 1
+            do {
+                if let article = try dataStore.viewContext.fetch(request).first {
+                    try article.removeFromReadHistory()
+                }
+            } catch {
+                showError(error)
+            }
+
+            guard let title = historyItem.url?.wmf_title,
+                  let languageCode = historyItem.url?.wmf_languageCode else { return }
+            let project = WMFProject.wikipedia(WMFLanguage(languageCode: languageCode, languageVariantCode: historyItem.variant))
+            Task {
+                do {
+                    let dc = try WMFPageViewsDataController()
+                    try await dc.deletePageView(title: title, namespaceID: 0, project: project)
+                } catch {
+                    DDLogError("Failure deleting WMFData WMFPageViews: \(error)")
+                }
+            }
+        }
+
+        let saveArticleAction: WMFHistoryDataController.SaveRecordAction = { [weak self] historyItem in
+            guard let self, let dataStore, let articleURL = historyItem.url else { return }
+            dataStore.savedPageList.addSavedPage(with: articleURL)
+            historyItem.isSaved = true
+        }
+
+        let unsaveArticleAction: WMFHistoryDataController.UnsaveRecordAction = { [weak self] historyItem in
+            guard let self, let dataStore, let articleURL = historyItem.url else { return }
+            dataStore.savedPageList.removeEntry(with: articleURL)
+            historyItem.isSaved = false
+        }
+
+        let dc = WMFHistoryDataController(recordsProvider: recordsProvider)
+        dc.deleteRecordAction = deleteRecordAction
+        dc.saveRecordAction = saveArticleAction
+        dc.unsaveRecordAction = unsaveArticleAction
+        return dc
+    }()
+
+    lazy var historyViewModel: WMFHistoryViewModel = {
+        let strings = WMFHistoryViewModel.LocalizedStrings(
+            emptyViewTitle: CommonStrings.emptyNoHistoryTitle,
+            emptyViewSubtitle: CommonStrings.emptyNoHistorySubtitle,
+            todayTitle: CommonStrings.todayTitle,
+            yesterdayTitle: CommonStrings.yesterdayTitle,
+            openArticleActionTitle: CommonStrings.articleTabsOpen,
+            saveForLaterActionTitle: CommonStrings.saveTitle,
+            unsaveActionTitle: CommonStrings.unsaveTitle,
+            shareActionTitle: CommonStrings.shareMenuTitle,
+            deleteSwipeActionLabel: CommonStrings.deleteActionTitle,
+            historyHeaderTitle: CommonStrings.historyTabTitle
+        )
+        let vm = WMFHistoryViewModel(
+            emptyViewImage: UIImage(named: "history-blank"),
+            localizedStrings: strings,
+            historyDataController: historyDataController
+        )
+        vm.onTapArticle = { [weak self] historyItem in
+            self?.tappedHistoryArticle(historyItem)
+        }
+        vm.shareRecordAction = { [weak self] frame, historyItem in
+            self?.share(item: historyItem, frame: frame)
+        }
+        return vm
+    }()
+
+    private func tappedHistoryArticle(_ item: HistoryItem) {
+        guard let articleURL = item.url, let dataStore, let navVC = navigationController else { return }
+        let coordinator = ArticleCoordinator(navigationController: navVC, articleURL: articleURL, dataStore: dataStore, theme: theme, source: .history)
+        coordinator.start()
+    }
+
+    private func share(item: HistoryItem, frame: CGRect?) {
+        guard let dataStore, let url = item.url else { return }
+        let article = dataStore.fetchArticle(with: url)
+        let sourceRect = frame.map { view.convert($0, from: nil) }
+        _ = share(article: article, articleURL: url, dataStore: dataStore, theme: theme, eventLoggingCategory: eventLoggingCategory, eventLoggingLabel: eventLoggingLabel, sourceView: view, sourceRect: sourceRect)
+    }
+
+    lazy var historyViewController: WMFHistoryHostingController = {
+        WMFHistoryHostingController(rootView: WMFHistoryView(viewModel: historyViewModel))
+    }()
+
+    // MARK: - Lifecycle
+    
+    @objc init(source: SearchResultsViewController.EventLoggingSource) {
+        self.source = source
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    @MainActor required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.accessibilityIdentifier = AccessibilityIdentifiers.Search.view
+        
+        // Apply configuration properties to the container now that it's initialized
+        searchResultsVC.showLanguageBar = showLanguageBar
+        if let siteURL { searchResultsVC.siteURL = siteURL }
+        embedHistoryIfNeeded()
+        
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self, UITraitHorizontalSizeClass.self, UITraitVerticalSizeClass.self]) { [weak self] (viewController: Self, previousTraitCollection: UITraitCollection) in
+            guard let self else { return }
+            if #available(iOS 18, *) {
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    if previousTraitCollection.horizontalSizeClass != traitCollection.horizontalSizeClass {
+                        configureNavigationBar()
+                    }
+                }
+            }
+        }
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        configureNavigationBar()
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+
+        disableSearchCancelLogging = !isMovingFromParent
+
+        // Keep the search active under the pushed article, so the reader returns to it.
+        if pushedArticleSource == nil {
+            if navigationItem.searchController?.isActive == true {
+                navigationItem.searchController?.isActive = false
+            }
+            isSearchActive = false
+            navigationItem.searchController = nil
+            navigationItem.title = nil
+        }
+        disableSearchCancelLogging = false
+        hideCustomLeadingLargeTitleLabel()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        Logger.logScreenView(screenName: "Search")
+        NSUserActivity.wmf_makeActive(NSUserActivity.wmf_searchView())
+
+        let returningFromArticle = pushedArticleSource != nil
+        switch pushedArticleSource {
+        case .searchResults:
+            // On iPad the search field can't become first responder yet in viewDidAppear, so wait a turn.
+            Task { @MainActor [weak self] in
+                self?.navigationItem.searchController?.searchBar.becomeFirstResponder()
+            }
+        case .semanticSearchSheet:
+            semanticSearchResultsCoordinator?.restore()
+        case nil:
+            break
+        }
+        pushedArticleSource = nil
+
+        if isRootTabView {
+            ArticleTabsFunnel.shared.logIconImpression(interface: .search, project: nil)
+        } else {
+            // Returning from an article keeps the reader's own search instead of the prefilled one.
+            if !returningFromArticle, let term = self.prefilledSearchTerm {
+                self.navigationItem.searchController?.searchBar.text = term
+                self.searchResultsVC.searchAndMakeResultsVisible(for: term)
+                self.navigationItem.searchController?.searchBar.becomeFirstResponder()
+            }
+        }
+        
+    }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        
+        if !shouldHideHistory {
+            let topSafeAreaHeight = view.safeAreaInsets.top
+            let bottomSafeAreaHeight = view.safeAreaInsets.bottom
+            historyViewModel.topPadding = topSafeAreaHeight
+            historyViewModel.bottomPadding = bottomSafeAreaHeight
+        }
+    }
+
+    // MARK: - Navigation Bar
+
+    private func configureNavigationBar() {
+        let alignment: WMFNavigationBarTitleConfig.Alignment
+        if isRootTabView {
+            alignment = isSearchActive ? .hidden : .customLeadingLarge
+        } else {
+            alignment = .centerCompact
+        }
+        let titleConfig = WMFNavigationBarTitleConfig(title: CommonStrings.searchTitle, customView: nil, alignment: alignment)
+
+        var profileButtonConfig: WMFNavigationBarProfileButtonConfig? = nil
+        var tabsButtonConfig: WMFNavigationBarTabsButtonConfig? = nil
+        
+        if let dataStore,
+           isRootTabView {
+            profileButtonConfig = self.profileButtonConfig(target: self, action: #selector(userDidTapProfile), dataStore: dataStore, yirDataController: yirDataController)
+
+            let historyClearButton: UIBarButtonItem? = isSearchActive ? nil : deleteButton
+            tabsButtonConfig = self.tabsButtonConfig(target: self, action: #selector(userDidTapTabs), dataStore: dataStore, leadingBarButtonItem: historyClearButton)
+        }
+
+        let searchConfig = WMFNavigationBarSearchConfig(
+            searchResultsController: searchResultsVC,
+            searchControllerDelegate: searchResultsVC,
+            searchResultsUpdater: searchResultsVC,
+            searchBarDelegate: searchResultsVC,
+            searchBarPlaceholder: CommonStrings.searchBarPlaceholder,
+            showsScopeBar: false,
+            scopeButtonTitles: nil
+        )
+
+        configureNavigationBar(
+            titleConfig: titleConfig,
+            backButtonConfig: nil,
+            closeButtonConfig: nil,
+            profileButtonConfig: profileButtonConfig,
+            tabsButtonConfig: tabsButtonConfig,
+            searchBarConfig: searchConfig,
+            hideNavigationBarOnScroll: !isSearchActive && !isRootTabView
+        )
+        
+        if !isRootTabView, !shouldHideHistory {
+            let historyClearButton: UIBarButtonItem? = isSearchActive ? nil : deleteButton
+            navigationItem.rightBarButtonItem = historyClearButton
+        }
+    }
+
+    @MainActor
+    private func refreshHistoryClearButtonState() {
+        let enabled = !isSearchActive && !historyViewModel.isEmpty
+        deleteButton.isEnabled = enabled
+        configureNavigationBar()
+    }
+
+    private func updateProfileButton() {
+        guard let dataStore else { return }
+        let config = self.profileButtonConfig(target: self, action: #selector(userDidTapProfile), dataStore: dataStore, yirDataController: yirDataController)
+        updateNavigationBarProfileButton(needsBadge: config.needsBadge, needsBadgeLabel: CommonStrings.profileButtonBadgeTitle, noBadgeLabel: CommonStrings.profileButtonTitle)
+    }
+
+    @objc private func userDidTapProfile() {
+        guard let dataStore else { return }
+        guard let languageCode = dataStore.languageLinkController.appLanguage?.languageCode,
+              let metricsID = DonateCoordinator.metricsID(for: .searchProfile, languageCode: languageCode) else { return }
+        DonateFunnel.shared.logSearchProfile(metricsID: metricsID)
+        profileCoordinator?.start()
+    }
+
+    @objc private func userDidTapTabs() {
+        tabsCoordinator?.start()
+        ArticleTabsFunnel.shared.logIconClick(interface: .search, project: nil)
+    }
+
+    @objc private func deleteButtonPressed(_ sender: UIBarButtonItem) {
+        let alertController = UIAlertController(
+            title: WMFLocalizedString("history-clear-confirmation-heading", value: "Are you sure you want to delete all your recent items?", comment: "Heading text of delete all confirmation dialog"),
+            message: nil,
+            preferredStyle: .actionSheet
+        )
+        alertController.addAction(UIAlertAction(
+            title: WMFLocalizedString("history-clear-delete-all", value: "Yes, delete all", comment: "Button text for confirming delete all action"),
+            style: .destructive) { [weak self] _ in self?.deleteAll() }
+        )
+        alertController.addAction(UIAlertAction(title: CommonStrings.cancelActionTitle, style: .cancel))
+        alertController.popoverPresentationController?.barButtonItem = sender
+        alertController.popoverPresentationController?.permittedArrowDirections = .any
+        present(alertController, animated: true)
+    }
+
+    private func deleteAll() {
+        guard let dataStore else { return }
+        do {
+            try dataStore.viewContext.clearReadHistory()
+            historyViewModel.sections = []
+        } catch {
+            showError(error)
+        }
+        Task {
+            do {
+                let dc = try WMFPageViewsDataController()
+                try await dc.deleteAllPageViewsCategoriesAndTopics()
+            } catch {
+                DDLogError("Failure deleting WMFData WMFPageViews: \(error)")
+            }
+            do {
+                try await WMFYearInReviewDataController().deletePersonalizedData(for: .readingHistory)
+            } catch {
+                DDLogError("Failure deleting Year in Review reading data: \(error)")
+            }
+        }
+    }
+
+    // MARK: - Public interface for WMFAppViewController
+
+    @objc func makeSearchBarBecomeFirstResponder() {
+        guard !(navigationItem.searchController?.searchBar.isFirstResponder ?? false) else { return }
+        navigationItem.searchController?.searchBar.becomeFirstResponder()
+    }
+
+    @objc func searchAndMakeResultsVisibleForSearchTerm(_ term: String?, animated: Bool) {
+        navigationItem.searchController?.isActive = true
+        navigationItem.searchController?.searchBar.text = term
+        searchResultsVC.searchAndMakeResultsVisible(for: term)
+        navigationItem.searchController?.searchBar.becomeFirstResponder()
+    }
+
+    // MARK: - History
+    
+    private func embedHistoryIfNeeded() {
+        
+        guard !shouldHideHistory else {
+            return
+        }
+        
+        // Embed history as the background view (always present, shown/hidden via alpha or isHidden)
+        addChild(historyViewController)
+        historyViewController.view.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(historyViewController.view)
+        NSLayoutConstraint.activate([
+            historyViewController.view.topAnchor.constraint(equalTo: view.topAnchor),
+            historyViewController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            historyViewController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            historyViewController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+        historyViewController.disableContentInsetAdjustments()
+        historyViewController.didMove(toParent: self)
+
+        historyViewModel.$isEmpty
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                Task { @MainActor in self?.refreshHistoryClearButtonState() }
+            }
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Theme
+
+    override func apply(theme: Theme) {
+        super.apply(theme: theme)
+        guard viewIfLoaded != nil else { return }
+        view.backgroundColor = theme.colors.paperBackground
+        if !shouldHideHistory {
+            historyViewController.view.backgroundColor = theme.colors.paperBackground
+        }
+        
+        searchResultsVC.apply(theme: theme)
+        
+        if isRootTabView {
+            updateProfileButton()
+            profileCoordinator?.theme = theme
+            yirCoordinator?.theme = theme
+            themeNavigationBarCustomLeadingLargeTitle()
+        }
+        
+    }
+}
+
+// MARK: - UISearchControllerDelegate
+
+extension SearchViewController: UISearchControllerDelegate {
+    func willPresentSearchController(_ searchController: UISearchController) {
+        isSearchActive = true
+        navigationController?.hidesBarsOnSwipe = false
+        
+        if !shouldHideHistory {
+            historyViewController.view.isHidden = true
+        }
+        
+        configureNavigationBar()
+    }
+
+    func didPresentSearchController(_ searchController: UISearchController) {
+        // no-op; keyboard is managed by UISearchController automatically
+    }
+
+    func willDismissSearchController(_ searchController: UISearchController) {
+        // no-op
+    }
+
+    func didDismissSearchController(_ searchController: UISearchController) {
+        isSearchActive = false
+        navigationController?.hidesBarsOnSwipe = !isRootTabView
+        
+        if !shouldHideHistory {
+            historyViewController.view.isHidden = false
+            Task { @MainActor in refreshHistoryClearButtonState() }
+        }
+        
+        searchResultsVC.resetSearchResults()
+        configureNavigationBar()
+    }
+}
+
+// MARK: - LogoutCoordinatorDelegate
+
+extension SearchViewController: LogoutCoordinatorDelegate {
+    func didTapLogout(authInstrument: InstrumentImpl) {
+        guard let dataStore else { return }
+        wmf_showKeepSavedArticlesOnDevicePanelIfNeeded(triggeredBy: .logout, theme: theme, authInstrument: authInstrument) {
+            dataStore.authenticationManager.logout(initiatedBy: .user, authInstrument: authInstrument)
+        }
+    }
+}
+
+// MARK: - YearInReviewBadgeDelegate
+
+extension SearchViewController: YearInReviewBadgeDelegate {
+    func updateYIRBadgeVisibility() {
+        updateProfileButton()
+    }
+}
+

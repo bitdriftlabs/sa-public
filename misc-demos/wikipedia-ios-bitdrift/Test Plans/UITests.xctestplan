@@ -1,0 +1,133 @@
+{
+  "configurations" : [
+    {
+      "id" : "8E0498FE-92FF-40EC-865C-5BEA22044FC7",
+      "name" : "English (Light)",
+      "options" : {
+        "commandLineArgumentEntries" : [
+          {
+            "argument" : "-WMFAppThemeName"
+          },
+          {
+            "argument" : "light"
+          },
+          {
+            "argument" : "-WMFUITestLanguageCode"
+          },
+          {
+            "argument" : "en"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "38077FAF-FC51-4296-BF85-0FB00F0EE6F5",
+      "name" : "English (Light, E2E)",
+      "options" : {
+        "commandLineArgumentEntries" : [
+          {
+            "argument" : "-WMFAppThemeName"
+          },
+          {
+            "argument" : "light"
+          },
+          {
+            "argument" : "-WMFUITestLanguageCode"
+          },
+          {
+            "argument" : "en"
+          },
+          {
+            "argument" : "-WMFTestHTTPClientProfile"
+          },
+          {
+            "argument" : "e2e"
+          }
+        ]
+      }
+    },
+    {
+      "id" : "67D2A1C7-F722-404E-8F8B-9EE88B448393",
+      "name" : "Hebrew (Sepia)",
+      "options" : {
+        "commandLineArgumentEntries" : [
+          {
+            "argument" : "-WMFAppThemeName"
+          },
+          {
+            "argument" : "sepia"
+          },
+          {
+            "argument" : "-WMFUITestLanguageCode"
+          },
+          {
+            "argument" : "he"
+          }
+        ],
+        "language" : "he",
+        "region" : "IL"
+      }
+    },
+    {
+      "id" : "9B0F186E-C17A-428A-8752-69A009336688",
+      "name" : "German (Dark)",
+      "options" : {
+        "commandLineArgumentEntries" : [
+          {
+            "argument" : "-WMFAppThemeName"
+          },
+          {
+            "argument" : "dark"
+          },
+          {
+            "argument" : "-WMFUITestLanguageCode"
+          },
+          {
+            "argument" : "de"
+          }
+        ],
+        "language" : "de",
+        "region" : "DE"
+      }
+    },
+    {
+      "id" : "D9266DCB-72A3-4FA1-81DC-AB33158D08AF",
+      "name" : "Vietnamese (Black)",
+      "options" : {
+        "commandLineArgumentEntries" : [
+          {
+            "argument" : "-WMFAppThemeName"
+          },
+          {
+            "argument" : "black"
+          },
+          {
+            "argument" : "-WMFUITestLanguageCode"
+          },
+          {
+            "argument" : "vi"
+          }
+        ],
+        "language" : "vi",
+        "region" : "VN"
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : true,
+    "language" : "en",
+    "region" : "US",
+    "testTimeoutsEnabled" : true,
+    "userAttachmentLifetime" : "keepAlways"
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Wikipedia.xcodeproj",
+        "identifier" : "67623E0B2AFD288A007488C7",
+        "name" : "WikipediaUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

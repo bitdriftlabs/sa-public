@@ -1,0 +1,265 @@
+import WMF
+import CocoaLumberjackSwift
+import WMFData
+import WMFComponents
+import WMFNativeLocalizations
+
+extension ArticleViewController {
+
+    func showFundraisingCampaignAnnouncementIfNeeded(onNothingShown: (() -> Void)? = nil) {
+
+        guard let countryCode = Locale.current.region?.identifier,
+           let wikimediaProject = WikimediaProject(siteURL: articleURL),
+           let wmfProject = wikimediaProject.wmfProject else {
+            willDisplayCampaignModal = false
+            onNothingShown?()
+            return
+        }
+
+        let fundraisingDataController = WMFFundraisingCampaignDataController.shared
+
+        Task {
+            let isOptedIn = await fundraisingDataController.isOptedIn(project: wmfProject)
+
+            guard let activeCampaignAsset = fundraisingDataController.loadActiveCampaignAsset(countryCode: countryCode, wmfProject: wmfProject, currentDate: .now) else {
+                willDisplayCampaignModal = false
+                onNothingShown?()
+                return
+            }
+            
+            guard let donateURL =  activeCampaignAsset.actions[0].url else {
+                willDisplayCampaignModal = false
+                onNothingShown?()
+                return
+            }
+
+            var donateSource: DonateCoordinator.Source = .articleCampaignModal(articleURL, activeCampaignAsset.metricsID, donateURL)
+
+            // Setup donation reminder experiment if needed
+            if activeCampaignAsset.id == WMFDonationReminderDataController.experimentCampaignID {
+
+                let neededAssignment = WMFDonationReminderDataController.shared.needsExperimentAssignment
+
+                let experimentAssignment = try? WMFDonationReminderDataController.shared.assignExperimentIfNeeded(campaignID: activeCampaignAsset.id, campaignCurrencyCode: activeCampaignAsset.currencyCode)
+                if let experimentAssignment, neededAssignment {
+                    DonateFunnel.shared.logDonationReminderGroupAssigned(experimentAssignment, project: wikimediaProject)
+                    #if DEBUG
+                    showDebugExperimentAssignmentToast(experimentAssignment)
+                    #endif
+                }
+
+                if experimentAssignment != nil {
+                    donateSource = .donationReminderCampaignModal(articleURL, activeCampaignAsset.metricsID, donateURL)
+                }
+            }
+
+            guard let metricsID = DonateCoordinator.metricsID(for: donateSource, languageCode: nil) else {
+                willDisplayCampaignModal = false
+                onNothingShown?()
+                return
+            }
+
+            if !isOptedIn {
+                if let project {
+                    DonateFunnel.shared.logHiddenBanner(project: project, metricsID: metricsID)
+                }
+            }
+
+            guard await fundraisingDataController.shouldShowCampaign(countryCode: countryCode, wmfProject: wmfProject) else {
+                willDisplayCampaignModal = false
+                onNothingShown?()
+                return
+            }
+
+            willDisplayCampaignModal = true
+            // Year in Review waits for the next app open, so the two are never back to back.
+            fundraisingDataController.markCampaignPresentedThisSession()
+
+            showNewDonateExperienceCampaignModal(asset: activeCampaignAsset, source: donateSource, project: wikimediaProject)
+        }
+    }
+
+    private func showNewDonateExperienceCampaignModal(asset: WMFFundraisingCampaignConfig.WMFAsset, source: DonateCoordinator.Source, project: WikimediaProject) {
+
+        guard let metricsID = DonateCoordinator.metricsID(for: source, languageCode: nil) else {
+            return
+        }
+
+        DonateFunnel.shared.logFundraisingCampaignModalImpression(project: project, metricsID: metricsID)
+
+        let dataController = WMFFundraisingCampaignDataController.shared
+
+        let shouldShowMaybeLater = dataController.showShowMaybeLaterOption(asset: asset, currentDate: Date())
+
+        wmf_showFundraisingAnnouncement(theme: theme, asset: asset, showMaybeLater: shouldShowMaybeLater, donateButtonTapHandler: { [weak self] button, viewController in
+
+            guard let self else {
+                return
+            }
+
+            if case .donationReminderCampaignModal = source {
+                DonateFunnel.shared.logDonationReminderCampaignModalDidTapDonate(project: project, metricsID: metricsID)
+            } else {
+                DonateFunnel.shared.logFundraisingCampaignModalDidTapDonate(project: project, metricsID: metricsID)
+            }
+
+            guard let navigationController = self.navigationController,
+                  let globalPoint = button.superview?.convert(button.frame.origin, to: navigationController.view) else {
+                return
+            }
+
+            let globalRect = CGRect(x: globalPoint.x, y: globalPoint.y, width: button.frame.width, height: button.frame.height)
+
+            let getDonateButtonGlobalRect: () -> CGRect = { globalRect }
+
+            let donateCoordinator = DonateCoordinator(navigationController: navigationController, source: source, dataStore: dataStore, theme: theme, navigationStyle: .dismissThenPush, setLoadingBlock: { isLoading in
+                guard let fundraisingPanelVC = viewController as? FundraisingAnnouncementPanelViewController else {
+                    return
+                }
+
+                fundraisingPanelVC.isLoading = isLoading
+            }, getDonateButtonGlobalRect: getDonateButtonGlobalRect)
+
+            self.donateCoordinator = donateCoordinator
+            donateCoordinator.start()
+
+            dataController.markAssetAsPermanentlyHidden(asset: asset)
+
+        }, maybeLaterButtonTapHandler: { _, _ in
+            DonateFunnel.shared.logFundraisingCampaignModalDidTapMaybeLater(project: project, metricsID: metricsID)
+        }, alreadyDonatedButtonTapHandler: { _, _ in
+            DonateFunnel.shared.logFundraisingCampaignModalDidTapAlreadyDonated(project: project, metricsID: metricsID)
+            self.donateAlreadyDonated()
+            dataController.markAssetAsPermanentlyHidden(asset: asset)
+        }, footerLinkAction: { url in
+            DonateFunnel.shared.logFundraisingCampaignModalDidTapDonorPolicy(project: project, metricsID: metricsID)
+            self.navigate(to: url, useSafari: true)
+        }, dismissHandler: { action in
+            switch action {
+            case .close:
+                DonateFunnel.shared.logFundraisingCampaignModalDidTapClose(project: project, metricsID: metricsID)
+                dataController.markAssetAsPermanentlyHidden(asset: asset)
+            case .maybeLater:
+                let experimentAssignment: WMFDonationReminderDataController.ExperimentAssignment?
+                if case .donationReminderCampaignModal = source {
+                    experimentAssignment = WMFDonationReminderDataController.shared.experimentAssignment
+                } else {
+                    experimentAssignment = nil
+                }
+
+                if let experimentAssignment,
+                   experimentAssignment != .control,
+                   let navigationController = self.navigationController {
+                    let coordinator = DonationReminderSetupCoordinator(
+                        navigationController: navigationController,
+                        currencyCode: asset.currencyCode,
+                        theme: self.theme,
+                        origin: .banner(self.articleURL)
+                    )
+                    self.donationReminderSetupCoordinator = coordinator
+                    coordinator.start()
+                } else {
+                    dataController.markAssetAsMaybeLater(asset: asset, currentDate: Date())
+                    var isDonationReminderCampaign = false
+                    if case .donationReminderCampaignModal = source {
+                        isDonationReminderCampaign = true
+                    }
+                    self.donateDidSetMaybeLater(metricsID: metricsID, isDonationReminderCampaign: isDonationReminderCampaign)
+                }
+            case .donate, .alreadyDonated, .other:
+                break
+            }
+        })
+    }
+
+    #if DEBUG
+    private func showDebugExperimentAssignmentToast(_ experimentAssignment: WMFDonationReminderDataController.ExperimentAssignment) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.5))
+            WMFToastManager.sharedInstance.showRichToast("[Debug] Experiment group: \(experimentAssignment.rawValue)", dismissPreviousToasts: false)
+        }
+    }
+    #endif
+
+    func donateDidSetMaybeLater(metricsID: String, isDonationReminderCampaign: Bool) {
+
+        let project = WikimediaProject(siteURL: articleURL)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let title = WMFLocalizedString("donate-later-title", value: "We will remind you again tomorrow.", comment: "Title for toast shown when user clicks remind me later on fundraising banner")
+
+            if let project {
+                if isDonationReminderCampaign {
+                    DonateFunnel.shared.logDonationReminderMaybeLaterToastImpression(project: project, metricsID: metricsID)
+                } else {
+                    DonateFunnel.shared.logArticleDidSeeReminderToast(project: project, metricsID: metricsID)
+                }
+            }
+
+            WMFToastManager.sharedInstance.showRichToast(title, duration: nil, dismissPreviousToasts: true)
+        }
+    }
+
+    func donateAlreadyDonated() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let title = WMFLocalizedString("donate-already-donated", value: "Thank you, dear donor! Your generosity helps keep Wikipedia and its and other free knowledge projects thriving.", comment: "Thank you toast shown when user clicks already donated on fundraising banner")
+
+            WMFToastManager.sharedInstance.showRichToast(title, duration: nil, dismissPreviousToasts: true)
+        }
+    }
+
+    func needsYearInReviewAnnouncement() -> Bool {
+
+        if UIDevice.current.userInterfaceIdiom == .pad && (navigationController?.navigationBar.isHidden ?? false) {
+            return false
+        }
+
+        // The announcement is suppressed on an article reached from a deep link. Same reasoning as
+        // the games announcement: `sceneDelegate.didOpenAppFromExternalLink` is not used here since
+        // it stays true for the whole session, which would also suppress internal links tapped from
+        // the deep linked article.
+        guard articleViewSource != .external_link,
+              articleViewSource != .widget else {
+            return false
+        }
+
+        guard let yirDataController = try? WMFYearInReviewDataController() else {
+            return false
+        }
+
+        guard yirDataController.shouldShowYearInReviewFeatureAnnouncement() else {
+            return false
+        }
+
+        // The forced announcement must not open the Year in Review slides. This surface has no
+        // 2026 announcement screen yet, so it shows nothing while the force flag is on.
+        guard !yirDataController.isForcingFeatureAnnouncement else {
+            return false
+        }
+
+        return true
+    }
+
+    /// Loads the data and shows the announcement. Returns true only when it is on screen, so the
+    /// caller can move on to its next modal when it is not. The coordinator marks the announcement
+    /// as shown when it presents it.
+    @MainActor
+    func presentYearInReviewAnnouncement() async -> Bool {
+        guard let yirCoordinator else {
+            return false
+        }
+
+        return await yirCoordinator.presentFeatureAnnouncement(introSlideLoggingID: "article_prompt")
+    }
+}
+
+extension WMFFundraisingCampaignConfig.WMFAsset {
+    var metricsID: String {
+        if let assetID {
+            return "\(languageCode)\(countryCode)_\(id)_\(assetID)_iOS"
+        } else {
+            return "\(languageCode)\(countryCode)_\(id)_iOS"
+        }
+    }
+}
+
+extension ArticleViewController: WMFFeatureAnnouncing { }

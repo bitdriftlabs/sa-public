@@ -1,0 +1,170 @@
+import Foundation
+
+public struct WMFFeatureConfigResponse: Codable, Sendable {
+    
+    public struct Common: Codable, Sendable {
+        public let yir: [YearInReview]
+        
+        public struct YearInReview: Codable, Sendable {
+            
+            public struct TopReadPercentage: Codable, Sendable {
+                public let identifier: String
+                public let min: Int
+                public let max: Int?
+            }
+            
+            public let year: Int
+            public let activeStartDateString: String
+            public let activeEndDateString: String
+            public let dataStartDateString: String
+            public let dataEndDateString: String
+            public let languages: Int
+            public let articles: Int
+            public let savedArticlesApps: Int
+            public let viewsApps: Int
+            public let editsApps: Int
+            public let editsPerMinute: Int
+            public let averageArticlesReadPerYear: Int
+            public let edits: Int
+            public let editsEN: Int
+            public let hoursReadEN: Int
+            public let yearsReadEN: Int
+            public let topReadEN: [String]
+            public let topReadPercentages: [TopReadPercentage]
+            public let bytesAddedEN: Int
+            public let hideCountryCodes: [String]
+            public let hideDonateCountryCodes: [String]
+            
+            enum CodingKeys: String, CodingKey {
+                case year
+                case activeStartDateString = "activeStartDate"
+                case activeEndDateString = "activeEndDate"
+                case dataStartDateString = "dataStartDate"
+                case dataEndDateString = "dataEndDate"
+                case languages
+                case articles
+                case savedArticlesApps
+                case viewsApps
+                case editsApps
+                case editsPerMinute
+                case averageArticlesReadPerYear
+                case edits
+                case editsEN
+                case hoursReadEN
+                case yearsReadEN
+                case topReadEN
+                case topReadPercentages
+                case bytesAddedEN
+                case hideCountryCodes
+                case hideDonateCountryCodes
+            }
+
+            var activeStartDate: Date? {
+                let dateFormatter = DateFormatter.mediaWikiAPIDateFormatter
+                return dateFormatter.date(from: activeStartDateString)
+            }
+            
+            var activeEndDate: Date? {
+                let dateFormatter = DateFormatter.mediaWikiAPIDateFormatter
+                return dateFormatter.date(from: activeEndDateString)
+            }
+            
+            var dataStartDate: Date? {
+                let dateFormatter = DateFormatter.mediaWikiAPIDateFormatter
+                return dateFormatter.date(from: dataStartDateString)
+            }
+            
+            var dataEndDate: Date? {
+                let dateFormatter = DateFormatter.mediaWikiAPIDateFormatter
+                return dateFormatter.date(from: dataEndDateString)
+            }
+            
+            func isActive(for date: Date) -> Bool {
+
+                guard let activeStartDate = activeStartDate, let activeEndDate = activeEndDate else {
+                    return false
+                }
+
+                // While the developer settings flag for this config's year is on, skip only the start
+                // date, so testers see the feature before launch. The end date still applies. Each
+                // year has its own flag so that an old flag cannot force a new config active. The
+                // 2025 force flag went with the 2025 UI, so only 2026 has one.
+                if year == 2026, WMFDeveloperSettingsDataController.shared.forceYiREntryPoint2026 {
+                    return date <= activeEndDate
+                }
+
+                return date >= activeStartDate && date <= activeEndDate
+            }
+
+            /// The "top X%" of readers globally that `readCount` puts the reader in, for example `50`
+            /// or `0.01`. The value comes from the `topReadPercentages` buckets. It is `nil` when the
+            /// count is not in a bucket, thus below the 50th percentile.
+            public func topReadPercentage(forReadCount readCount: Int) -> Double? {
+                let bucket = topReadPercentages.first { bucket in
+                    readCount >= bucket.min && readCount <= (bucket.max ?? .max)
+                }
+                return bucket.flatMap { Double($0.identifier) }
+            }
+        }
+        
+        public func yir(year: Int) -> YearInReview? {
+            return yir.first { $0.year == year }
+        }
+        
+        public init(yir: [YearInReview]) {
+            self.yir = yir
+        }
+    }
+    
+    public struct IOS: Codable, Sendable {
+        public let hCaptcha: HCaptcha?
+        public let visualEditorEnabled: Bool?
+        public let semanticSearchLanguages: [String]
+        
+        public struct HCaptcha: Codable, Sendable {
+            public let baseURL: String
+            public let jsSrc: String
+            public let endpoint: String
+            public let assethost: String
+            public let imghost: String
+            public let reportapi: String
+            public let sentry: Bool
+            public let apiKey: String
+        }
+
+        public init(hCaptcha: HCaptcha?, visualEditorEnabled: Bool? = nil, semanticSearchLanguages: [String] = []) {
+            self.hCaptcha = hCaptcha
+            self.visualEditorEnabled = visualEditorEnabled
+            self.semanticSearchLanguages = semanticSearchLanguages
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case hCaptcha
+            case visualEditorEnabled
+            case semanticSearchLanguages
+        }
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            hCaptcha = try container.decodeIfPresent(HCaptcha.self, forKey: .hCaptcha)
+            visualEditorEnabled = try container.decodeIfPresent(Bool.self, forKey: .visualEditorEnabled)
+            semanticSearchLanguages = try container.decodeIfPresent([String].self, forKey: .semanticSearchLanguages) ?? []
+        }
+    }
+    
+    public let common: Common
+    public let ios: IOS
+    var cachedDate: Date?
+    
+    enum CodingKeys: String, CodingKey {
+        case common = "commonv1"
+        case ios = "iosv1"
+        case cachedDate
+    }
+    
+    public init(common: WMFFeatureConfigResponse.Common, ios: WMFFeatureConfigResponse.IOS, cachedDate: Date? = nil) {
+        self.common = common
+        self.ios = ios
+        self.cachedDate = cachedDate
+    }
+}
