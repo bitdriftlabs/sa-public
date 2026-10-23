@@ -1,0 +1,102 @@
+package org.wikipedia.donate.donationreminder
+
+import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.core.net.toUri
+import org.wikipedia.R
+import org.wikipedia.activity.BaseActivity
+import org.wikipedia.analytics.eventplatform.DonorExperienceEvent
+import org.wikipedia.compose.components.error.WikiErrorClickEvents
+import org.wikipedia.compose.theme.BaseTheme
+import org.wikipedia.readinglist.recommended.RecommendedReadingListOnboardingActivity.Companion.EXTRA_FROM_SETTINGS
+import org.wikipedia.settings.Prefs
+import org.wikipedia.util.DeviceUtil
+import org.wikipedia.util.FeedbackUtil
+import org.wikipedia.util.UriUtil
+
+class DonationReminderActivity : BaseActivity() {
+    private val viewModel: DonationReminderViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        DeviceUtil.setEdgeToEdge(this)
+        setContent {
+            BaseTheme {
+                DonationReminderScreen(
+                    viewModel = viewModel,
+                    onBackButtonClick = {
+                        onBackPressedDispatcher.onBackPressed()
+                    },
+                    onConfirmButtonClick = {
+                        DonationReminderHelper.shouldShowSettingSnackbar = true
+                        setResult(RESULT_OK_FROM_DONATION_REMINDER)
+                        finish()
+                    },
+                    onFooterButtonClick = {
+                        DonorExperienceEvent.logDonationReminderAction(
+                            activeInterface = "reminder_config",
+                            action = "nothanks_click"
+                        )
+                        setResult(RESULT_OK_FROM_DONATION_REMINDER)
+                        finish()
+                    },
+                    wikiErrorClickEvents = WikiErrorClickEvents(
+                        backClickListener = {
+                            finish()
+                        },
+                        retryClickListener = {
+                            viewModel.loadData()
+                        }
+                    ),
+                    onLearnMoreClick = {
+                        DonorExperienceEvent.logDonationReminderAction(
+                            activeInterface = "reminder_overflow",
+                            action = "overflow_learn_more_click"
+                        )
+                        UriUtil.visitInExternalBrowser(this, getString(R.string.donation_reminders_experiment_url).toUri())
+                    },
+                    onReportClick = {
+                        DonorExperienceEvent.logDonationReminderAction(
+                            activeInterface = "reminder_overflow",
+                            action = "overflow_problem_click"
+                        )
+                        FeedbackUtil.composeEmail(this,
+                            subject = getString(R.string.donation_reminders_settings_report_email_subject),
+                            body = getString(R.string.donation_reminders_settings_report_email_body))
+                    }
+                )
+            }
+        }
+        sendAnalysis()
+        enableWrapUp()
+    }
+
+    private fun sendAnalysis() {
+        if (!viewModel.isFromSettings) {
+            DonorExperienceEvent.logDonationReminderAction(
+                activeInterface = "reminder_config",
+                action = "impression",
+                campaignId = DonationReminderHelper.getCampaignId()
+            )
+        }
+    }
+
+    private fun enableWrapUp() {
+        if (!DonationReminderHelper.isWrapUpEnabled) {
+            Prefs.donationReminderConfig = Prefs.donationReminderConfig.copy(
+                wrapUpEnabled = true
+            )
+        }
+    }
+
+    companion object {
+        const val RESULT_OK_FROM_DONATION_REMINDER = 100
+        fun newIntent(context: Context, isFromSettings: Boolean = false): Intent {
+            return Intent(context, DonationReminderActivity::class.java)
+                .putExtra(EXTRA_FROM_SETTINGS, isFromSettings)
+        }
+    }
+}

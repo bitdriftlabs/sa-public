@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/menu_long_press_open_page"
+        android:title="@string/menu_long_press_open_page" />
+    <item android:id="@+id/menu_long_press_open_in_places"
+        android:title="@string/menu_long_press_open_in_places" />
+    <item android:id="@+id/menu_long_press_open_in_new_tab"
+        android:title="@string/menu_long_press_open_in_new_tab" />
+    <item android:id="@+id/menu_long_press_add_to_default_list"
+        android:title="@string/feed_card_add_to_default_list"/>
+    <item android:id="@+id/menu_long_press_share_page"
+        android:title="@string/menu_page_share"/>
+    <item android:id="@+id/menu_long_press_copy_page"
+        android:title="@string/menu_long_press_copy_page" />
+</menu>

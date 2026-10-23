@@ -1,0 +1,391 @@
+package org.wikipedia.activity
+
+import android.content.Intent
+import android.os.Bundle
+import android.view.MenuItem
+import android.view.MotionEvent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.ColorInt
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.graphics.drawable.toDrawable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.skydoves.balloon.Balloon
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import org.wikimedia.testkitchen.instrument.InstrumentImpl
+import org.wikipedia.Constants
+import org.wikipedia.Constants.InvokeSource
+import org.wikipedia.R
+import org.wikipedia.WikipediaApp
+import org.wikipedia.analytics.BreadcrumbsContextHelper
+import org.wikipedia.analytics.eventplatform.BreadCrumbLogEvent
+import org.wikipedia.analytics.eventplatform.EventPlatformClient
+import org.wikipedia.analytics.testkitchen.TestKitchenAdapter
+import org.wikipedia.appshortcuts.AppShortcuts
+import org.wikipedia.auth.AccountUtil
+import org.wikipedia.concurrency.FlowEventBus
+import org.wikipedia.connectivity.ConnectionStateMonitor
+import org.wikipedia.createaccount.CreateAccountEncourageActivity
+import org.wikipedia.createaccount.CreateAccountEncourageViewModel
+import org.wikipedia.donate.DonateDialog
+import org.wikipedia.events.LoggedOutInBackgroundEvent
+import org.wikipedia.events.ReadingListsEnableDialogEvent
+import org.wikipedia.events.ReadingListsNoLongerSyncedEvent
+import org.wikipedia.events.SplitLargeListsEvent
+import org.wikipedia.events.ThemeFontChangeEvent
+import org.wikipedia.events.UnreadNotificationsEvent
+import org.wikipedia.games.onthisday.OnThisDayGameResultFragment
+import org.wikipedia.login.LoginActivity
+import org.wikipedia.main.MainActivity
+import org.wikipedia.notifications.NotificationCategory
+import org.wikipedia.notifications.NotificationPresenter
+import org.wikipedia.page.ExclusiveBottomSheetPresenter
+import org.wikipedia.page.PageActivity
+import org.wikipedia.readinglist.ReadingListSyncBehaviorDialogs
+import org.wikipedia.readinglist.sync.ReadingListSyncAdapter
+import org.wikipedia.readinglist.sync.ReadingListSyncEvent
+import org.wikipedia.recurring.RecurringTasksExecutor
+import org.wikipedia.richtext.CustomHtmlParser
+import org.wikipedia.settings.Prefs
+import org.wikipedia.theme.Theme
+import org.wikipedia.util.DeviceUtil
+import org.wikipedia.util.FeedbackUtil
+import org.wikipedia.util.ResourceUtil
+import org.wikipedia.views.ImageZoomHelper
+import org.wikipedia.widgets.readingchallenge.ReadingChallengeInstallWidgetDialog
+import org.wikipedia.widgets.readingchallenge.ReadingChallengeOnboardingActivity
+import org.wikipedia.widgets.readingchallenge.ReadingChallengeWidgetRepository
+import org.wikipedia.yearinreview.presentation.YearInReviewOnboardingActivity
+import org.wikipedia.yearinreview.presentation.YearInReviewViewModel
+
+abstract class BaseActivity : AppCompatActivity(), ConnectionStateMonitor.Callback {
+    interface Callback {
+        fun onPermissionResult(activity: BaseActivity, isGranted: Boolean)
+    }
+    private var currentTooltip: Balloon? = null
+    private var imageZoomHelper: ImageZoomHelper? = null
+    var callback: Callback? = null
+
+    // For subclasses to create instruments that they would like to persist for the lifetime of the activity.
+    protected var _instrument: InstrumentImpl? = null
+
+    val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            callback?.onPermissionResult(this, isGranted)
+    }
+
+    private val requestDonateActivity = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == RESULT_OK) {
+            ExclusiveBottomSheetPresenter.dismiss(supportFragmentManager)
+            FeedbackUtil.showMessage(this, R.string.donate_gpay_success_message)
+        }
+    }
+
+    private val requestReadingChallengeActivity = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (ReadingChallengeWidgetRepository.shouldShowWidgetInstallDialog()) {
+            ExclusiveBottomSheetPresenter.dismiss(supportFragmentManager)
+            ExclusiveBottomSheetPresenter.show(supportFragmentManager,
+                ReadingChallengeInstallWidgetDialog()
+            )
+        }
+    }
+
+    private val notificationPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        // TODO: Show message(s) to the user if they deny the permission
+    }
+
+    private val yearInReviewLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == RESULT_CANCELED) {
+            FeedbackUtil.showMessage(this, getString(R.string.year_in_review_get_started_later_activity))
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (!DeviceUtil.assertAppContext(this, true)) {
+            finish()
+            return
+        }
+
+        setTheme()
+        removeSplashBackground()
+
+        if (AppShortcuts.ACTION_APP_SHORTCUT == intent.action) {
+            intent.putExtra(Constants.INTENT_EXTRA_INVOKE_SOURCE, InvokeSource.APP_SHORTCUTS)
+            val shortcutId = intent.getStringExtra(AppShortcuts.APP_SHORTCUT_ID)
+            if (!shortcutId.isNullOrEmpty()) {
+                ShortcutManagerCompat.reportShortcutUsed(applicationContext, shortcutId)
+            }
+        }
+
+        val invokeSource = intent.getSerializableExtra(Constants.INTENT_EXTRA_INVOKE_SOURCE) as InvokeSource?
+        invokeSource?.let {
+            when (it) {
+                InvokeSource.WIDGET -> {
+                    val widgetType = intent.getStringExtra(Constants.INTENT_WIDGET_TYPE)
+                    TestKitchenAdapter.client.getInstrument("apps-open")
+                        .submitInteraction(action = "app_open", actionSource = "widget", actionSubtype = widgetType)
+                }
+                InvokeSource.NOTIFICATION -> {
+                    val notificationCategory = intent.getSerializableExtra(Constants.INTENT_EXTRA_NOTIFICATION_CATEGORY) as NotificationCategory?
+                    val subType = when (notificationCategory) {
+                        NotificationCategory.GAMES -> "game"
+                        NotificationCategory.RECOMMENDED_READING_LISTS -> "discover"
+                        else -> null
+                    }
+                    TestKitchenAdapter.client.getInstrument("apps-open")
+                        .submitInteraction(
+                            action = "app_open",
+                            actionSource = "notification",
+                            actionSubtype = subType
+                        )
+                }
+                InvokeSource.APP_SHORTCUTS -> {
+                    val shortcutId = intent.getStringExtra(AppShortcuts.APP_SHORTCUT_ID)
+                    TestKitchenAdapter.client.getInstrument("apps-open")
+                        .submitInteraction(action = "app_open", actionSource = "shortcut", actionSubtype = shortcutId)
+                }
+                else -> { }
+            }
+        }
+
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        // Conditionally execute all recurring tasks
+        RecurringTasksExecutor().run()
+        if (Prefs.isReadingListsFirstTimeSync && AccountUtil.isLoggedIn) {
+            Prefs.isReadingListsFirstTimeSync = false
+            Prefs.isReadingListSyncEnabled = true
+            ReadingListSyncAdapter.manualSyncWithForce()
+        }
+
+        WikipediaApp.instance.connectionStateMonitor.registerCallback(this)
+
+        DeviceUtil.setLightSystemUiVisibility(this)
+        setStatusBarColor(ResourceUtil.getThemedColor(this, R.attr.paper_color))
+        setNavigationBarColor(ResourceUtil.getThemedColor(this, R.attr.paper_color))
+        maybeShowLoggedOutInBackgroundDialog()
+        maybeShowAnnouncement(this)
+
+        Prefs.localClassName = localClassName
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                FlowEventBus.events.collectLatest { event ->
+                    if (event is ThemeFontChangeEvent) {
+                        ActivityCompat.recreate(this@BaseActivity)
+                    }
+                }
+            }
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                FlowEventBus.events.collectLatest { event ->
+                    when (event) {
+                        is SplitLargeListsEvent -> {
+                            MaterialAlertDialogBuilder(this@BaseActivity)
+                                .setMessage(getString(R.string.split_reading_list_message, Constants.MAX_READING_LIST_ARTICLE_LIMIT))
+                                .setPositiveButton(R.string.reading_list_split_dialog_ok_button_text, null)
+                                .show()
+                        }
+                        is ReadingListsNoLongerSyncedEvent -> {
+                            ReadingListSyncBehaviorDialogs.detectedRemoteTornDownDialog(this@BaseActivity)
+                        }
+                        is ReadingListsEnableDialogEvent, (this@BaseActivity is MainActivity) -> {
+                            ReadingListSyncBehaviorDialogs.promptEnableSyncDialog(this@BaseActivity)
+                        }
+                        is LoggedOutInBackgroundEvent -> {
+                            maybeShowLoggedOutInBackgroundDialog()
+                        }
+                        is ReadingListSyncEvent -> {
+                            if (event.showMessage && !Prefs.isSuggestedEditsHighestPriorityEnabled) {
+                                FeedbackUtil.makeSnackbar(this@BaseActivity, getString(R.string.reading_list_toast_last_sync)).show()
+                            }
+                        }
+                        is UnreadNotificationsEvent -> {
+                            runOnUiThread {
+                                if (!isDestroyed) {
+                                    onUnreadNotification()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        WikipediaApp.instance.connectionStateMonitor.unregisterCallback(this)
+        CustomHtmlParser.pruneBitmaps(this)
+        super.onDestroy()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        WikipediaApp.instance.appSessionEvent.persistSession()
+        TestKitchenAdapter.client.onAppPause()
+        EventPlatformClient.flushCachedEvents()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        WikipediaApp.instance.appSessionEvent.touchSession()
+        TestKitchenAdapter.client.onAppResume()
+        BreadCrumbLogEvent.logScreenShown(this)
+        TestKitchenAdapter.client.getInstrument("apps-open")
+            .submitInteraction(action = "app_open", actionSource = "background",
+                actionSubtype = this::class.java.simpleName)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        NotificationPresenter.maybeRequestPermission(this, notificationPermissionLauncher)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            android.R.id.home -> {
+                onBackPressedDispatcher.onBackPressed()
+                true
+            }
+            else -> false
+        }
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN ||
+                event.actionMasked == MotionEvent.ACTION_POINTER_DOWN) {
+            dismissCurrentTooltip()
+        }
+
+        BreadcrumbsContextHelper.dispatchTouchEvent(window, event)
+
+        imageZoomHelper?.let {
+            return it.onDispatchTouchEvent(event) || super.dispatchTouchEvent(event)
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == RESULT_OK && data?.hasExtra(OnThisDayGameResultFragment.EXTRA_GAME_COMPLETED) == true) {
+            OnThisDayGameResultFragment.maybeShowOnThisDayGameEndContent(this)
+        }
+    }
+
+    protected fun setStatusBarColor(@ColorInt color: Int) {
+        window.statusBarColor = color
+    }
+
+    protected fun setNavigationBarColor(@ColorInt color: Int) {
+        DeviceUtil.setNavigationBarColor(window, color)
+    }
+
+    protected open fun setTheme() {
+        if (WikipediaApp.instance.currentTheme != Theme.LIGHT) {
+            setTheme(WikipediaApp.instance.currentTheme.resourceId)
+        }
+    }
+
+    override fun onGoOffline() {}
+
+    override fun onGoOnline() {}
+
+    fun launchDonateDialog(campaignId: String? = null, donateUrl: String? = null) {
+        ExclusiveBottomSheetPresenter.show(supportFragmentManager, DonateDialog.newInstance(campaignId, donateUrl))
+    }
+
+    fun launchDonateActivity(intent: Intent) {
+        requestDonateActivity.launch(intent)
+    }
+
+    fun getInstrument(): InstrumentImpl? {
+        return _instrument
+    }
+
+    protected fun showReadingChallenge() {
+        requestReadingChallengeActivity.launch(ReadingChallengeOnboardingActivity
+            .newIntent(this)
+            .setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP))
+    }
+
+    private fun removeSplashBackground() {
+        window.setBackgroundDrawable(ResourceUtil.getThemedColor(this, R.attr.paper_color).toDrawable())
+    }
+
+    private fun maybeShowLoggedOutInBackgroundDialog() {
+        if (!Prefs.queueLoggedOutInBackgroundDialog || isDestroyed || this is LoginActivity)
+            return
+        Prefs.queueLoggedOutInBackgroundDialog = false
+
+        val instrument = TestKitchenAdapter.client.getInstrument("apps-authentication")
+            .setDefaultActionSource("logout_background_dialog")
+            .startFunnel("logout_account_background")
+        instrument.submitInteraction("impression")
+
+        MaterialAlertDialogBuilder(this)
+                .setCancelable(false)
+                .setTitle(R.string.logged_out_in_background_title)
+                .setMessage(R.string.logged_out_in_background_dialog)
+                .setPositiveButton(R.string.logged_out_in_background_login) { _, _ ->
+                    instrument.submitInteraction("click", elementId = "login_button")
+                    startActivity(LoginActivity.newIntent(this@BaseActivity, LoginActivity.SOURCE_LOGOUT_BACKGROUND))
+                }
+                .setNegativeButton(R.string.logged_out_in_background_cancel) { _, _ ->
+                    instrument.submitInteraction("click", elementId = "cancel")
+                }
+                .show()
+    }
+
+    private fun dismissCurrentTooltip() {
+        currentTooltip?.dismiss()
+        currentTooltip = null
+    }
+
+    fun setCurrentTooltip(tooltip: Balloon) {
+        dismissCurrentTooltip()
+        currentTooltip = tooltip
+    }
+
+    fun setImageZoomHelper() {
+        imageZoomHelper = ImageZoomHelper(this)
+    }
+
+    fun maybeShowAnnouncement(activity: BaseActivity) {
+        // Announcements may only be shown on top of these activities:
+        if (listOf(
+                MainActivity::class,
+                PageActivity::class
+        ).none { it.isInstance(activity) }) {
+            return
+        }
+
+        if (Prefs.isInitialOnboardingEnabled) return
+        if (!Prefs.isExploreFeedUpdatePromptShown) return
+
+        val isExternalArticleLink = activity is PageActivity &&
+                activity.intent.action == Intent.ACTION_VIEW &&
+                activity.intent.data != null
+
+        lifecycleScope.launch {
+            when {
+                ReadingChallengeWidgetRepository.shouldShowOnboardingDialog() -> showReadingChallenge()
+                YearInReviewViewModel.canShowEntryPoint &&
+                        !Prefs.yearInReviewVisited -> {
+                    yearInReviewLauncher.launch(YearInReviewOnboardingActivity.newIntent(this@BaseActivity))
+                }
+                !isExternalArticleLink && CreateAccountEncourageViewModel.shouldShow() -> {
+                    startActivity(CreateAccountEncourageActivity.newIntent(this@BaseActivity))
+                }
+            }
+        }
+    }
+
+    open fun onUnreadNotification() { }
+}

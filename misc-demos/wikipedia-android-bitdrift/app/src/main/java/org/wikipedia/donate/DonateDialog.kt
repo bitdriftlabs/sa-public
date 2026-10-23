@@ -1,0 +1,220 @@
+package org.wikipedia.donate
+
+import android.content.Context
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.core.view.isVisible
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.launch
+import org.wikipedia.BuildConfig
+import org.wikipedia.R
+import org.wikipedia.WikipediaApp
+import org.wikipedia.activity.BaseActivity
+import org.wikipedia.analytics.eventplatform.DonorExperienceEvent
+import org.wikipedia.databinding.DialogDonateBinding
+import org.wikipedia.dataclient.donate.CampaignCollection
+import org.wikipedia.donate.donationreminder.DonationReminderHelper
+import org.wikipedia.page.ExtendedBottomSheetDialogFragment
+import org.wikipedia.settings.Prefs
+import org.wikipedia.util.CustomTabsUtil
+import org.wikipedia.util.DimenUtil
+import org.wikipedia.util.FeedbackUtil
+import org.wikipedia.util.Resource
+
+class DonateDialog : ExtendedBottomSheetDialogFragment() {
+    private var _binding: DialogDonateBinding? = null
+    private val binding get() = _binding!!
+    private var campaignIdOriginal: String? = null
+    private var campaignId: String? = null
+
+    private val viewModel: DonateViewModel by viewModels()
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        _binding = DialogDonateBinding.inflate(inflater, container, false)
+        campaignIdOriginal = arguments?.getString(ARG_CAMPAIGN_ID) ?: "appmenu"
+        campaignId = DonationReminderHelper.getCampaignId(campaignIdOriginal!!)
+
+        val activeInterface = if (arguments?.getBoolean(ARG_FROM_YIR) == true) {
+            "wiki_yir"
+        } else {
+            if (campaignId.isNullOrEmpty()) "setting" else "article_banner"
+        }
+
+        binding.donateOtherButton.setOnClickListener {
+            DonorExperienceEvent.logAction("webpay_click", activeInterface, campaignId = campaignId)
+            onDonateClicked()
+        }
+
+        binding.donateGooglePayButton.setOnClickListener {
+            invalidateCampaign()
+            DonorExperienceEvent.logAction("gpay_click", activeInterface, campaignId = campaignId)
+            (requireActivity() as? BaseActivity)?.launchDonateActivity(
+                GooglePayComponent.getDonateActivityIntent(requireActivity(), campaignId, arguments?.getString(ARG_DONATE_URL)))
+        }
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                launch {
+                    viewModel.uiState.collect {
+                        when (it) {
+                            is Resource.Loading -> {
+                                binding.progressBar.isVisible = true
+                                binding.contentsContainer.isVisible = false
+                            }
+
+                            is Resource.Error -> {
+                                binding.progressBar.isVisible = false
+                                FeedbackUtil.showMessage(
+                                    this@DonateDialog,
+                                    it.throwable.localizedMessage.orEmpty()
+                                )
+                            }
+
+                            is Resource.Success -> {
+                                // if Google Pay is not available, then bounce right out to external workflow.
+                                if (!it.data) {
+                                    onDonateClicked()
+                                    return@collect
+                                }
+                                binding.progressBar.isVisible = false
+                                binding.contentsContainer.isVisible = true
+                            }
+                        }
+                    }
+                }
+                if (arguments?.getBoolean(ARG_FROM_DONATION_REMINDER) == true) {
+                    setupDirectGooglePayButton(arguments?.getBoolean(ARG_FROM_DONATION_REMINDER_WRAP_UP) ?: false)
+                }
+            }
+        }
+
+        viewModel.checkGooglePayAvailable(requireActivity())
+
+        return binding.root
+    }
+
+    override fun onDestroyView() {
+        _binding = null
+        super.onDestroyView()
+    }
+
+    private fun onDonateClicked(checkMonthly: Boolean = false) {
+        launchDonateLink(requireContext(), url = arguments?.getString(ARG_DONATE_URL), campaignId = campaignId, checkMonthly = checkMonthly)
+        invalidateCampaign()
+        dismiss()
+    }
+
+    private fun invalidateCampaign() {
+        campaignIdOriginal?.let {
+            Prefs.announcementShownDialogs = setOf(it)
+        }
+    }
+
+    private fun setupDirectGooglePayButton(fromDonationReminderWrapUp: Boolean) {
+        val activeInterface = if (fromDonationReminderWrapUp) {
+            "reminder_recur_end"
+        } else {
+            "reminder_milestone"
+        }
+        val donateAmount = if (Prefs.donationReminderConfig.donateAmount <= 0) {
+            DonationReminderHelper.defaultDonateAmountOptions.first()
+        } else {
+            Prefs.donationReminderConfig.donateAmount
+        }
+        val donateAmountText =
+            DonateUtil.currencyFormat.format(donateAmount)
+        val donateButtonText = getString(R.string.donation_reminders_gpay_text, donateAmountText)
+        binding.donateGooglePayButton.text = donateButtonText
+        binding.donateGooglePayButton.setOnClickListener {
+            DonorExperienceEvent.logDonationReminderAction(
+                activeInterface = activeInterface,
+                action = "gpay_click",
+                campaignId = DonationReminderHelper.getCampaignId()
+            )
+            (requireActivity() as? BaseActivity)?.launchDonateActivity(
+                GooglePayComponent.getDonateActivityIntent(
+                    activity = requireActivity(),
+                    filledAmount = donateAmount,
+                    checkedRecurringDonation = fromDonationReminderWrapUp,
+                    campaignId = DonationReminderHelper.getCampaignId()
+                )
+            )
+        }
+        binding.donateGooglePayDifferentAmountButton.isVisible = true
+        binding.donateGooglePayDifferentAmountButton.setOnClickListener {
+            DonorExperienceEvent.logDonationReminderAction(
+                activeInterface = activeInterface,
+                action = "other_gpay_click",
+                campaignId = DonationReminderHelper.getCampaignId()
+            )
+            (requireActivity() as? BaseActivity)?.launchDonateActivity(
+                GooglePayComponent.getDonateActivityIntent(
+                    activity = requireActivity(),
+                    campaignId = DonationReminderHelper.getCampaignId(),
+                    checkedRecurringDonation = fromDonationReminderWrapUp
+                )
+            )
+        }
+        binding.donateOtherButton.setOnClickListener {
+            DonorExperienceEvent.logDonationReminderAction(
+                activeInterface = activeInterface,
+                action = "other_method_click",
+                campaignId = DonationReminderHelper.getCampaignId()
+            )
+            onDonateClicked(fromDonationReminderWrapUp)
+        }
+        if (fromDonationReminderWrapUp) {
+            binding.gPayTitle.text = getString(R.string.donation_reminders_eoe_donate_dialog_title)
+            (binding.gPayTitle.layoutParams as? ViewGroup.MarginLayoutParams)?.let { params ->
+                params.bottomMargin = DimenUtil.roundedDpToPx(16.0f)
+                binding.gPayTitle.layoutParams = params
+            }
+            binding.gPayDescription.isVisible = false
+        } else {
+            binding.gPayHeaderContainer.isVisible = false
+        }
+    }
+
+    companion object {
+        const val ARG_CAMPAIGN_ID = "campaignId"
+        const val ARG_DONATE_URL = "donateUrl"
+        const val ARG_FROM_DONATION_REMINDER = "fromDonationReminder"
+        const val ARG_FROM_DONATION_REMINDER_WRAP_UP = "fromDonationReminderWrapUp"
+        const val ARG_FROM_YIR = "fromYiR"
+
+        fun newInstance(
+            campaignId: String? = null,
+            donateUrl: String? = null,
+            fromDonationReminder: Boolean = false,
+            fromYiR: Boolean = false,
+            fromDonationReminderWrapUp: Boolean = false
+        ): DonateDialog {
+            return DonateDialog().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_CAMPAIGN_ID, campaignId)
+                    putString(ARG_DONATE_URL, donateUrl)
+                    putBoolean(ARG_FROM_DONATION_REMINDER, fromDonationReminder)
+                    putBoolean(ARG_FROM_DONATION_REMINDER_WRAP_UP, fromDonationReminderWrapUp)
+                    putBoolean(ARG_FROM_YIR, fromYiR)
+                }
+            }
+        }
+
+        fun launchDonateLink(context: Context, url: String? = null, campaignId: String? = "appmenu", checkMonthly: Boolean = false) {
+            val formattedCampaignId = campaignId?.let {
+                return@let CampaignCollection.getFormattedCampaignId(it)
+            }.orEmpty()
+            var donateUrl = url ?: context.getString(R.string.donate_url, formattedCampaignId,
+                WikipediaApp.instance.languageState.systemLanguageCode, BuildConfig.VERSION_NAME, Prefs.appInstallId)
+            if (checkMonthly) {
+                donateUrl += "&frequency=monthly"
+            }
+            CustomTabsUtil.openInCustomTab(context, donateUrl)
+        }
+    }
+}

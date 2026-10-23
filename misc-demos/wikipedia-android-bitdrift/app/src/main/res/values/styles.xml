@@ -1,0 +1,728 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="AppTheme" parent="Theme.Material3.Light.NoActionBar">
+        <item name="android:windowActivityTransitions">true</item>
+        <item name="android:windowContentTransitions">true</item>
+        <item name="windowActionModeOverlay">true</item>
+
+        <item name="toolbarStyle">@style/ToolbarStyle</item>
+        <item name="actionModeStyle">@style/ActionModeStyle</item>
+        <item name="actionBarPopupTheme">@style/ActionBarTheme</item>
+
+        <item name="materialButtonStyle">@style/App.Button</item>
+
+        <item name="snackbarStyle">@style/App.Snackbar</item>
+        <item name="snackbarTextViewStyle">@style/SnackbarTextView</item>
+        <item name="snackbarButtonStyle">@style/SnackbarButton</item>
+
+        <item name="android:listViewStyle">@style/ListView</item>
+        <item name="android:textViewStyle">@style/RtlAwareTextView</item>
+
+        <item name="materialCardViewStyle">@style/CardViewStyle</item>
+
+        <item name="alertDialogTheme">@style/PreferenceDialogTheme</item>
+        <item name="materialAlertDialogTheme">@style/AlertDialogTheme</item>
+
+        <item name="bottomSheetDialogTheme">@style/App.BottomSheetDialogTheme</item>
+
+        <item name="swipeRefreshLayoutProgressSpinnerBackgroundColor">?attr/background_color</item>
+
+        <item name="textInputStyle">@style/TextInputLayoutStyle</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+
+        <item name="preferenceTheme">@style/AppPreferenceTheme</item>
+        <item name="editTextAutoSummarizePreferenceStyle">@style/EditTextAutoSummarizePreference</item>
+        <item name="longPreferenceStyle">@style/LongPreference</item>
+        <item name="intPreferenceStyle">@style/IntPreference</item>
+
+        <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/splash_background_color</item>
+        <item name="android:windowBackground">?attr/border_color</item>
+        <item name="android:colorBackground">?attr/background_color</item>
+        <item name="android:textColorPrimary">?attr/primary_color</item>
+        <item name="android:textColorSecondary">?attr/secondary_color</item>
+        <item name="android:textColorTertiary">?attr/placeholder_color</item>
+        <item name="android:textColorHint">?attr/placeholder_color</item>
+
+        <item name="popupMenuStyle">@style/PopupMenuStyle</item>
+
+        <item name="collapsingToolbarLayoutStyle">@style/CollapsingToolbarStyle</item>
+
+        <item name="talk_page_empty_state_drawable">@drawable/talk_page_empty_state_illustration_light</item>
+
+        <item name="colorPrimary">?attr/progressive_color</item>
+        <item name="colorAccent">?attr/progressive_color</item>
+        <item name="colorError">?attr/destructive_color</item>
+
+        <item name="colorSurface">?attr/paper_color</item>
+        <item name="colorSurfaceContainerLowest">?attr/paper_color</item>
+        <item name="colorSurfaceContainerLow">?attr/paper_color</item>
+        <item name="colorSurfaceContainer">?attr/paper_color</item>
+        <item name="colorSurfaceContainerHigh">?attr/paper_color</item>
+        <item name="colorSurfaceContainerHighest">?attr/paper_color</item>
+        <item name="colorOnSurface">?attr/primary_color</item>
+
+        <item name="colorTertiaryContainer">?attr/paper_color</item>
+        <item name="colorSecondaryContainer">?attr/addition_color</item>
+
+        <item name="colorPrimaryContainer">?attr/paper_color</item>
+        <item name="colorSurfaceVariant">?attr/paper_color</item>
+
+        <item name="elevationOverlayEnabled">false</item>
+        <item name="elevationOverlayColor">?attr/paper_color</item>
+
+        <item name="paper_color">@color/white</item>
+        <item name="background_color">@color/gray100</item>
+        <item name="border_color">@color/gray200</item>
+        <item name="inactive_color">@color/gray400</item>
+        <item name="placeholder_color">@color/gray500</item>
+        <item name="secondary_color">@color/gray600</item>
+        <item name="primary_color">@color/gray700</item>
+        <item name="progressive_color">@color/blue600</item>
+        <item name="success_color">@color/green700</item>
+        <item name="destructive_color">@color/red700</item>
+        <item name="warning_color">@color/yellow700</item>
+        <item name="highlight_color">@color/yellow500</item>
+        <item name="focus_color">@color/orange500</item>
+        <item name="addition_color">@color/blue300_15</item>
+        <item name="overlay_color">@color/black_30</item>
+        <item name="list_divider">@drawable/divider_light</item>
+        <item name="shadow_border">@drawable/shadow_light</item>
+
+        <item name="input_stroke_color_state">@color/color_state_input_field_light</item>
+        <item name="image_tags_onboarding_drawables">@drawable/ic_image_tags_onboarding_light</item>
+        <item name="sync_reading_list_prompt_drawable">@drawable/ic_sync_illustration_light</item>
+
+    </style>
+
+    <style name="AppTheme.Splash">
+        <item name="android:navigationBarColor">@color/splash_background_color</item>
+        <item name="android:statusBarColor">@color/splash_background_color</item>
+        <item name="android:windowBackground">@drawable/splash_background_drawable</item>
+    </style>
+
+    <style name="AppTheme.ActionBar">
+        <item name="windowNoTitle">false</item>
+        <item name="windowActionBar">true</item>
+        <item name="windowActionBarOverlay">false</item>
+        <item name="windowActionModeOverlay">false</item>
+
+        <item name="actionBarStyle">@style/ActionBarStyle</item>
+        <item name="actionBarTheme">@style/ActionBarTheme</item>
+    </style>
+
+    <style name="AppTheme.FullScreen">
+        <item name="android:windowFullscreen">true</item>
+    </style>
+
+    <style name="AppTheme.FullScreen.Translucent">
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <style name="H1">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">24sp</item>
+        <item name="lineHeight">32sp</item>
+    </style>
+
+    <style name="H1.AppBar">
+        <item name="lineHeight">24sp</item>
+    </style>
+
+    <style name="H1.Article">
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style name="H2">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">20sp</item>
+        <item name="lineHeight">28sp</item>
+    </style>
+
+    <style name="H2.AppBar">
+        <item name="lineHeight">24sp</item>
+    </style>
+
+    <style name="H2.DialogTitle" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:textColor">?attr/primary_color</item>
+        <item name="android:singleLine">false</item>
+        <item name="android:maxLines">5</item>
+        <item name="android:ellipsize">end</item>
+    </style>
+
+    <style name="H2.MessageCard">
+        <item name="android:textColor">?attr/primary_color</item>
+    </style>
+
+    <style name="H3">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">16sp</item>
+        <item name="lineHeight">24sp</item>
+    </style>
+
+    <style name="H3.MaterialListTitle">
+        <item name="android:textColor">?attr/primary_color</item>
+    </style>
+
+    <style name="H3.Button">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style name="H3.Article">
+        <item name="android:fontFamily">serif</item>
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style name="H4">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">14sp</item>
+        <item name="lineHeight">24sp</item>
+    </style>
+
+    <style name="H4.MaterialListSectionHeader">
+        <item name="android:textColor">?attr/primary_color</item>
+    </style>
+
+    <style name="H4.Label">
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style name="H5">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textSize">12sp</item>
+        <item name="lineHeight">18sp</item>
+    </style>
+
+    <style name="P">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">16sp</item>
+        <item name="lineHeight">24sp</item>
+    </style>
+
+    <style name="P.Radio">
+        <item name="android:textColor">?attr/primary_color</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">0dp</item>
+    </style>
+
+    <style name="P.Article">
+        <item name="lineHeight">28sp</item>
+    </style>
+
+    <style name="P.DialogBody" parent="MaterialAlertDialog.Material3.Body.Text">
+        <item name="android:textColor">?attr/secondary_color</item>
+    </style>
+
+    <style name="P.MaterialListTitle">
+        <item name="android:textColor">?attr/primary_color</item>
+    </style>
+
+    <style name="App.Snackbar" parent="Widget.Material3.Snackbar">
+        <item name="materialThemeOverlay">@style/ThemeOverlay.App.Snackbar</item>
+    </style>
+
+    <style name="ThemeOverlay.App.Snackbar" parent="ThemeOverlay.Material3.Snackbar">
+        <item name="colorSurfaceInverse">?attr/border_color</item>
+    </style>
+
+    <style name="SnackbarTextView" parent="Widget.Material3.Snackbar.TextView">
+        <item name="android:textColor">?attr/primary_color</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:maxLines">10</item>
+        <item name="lineHeight">24dp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:paddingTop">0dp</item>
+        <item name="android:paddingBottom">0dp</item>
+        <item name="android:paddingStart">0dp</item>
+        <item name="android:paddingEnd">8dp</item>
+    </style>
+
+    <style name="SnackbarButton" parent="Widget.Material3.Button.TextButton.Snackbar">
+        <item name="android:textColor">?attr/progressive_color</item>
+        <item name="android:paddingEnd">8dp</item>
+    </style>
+
+    <style name="Chip">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">14sp</item>
+        <item name="lineHeight">24sp</item>
+    </style>
+
+    <style name="Chip.Label">
+        <item name="android:textColor">?attr/primary_color</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="chipBackgroundColor">?attr/background_color</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipStrokeColor">?attr/border_color</item>
+        <item name="chipMinTouchTargetSize">0dp</item>
+        <item name="chipMinHeight">24dp</item>
+        <item name="chipStartPadding">0dp</item>
+        <item name="chipEndPadding">0dp</item>
+    </style>
+
+    <style name="Chip.Accessible">
+        <item name="chipBackgroundColor">?attr/background_color</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipStrokeColor">?attr/border_color</item>
+        <item name="android:textColor">?attr/primary_color</item>
+        <item name="ensureMinTouchTargetSize">true</item>
+        <item name="chipMinTouchTargetSize">48dp</item>
+    </style>
+
+    <style name="Chip.Accessible.Icon">
+        <item name="chipIconSize">14dp</item>
+        <item name="chipIconTint">?attr/primary_color</item>
+        <item name="chipIconVisible">true</item>
+        <item name="iconStartPadding">12dp</item>
+        <item name="iconGravity">start</item>
+    </style>
+
+    <style name="Chip.Accessible.Icon.Small">
+        <item name="android:textSize">12sp</item>
+        <item name="lineHeight">18sp</item>
+    </style>
+
+    <style name="List">
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">?attr/primary_color</item>
+        <item name="lineHeight">24sp</item>
+    </style>
+
+    <style name="List.MaterialListSubtitle">
+        <item name="android:textColor">?attr/secondary_color</item>
+    </style>
+
+    <style name="List.MaterialListDescription">
+        <item name="android:textColor">?attr/placeholder_color</item>
+    </style>
+
+    <style name="Small">
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">12sp</item>
+        <item name="lineHeight">18sp</item>
+    </style>
+
+    <style name="PopupMenuStyle" parent="Widget.Material3.PopupMenu">
+        <item name="overlapAnchor">true</item>
+        <item name="android:popupBackground">?attr/paper_color</item>
+    </style>
+
+    <style name="ActionBarStyle" parent="@style/Widget.Material3.Light.ActionBar.Solid">
+        <item name="navigationIcon">?attr/homeAsUpIndicator</item>
+        <item name="elevation">0dp</item>
+        <item name="background">?attr/paper_color</item>
+        <item name="android:minHeight">?attr/actionBarSize</item>
+        <item name="titleTextStyle">@style/H1.AppBar</item>
+        <item name="android:titleTextStyle">@style/H1.AppBar</item>
+    </style>
+
+    <style name="ActionBarTheme" parent="@style/ThemeOverlay.Material3.ActionBar">
+        <item name="colorControlNormal">?attr/primary_color</item>
+        <item name="actionOverflowMenuStyle">@style/PopupMenuStyle</item>
+    </style>
+
+    <style name="ToolbarStyle" parent="@style/Widget.Material3.Toolbar">
+        <item name="navigationIcon">?attr/homeAsUpIndicator</item>
+        <item name="navigationIconTint">?attr/primary_color</item>
+        <item name="elevation">4dp</item>
+        <item name="android:outlineAmbientShadowColor" tools:targetApi="p">@color/black</item>
+        <item name="android:outlineSpotShadowColor" tools:targetApi="p">@color/black</item>
+        <item name="android:background">?attr/paper_color</item>
+        <item name="titleTextColor">?attr/primary_color</item>
+        <item name="titleTextAppearance">@style/H1.AppBar</item>
+    </style>
+
+    <style name="ToolbarStyle.Small">
+        <item name="titleTextAppearance">@style/H2.AppBar</item>
+    </style>
+
+    <style name="ToolbarStyle.Tabs" parent="@style/Widget.Material3.Toolbar">
+        <item name="navigationIcon">@drawable/ic_add_gray_white_24dp</item>
+        <item name="navigationIconTint">?attr/primary_color</item>
+        <item name="navigationContentDescription">@string/menu_new_tab</item>
+    </style>
+
+    <style name="ActionModeStyle" parent="@style/Widget.Material3.ActionMode">
+        <item name="background">?attr/paper_color</item>
+        <item name="backgroundSplit">?attr/paper_color</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+
+    <style name="BottomNavigationTextAppearance">
+        <item name="android:textSize">@dimen/bottom_nav_label_text_size</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="lineHeight">12sp</item>
+        <item name="maxLines">2</item>
+    </style>
+
+    <style name="BottomNavigationTextAppearance.Active">
+        <item name="android:textStyle">normal</item>
+    </style>
+
+    <style name="CardViewStyle" parent="@style/Base.Widget.Material3.CardView">
+        <item name="cardBackgroundColor">?attr/paper_color</item>
+    </style>
+
+    <style name="ListView" parent="@style/Widget.AppCompat.ListView">
+        <item name="android:divider">@null</item>
+        <item name="android:dividerHeight">0dp</item>
+    </style>
+
+    <style name="RtlAwareTextView" parent="@android:style/Widget.TextView">
+        <item name="android:textAlignment">viewStart</item>
+    </style>
+
+    <style name="TextViewCentered" parent="@android:style/Widget.TextView">
+        <item name="android:gravity">center</item>
+        <item name="android:textAlignment">center</item>
+    </style>
+
+    <style name="SideDrawerMenuItem">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <style name="ListItem" parent="@android:style/TextAppearance">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:paddingTop">16dp</item>
+        <item name="android:paddingBottom">16dp</item>
+        <item name="android:textColor">?attr/primary_color</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+    </style>
+
+    <style name="OverflowMenuItem" parent="ListItem">
+        <item name="android:paddingTop">13dp</item>
+        <item name="android:paddingBottom">13dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+    </style>
+
+    <style name="App.Button" parent="@style/Widget.Material3.Button">
+        <item name="backgroundTint">?attr/progressive_color</item>
+        <item name="iconTint">@color/white</item>
+        <item name="iconSize">24dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="rippleColor">?attr/placeholder_color</item>
+    </style>
+
+    <style name="App.Button.Secondary">
+        <item name="backgroundTint">?attr/background_color</item>
+        <item name="iconTint">?attr/progressive_color</item>
+        <item name="android:textColor">?attr/progressive_color</item>
+    </style>
+
+    <style name="App.Button.Tertiary">
+        <item name="backgroundTint">?attr/background_color</item>
+        <item name="iconTint">?attr/placeholder_color</item>
+        <item name="android:textColor">?attr/placeholder_color</item>
+    </style>
+
+    <style name="App.Button.Text">
+        <item name="elevation">0dp</item>
+        <item name="android:textColor">?attr/progressive_color</item>
+        <item name="iconTint">?attr/progressive_color</item>
+        <item name="android:backgroundTint">@android:color/transparent</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="android:foreground">?android:selectableItemBackground</item>
+    </style>
+
+    <style name="App.Button.Text.Secondary">
+        <item name="android:textColor">?attr/placeholder_color</item>
+        <item name="iconTint">?attr/placeholder_color</item>
+    </style>
+
+    <style name="App.Button.Outline">
+        <item name="android:textColor">?attr/progressive_color</item>
+        <item name="android:backgroundTint">?attr/paper_color</item>
+        <item name="backgroundTint">?attr/paper_color</item>
+        <item name="iconTint">?attr/inactive_color</item>
+        <item name="cornerRadius">8dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">?attr/progressive_color</item>
+        <item name="rippleColor">?attr/placeholder_color</item>
+    </style>
+
+    <style name="App.Button.Outline.Small">
+        <item name="android:minHeight">48dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="iconSize">24dp</item>
+        <item name="iconTint">?attr/progressive_color</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="strokeColor">?attr/border_color</item>
+    </style>
+
+    <style name="ThemeColorCircularButton" parent="@style/Widget.Material3.Button.Icon">
+        <item name="android:layout_width">40dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:text">Aa</item>
+        <item name="cornerRadius">30dp</item>
+        <item name="strokeColor">@color/blue600</item>
+    </style>
+
+    <style name="AppPreferenceTheme" parent="PreferenceThemeOverlay">
+        <item name="preferenceFragmentCompatStyle">@style/AppPreferenceFragment</item>
+        <item name="android:disabledAlpha">0.5</item>
+    </style>
+
+    <style name="AppPreferenceFragment" parent="PreferenceFragment.Material">
+        <item name="android:divider">@null</item>
+    </style>
+
+    <style name="EditTextAutoSummarizePreference" parent="Preference.DialogPreference.EditTextPreference.Material">
+        <item name="android:dialogLayout">@layout/preference_dialog_edittext</item>
+    </style>
+
+    <style name="DataStringPreference" parent="EditTextAutoSummarizePreference">
+        <item name="android:inputType">textVisiblePassword</item>
+    </style>
+
+    <style name="LongPreference" parent="EditTextAutoSummarizePreference">
+        <item name="android:inputType">number</item>
+        <item name="android:maxLength">20</item>
+        <item name="android:gravity">right|end</item>
+    </style>
+
+    <style name="IntPreference" parent="LongPreference">
+        <item name="android:maxLength">11</item>
+    </style>
+
+    <style name="ImageViewDefault">
+        <item name="android:scaleType">centerCrop</item>
+        <item name="android:contentDescription">@null</item>
+    </style>
+
+    <style name="ImageViewDefault.ReadingListThumbnail">
+        <item name="android:layout_width">36dp</item>
+        <item name="android:layout_height">36dp</item>
+    </style>
+
+    <style name="RoundedCornerOverlay">
+        <item name="cornerFamily">rounded</item>
+    </style>
+
+    <style name="RoundedCornerOverlay.TopLeft">
+        <item name="cornerSizeTopLeft">16dp</item>
+    </style>
+    <style name="RoundedCornerOverlay.TopRight">
+        <item name="cornerSizeTopRight">16dp</item>
+    </style>
+    <style name="RoundedCornerOverlay.BottomLeft">
+        <item name="cornerSizeBottomLeft">16dp</item>
+    </style>
+    <style name="RoundedCornerOverlay.BottomRight">
+        <item name="cornerSizeBottomRight">16dp</item>
+    </style>
+    <style name="RoundedCornerOverlay.All.Thumb">
+        <item name="cornerSizeTopLeft">8dp</item>
+        <item name="cornerSizeTopRight">8dp</item>
+        <item name="cornerSizeBottomLeft">8dp</item>
+        <item name="cornerSizeBottomRight">8dp</item>
+    </style>
+    <style name="RoundedCornerOverlay.All.Small">
+        <item name="cornerSizeTopLeft">12dp</item>
+        <item name="cornerSizeTopRight">12dp</item>
+        <item name="cornerSizeBottomLeft">12dp</item>
+        <item name="cornerSizeBottomRight">12dp</item>
+    </style>
+    <style name="RoundedCornerOverlay.All">
+        <item name="cornerSizeTopLeft">16dp</item>
+        <item name="cornerSizeTopRight">16dp</item>
+        <item name="cornerSizeBottomLeft">16dp</item>
+        <item name="cornerSizeBottomRight">16dp</item>
+    </style>
+    <style name="ImageViewDefault.Thumb">
+        <item name="android:layout_width">@dimen/defaultThumbnailSize</item>
+        <item name="android:layout_height">@dimen/defaultThumbnailSize</item>
+        <item name="shapeAppearanceOverlay">@style/RoundedCornerOverlay.All.Thumb</item>
+    </style>
+
+    <style name="CounterOverflowTextAppearance" parent="@style/TextAppearance.Design.Counter.Overflow">
+        <item name="android:textColor">?destructive_color</item>
+    </style>
+
+    <style name="TextInputLayoutErrorTextAppearance">
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="TextInputLayoutStyle" parent="Widget.Material3.TextInputLayout.FilledBox">
+        <item name="android:textColor">?attr/primary_color</item>
+        <item name="android:textColorHint">?attr/placeholder_color</item>
+        <item name="boxBackgroundColor">?attr/background_color</item>
+        <item name="boxStrokeColor">?attr/input_stroke_color_state</item>
+        <item name="hintTextColor">?attr/progressive_color</item>
+        <item name="helperTextTextColor">?attr/placeholder_color</item>
+        <item name="counterTextColor">?attr/placeholder_color</item>
+        <item name="errorTextColor">?attr/destructive_color</item>
+        <item name="boxStrokeErrorColor">?attr/destructive_color</item>
+        <item name="errorTextAppearance">@style/TextInputLayoutErrorTextAppearance</item>
+    </style>
+
+    <style name="PagePopupMenu" parent="@style/Widget.Material3.PopupMenu.Overflow">
+        <item name="android:dropDownHorizontalOffset">@dimen/popup_menu_drop_down_horizontal_offset</item>
+        <item name="android:dropDownVerticalOffset">@dimen/popup_menu_drop_down_vertical_offset</item>
+    </style>
+
+    <style name="AlertDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">?attr/paper_color</item>
+        <item name="colorOnSurface">?attr/primary_color</item>
+        <item name="colorOnSurfaceVariant">?attr/primary_color</item>
+        <item name="elevationOverlayEnabled">false</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/H2.DialogTitle</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/P.DialogBody</item>
+    </style>
+
+    <style name="AlertDialogTheme.AdjustResize">
+        <item name="android:windowSoftInputMode">adjustResize</item>
+    </style>
+
+    <style name="DialogIconWithTint" parent="MaterialAlertDialog.Material3.Title.Icon.CenterStacked">
+        <item name="tint">?attr/primary_color</item>
+    </style>
+
+    <style name="AlertDialogTextStyle.Centered" parent="MaterialAlertDialog.Material3.Title.Text.CenterStacked">
+        <item name="android:textAlignment">center</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="AlertDialogTheme.Icon">
+        <item name="materialAlertDialogTitlePanelStyle">@style/MaterialAlertDialog.Material3.Title.Panel.CenterStacked</item>
+        <item name="materialAlertDialogTitleIconStyle">@style/DialogIconWithTint</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/AlertDialogTextStyle.Centered</item>
+    </style>
+
+    <style name="DialogIconWithTint.SecondaryIcon">
+        <item name="tint">?attr/secondary_color</item>
+    </style>
+
+    <style name="AlertDialogTheme.Icon.Secondary">
+        <item name="materialAlertDialogTitleIconStyle">@style/DialogIconWithTint.SecondaryIcon</item>
+    </style>
+
+    <style name="AlertDialogTheme.Icon.Delete">
+        <item name="buttonBarPositiveButtonStyle">@style/DestructiveDialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/PlaceholderDialogButton</item>
+    </style>
+
+    <style name="AlertDialogTheme.Icon.NegativeInactive">
+        <item name="buttonBarNegativeButtonStyle">@style/PlaceholderDialogButton</item>
+    </style>
+
+    <style name="AlertDialogTheme.Input">
+        <item name="buttonBarNegativeButtonStyle">@style/PlaceholderDialogButton</item>
+    </style>
+
+    <style name="AlertDialogTheme.Delete">
+        <item name="buttonBarPositiveButtonStyle">@style/DestructiveDialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/PlaceholderDialogButton</item>
+    </style>
+
+    <style name="PlaceholderDialogButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">?attr/placeholder_color</item>
+    </style>
+
+    <style name="DestructiveDialogButton" parent="Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:textColor">?attr/destructive_color</item>
+    </style>
+
+    <style name="PreferenceDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="android:colorBackground">?attr/paper_color</item>
+    </style>
+
+    <style name="CollapsingToolbarStyle" parent="Widget.Material3.CollapsingToolbar">
+        <item name="forceApplySystemWindowInsetTop">false</item>
+    </style>
+
+    <style name="App.BottomSheetDialogTheme" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/App.BottomSheetStyle</item>
+    </style>
+
+    <style name="App.BottomSheetStyle" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="behavior_peekHeight">@dimen/bottomSheetPeekHeight</item>
+    </style>
+
+    <!-- When gesture navigation is enabled, for sheets where the content draws its own background to the bottom edge of the screen
+    and handles the navigation bar inset itself. -->
+    <style name="App.BottomSheetDialogTheme.EdgeToEdgeContent">
+        <item name="bottomSheetStyle">@style/App.BottomSheetStyle.EdgeToEdgeContent</item>
+    </style>
+
+    <style name="App.BottomSheetStyle.EdgeToEdgeContent">
+        <item name="paddingBottomSystemWindowInsets">false</item>
+    </style>
+
+    <!-- For sheets that should stop below the status bar when fully expanded, instead of extending behind it. -->
+    <style name="App.BottomSheetDialogTheme.BelowStatusBar">
+        <item name="bottomSheetStyle">@style/App.BottomSheetStyle.BelowStatusBar</item>
+    </style>
+
+    <style name="App.BottomSheetStyle.BelowStatusBar">
+        <item name="paddingTopSystemWindowInsets">false</item>
+        <item name="marginTopSystemWindowInsets">true</item>
+    </style>
+
+    <style name="FloatingActionButtonRounded">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="PlacesToggleStyle" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:textSize">14sp</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:minWidth">0dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="strokeWidth">3dp</item>
+        <item name="strokeColor">?attr/paper_color</item>
+    </style>
+
+    <style name="OutlinedButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">?attr/paper_color</item>
+    </style>
+
+    <style name="MaterialDatePickerStyle" parent="ThemeOverlay.Material3.MaterialCalendar">
+        <item name="android:textViewStyle">@android:style/Widget.TextView</item>
+        <item name="colorOnSurface">?attr/primary_color</item>
+        <item name="colorOnSurfaceVariant">?attr/primary_color</item>
+    </style>
+
+    <style name="CircularImageView">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+</resources>

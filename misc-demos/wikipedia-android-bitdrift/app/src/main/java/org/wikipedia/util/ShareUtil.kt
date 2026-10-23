@@ -1,0 +1,173 @@
+package org.wikipedia.util
+
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.net.Uri
+import android.os.TransactionTooLargeException
+import android.widget.Toast
+import androidx.core.content.FileProvider
+import kotlinx.coroutines.*
+import org.wikipedia.BuildConfig
+import org.wikipedia.R
+import org.wikipedia.page.PageTitle
+import org.wikipedia.util.DateUtil.getFeedCardDateString
+import org.wikipedia.util.log.L
+import java.io.File
+
+object ShareUtil {
+    private const val APP_PACKAGE_REGEX = "org\\.wikipedia.*"
+    private const val FILE_PROVIDER_AUTHORITY = BuildConfig.APPLICATION_ID + ".fileprovider"
+    private const val FILE_PREFIX = "file://"
+
+    fun shareText(context: Context, subject: String, text: String) {
+        val shareIntent = Intent(Intent.ACTION_SEND)
+        shareIntent.putExtra(Intent.EXTRA_SUBJECT, subject)
+        shareIntent.putExtra(Intent.EXTRA_TEXT, text)
+        shareIntent.type = "text/plain"
+
+        try {
+            val chooserIntent = getIntentChooser(context, shareIntent, context.getString(R.string.share_via))
+            if (chooserIntent == null) {
+                showUnresolvableIntentMessage(context)
+            } else {
+                context.startActivity(chooserIntent)
+            }
+        } catch (e: TransactionTooLargeException) {
+            L.logRemoteErrorIfProd(RuntimeException("Transaction too large for share intent."))
+        }
+    }
+
+    fun shareText(context: Context, title: PageTitle, withProvenance: Boolean = true) {
+        shareText(context, StringUtil.fromHtml(title.displayText).toString(),
+                if (withProvenance) UriUtil.getUrlWithProvenance(context, title, R.string.prov_share_link) else title.uri)
+    }
+
+    fun shareText(context: Context, title: PageTitle, newId: Long, oldId: Long) {
+        shareText(context, StringUtil.fromHtml(title.displayText).toString(),
+                title.getWebApiUrl("diff=$newId&oldid=$oldId&variant=${title.wikiSite.languageCode}"))
+    }
+
+    fun shareImage(coroutineScope: CoroutineScope, context: Context, bmp: Bitmap,
+                   imageFileName: String, subject: String, text: String, onShared: (() -> Unit)? = null) {
+        coroutineScope.launch(CoroutineExceptionHandler { _, msg ->
+            displayOnCatchMessage(msg, context)
+        }) {
+            val uri = withContext(Dispatchers.IO) { getUriFromFile(context, processBitmapForSharing(context, bmp, imageFileName)) }
+            if (uri == null) {
+                displayShareErrorMessage(context)
+            } else {
+                val chooserIntent = buildImageShareChooserIntent(context, subject, text, uri)
+                context.startActivity(chooserIntent)
+            }
+            onShared?.invoke()
+        }
+    }
+
+    fun getFeaturedImageShareSubject(context: Context, age: Int): String {
+        return context.getString(R.string.feed_featured_image_share_subject) + " | " + getFeedCardDateString(age)
+    }
+
+    private fun buildImageShareChooserIntent(context: Context, subject: String,
+                                             text: String, uri: Uri): Intent? {
+        val shareIntent = createImageShareIntent(subject, text, uri)
+        return getIntentChooser(context, shareIntent,
+                context.resources.getString(R.string.image_share_via))
+    }
+
+     fun getUriFromFile(context: Context, file: File?): Uri? {
+        if (file == null) {
+            return null
+        }
+        return FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
+     }
+
+    private fun processBitmapForSharing(context: Context, bmp: Bitmap,
+                                        imageFileName: String): File? {
+        val shareFolder = getClearShareFolder(context) ?: return null
+        shareFolder.mkdirs()
+        val bytes = FileUtil.compressBmpToJpg(bmp)
+        return FileUtil.writeToFile(bytes, File(shareFolder, cleanFileName(imageFileName)))
+    }
+
+    private fun createImageShareIntent(subject: String, text: String, uri: Uri): Intent {
+        return Intent(Intent.ACTION_SEND)
+                .putExtra(Intent.EXTRA_SUBJECT, subject)
+                .putExtra(Intent.EXTRA_TEXT, text)
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .setType("image/jpeg")
+                // Android 17 warns to Explicitly grant read access to the URI permission.
+                // The system will no longer grant it from Android 18, so adding this flag to be safe.
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    private fun displayOnCatchMessage(caught: Throwable, context: Context) {
+        Toast.makeText(context, context.getString(R.string.gallery_share_error,
+                caught.localizedMessage),
+                Toast.LENGTH_SHORT).show()
+    }
+
+    private fun displayShareErrorMessage(context: Context) {
+        Toast.makeText(context, context.getString(R.string.gallery_share_error,
+                context.getString(R.string.err_cannot_save_file)),
+                Toast.LENGTH_SHORT).show()
+    }
+
+    fun showUnresolvableIntentMessage(context: Context?) {
+        Toast.makeText(context, R.string.error_can_not_process_link, Toast.LENGTH_LONG).show()
+    }
+
+    private fun getClearShareFolder(context: Context): File? {
+        return try {
+            File(getShareFolder(context), "share").also {
+                it.deleteRecursively()
+            }
+        } catch (caught: Throwable) {
+            L.e("Caught " + caught.message, caught)
+            null
+        }
+    }
+
+    private fun getShareFolder(context: Context): File {
+        return context.cacheDir
+    }
+
+    private fun cleanFileName(fileName: String): String {
+        // Google+ doesn't like file names that have characters %28, %29, %2C
+        var fileNameStr = fileName
+        fileNameStr = fileNameStr.replace("%2[0-9A-F]".toRegex(), "_")
+                .replace("[^0-9a-zA-Z-_.]".toRegex(), "_")
+                .replace("_+".toRegex(), "_")
+        // ensure file name ends with .jpg
+        if (!fileNameStr.endsWith(".jpg")) {
+            fileNameStr = "$fileNameStr.jpg"
+        }
+        return fileNameStr
+    }
+
+    fun getIntentChooser(context: Context, intent: Intent, chooserTitle: CharSequence? = null): Intent? {
+        val infoList = context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        val excludedComponents = HashSet<ComponentName>()
+        infoList.forEach {
+            val activityInfo = it.activityInfo
+            val componentName = ComponentName(activityInfo.packageName, activityInfo.name)
+            if (isSelfComponentName(componentName))
+                excludedComponents.add(componentName)
+        }
+        return if (excludedComponents.size >= infoList.size) null
+        else Intent.createChooser(intent, chooserTitle)
+            .putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, excludedComponents.toTypedArray())
+    }
+
+    fun canOpenUrlInApp(context: Context, url: String): Boolean {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        return context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                .any { it.activityInfo.packageName.matches(APP_PACKAGE_REGEX.toRegex()) }
+    }
+
+    private fun isSelfComponentName(componentName: ComponentName): Boolean {
+        return componentName.packageName.matches(APP_PACKAGE_REGEX.toRegex())
+    }
+}

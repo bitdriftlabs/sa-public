@@ -1,0 +1,207 @@
+package org.wikipedia.donate
+
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.android.gms.wallet.PaymentData
+import com.google.android.gms.wallet.PaymentDataRequest
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+import org.wikipedia.BuildConfig
+import org.wikipedia.R
+import org.wikipedia.WikipediaApp
+import org.wikipedia.dataclient.Service
+import org.wikipedia.dataclient.ServiceFactory
+import org.wikipedia.dataclient.WikiSite
+import org.wikipedia.dataclient.donate.CampaignCollection
+import org.wikipedia.dataclient.donate.DonationConfig
+import org.wikipedia.dataclient.donate.DonationConfigHelper
+import org.wikipedia.settings.Prefs
+import org.wikipedia.util.Resource
+import org.wikipedia.util.log.L
+import retrofit2.create
+import java.net.SocketTimeoutException
+import java.time.Instant
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
+import kotlin.math.abs
+
+class GooglePayViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {
+    val filledAmount = savedStateHandle.get<Float>(GooglePayActivity.FILLED_AMOUNT) ?: 0f
+    val checkedRecurringDonation = savedStateHandle.get<Boolean>(GooglePayActivity.CHECKED_RECURRING_DONATION) ?: false
+    val uiState = MutableStateFlow(Resource<DonationConfig>())
+    private var donationConfig: DonationConfig? = null
+
+    val decimalFormat = GooglePayComponent.getDecimalFormat(DonateUtil.currencyCode)
+
+    val transactionFee get() = donationConfig?.currencyTransactionFees?.get(DonateUtil.currencyCode)
+        ?: donationConfig?.currencyTransactionFees?.get("default") ?: 0f
+
+    val minimumAmount get() = donationConfig?.currencyMinimumDonation?.get(DonateUtil.currencyCode) ?: 0f
+
+    val maximumAmount: Float get() {
+        var max = donationConfig?.currencyMaximumDonation?.get(DonateUtil.currencyCode) ?: 0f
+        if (max == 0f) {
+            val defaultMin = donationConfig?.currencyMinimumDonation?.get(GooglePayComponent.CURRENCY_FALLBACK) ?: 0f
+            if (defaultMin > 0f) {
+                max = (donationConfig?.currencyMinimumDonation?.get(DonateUtil.currencyCode) ?: 0f) / defaultMin *
+                        (donationConfig?.currencyMaximumDonation?.get(GooglePayComponent.CURRENCY_FALLBACK) ?: 0f)
+            }
+        }
+        return max
+    }
+
+    val emailOptInRequired get() = donationConfig?.countryCodeEmailOptInRequired.orEmpty().contains(DonateUtil.currentCountryCode)
+
+    var disclaimerInformationSharing: String? = null
+    var disclaimerMonthlyCancel: String? = null
+
+    var finalAmount = 0f
+
+    private val service: Service
+
+    init {
+        DonateUtil.currencyFormat.minimumFractionDigits = 0
+        val wikiSite = WikiSite(GooglePayComponent.PAYMENTS_API_URL)
+        service = ServiceFactory.createRetrofit(wikiSite, ServiceFactory.getBasePath(wikiSite)).create<Service>()
+        load()
+    }
+
+    fun load() {
+        viewModelScope.launch(CoroutineExceptionHandler { _, throwable ->
+            uiState.value = Resource.Error(throwable)
+        }) {
+            uiState.value = Resource.Loading()
+
+            val donationConfigCall = async { DonationConfigHelper.getConfig() }
+            val donationMessagesCall = async { ServiceFactory[WikipediaApp.instance.wikiSite, DonationConfigHelper.DONATE_WIKI_URL, Service::class.java].getMessages(
+                listOf(MSG_DISCLAIMER_INFORMATION_SHARING, MSG_DISCLAIMER_MONTHLY_CANCEL).joinToString("|"),
+                null, WikipediaApp.instance.appOrSystemLanguageCode) }
+
+            donationConfig = donationConfigCall.await()
+            donationMessagesCall.await().let { response ->
+                disclaimerInformationSharing = response.query?.allmessages?.find { it.name == MSG_DISCLAIMER_INFORMATION_SHARING }?.content?.replace("$1", WikipediaApp.instance.getString(R.string.donor_privacy_policy_url))
+                disclaimerMonthlyCancel = response.query?.allmessages?.find { it.name == MSG_DISCLAIMER_MONTHLY_CANCEL }?.content?.replace("$1", WikipediaApp.instance.getString(R.string.donate_email))
+            }
+
+            // The paymentMethods API is rate limited, so we cache it manually.
+            val now = Instant.now().epochSecond
+            if (abs(now - Prefs.paymentMethodsLastQueryTime) > TimeUnit.DAYS.toSeconds(7)) {
+                Prefs.paymentMethodsMerchantId = ""
+                Prefs.paymentMethodsGatewayId = ""
+
+                val paymentMethodsCall = async {
+                    service.getPaymentMethods(DonateUtil.currentCountryCode)
+                }
+                paymentMethodsCall.await().response?.let { response ->
+                    Prefs.paymentMethodsLastQueryTime = now
+                    response.paymentMethods.find { it.type == GooglePayComponent.PAYMENT_METHOD_NAME }?.let {
+                        Prefs.paymentMethodsMerchantId = it.configuration?.merchantId.orEmpty()
+                        Prefs.paymentMethodsGatewayId = it.configuration?.gatewayMerchantId.orEmpty()
+                    }
+                }
+            }
+
+            if (Prefs.paymentMethodsMerchantId.isEmpty() ||
+                Prefs.paymentMethodsGatewayId.isEmpty() ||
+                !donationConfig!!.countryCodeGooglePayEnabled.contains(DonateUtil.currentCountryCode) ||
+                !donationConfig!!.currencyAmountPresets.containsKey(DonateUtil.currencyCode)) {
+                uiState.value = NoPaymentMethod()
+            } else {
+                uiState.value = Resource.Success(donationConfig!!)
+            }
+        }
+    }
+
+    fun getPaymentDataRequest(): PaymentDataRequest {
+        return PaymentDataRequest.fromJson(GooglePayComponent.getPaymentDataRequestJson(finalAmount,
+            DonateUtil.currencyCode,
+            Prefs.paymentMethodsMerchantId,
+            Prefs.paymentMethodsGatewayId
+        ).toString())
+    }
+
+    fun submit(
+        paymentData: PaymentData,
+        payTheFee: Boolean,
+        recurring: Boolean,
+        optInEmail: Boolean,
+        campaignId: String
+    ) {
+        viewModelScope.launch(CoroutineExceptionHandler { _, throwable ->
+            uiState.value = Resource.Error(throwable)
+        }) {
+            uiState.value = Resource.Loading()
+
+            if (Prefs.isDonationTestEnvironment) {
+                uiState.value = DonateSuccess()
+                return@launch
+            }
+
+            val paymentDataObj = JSONObject(paymentData.toJson())
+            val paymentMethodObj = paymentDataObj.getJSONObject("paymentMethodData")
+            val infoObj = paymentMethodObj.getJSONObject("info")
+            val billingObj = infoObj.getJSONObject("billingAddress")
+            val token = paymentMethodObj.getJSONObject("tokenizationData").getString("token")
+
+            // The backend expects the final amount in the canonical decimal format, instead of
+            // any localized format, e.g. comma as decimal separator.
+            val decimalFormatCanonical = GooglePayComponent.getDecimalFormat(DonateUtil.currencyCode, true)
+
+            // Launch the payment call in its own async job, and suppress timeout exceptions that
+            // might occur if the payment gateway takes too long.
+            val paymentCall = async {
+                try {
+                    val response = service.submitPayment(
+                        amount = decimalFormatCanonical.format(finalAmount),
+                        appVersion = BuildConfig.VERSION_NAME,
+                        banner = CampaignCollection.getFormattedCampaignId(campaignId),
+                        city = billingObj.optString("locality", ""),
+                        country = DonateUtil.currentCountryCode,
+                        currency = DonateUtil.currencyCode,
+                        donorCountry = billingObj.optString("countryCode", DonateUtil.currentCountryCode),
+                        email = paymentDataObj.optString("email", ""),
+                        fullName = billingObj.optString("name", ""),
+                        language = WikipediaApp.instance.appOrSystemLanguageCode,
+                        recurring = if (recurring) "1" else "0",
+                        paymentToken = token,
+                        optIn = if (optInEmail) "1" else "0",
+                        payTheFee = if (payTheFee) "1" else "0",
+                        paymentMethod = GooglePayComponent.PAYMENT_METHOD_NAME,
+                        paymentNetwork = infoObj.optString("cardNetwork", ""),
+                        postalCode = billingObj.optString("postalCode", ""),
+                        stateProvince = billingObj.optString("administrativeArea", ""),
+                        streetAddress = billingObj.optString("address1", ""),
+                        appInstallId = WikipediaApp.instance.appInstallID
+                    )
+                    L.d("Payment response: $response")
+                } catch (e: SocketTimeoutException) {
+                    // Do nothing, since the gateway call might take longer than our socket timeout.
+                } catch (e: TimeoutException) {
+                    // Same, but for different potential sources of timeouts.
+                }
+            }
+            // Wait a few seconds for the call to finish, but then don't worry if the call doesn't
+            // finish, and signal success to the user anyway.
+            for (i in 0..5) {
+                if (paymentCall.isCompleted) {
+                    break
+                }
+                delay(1000)
+            }
+            uiState.value = DonateSuccess()
+        }
+    }
+
+    class NoPaymentMethod : Resource<DonationConfig>()
+    class DonateSuccess : Resource<DonationConfig>()
+
+    companion object {
+        private const val MSG_DISCLAIMER_INFORMATION_SHARING = "donate_interface-informationsharing"
+        private const val MSG_DISCLAIMER_MONTHLY_CANCEL = "donate_interface-monthly-cancel"
+    }
+}

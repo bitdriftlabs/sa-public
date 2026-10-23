@@ -1,0 +1,236 @@
+package org.wikipedia.search
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingSource
+import androidx.paging.PagingState
+import androidx.paging.cachedIn
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import org.wikipedia.Constants
+import org.wikipedia.R
+import org.wikipedia.WikipediaApp
+import org.wikipedia.dataclient.WikiSite
+import org.wikipedia.dataclient.mwapi.MwQueryResponse
+import org.wikipedia.search.semantic.SemanticSearchAbTest
+import org.wikipedia.settings.Prefs
+import kotlin.time.Duration.Companion.milliseconds
+
+class SearchResultsViewModel : ViewModel() {
+    private val semanticSearchAbTest = SemanticSearchAbTest()
+    private val semanticSearchEnabledPrefUpdates = Prefs.observeKeys(
+        R.string.preference_key_semantic_search_enabled,
+        R.string.preference_key_semantic_search_is_test_active, // TODO: remove this before release
+        R.string.preference_key_semantic_search_override_supported_language // TODO: remove this before release
+    )
+    private val semanticSearchIsFirstUsePrefUpdates = Prefs.observeKeys(
+        R.string.preference_key_semantic_search_first_use
+    )
+    private val batchSize = 10
+    private val delayMillis = 200L
+    var countsPerLanguageCode = mutableListOf<Pair<String, Int>>()
+    var isSemanticSearchFeedbackShown = false
+    var isFromRecentSearch = false
+
+    lateinit var invokeSource: Constants.InvokeSource
+
+    private val _searchTerm = MutableStateFlow<String?>(null)
+    var searchTerm = _searchTerm.asStateFlow()
+
+    private val _searchTermForLogging = MutableSharedFlow<String?>()
+    var searchTermForLogging = _searchTermForLogging.asSharedFlow()
+    private val _lexicalResultsForLogging = MutableStateFlow<List<SearchResult>?>(null)
+    var lexicalResultsForLogging = _lexicalResultsForLogging.asStateFlow()
+
+    private var _languageCode = MutableStateFlow(WikipediaApp.instance.languageState.appLanguageCode)
+    var languageCode = _languageCode.asStateFlow()
+
+    private var _refreshSearchResults = MutableStateFlow(0)
+
+    private var lastXSearchIdPrefix = ""
+    private var lastXSearchIdFullText = ""
+    var lastXSearchIdSemantic = ""
+    private var isSemanticSearchExposureSent = false
+
+    val isSemanticSearchEnabled = combine(
+        _languageCode,
+        semanticSearchEnabledPrefUpdates
+    ) { currentLanguageCode, _ ->
+        semanticSearchAbTest.isSemanticSearchEnabled(currentLanguageCode)
+    }.distinctUntilChanged().stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        semanticSearchAbTest.isSemanticSearchEnabled(_languageCode.value)
+    )
+
+    val isSemanticSearchFirstUse = semanticSearchIsFirstUsePrefUpdates
+        .map { Prefs.isSemanticSearchFirstUse }
+        .distinctUntilChanged()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            Prefs.isSemanticSearchFirstUse
+        )
+
+    @OptIn(
+        FlowPreview::class,
+        ExperimentalCoroutinesApi::class
+    ) // TODO: revisit if the debounce method changed.
+    val searchResultsFlow =
+        combine(_searchTerm.debounce(delayMillis.milliseconds), _languageCode, _refreshSearchResults) { term, lang, _ ->
+            Pair(term, lang)
+        }.flatMapLatest { (term, lang) ->
+            // A language change or refresh can re-emit the previous debounced term before the new one settles.
+            if (term == _searchTerm.value) {
+                _searchTermForLogging.emit(term)
+                if (!term.isNullOrBlank()) {
+                    maybeSendSemanticSearchExposure(lang)
+                }
+            }
+            val repository = StandardSearchRepository()
+            Pager(PagingConfig(pageSize = batchSize)) {
+                SearchResultsPagingSource(
+                    searchTerm = term,
+                    languageCode = lang,
+                    countsPerLanguageCode = countsPerLanguageCode,
+                    invokeSource = invokeSource,
+                    repository = repository,
+                    onFirstPageLoaded = { result ->
+                        lastXSearchIdPrefix = result.xSearchIdPrefix.orEmpty()
+                        lastXSearchIdFullText = result.xSearchIdFullText.orEmpty()
+                        _lexicalResultsForLogging.value = result.results
+                    }
+                )
+            }.flow
+        }.cachedIn(viewModelScope)
+
+    fun updateSearchTerm(term: String?) {
+        if (_searchTerm.value != term) {
+            lastXSearchIdSemantic = ""
+        }
+        _searchTerm.value = term
+    }
+
+    fun updateLanguageCode(code: String) {
+        if (_languageCode.value != code) {
+            lastXSearchIdSemantic = ""
+        }
+        _languageCode.value = code
+    }
+
+    fun refreshSearchResults() {
+        _refreshSearchResults.value += 1
+    }
+
+    fun getStandardEventActionContext(result: SearchResult? = null): Map<String, Any> {
+        return buildMap {
+            put("search_id_pre", lastXSearchIdPrefix)
+            put("search_id_ful", lastXSearchIdFullText)
+            if (result != null) {
+                put("position", result.indexInApiCall)
+                put("type", result.type)
+            }
+        }
+    }
+
+    fun getSemanticEventActionContext(result: SearchResult? = null): Map<String, Any> {
+        return buildMap {
+            put("search_id_pre", lastXSearchIdPrefix)
+            put("search_id_ful", lastXSearchIdFullText)
+            put("search_id_sem", lastXSearchIdSemantic)
+            if (result != null) {
+                put("position", result.indexInApiCall)
+                put("type", result.type)
+            }
+        }
+    }
+
+    // Sent for both groups at the point where the semantic search entry card can appear.
+    private fun maybeSendSemanticSearchExposure(languageCode: String) {
+        if (isSemanticSearchExposureSent || invokeSource == Constants.InvokeSource.PLACES ||
+            !Prefs.isSemanticSearchEnabled || !semanticSearchAbTest.isSemanticSearchEligible(languageCode)) {
+            return
+        }
+        isSemanticSearchExposureSent = true
+        semanticSearchAbTest.maybeSendExposureEvent()
+    }
+
+    fun disableSemanticSearch() {
+        Prefs.isSemanticSearchEnabled = false
+    }
+
+    class SearchResultsPagingSource(
+        private val searchTerm: String?,
+        private val languageCode: String?,
+        private var countsPerLanguageCode: MutableList<Pair<String, Int>>,
+        private var invokeSource: Constants.InvokeSource,
+        private val repository: SearchRepository<StandardSearchResults>,
+        private val onFirstPageLoaded: (StandardSearchResults) -> Unit
+    ) : PagingSource<Int, SearchResult>() {
+
+        override suspend fun load(params: LoadParams<Int>): LoadResult<Int, SearchResult> {
+            return try {
+                if (searchTerm.isNullOrEmpty() || languageCode.isNullOrEmpty()) {
+                    return LoadResult.Page(emptyList(), null, null)
+                }
+
+                val result = repository.search(
+                    searchTerm = searchTerm,
+                    languageCode = languageCode,
+                    invokeSource = invokeSource,
+                    continuation = params.key,
+                    batchSize = params.loadSize,
+                    isPrefixSearch = params.key == null,
+                    countsPerLanguageCode = countsPerLanguageCode
+                )
+
+                if (params.key == null) {
+                    onFirstPageLoaded(result)
+                }
+
+                return LoadResult.Page(
+                    result.results,
+                    null,
+                    result.continuation
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LoadResult.Error(e)
+            }
+        }
+
+        override fun getRefreshKey(state: PagingState<Int, SearchResult>): Int? {
+            return null
+        }
+    }
+
+    companion object {
+        fun buildList(
+            response: MwQueryResponse?,
+            invokeSource: Constants.InvokeSource,
+            wikiSite: WikiSite,
+            type: SearchResult.SearchResultType
+        ): List<SearchResult> {
+            return response?.query?.pages?.let { list ->
+                (if (invokeSource == Constants.InvokeSource.PLACES)
+                    list.filter { it.coordinates != null } else list).sortedBy { it.index }
+                    .map { SearchResult(it, wikiSite, it.coordinates, type, indexInApiCall = it.index) }
+            } ?: emptyList()
+        }
+    }
+}

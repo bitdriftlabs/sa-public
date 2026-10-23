@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="nav_tab_home" type="id" />
+    <item name="nav_tab_reading_lists" type="id" />
+    <item name="nav_tab_search" type="id" />
+    <item name="nav_tab_edits" type="id" />
+    <item name="nav_tab_more" type="id" />
+    <item name="nav_tab_overlay_dot" type="id" />
+    <item name="page_save" type="id" />
+    <item name="page_language" type="id" />
+    <item name="page_find_in_article" type="id" />
+    <item name="page_theme" type="id" />
+    <item name="page_contents" type="id" />
+    <item name="page_share" type="id" />
+    <item name="page_watch" type="id" />
+    <item name="page_view_talk_page" type="id" />
+    <item name="page_view_edit_history" type="id" />
+    <item name="page_new_tab" type="id" />
+    <item name="page_home" type="id" />
+    <item name="page_categories" type="id" />
+    <item name="page_edit_article" type="id" />
+    <item name="page_view_on_map" type="id" />
+</resources>
