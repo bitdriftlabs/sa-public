@@ -13,6 +13,7 @@ source_roots:
   I: ios/BitdriftShop
   R: reactnative
   F: flutter/lib
+  J: spec
 
 faults:
   - id: anr
@@ -21,7 +22,7 @@ faults:
     eligible_when: {persona: variant_a, checkout_type: guest}
     forces_guest_checkout: true          # when on + variant_a, guest branch is taken deterministically
     target_screen: CheckoutGuest
-    probability: 0.25
+    probability: 0.25                    # rolled by the journey engine (spec/journey.yaml `fault: anr`)
     force_after_eligible_journeys: 6     # only in infinite mode
     block_ms: 15000
     after_block: {android: "sleep 60000ms forever (watchdog dismisses ANR dialog)", ios: "exit(0)", reactnative: "return (native module blocks UI thread, else JS busy-wait)"}
@@ -31,14 +32,14 @@ faults:
     store: {android: anr_a, ios: app_hang}
     keys: [active, restart_pending, resume_infinite, restart_variant]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:1134", ios: "I:SimulationManager.swift:1369", reactnative: "R:src/context/SimulationContext.tsx:17"}
-    store_source: {android: "A:SimulationManager.kt:1134", ios: "I:DemoPrefs.swift:54"}
+    source: {android: "A:SimulationManager.kt:510", ios: "I:SimulationManager.swift:1369", reactnative: "R:src/context/SimulationContext.tsx:17"}
+    store_source: {android: "A:SimulationManager.kt:661", ios: "I:DemoPrefs.swift:54"}
 
   - id: force_quit
     description: "User swipe-kill on ProductDetail after the product API returns."
     flag: force_quit
     target_screen: ProductDetail
-    probability: 0.60
+    probability: 0.60                    # rolled by the journey engine (spec/journey.yaml `fault: force_quit`)
     force_after_eligible_journeys: 3     # only in infinite mode
     keeps_startup_session: true          # runSingleJourney skips startNewSession while enabled
     mechanism: {android: "cancel sim; host watchdog performs recents swipe-dismiss", ios: "exit(0) after crash_flush_ms; host watchdog relaunches", reactnative: "BdCrash.forceQuit() native module"}
@@ -47,12 +48,12 @@ faults:
     store: {android: force_quit, ios: force_quit}
     keys: [active, restart_pending, resume_infinite, restart_variant]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:1144", ios: "I:SimulationManager.swift:1374", reactnative: "R:src/context/SimulationContext.tsx:22"}
+    source: {android: "A:SimulationManager.kt:493", ios: "I:SimulationManager.swift:1374", reactnative: "R:src/context/SimulationContext.tsx:22"}
 
   - id: crash_loop
     description: "Fire the next crash from crashes.yaml sweep at the end of a journey; app relaunches and resumes."
     flag: order_summary                  # v2 while on
-    fires_at: {android: "after confirmation (success or retry path)", ios: "random back-half journey point, sets crash_journey_point (OPEN-3)", reactnative: "after confirmation", flutter: "at payment, before the pay call"}
+    fires_at: "random back-half journey point (spec/journey.yaml crash_points), recorded as crash_journey_point; confirmation is the fallback (OPEN-3)"
     crash_flush_ms: 300                  # foreground: sleep on main thread then crash
     background_settle_ms: 2000           # background half: wait after backgrounding before crashing
     restart_delay_ms: 2000
@@ -65,7 +66,7 @@ faults:
     keys:
       android: [active, next_combo_index, fast_mode, oom_only, resume_infinite_with_crash, restart_variant]
       ios: [active, next_combo_index, fast_mode, oom_only, resume_infinite_with_crash, restart_variant, awaiting_background, pending_watchdog, restart_delay_ms]
-    source: {android: "A:SimulationManager.kt:1105", ios: "I:SimulationManager.swift:1345", reactnative: "R:src/context/SimulationContext.tsx:296", flutter: "F:crash.dart:74"}
+    source: {android: "A:SimulationManager.kt:580", ios: "I:SimulationManager.swift:1345", reactnative: "R:src/context/SimulationContext.tsx:296", flutter: "F:crash.dart:74"}
     store_source: {android: "A:ShoppingDemoApp.kt:101", ios: "I:DemoPrefs.swift:52"}
 
   - id: fast_crash

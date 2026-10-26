@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate the bitdrift-shop spec/ for internal consistency.
 
-Usage:  python3 spec/validate.py [--strict]
+Usage:  python3 spec/validate.py [--strict] [--fix-refs]
 
 Checks (errors unless noted):
   * every spec file parses and has `version`
@@ -14,6 +14,11 @@ Checks (errors unless noted):
   * every `used_by:` workflow file exists
   * every OPEN-n / D-xxx id referenced in YAML is defined in DECISIONS.md
   * (warning; error with --strict) the cited source line +/-3 contains the expected name
+  * spec/journey.yaml compiles (tools/journey/compile.py: every reference resolves)
+
+--fix-refs re-points every stale ref that has an expected name to the first line of the
+cited file that contains the name (or its generated-constant form), rewriting the YAML in
+place. Refs without an expected name, or whose name is gone from the file, stay errors.
 
 Requires PyYAML (python3 -m pip install pyyaml). Standard library otherwise.
 """
@@ -34,7 +39,7 @@ SPEC_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = os.path.dirname(SPEC_DIR)
 FILES = ["screens", "telemetry", "flags", "personas", "crashes", "faults", "api"]
 PLATFORMS = {"android", "ios", "reactnative", "flutter"}
-EXTRA_SOURCE_KEYS = {"backend", "kmp"}
+EXTRA_SOURCE_KEYS = {"backend", "kmp", "journey"}
 PLATFORM_LIST_KEYS = ("platforms", "optional_on", "missing_on", "exposure_optional_on", "persisted_on")
 PLATFORM_MAP_KEYS = ("drift", "was", "drift_fields", "drift_level", "drift_values", "source", "source_ui",
                      "impl", "sim_emits", "store_source")
@@ -44,6 +49,7 @@ DECISION_ID_RE = re.compile(r"\b(OPEN-\d+|D-[A-Z]+-[A-Z0-9]+)\b")
 errors = []
 warnings = []
 _file_cache = {}
+stale_refs = []  # (where, ref, token, rel, lines) for --fix-refs
 
 
 def err(msg):
@@ -131,6 +137,8 @@ def check_ref(ref, roots, where, token=None):
         return
     if line < 1 or line > len(lines):
         err("%s: %s has %d lines, ref points at %d" % (where, rel, len(lines), line))
+        if token:
+            stale_refs.append((where, str(ref), str(token), root, path, lines))
         return
     if token:
         # Apps migrated to generated constants reference the name as SpecEvents.FOO_BAR /
@@ -139,6 +147,57 @@ def check_ref(ref, roots, where, token=None):
         norm = lambda x: "".join(ch for ch in x.lower() if ch.isalnum())
         if not any(v in window for v in _token_variants(str(token))) and norm(str(token)) not in norm(window):
             warn("%s: %r not found near %s:%d" % (where, token, rel, line))
+            stale_refs.append((where, str(ref), str(token), root, path, lines))
+
+
+def fix_refs():
+    """Rewrite stale refs in the spec YAML (see --fix-refs in the module doc)."""
+    fixed, unfixed = 0, []
+    texts = {}
+    for where, ref, token, root, path, lines in stale_refs:
+        variants = _token_variants(token)
+        norm = lambda x: "".join(ch for ch in x.lower() if ch.isalnum())
+        hit = next((i for i, l in enumerate(lines, 1) if any(v in l for v in variants)), None)
+        if hit is None:
+            hit = next((i for i, l in enumerate(lines, 1) if norm(token) and norm(token) in norm(l)), None)
+        if hit is None:
+            unfixed.append("%s: %r no longer appears in %s" % (where, token, path))
+            continue
+        name = where.split(".", 1)[0]
+        if name not in texts:
+            with open(os.path.join(SPEC_DIR, name + ".yaml")) as f:
+                texts[name] = f.read().split("\n")
+        ylines = texts[name]
+        # The entry's own line (name/key/id: token), then the first occurrence of the ref after it.
+        anchor = next((i for i, l in enumerate(ylines)
+                       if re.search(r"(name|key|id):\s*[\"']?%s[\"']?\s*($|[,}#])" % re.escape(token), l)), 0)
+        new = "%s:%s:%d" % (root, path, hit)
+        for i in range(anchor, len(ylines)):
+            if '"%s"' % ref in ylines[i]:
+                ylines[i] = ylines[i].replace('"%s"' % ref, '"%s"' % new, 1)
+                fixed += 1
+                break
+        else:
+            unfixed.append("%s: could not locate %s in %s.yaml" % (where, ref, name))
+    for name, ylines in texts.items():
+        with open(os.path.join(SPEC_DIR, name + ".yaml"), "w") as f:
+            f.write("\n".join(ylines))
+    print("fix-refs: re-pointed %d ref(s)" % fixed)
+    for u in unfixed:
+        print("fix-refs: NOT FIXED  " + u)
+
+
+def check_journey():
+    sys.path.insert(0, os.path.join(REPO_DIR, "tools", "journey"))
+    try:
+        from compile import Compiler
+    except Exception as e:  # noqa: BLE001
+        err("journey: cannot import tools/journey/compile.py: %s" % e)
+        return
+    c = Compiler()
+    c.compile()
+    for e in c.errors:
+        err("journey: " + e)
 
 
 def check_platforms(entry, where, allow_extra=False):
@@ -200,6 +259,17 @@ def collect_decision_ids_from_comments(name, out):
 
 
 def main():
+    if "--fix-refs" in sys.argv:
+        run_checks()
+        fix_refs()
+        errors.clear()
+        warnings.clear()
+        stale_refs.clear()
+        _file_cache.clear()
+    return run_checks()
+
+
+def run_checks():
     strict = "--strict" in sys.argv
     spec = {n: load(n) for n in FILES}
     screens_doc, tel, flags_doc, per, crs, flt, api = (spec[n] for n in FILES)
@@ -521,6 +591,8 @@ def main():
         defined = set(re.findall(r"^#+\s*(OPEN-\d+|D-[A-Z]+-[A-Z0-9]+)\b", text, re.M))
         for i in sorted(ids - defined):
             err("decision id %s is referenced in spec YAML but has no heading in DECISIONS.md" % i)
+
+    check_journey()
 
     # ── report ────────────────────────────────────────────────────────────
     counts = (

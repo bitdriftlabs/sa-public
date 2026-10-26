@@ -57,8 +57,8 @@ object Recorder {
  * Launch arguments for the automated test harness, passed as intent extras:
  *   --ei sim_runs N --el sim_seed S --es persona control|variant_a|variant_b --es record_file name.jsonl
  * `sim_runs` > 0 turns on autorun: skip the config countdown, run N journeys, log
- * `sim_autorun_complete`. Until Phase 4 the simulator is not seeded; `sim_seed` is
- * accepted and reported only.
+ * `sim_autorun_complete`. `sim_seed` (0..2^31-1) seeds the journey engine, so the same
+ * seed and persona replay the same journeys on every app.
  */
 object AutorunConfig {
     var runs: Int = 0

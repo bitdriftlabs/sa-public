@@ -7,7 +7,9 @@
 #          and the app's own unit tests where it has them.
 #   smoke: build, install, launch with `sim_runs/sim_seed/persona/record_file` launch arguments,
 #          wait for the `sim_autorun_complete` marker, pull the recorded JSONL off the device and
-#          run tools/conformance on it.
+#          run tools/conformance on it, including the journey check against the reference
+#          engine for that persona/seed. With several apps, their journey records are also
+#          diffed against each other (conformance.py --diff).
 #
 # Tunables (env): SIM_RUNS (5) SIM_SEED (42) PERSONA (control|variant_a|variant_b) SMOKE_TIMEOUT (360s)
 # Prints one summary line per app; exits non-zero if any failed.
@@ -75,7 +77,7 @@ smoke_android() {
   done
   (( waited < SMOKE_TIMEOUT )) || { echo "timed out after ${SMOKE_TIMEOUT}s waiting for sim_autorun_complete"; return 1; }
   adb -s "$serial" exec-out run-as "$pkg" cat "files/record/$file" >"$OUT/android-$file"
-  "$PY" "$ROOT/tools/conformance/conformance.py" --platform android --runs "$SIM_RUNS" "$OUT/android-$file"
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform android --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$OUT/android-$file"
 }
 
 # ── ios ──────────────────────────────────────────────────────────────────────
@@ -115,7 +117,7 @@ smoke_ios() {
   done
   (( waited < SMOKE_TIMEOUT )) || { echo "timed out after ${SMOKE_TIMEOUT}s waiting for sim_autorun_complete"; return 1; }
   cp "$rec" "$OUT/ios-$file"
-  "$PY" "$ROOT/tools/conformance/conformance.py" --platform ios --runs "$SIM_RUNS" "$OUT/ios-$file"
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform ios --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$OUT/ios-$file"
 }
 
 # ── collector-driven apps (RN, Flutter) ──────────────────────────────────────
@@ -178,7 +180,7 @@ smoke_rn_android() {
     || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/rn-android-start.log"; return 1; }
   act="$(adb -s "$serial" shell cmd package resolve-activity --brief "$pkg" | tail -1 | tr -d '\r')"
   await_collector "adb -s $serial shell am start -S -n $act" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
-  "$PY" "$ROOT/tools/conformance/conformance.py" --platform reactnative --runs "$SIM_RUNS" "$out"
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform reactnative --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$out"
 }
 
 smoke_rn_ios() {
@@ -188,7 +190,7 @@ smoke_rn_ios() {
   (cd "$ROOT/reactnative" && bash scripts/ios-3-start-app.sh >"$OUT/rn-ios-start.log" 2>&1) \
     || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/rn-ios-start.log"; return 1; }
   await_collector "xcrun simctl launch --terminate-running-process $udid $bundle" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
-  "$PY" "$ROOT/tools/conformance/conformance.py" --platform reactnative --runs "$SIM_RUNS" "$out"
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform reactnative --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$out"
 }
 
 unit_flutter() {
@@ -207,7 +209,7 @@ smoke_flutter_android() {
   (cd "$ROOT/flutter" && BDSHOP_HARNESS=1 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bash scripts/android-3-start-app.sh >"$OUT/flutter-android-start.log" 2>&1) \
     || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/flutter-android-start.log"; return 1; }
   await_collector "adb -s $serial shell am start -S -n ai.bitdrift.shop.flutter/.MainActivity" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
-  "$PY" "$ROOT/tools/conformance/conformance.py" --platform flutter --runs "$SIM_RUNS" "$out"
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform flutter --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$out"
 }
 
 smoke_flutter_ios() {
@@ -217,7 +219,7 @@ smoke_flutter_ios() {
   (cd "$ROOT/flutter" && BDSHOP_HARNESS=1 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bash scripts/ios-3-start-app.sh >"$OUT/flutter-ios-start.log" 2>&1) \
     || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/flutter-ios-start.log"; return 1; }
   await_collector "xcrun simctl launch --terminate-running-process $udid io.bitdrift.bitdriftShopFlutter" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
-  "$PY" "$ROOT/tools/conformance/conformance.py" --platform flutter --runs "$SIM_RUNS" "$out"
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform flutter --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$out"
 }
 
 # ── dispatch ─────────────────────────────────────────────────────────────────
@@ -235,5 +237,17 @@ app="$1"; tier="$2"
 apps=(android ios rn-android rn-ios flutter-android flutter-ios)
 [[ "$app" == all ]] || apps=("$app")
 rc=0
-for a in "${apps[@]}"; do run_app "$a" "$tier" || rc=1; done
+passed=()
+for a in "${apps[@]}"; do
+  if run_app "$a" "$tier"; then passed+=("$a"); else rc=1; fi
+done
+# Same persona + seed => the journey records must be identical across apps (Phase 4).
+if [[ "$tier" == smoke && ${#passed[@]} -gt 1 ]]; then
+  files=()
+  for a in "${passed[@]}"; do [[ -f "$OUT/$a-smoke.jsonl" ]] && files+=("$OUT/$a-smoke.jsonl"); done
+  if (( ${#files[@]} > 1 )); then
+    if "$PY" "$ROOT/tools/conformance/conformance.py" --diff "${files[@]}"; then echo "PASS  cross-app journey diff (${#files[@]} apps)"
+    else echo "FAIL  cross-app journey diff"; rc=1; fi
+  fi
+fi
 exit $rc

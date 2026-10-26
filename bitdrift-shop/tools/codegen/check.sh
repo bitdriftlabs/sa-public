@@ -8,3 +8,4 @@ RUN="$ROOT/tools/codegen/run.sh"
 "$RUN" swift "$ROOT/ios/BitdriftShop/Generated" --check
 "$RUN" ts "$ROOT/reactnative/src/generated" --check
 "$RUN" dart "$ROOT/flutter/lib/generated" --check
+"$ROOT/tools/codegen/.venv/bin/python" "$ROOT/tools/journey/golden.py" --check
