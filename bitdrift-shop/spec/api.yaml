@@ -62,12 +62,12 @@ vendor_sdks:
     url: "https://ads.fake-vendor.example/init"
     namespace: {android: com.adsdk.fake.AdRequestInterceptor, ios: AdSDKFake.AdRequestInterceptor}
     message: {android: "AdSDK: native ad renderer failed to initialize", ios: "AdSDK: malformed ad response envelope from <host>"}
-    source: {android: "A:Crashes.kt:302", ios: "I:Crashes.swift:317"}
+    source: {android: "A:Crashes.kt:347", ios: "I:Crashes.swift:317"}
   - id: analytics
     url: "https://ping.fake-analytics.example/batch"
     namespace: {android: com.analytics.fake.AnalyticsPingInterceptor, ios: AnalyticsSDKFake.AnalyticsPingInterceptor}
     message: {android: "AnalyticsSDK: ping batch serialization failed", ios: "AnalyticsSDK: unencodable event in batch bound for <host>"}
-    source: {android: "A:Crashes.kt:310", ios: "I:Crashes.swift:323"}
+    source: {android: "A:Crashes.kt:355", ios: "I:Crashes.swift:323"}
 
 # "SDK out of date" check on the Welcome screen (platform-specific by nature).
 sdk_release_check:

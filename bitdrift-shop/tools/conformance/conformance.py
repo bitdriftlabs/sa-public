@@ -166,7 +166,8 @@ class JourneyView:
         self.events = set(info["events"])
         self.spans = set(info["spans"])
         t = load_spec("telemetry")
-        self.ignore = set(info["volatile_fields"]) | {f["key"] for f in t["fields"] if f.get("platform_specific")}
+        # adapter_added: fields the platform adapter attaches on top of the YAML journey (e.g. cart_json).
+        self.ignore = set(info["volatile_fields"]) | {f["key"] for f in t["fields"] if f.get("platform_specific") or f.get("adapter_added")}
 
     def fields(self, m):
         return ", ".join(f"{k}={m[k]}" for k in sorted(m or {}) if k not in self.ignore)

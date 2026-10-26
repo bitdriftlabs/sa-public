@@ -56,6 +56,7 @@ object Recorder {
 /**
  * Launch arguments for the automated test harness, passed as intent extras:
  *   --ei sim_runs N --el sim_seed S --es persona control|variant_a|variant_b --es record_file name.jsonl
+ *   [--es crash <name>]   with the crash loop on, fire this catalog crash (e.g. app_coupon_empty_cart)
  * `sim_runs` > 0 turns on autorun: skip the config countdown, run N journeys, log
  * `sim_autorun_complete`. `sim_seed` (0..2^31-1) seeds the journey engine, so the same
  * seed and persona replay the same journeys on every app.
@@ -65,6 +66,9 @@ object AutorunConfig {
     var seed: Long = 0
     var persona: String = "control"
     var recordFile: String? = null
+
+    /** `crash=<catalog name>`: fire exactly this crash at the journey's crash point (instead of the sweep). */
+    var crash: String? = null
     var started = false
 
     val active: Boolean get() = runs > 0
@@ -76,6 +80,7 @@ object AutorunConfig {
         seed = e.getLong("sim_seed", 0L)
         persona = e.getString("persona") ?: "control"
         recordFile = e.getString("record_file")
+        crash = e.getString("crash")
         started = false
     }
 

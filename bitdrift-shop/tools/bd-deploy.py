@@ -8,6 +8,9 @@ name, so running this is safe against an account that already has them: anything
 left alone ("exists"), only what is missing is created, and nothing is ever deleted. Dashboards are
 matched by title and have `__WF_<key>__` placeholders resolved to the account's workflow IDs.
 
+Commands (`dump_cart_state`, `flip_flag`) are registered account-wide, once, for both apps' ids; an
+account that already has a command with that key is left alone.
+
 Options:
   --platform android|apple   which app's workflows to deploy (default: apple if the app id ends in
                              .ios, else android)
@@ -97,6 +100,13 @@ def check(manifest):
                     json.loads(read(p))
         except Exception as e:  # noqa: BLE001
             errs.append("%s: %s" % (w["key"], e))
+    ckeys = [c["key"] for c in manifest.get("commands", [])]
+    if len(set(ckeys)) != len(ckeys):
+        errs.append("duplicate command keys")
+    for c in manifest.get("commands", []):
+        for a in c.get("argument_definitions", []):
+            if not {"name", "type", "description", "optional"} <= set(a):
+                errs.append("command %s: argument definition %r needs name/type/description/optional" % (c["key"], a))
     for d in manifest["dashboards"]:
         path = os.path.join(DASH, d["file"])
         if not os.path.exists(path):
@@ -121,6 +131,19 @@ def live_workflows():
     return out
 
 
+def live_commands():
+    r = bd("command", "list", "--category", "registered", "-ojson")
+    if r.returncode != 0:
+        sys.exit("bd command list failed: " + r.stderr.strip())
+    out = set()
+    for c in json.loads(r.stdout).get("commands", []):
+        reg = c.get("registered") or c.get("application") or {}
+        meta = reg.get("metadata") or (reg.get("command") or {}).get("metadata") or {}
+        if meta.get("key"):
+            out.add(meta["key"])
+    return out
+
+
 def live_dashboards():
     r = bd("dashboard", "list", "-ojson")
     if r.returncode != 0:
@@ -142,6 +165,7 @@ def main():
     ap.add_argument("--update", default="")
     ap.add_argument("--update-dashboards", action="store_true")
     ap.add_argument("--no-dashboards", action="store_true")
+    ap.add_argument("--no-commands", action="store_true")
     ap.add_argument("--apply", action="store_true")
     ap.add_argument("--yes", action="store_true")
     ap.add_argument("--name-suffix", default="")
@@ -225,14 +249,25 @@ def main():
             dash_plan.append(dict(d=d, title=title, action=action, id=hits[0] if hits else None))
             print("  %-9s %-44s %s" % (action.split()[0].upper(), d["slug"], hits[0] if hits else "-"))
 
+    cmd_plan = []
+    if not a.no_commands:
+        have = live_commands()
+        print("\ncommands:")
+        for c in manifest.get("commands", []):
+            action = "exists" if c["key"] in have else "create"
+            cmd_plan.append(dict(c=c, action=action))
+            print("  %-9s %s" % (action.upper(), c["key"]))
+
     creates = [p for p in plan if p["action"] == "create"]
     ups = [p for p in plan if p["action"] == "update"]
     dcreate = [p for p in dash_plan if p["action"] in ("create", "update")]
-    print("\nplan: create %d workflow(s), update %d workflow(s), %d dashboard change(s); nothing is deleted." % (len(creates), len(ups), len(dcreate)))
+    ccreate = [p for p in cmd_plan if p["action"] == "create"]
+    print("\nplan: create %d workflow(s), update %d workflow(s), %d dashboard change(s), register %d command(s); nothing is deleted." % (
+        len(creates), len(ups), len(dcreate), len(ccreate)))
     if not a.apply:
         print("dry run: re-run with --apply to make these changes.")
         return
-    if not (creates or ups or dcreate):
+    if not (creates or ups or dcreate or ccreate):
         print("nothing to do.")
         return
     if ups:
@@ -279,6 +314,17 @@ def main():
                     print("    %s FAILED: %s" % (label, (r.stdout + r.stderr).strip()[:300])); failures += 1; break
             else:
                 print("    updated and redeployed")
+    for cp in ccreate:
+        c = cp["c"]
+        args = ["command", "register", c["key"], "--description", c.get("description", "")]
+        for ad in c.get("argument_definitions", []):
+            args += ["--argument-definition", json.dumps(ad)]
+        for app in manifest["apps"].values():
+            args += ["--app-id", app]
+        print("→ register command %s" % c["key"])
+        r = bd(*args)
+        if r.returncode != 0:
+            print("    FAILED:", (r.stdout + r.stderr).strip()[:300]); failures += 1
     for dp in dash_plan:
         if dp["action"] not in ("create", "update"):
             continue

@@ -470,5 +470,24 @@
         "ios_screen_load_timings"
       ]
     }
+  ],
+  "commands": [
+    {
+      "key": "dump_cart_state",
+      "description": "Returns the current cart as a JSON attachment, with item count and total in the result context.",
+      "argument_definitions": []
+    },
+    {
+      "key": "flip_flag",
+      "description": "Flips one of the install-persistent feature flags (express_checkout, product_card_layout, free_shipping_banner) and returns its previous and new value.",
+      "argument_definitions": [
+        {
+          "name": "flag",
+          "type": "STRING",
+          "description": "Flag key: express_checkout, product_card_layout or free_shipping_banner",
+          "optional": false
+        }
+      ]
+    }
   ]
 }

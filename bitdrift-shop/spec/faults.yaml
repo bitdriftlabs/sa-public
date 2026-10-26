@@ -121,5 +121,6 @@ startup:
 other_persisted:
   - {store: {android: user_session, ios: user_session}, keys: [user_id], purpose: "seed user_id global field at startup", source: {android: "A:ShoppingDemoApp.kt:148", ios: "I:DemoPrefs.swift:65"}}
   - {store: {ios: screen}, keys: [last_screen, screen_trail], purpose: "previous_run_terminated attribution", source: {ios: "I:DemoPrefs.swift:68"}}
+  - {store: {android: demo_settings, ios: demo_settings}, keys: [session_mode], purpose: "Phase 6: per_journey (default) or realistic; applies on the next launch because SessionConfiguration is fixed at SDK start", source: {android: "A:ShoppingDemoApp.kt:45", ios: "I:CaptureBridge.swift:1"}}
   - {store: {android: persistent_flags}, keys: [express_checkout, product_card_layout, free_shipping_banner], source: {android: "A:PersistentFeatureFlags.kt:18"}}
   - {file: {ios: "Application Support/bitdrift-demo-state.json"}, purpose: "state file read by ios/scripts", source: {ios: "I:DemoStateFile.swift:26"}}

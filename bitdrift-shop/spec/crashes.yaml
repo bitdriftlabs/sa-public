@@ -170,6 +170,20 @@ crashes:
      missing_on: [reactnative],
      source: {android: "A:Crashes.kt:31", ios: "I:Crashes.swift:37"}}
 
+  # ── Phase 6: realistic crashes in app-like code (no about_to_crash announcement) ──
+  # Each runs a precursor first (handled errors, retries) so the session explains *why* it crashed,
+  # then fails inside a real-looking class. Android/iOS only; the stack's top frame is the app class.
+  - {id: app_coupon_empty_cart, category: runtime_exception, expected_issue: crash, realistic: true,
+     impl: {android: app_coupon_empty_cart},
+     precursor: [coupon_apply_failed],
+     notes: "CartPricing.applyCoupon on an empty cart: maxBy / .max()! with no guard",
+     source: {android: "A:Crashes.kt:66"}}
+  - {id: app_promo_banner_payload, category: runtime_exception, expected_issue: crash, realistic: true,
+     impl: {android: app_promo_banner_payload},
+     precursor: [promo_banner_parse_failed, promo_banner_retry],
+     notes: "PromoBannerParser.parse on a payload whose discount_percent is not a number; the retry has no guard",
+     source: {android: "A:Crashes.kt:67"}}
+
 # Per-crash timing constants (platform implementation detail, informational).
 timings:
   android: {signal_wait_ms: 500, watchdog_delay_ms: 300, lock_hold_ms: 2000, oom_gradual_wait_ms: 35000,

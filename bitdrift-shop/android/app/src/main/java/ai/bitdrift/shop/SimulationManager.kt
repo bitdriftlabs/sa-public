@@ -397,7 +397,11 @@ class SimulationManager : ViewModel() {
 
     private val journeyAdapter = object : JourneyAdapter {
         override fun isCancelled() = isCancelled
-        override fun startNewSession() = RecordingLogger.startNewSession()
+        // In `realistic` session mode the SDK's inactivity timeout owns session boundaries, so one
+        // session spans several journeys; only `per_journey` (the default) starts one per journey.
+        override fun startNewSession() {
+            if (DemoSettings.activeSessionMode == SessionMode.PER_JOURNEY) RecordingLogger.startNewSession()
+        }
         override fun applyExposures(persona: String) = setVariant(activeVariant)
         override fun setEntity(entity: String) {
             // bitdrift SDK: setEntityId() associates all subsequent logs with this user identity.
@@ -409,6 +413,8 @@ class SimulationManager : ViewModel() {
         override suspend fun navigate(screen: String, args: Map<String, String>) {
             val nc = navController ?: return
             val spec = SpecScreen.entries.first { it.id == screen }
+            // `step` is a global field, so every log, span and crash report carries where the journey is.
+            RecordingLogger.addField(SpecFields.STEP, screen)
             val route = args.entries.fold(spec.route) { r, (k, v) -> r.replace("{$k}", v) }
             android.util.Log.d("SimNav", "→ navigating to: $route")
             if (spec == SpecScreen.WELCOME) {
@@ -418,8 +424,29 @@ class SimulationManager : ViewModel() {
             }
         }
 
-        override suspend fun callApi(endpoint: String, args: Map<String, String>): org.json.JSONObject? = try {
+        // Latest cart response, so checkout_started can carry it as cart_json.
+        private var lastCart: org.json.JSONObject? = null
+
+        override suspend fun callApi(endpoint: String, args: Map<String, String>): org.json.JSONObject? {
+            val result = callApiRaw(endpoint, args)
+            when (endpoint) {
+                "browse", "search", "featured", "category_products", "product" -> ProductCatalog.learn(result)
+                "cart_get", "cart_add", "cart_delete" -> lastCart = result
+                "confirmation" -> if (result == null) {
+                    // Payment succeeded but the order cannot be shown: a business-critical failure.
+                    RecordingLogger.logCritical(
+                        mapOf(SpecFields.ORDER_ID to (args["id"] ?: ""), SpecFields.REASON to "confirmation_unavailable")
+                    ) { SpecEvents.ORDER_LOST }
+                }
+            }
+            return result
+        }
+
+        private suspend fun callApiRaw(endpoint: String, args: Map<String, String>): org.json.JSONObject? = try {
             fun a(k: String) = args[k] ?: ""
+            if (endpoint == "confirmation" && DemoSettings.loseOrders(ShoppingDemoApp.appContext)) {
+                throw java.io.IOException("order lookup disabled (demo: lose orders)")
+            }
             when (endpoint) {
                 "welcome" -> ApiClient.getWelcome()
                 "browse" -> ApiClient.getBrowse()
@@ -445,10 +472,13 @@ class SimulationManager : ViewModel() {
         } catch (ce: CancellationException) { throw ce } catch (_: Exception) { null }
 
         override fun log(level: String, event: String, fields: Map<String, String>) {
+            // checkout_started carries the cart as one JSON field (JSON-path workflow metrics).
+            val f = if (event == SpecEvents.CHECKOUT_STARTED) fields + (SpecFields.CART_JSON to CartJson.from(lastCart)) else fields
             when (level) {
-                "error" -> RecordingLogger.logError(fields) { event }
-                "warning" -> RecordingLogger.logWarning(fields) { event }
-                else -> RecordingLogger.logInfo(fields) { event }
+                "critical" -> RecordingLogger.logCritical(f) { event }
+                "error" -> RecordingLogger.logError(f) { event }
+                "warning" -> RecordingLogger.logWarning(f) { event }
+                else -> RecordingLogger.logInfo(f) { event }
             }
         }
 
@@ -536,6 +566,10 @@ class SimulationManager : ViewModel() {
         if (crashKind.startsWith("oom_")) OOM_CRASH_RESTART_DELAY_MS else CRASH_RESTART_DELAY_MS
 
     private fun pickNextCrashCombo(prefs: android.content.SharedPreferences): Triple<String, () -> Unit, Boolean> {
+        // Test harness (`crash=<name>` launch argument): that crash, in the foreground, not the sweep.
+        AutorunConfig.crash?.let { wanted ->
+            Crashes.all.firstOrNull { it.first == wanted }?.let { return Triple(it.first, it.second, false) }
+        }
         val crashes = if (prefs.getBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false)) Crashes.oomOnly else Crashes.all
         val totalCombos = crashes.size * 2
         val comboIdx = prefs.getInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, 0) % totalCombos
@@ -578,14 +612,22 @@ class SimulationManager : ViewModel() {
      * AlarmManager restart (survives native signals), then dispatches the crash.
      */
     private fun fireCrashNow(nc: NavController) {
+        android.util.Log.d("SimNav", "fireCrashNow: crashLoopEnabled=$crashLoopEnabled")
         if (!crashLoopEnabled) return
         val ctx = ShoppingDemoApp.appContext
         val prefs = ctx.getSharedPreferences(ShoppingDemoApp.PREFS, Context.MODE_PRIVATE)
         val (name, fn, fireInBackground) = pickNextCrashCombo(prefs)
         val crashContext = if (fireInBackground) "background" else "foreground"
-        RecordingLogger.addField(SpecFields.CRASH_KIND, name)
-        RecordingLogger.addField(SpecFields.CRASH_CONTEXT, crashContext)
-        RecordingLogger.logWarning { "about_to_crash: $name (context=$crashContext)" }
+        android.util.Log.d("SimNav", "firing crash $name ($crashContext), realistic=${Crashes.precursors.containsKey(name)}")
+        val precursor = Crashes.precursors[name]
+        if (precursor != null) {
+            // Realistic crash: no announcement and no crash_kind fields, just the lead-up a real app would log.
+            precursor()
+        } else {
+            RecordingLogger.addField(SpecFields.CRASH_KIND, name)
+            RecordingLogger.addField(SpecFields.CRASH_CONTEXT, crashContext)
+            RecordingLogger.logWarning { "about_to_crash: $name (context=$crashContext)" }
+        }
         // Pre-schedule the restart BEFORE the crash — AlarmManager survives even
         // SIGSEGV/SIGBUS where the JVM uncaught-exception handler cannot run.
         ShoppingDemoApp.scheduleRestart(ctx, restartDelayFor(name))
@@ -629,6 +671,9 @@ class SimulationManager : ViewModel() {
             if (anrAEnabled) add("anr")
             if (forceQuitEnabled) add("force_quit")
         }
+        // journey_id is a global field for the whole journey: every log, span, network request and
+        // (if it comes to that) crash report inside it carries the id.
+        RecordingLogger.addField(SpecFields.JOURNEY_ID, "j" + java.util.UUID.randomUUID().toString().take(8))
         val outcome = journeyEngine.run(activeVariant.id, currentRun, simSeed, toggles, isInfiniteMode)
         android.util.Log.d("SimNav", "journey $currentRun (${activeVariant.label}, seed=$simSeed): $outcome")
     }

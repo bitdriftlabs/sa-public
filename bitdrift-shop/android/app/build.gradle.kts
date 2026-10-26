@@ -105,7 +105,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 on, so release crash stacks are obfuscated and need the mapping to read: this is what
+            // makes symbolication demonstrable. scripts/release-build.sh builds this variant and uploads
+            // build/outputs/mapping/release/mapping.txt with `bd debug-files upload-proguard`.
+            isMinifyEnabled = true
+            // Debug-signed so the release variant installs locally; not for distribution.
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

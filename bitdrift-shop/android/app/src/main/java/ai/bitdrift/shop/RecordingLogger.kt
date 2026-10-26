@@ -86,6 +86,20 @@ object RecordingLogger {
         Logger.logWarning(fields, throwable) { m }
     }
 
+    fun logCritical(fields: Map<String, String>? = null, throwable: Throwable? = null, message: () -> String) {
+        val m = message()
+        record("critical", m, fields)
+        Logger.logCritical(fields, throwable) { m }
+    }
+
+    /** Registers a remotely invocable command (bd command / live debugger). Not recorded. */
+    fun registerCommand(
+        key: String,
+        handler: suspend io.bitdrift.capture.commands.CommandScope.() -> io.bitdrift.capture.commands.CommandResult,
+    ) {
+        Logger.registerCommand(key, null, handler)
+    }
+
     fun logError(fields: Map<String, String>? = null, throwable: Throwable? = null, message: () -> String) {
         val m = message()
         record("error", m, fields)

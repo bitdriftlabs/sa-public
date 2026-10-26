@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import kotlin.time.Duration.Companion.minutes
 import ai.bitdrift.shop.generated.*
 import android.app.AlarmManager
 import android.app.Application
@@ -37,14 +38,45 @@ class ShoppingDemoApp : Application() {
         // BITDRIFT_ENABLE_OTEL_EXPORT (see app/build.gradle.kts) -- app/src/otelExportEnabled
         // wires up OTel span export, app/src/otelExportDisabled is a no-op Configuration(), for
         // building against the published SDK (which lacks OtelExportConfiguration entirely).
+        //
+        // `realistic` session mode (Advanced screen, applied on the next launch) sets an inactivity
+        // timeout so one session spans several journeys and background/foreground transitions, as a
+        // real user's does; the default `per_journey` keeps the fixed-per-launch behaviour.
+        val sessionMode = DemoSettings.sessionMode(applicationContext)
+        DemoSettings.activeSessionMode = sessionMode
         Logger.start(
             apiKey = BuildConfig.BITDRIFT_SDK_KEY,
             apiUrl = HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST).build(),
-            sessionConfiguration = SessionConfiguration(),
+            sessionConfiguration = if (sessionMode == SessionMode.REALISTIC) {
+                SessionConfiguration(inactivityTimeout = DemoSettings.REALISTIC_INACTIVITY_MINUTES.minutes)
+            } else {
+                SessionConfiguration()
+            },
             initialFields = readPersistedUserIdField(applicationContext),
             configuration = buildBitdriftConfiguration(),
         )
         Logger.setEntityId("demo")
+        Logger.addField(SpecFields.SESSION_MODE, sessionMode.id)
+
+        // bitdrift SDK: getPreviousRunInfo() says how the last process ended (crash, ANR, low
+        // memory, user swipe...). Logging it at launch puts the answer in the session that follows
+        // a crash. iOS logs the same event with the screen the run died on.
+        // POC: crash triage — "what happened last time" without opening the crash report.
+        Logger.getPreviousRunInfo()?.let { info ->
+            val fields = mapOf(
+                SpecFields.TERMINATION_REASON to (info.terminationReason?.value ?: "UNKNOWN"),
+                SpecFields.FATAL to info.hasFatallyTerminated.toString(),
+            )
+            if (info.hasFatallyTerminated) {
+                Logger.logError(fields) { SpecEvents.PREVIOUS_RUN_TERMINATED }
+            } else {
+                Logger.logInfo(fields) { SpecEvents.PREVIOUS_RUN_TERMINATED }
+            }
+        }
+
+        // bitdrift SDK: registerCommand() exposes handlers an SE or agent can run on this live
+        // device with `bd command send` (cart dump, flag flip).
+        AppCommands.register()
         // Register lifecycle callbacks
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())
 

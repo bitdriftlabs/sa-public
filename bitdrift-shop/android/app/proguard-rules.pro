@@ -18,3 +18,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# Realistic crash sites: keep them as distinct, non-inlined methods so the symbolicated top frame
+# is the app class (CartPricing / PromoBannerParser) rather than a merged synthetic accessor.
+-keep class ai.bitdrift.shop.CartPricing { *; }
+-keep class ai.bitdrift.shop.PromoBannerParser { *; }

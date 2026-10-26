@@ -29,6 +29,25 @@ object PersistentFeatureFlags {
         check(flags.size <= 3) { "At most 3 persistent feature flags are allowed" }
     }
 
+    /**
+     * Flips one flag to its other value (the `flip_flag` command), persisting it and re-recording
+     * the exposure and `ff_*` field so the change is visible in the running session.
+     * Returns (from, to), or null when [key] is not one of the three flags.
+     */
+    @OptIn(ExperimentalBitdriftApi::class)
+    fun flip(context: Context, key: String): Pair<String, String>? {
+        val flag = flags.firstOrNull { it.key == key } ?: return null
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val from = prefs.getString(flag.key, null)?.takeIf { it in flag.values } ?: flag.values.first()
+        val to = flag.values.first { it != from }
+        prefs.edit().putString(flag.key, to).commit()
+        RecordingLogger.setFeatureFlagExposure(flag.key, to)
+        RecordingLogger.addField("ff_${flag.key}", to)
+        return from to to
+    }
+
+    val flagKeys: List<String> get() = flags.map { it.key }
+
     /** Call once from `Application.onCreate()` after `Logger.start()`. */
     @OptIn(ExperimentalBitdriftApi::class)
     fun apply(context: Context) {

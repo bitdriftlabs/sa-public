@@ -183,7 +183,8 @@ fun ShoppingDemoContent() {
                             // belongs to state_restore rather than to render time.
                             ColdStartSpans.advanceToStateRestore()
 
-                            simulationManager.crashLoopEnabled = crashPrefs.getBoolean("active", false)
+                            // `crash=<name>` (test harness) forces the crash loop on for the run, without touching prefs.
+                            simulationManager.crashLoopEnabled = crashPrefs.getBoolean("active", false) || AutorunConfig.crash != null
                             simulationManager.fastCrashModeEnabled = crashPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)
                             simulationManager.syncAnrAEnabledState()
                             simulationManager.syncForceQuitEnabledState()

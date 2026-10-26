@@ -528,6 +528,53 @@ fun AdvancedScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
             Text(
+                text = "Realism",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+
+            // Session mode is fixed when the SDK starts, so a change applies on the next launch.
+            var sessionModeNext by remember { mutableStateOf(DemoSettings.sessionMode(localContext)) }
+            Button(
+                onClick = {
+                    sessionModeNext = if (sessionModeNext == SessionMode.REALISTIC) SessionMode.PER_JOURNEY else SessionMode.REALISTIC
+                    DemoSettings.setSessionMode(localContext, sessionModeNext)
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (sessionModeNext == SessionMode.REALISTIC) Color(0xFF3F51B5) else Color(0xFF795548)
+                )
+            ) {
+                Text(
+                    text = "Sessions: ${sessionModeNext.id}" +
+                        if (sessionModeNext != DemoSettings.activeSessionMode) " (relaunch to apply)" else "",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1
+                )
+            }
+            var loseOrdersOn by remember { mutableStateOf(DemoSettings.loseOrders(localContext)) }
+            Button(
+                onClick = {
+                    loseOrdersOn = !loseOrdersOn
+                    DemoSettings.setLoseOrders(localContext, loseOrdersOn)
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (loseOrdersOn) Color(0xFFD32F2F) else Color(0xFF795548)
+                )
+            ) {
+                Text(
+                    text = if (loseOrdersOn) "Lose orders: ON (logCritical)" else "Lose orders: OFF",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            Text(
                 text = "Debug Tools",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
@@ -1110,7 +1157,7 @@ fun CartScreen(navController: NavController, productId: String?) {
             icon = Icons.Default.Person
         ) {
             // bitdrift SDK: logInfo() records checkout funnel entry for conversion tracking.
-            RecordingLogger.logInfo(mapOf(SpecFields.CHECKOUT_TYPE to "guest")) { SpecEvents.CHECKOUT_STARTED }
+            RecordingLogger.logInfo(mapOf(SpecFields.CHECKOUT_TYPE to "guest", SpecFields.CART_JSON to CartJson.from(apiData))) { SpecEvents.CHECKOUT_STARTED }
             navController.navigate(Screen.CheckoutGuest(pid).route)
         }
         SecondaryButton(
@@ -1118,7 +1165,7 @@ fun CartScreen(navController: NavController, productId: String?) {
             icon = Icons.Default.Lock
         ) {
             // bitdrift SDK: logInfo() records checkout funnel entry for conversion tracking.
-            RecordingLogger.logInfo(mapOf(SpecFields.CHECKOUT_TYPE to "signin")) { SpecEvents.CHECKOUT_STARTED }
+            RecordingLogger.logInfo(mapOf(SpecFields.CHECKOUT_TYPE to "signin", SpecFields.CART_JSON to CartJson.from(apiData))) { SpecEvents.CHECKOUT_STARTED }
             navController.navigate(Screen.CheckoutSignIn(pid).route)
         }
         SecondaryButton(
@@ -1568,9 +1615,16 @@ fun ConfirmationScreen(navController: NavController, orderId: String?) {
         // POC: event tracking — screen-level "time to data ready".
         try {
             CaptureBridge.trackSpanSuspend(SpecSpans.CONFIRMATION_SCREEN_LOAD) {
+                if (DemoSettings.loseOrders(context)) throw java.io.IOException("order lookup disabled (demo: lose orders)")
                 apiData = ApiClient.getConfirmation(oid)
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            // The customer paid but the order cannot be shown: logCritical so it pages instead of
+            // hiding among the errors.
+            RecordingLogger.logCritical(
+                mapOf(SpecFields.ORDER_ID to oid, SpecFields.REASON to "confirmation_unavailable"), e
+            ) { SpecEvents.ORDER_LOST }
+        }
     }
 
     val crashLoopActive = remember {
