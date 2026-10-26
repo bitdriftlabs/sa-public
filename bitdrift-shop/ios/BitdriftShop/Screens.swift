@@ -787,7 +787,7 @@ struct CartScreen: View {
             // fit; ending explicitly on each branch is what makes the span still
             // reflect a failed call's own latency.
             // POC: event tracking — screen-load waterfall, standalone.
-            let cartSpan = Logger.startSpan(name: SpecSpans.cartScreenLoad, level: .info)
+            let cartSpan = RecordedSpan.start(name: SpecSpans.cartScreenLoad, level: .info)
             do {
                 apiData = productID.isEmpty
                     ? try await ApiClient.getCart()
@@ -900,7 +900,7 @@ struct CheckoutGuestScreen: View {
             // reasoning as CartScreen — the catch swallows its error rather than
             // rethrowing.
             // POC: event tracking — screen-load waterfall.
-            let checkoutSpan = Logger.startSpan(
+            let checkoutSpan = RecordedSpan.start(
                 name: SpecSpans.checkoutScreenLoad, level: .info, fields: [SpecFields.checkoutType: "guest"]
             )
             do {
@@ -954,7 +954,7 @@ struct CheckoutSignInScreen: View {
             // failed sign-in attempt took before erroring, even though the
             // user_id-tagging logic below only runs on success.
             // POC: event tracking — screen-load waterfall.
-            let checkoutSpan = Logger.startSpan(
+            let checkoutSpan = RecordedSpan.start(
                 name: SpecSpans.checkoutScreenLoad, level: .info, fields: [SpecFields.checkoutType: "signin"]
             )
             do {
@@ -1112,7 +1112,7 @@ struct PaymentScreen: View {
             // one place a payment-processor-style latency distribution shows up on
             // its own, distinct from checkout entry and confirmation.
             // POC: event tracking — screen-load waterfall.
-            let paymentSpan = Logger.startSpan(
+            let paymentSpan = RecordedSpan.start(
                 name: SpecSpans.paymentScreenLoad, level: .info, fields: [SpecFields.paymentMethod: method.fieldValue]
             )
             do {

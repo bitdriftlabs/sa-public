@@ -51,11 +51,11 @@ final class AppLifecycleObserver {
     // AppLifecycleCallbacks.kt exactly (same name, same activity-count-style
     // boundary) - see workflows/foreground-session-metrics.md on the Android
     // side for why a span was chosen over matching on lifecycle logs directly.
-    private var foregroundSpan: Span?
+    private var foregroundSpan: RecordedSpan?
 
     private func startForegroundSpan() {
         guard foregroundSpan == nil else { return }
-        foregroundSpan = Logger.startSpan(name: SpecSpans.foregroundSession, level: .info)
+        foregroundSpan = RecordedSpan.start(name: SpecSpans.foregroundSession, level: .info)
     }
 
     private func endForegroundSpan() {

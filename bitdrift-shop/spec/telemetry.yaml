@@ -187,15 +187,15 @@ global_fields:
     source: {android: "A:SupportMode.kt:24"}
   - key: crash_kind
     set_when: "immediately before a crash or watchdog hang fires"
-    source: {android: "A:SimulationManager.kt:598", ios: "I:SimulationManager.swift:582", reactnative: "R:src/sim/crashes.ts:198"}
+    source: {android: "A:SimulationManager.kt:598", ios: "I:SimulationManager.swift:600", reactnative: "R:src/sim/crashes.ts:198"}
     missing_on: [flutter]   # Flutter logs crash_injection{crash} instead (D-EVT-F12)
   - key: crash_context
-    source: {android: "A:SimulationManager.kt:597", ios: "I:SimulationManager.swift:583"}
+    source: {android: "A:SimulationManager.kt:597", ios: "I:SimulationManager.swift:599"}
     missing_on: [reactnative, flutter]
   - key: crash_journey_point
     platforms: [ios]
     open: OPEN-3
-    source: {ios: "I:SimulationManager.swift:572"}
+    source: {ios: "I:SimulationManager.swift:590"}
   - key: watchdog_event
     platforms: [ios]
     source: {ios: "I:WatchdogHangs.swift:78"}
@@ -267,42 +267,42 @@ events:
     trigger: harness
     required: [total_runs, sim_seed, persona]
     notes: "Test-harness exit marker: logged once when a launch-argument autorun (sim_runs/sim_seed/persona/record_file) finishes."
-    missing_on: [ios, reactnative, flutter]
-    source: {android: "A:SimulationManager.kt:241"}
+    missing_on: [reactnative, flutter]
+    source: {ios: "I:SimulationManager.swift:251", android: "A:SimulationManager.kt:241"}
   - name: ab_simulation_start
     level: info
     trigger: sim
     required: [runs_each]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:277", ios: "I:SimulationManager.swift:252", reactnative: "R:src/context/SimulationContext.tsx:682"}
+    source: {android: "A:SimulationManager.kt:277", ios: "I:SimulationManager.swift:270", reactnative: "R:src/context/SimulationContext.tsx:682"}
   - name: ab_simulation_end
     level: info
     trigger: sim
     required: [total_runs]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:287", ios: "I:SimulationManager.swift:263", reactnative: "R:src/context/SimulationContext.tsx:699"}
+    source: {android: "A:SimulationManager.kt:287", ios: "I:SimulationManager.swift:281", reactnative: "R:src/context/SimulationContext.tsx:699"}
   - name: infinite_simulation_start
     level: info
     trigger: sim
     was: {flutter: simulation_start_infinite}  # conformed in Phase 2b
-    source: {android: "A:SimulationManager.kt:321", ios: "I:SimulationManager.swift:286", reactnative: "R:src/context/SimulationContext.tsx:633", flutter: "F:sim/simulator.dart:144"}
+    source: {android: "A:SimulationManager.kt:321", ios: "I:SimulationManager.swift:304", reactnative: "R:src/context/SimulationContext.tsx:633", flutter: "F:sim/simulator.dart:144"}
   - name: infinite_simulation_end
     level: info
     trigger: sim
     required: [total_runs]
     missing_on: [flutter]
-    source: {android: "A:SimulationManager.kt:331", ios: "I:SimulationManager.swift:294", reactnative: "R:src/context/SimulationContext.tsx:648"}
+    source: {android: "A:SimulationManager.kt:331", ios: "I:SimulationManager.swift:312", reactnative: "R:src/context/SimulationContext.tsx:648"}
   - name: cardinality_simulation_start
     level: info
     trigger: sim
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:357", ios: "I:SimulationManager.swift:311", reactnative: "R:src/context/SimulationContext.tsx:712"}
+    source: {android: "A:SimulationManager.kt:357", ios: "I:SimulationManager.swift:329", reactnative: "R:src/context/SimulationContext.tsx:712"}
   - name: cardinality_simulation_end
     level: info
     trigger: sim
     required: [total_runs]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:367", ios: "I:SimulationManager.swift:319", reactnative: "R:src/context/SimulationContext.tsx:723"}
+    source: {android: "A:SimulationManager.kt:367", ios: "I:SimulationManager.swift:337", reactnative: "R:src/context/SimulationContext.tsx:723"}
   - name: feature_flag_exposure_set
     level: info
     trigger: sim
@@ -315,19 +315,19 @@ events:
     required: [run, variant]
     was: {flutter: journey_start}  # conformed in Phase 2b
     drift_fields: {flutter: "sends variant, checkout_type, entity; no run (D-EVT-F1)"}
-    source: {android: "A:SimulationManager.kt:643", ios: "I:SimulationManager.swift:690", reactnative: "R:src/context/SimulationContext.tsx:366", flutter: "F:sim/simulator.dart:237"}
+    source: {android: "A:SimulationManager.kt:643", ios: "I:SimulationManager.swift:708", reactnative: "R:src/context/SimulationContext.tsx:366", flutter: "F:sim/simulator.dart:237"}
   - name: cart_abandoned
     level: info
     trigger: sim
     required: [items_in_cart, variant]
     missing_on: [flutter]
-    source: {android: "A:SimulationManager.kt:886", ios: "I:SimulationManager.swift:954", reactnative: "R:src/context/SimulationContext.tsx:505"}
+    source: {android: "A:SimulationManager.kt:886", ios: "I:SimulationManager.swift:972", reactnative: "R:src/context/SimulationContext.tsx:505"}
   - name: checkout_abandoned
     level: info
     trigger: sim
     required: [checkout_type, variant]
     missing_on: [flutter]
-    source: {android: "A:SimulationManager.kt:943", ios: "I:SimulationManager.swift:1011", reactnative: "R:src/context/SimulationContext.tsx:549"}
+    source: {android: "A:SimulationManager.kt:943", ios: "I:SimulationManager.swift:1029", reactnative: "R:src/context/SimulationContext.tsx:549"}
   - name: payment_failed
     level: error
     trigger: [sim, ui]
@@ -339,7 +339,7 @@ events:
       attaches the exception. Matched by bd-shop-02 (log_body == payment_failed, grouped by
       payment_method).
     drift_values: {reactnative: "sim sends payment_method=visa for card (D-FLD-2)", flutter: "applePay/androidPay camelCase values (D-FLD-1)"}
-    source: {android: "A:SimulationManager.kt:1025", ios: "I:SimulationManager.swift:1062", reactnative: "R:src/context/SimulationContext.tsx:568", flutter: "F:sim/simulator.dart:352"}
+    source: {android: "A:SimulationManager.kt:1025", ios: "I:SimulationManager.swift:1080", reactnative: "R:src/context/SimulationContext.tsx:568", flutter: "F:sim/simulator.dart:352"}
     source_ui: {android: "A:Screens.kt:1319", ios: "I:Screens.swift:1126", reactnative: "R:src/screens/ShoppingScreens.tsx:854", flutter: "F:ui/screens.dart:631"}
     used_by: [android/workflows/bd-shop-02-payment-errors.json]
   - name: payment_retry
@@ -347,7 +347,7 @@ events:
     trigger: sim
     required: [original_method, retry_method, variant]
     missing_on: [flutter]
-    source: {android: "A:SimulationManager.kt:1072", ios: "I:SimulationManager.swift:1083", reactnative: "R:src/context/SimulationContext.tsx:579"}
+    source: {android: "A:SimulationManager.kt:1072", ios: "I:SimulationManager.swift:1101", reactnative: "R:src/context/SimulationContext.tsx:579"}
   - name: confirmation_reached
     level: info
     trigger: sim
@@ -356,7 +356,7 @@ events:
     notes: "success path: _screen_name=Confirmation + checkout_flow; retry path: + payment_retried=true, retry_method"
     was: {flutter: order_completed}  # conformed in Phase 2b
     drift_fields: {reactnative: "sends payment_retried=false on success and no checkout_flow (D-EVT-4)"}
-    source: {android: "A:SimulationManager.kt:1090", ios: "I:SimulationManager.swift:1140", reactnative: "R:src/context/SimulationContext.tsx:613", flutter: "F:sim/simulator.dart:364"}
+    source: {android: "A:SimulationManager.kt:1090", ios: "I:SimulationManager.swift:1158", reactnative: "R:src/context/SimulationContext.tsx:613", flutter: "F:sim/simulator.dart:364"}
 
   # --- UI (user taps) ----------------------------------------------------------
   - name: add_to_cart
@@ -479,7 +479,7 @@ events:
     trigger: startup
     required: [anr_restart_pending, fq_restart_pending, anr_resume_infinite, fq_resume_infinite]
     platforms: [android, ios]
-    source: {android: "A:MainActivity.kt:286", ios: "I:ContentView.swift:302"}
+    source: {android: "A:MainActivity.kt:286", ios: "I:ContentView.swift:311"}
   - name: demo_flags_resolved
     level: info
     trigger: startup
@@ -507,14 +507,14 @@ events:
     trigger: fault
     required: [force_quit_enabled, force_quit_screen, variant, trigger_mode]
     optional_on: [flutter]   # no Dart->native bridge in the alpha SDK (F:sim/simulator.dart:106)
-    source: {android: "A:SimulationManager.kt:471", ios: "I:SimulationManager.swift:401", reactnative: "R:src/context/SimulationContext.tsx:263"}
+    source: {android: "A:SimulationManager.kt:471", ios: "I:SimulationManager.swift:419", reactnative: "R:src/context/SimulationContext.tsx:263"}
     used_by: [android/workflows/bd-shop-05-anr-force-quit.json]
   - name: guest_anr_injected
     level: error
     trigger: fault
     required: [anr_a_enabled, journey_type, anr_screen_name, variant, trigger_mode]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:515", ios: "I:SimulationManager.swift:447", reactnative: "R:src/context/SimulationContext.tsx:285"}
+    source: {android: "A:SimulationManager.kt:515", ios: "I:SimulationManager.swift:465", reactnative: "R:src/context/SimulationContext.tsx:285"}
     used_by: [android/workflows/bd-shop-05-anr-force-quit.json]
   - name: about_to_crash
     level: warning
@@ -526,14 +526,14 @@ events:
     optional: [crash_kind]
     was: {flutter: crash_injection}  # conformed in Phase 2b
     drift_fields: {reactnative: "sim message is 'about_to_crash: {name} (idx={idx})' (D-EVT-5)", flutter: "field 'crash' instead of crash_kind global field"}
-    source: {android: "A:SimulationManager.kt:600", ios: "I:SimulationManager.swift:584", reactnative: "R:src/context/SimulationContext.tsx:304", flutter: "F:crash.dart:48"}
+    source: {android: "A:SimulationManager.kt:600", ios: "I:SimulationManager.swift:602", reactnative: "R:src/context/SimulationContext.tsx:304", flutter: "F:crash.dart:48"}
     used_by: [ios/workflows/bd-shop-15-crashes-by-final-screen.json]
   - name: background_crash_armed
     level: info
     trigger: fault
     required: [hint]
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:526"}
+    source: {ios: "I:SimulationManager.swift:544"}
   - name: watchdog_hang_armed
     level: warning
     trigger: fault
@@ -552,13 +552,13 @@ events:
     trigger: fault
     message_format: "simplified_journey_crash_point (step 5 of 7): CheckoutGuest"
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:1276"}
+    source: {ios: "I:SimulationManager.swift:1294"}
   - name: simplified_journey_completed
     level: info
     trigger: sim
     required: [steps_completed, variant]
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:1297"}
+    source: {ios: "I:SimulationManager.swift:1315"}
 
   # --- demos -------------------------------------------------------------------
   - name: metric_values
@@ -623,27 +623,27 @@ spans:
     end_fields: [source, product_id]
     results: [success]
     drift_fields: {flutter: "no variant/end fields; not parented (alpha startSpan has no parent arg, F:bd/capture.dart:113)"}
-    source: {android: "A:SimulationManager.kt:673", ios: "I:SimulationManager.swift:735", reactnative: "R:src/context/SimulationContext.tsx:372", flutter: "F:sim/simulator.dart:247"}
+    source: {android: "A:SimulationManager.kt:673", ios: "I:SimulationManager.swift:754", reactnative: "R:src/context/SimulationContext.tsx:372", flutter: "F:sim/simulator.dart:247"}
     used_by: [android/workflows/bd-shop-04-span-durations.json]
   - name: discovery_fetch
     parent: product_discovery
     missing_on: [reactnative, flutter]
-    source: {android: "A:SimulationManager.kt:705", ios: "I:SimulationManager.swift:770"}
+    source: {android: "A:SimulationManager.kt:705", ios: "I:SimulationManager.swift:788"}
     used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
   - name: product_view
     parent: product_discovery
     missing_on: [reactnative, flutter]
-    source: {android: "A:SimulationManager.kt:754", ios: "I:SimulationManager.swift:813"}
+    source: {android: "A:SimulationManager.kt:754", ios: "I:SimulationManager.swift:831"}
     used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
   - name: wishlist_add
     parent: product_discovery
     missing_on: [reactnative, flutter]
-    source: {android: "A:SimulationManager.kt:789", ios: "I:SimulationManager.swift:850"}
+    source: {android: "A:SimulationManager.kt:789", ios: "I:SimulationManager.swift:868"}
     used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
   - name: cart_assembly
     parent: journey
     missing_on: [reactnative, flutter]
-    source: {android: "A:SimulationManager.kt:810", ios: "I:SimulationManager.swift:874"}
+    source: {android: "A:SimulationManager.kt:810", ios: "I:SimulationManager.swift:892"}
     used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
   - name: checkout
     parent: journey
@@ -657,12 +657,12 @@ spans:
     parent: checkout
     fields: [retried]
     missing_on: [reactnative, flutter]
-    source: {android: "A:SimulationManager.kt:1001", ios: "I:SimulationManager.swift:1315"}
+    source: {android: "A:SimulationManager.kt:1001", ios: "I:SimulationManager.swift:1342"}
     used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
   - name: checkout.confirmation
     parent: checkout
     missing_on: [reactnative, flutter]
-    source: {android: "A:SimulationManager.kt:1092", ios: "I:SimulationManager.swift:1147"}
+    source: {android: "A:SimulationManager.kt:1092", ios: "I:SimulationManager.swift:1165"}
     used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
 
   # cold start (CaptureBridge / ColdStartSpans)
@@ -690,6 +690,7 @@ spans:
 
   # lifecycle
   - name: foreground_session
+    long_lived: true   # spans the whole foreground period; may still be open when a recording ends
     parent: null
     missing_on: [reactnative, flutter]
     source: {android: "A:AppLifecycleCallbacks.kt:39", ios: "I:BitdriftShopApp.swift:58"}

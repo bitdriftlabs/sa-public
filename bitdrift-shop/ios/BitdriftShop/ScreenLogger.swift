@@ -37,6 +37,7 @@ enum ScreenLogger {
     /// POC: User Journey Sankey diagram; per-screen crash analytics.
     static func logScreenView(_ screenName: String) {
         printLog("SCREEN", "_screen_name: \(screenName)", [:])
+        Recorder.write("screen", ["name": screenName])
         Logger.logScreenView(screenName: screenName)
 
         // Also carry the screen as a *global field*, not just a breadcrumb.
@@ -134,16 +135,19 @@ enum ScreenLogger {
 
     static func logInfo(_ message: String, _ fields: [String: String] = [:]) {
         printLog("INFO", message, fields)
+        Recorder.write("log", ["level": "info", "message": message], fields: fields.isEmpty ? nil : fields)
         Logger.logInfo(message, fields: encode(fields))
     }
 
     static func logWarning(_ message: String, _ fields: [String: String] = [:]) {
         printLog("WARNING", message, fields)
+        Recorder.write("log", ["level": "warning", "message": message], fields: fields.isEmpty ? nil : fields)
         Logger.logWarning(message, fields: encode(fields))
     }
 
     static func logError(_ message: String, _ fields: [String: String] = [:]) {
         printLog("ERROR", message, fields)
+        Recorder.write("log", ["level": "error", "message": message], fields: fields.isEmpty ? nil : fields)
         Logger.logError(message, fields: encode(fields))
     }
 
@@ -151,6 +155,7 @@ enum ScreenLogger {
     /// timeline alongside its fields.
     static func logError(_ message: String, error: Error, _ fields: [String: String] = [:]) {
         printLog("ERROR", message, fields)
+        Recorder.write("log", ["level": "error", "message": message], fields: fields.isEmpty ? nil : fields)
         Logger.logError(message, fields: encode(fields), error: error)
     }
 

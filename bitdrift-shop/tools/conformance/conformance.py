@@ -130,8 +130,8 @@ def check(lines, spec, runs=None):
         else:
             errors.append(f"line {n}: unknown record kind '{kind}'")
     for sid, st in open_spans.items():
-        if st["carried"]:
-            continue  # started before recording began (e.g. foreground_session); may outlive the window
+        if st["carried"] or (spec.spans.get(st["name"]) or {}).get("long_lived"):
+            continue  # started before recording began, or a span meant to outlive the run (foreground_session)
         errors.append(f"line {st['line']}: span '{st['name']}' ({sid}) never ended")
     if counts["markers"] != 1:
         errors.append(f"expected exactly one sim_autorun_complete, found {counts['markers']}")

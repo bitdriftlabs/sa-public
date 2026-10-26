@@ -238,6 +238,24 @@ final class SimulationManager: ObservableObject {
         }
     }
 
+    /// Test-harness autorun (launch arguments, see `Autorun`): runs `Autorun.runs` journeys as the
+    /// requested persona, then logs `sim_autorun_complete` so the script driving the app knows to
+    /// stop waiting.
+    func autorun(nav: Navigator) {
+        let runs = Autorun.runs
+        setVariant(Autorun.variant)
+        simulate(runs: runs, nav: nav)
+        let task = runTask
+        Task {
+            await task?.value
+            ScreenLogger.logInfo(SpecEvents.simAutorunComplete, [
+                SpecFields.totalRuns: String(runs),
+                SpecFields.simSeed: String(Autorun.seed),
+                SpecFields.persona: Autorun.persona,
+            ])
+        }
+    }
+
     /// A/B split sim: runs `runsEach` journeys as each variant in sequence. Each
     /// run is a flag transition, maximising workflow matches in the dashboard.
     func abSimulate(runsEach: Int, nav: Navigator) {
@@ -725,14 +743,14 @@ final class SimulationManager: ObservableObject {
         // the timeline.
         // POC: spans waterfall visualization in Timeline; query _duration_ms for
         // p50/p95 of any flow.
-        let journeySpan = Logger.startSpan(
+        let journeySpan = RecordedSpan.start(
             name: SpecSpans.journey,
             level: .info,
             fields: ScreenLogger.encode([SpecFields.variant: activeVariant.label, SpecFields.entity: entity])
         )
         // Tracks the discovery phase: Welcome → Browse/Search/Categories →
         // ProductDetail → Cart. Ends SUCCESS when the first item hits the cart.
-        let discoverySpan = Logger.startSpan(
+        let discoverySpan = RecordedSpan.start(
             name: SpecSpans.productDiscovery,
             level: .info,
             fields: ScreenLogger.encode([SpecFields.variant: activeVariant.label]),
@@ -978,7 +996,7 @@ final class SimulationManager: ObservableObject {
         // Checkout span: child of the journey span, covers Checkout → Payment →
         // Confirmation. `parentSpanID` links it to the root journey span so both
         // appear together in the timeline.
-        let checkoutSpan = Logger.startSpan(
+        let checkoutSpan = RecordedSpan.start(
             name: SpecSpans.checkout,
             level: .info,
             fields: ScreenLogger.encode([SpecFields.checkoutType: isGuest ? "guest" : "signin"]),
@@ -1188,7 +1206,7 @@ final class SimulationManager: ObservableObject {
     // ═══════════════════════════════════════════════════════════════════════
 
     private func runSimplifiedJourney(_ navigator: Navigator, entity: String) async {
-        let journeySpan = Logger.startSpan(
+        let journeySpan = RecordedSpan.start(
             name: SpecSpans.journey,
             level: .info,
             fields: ScreenLogger.encode([

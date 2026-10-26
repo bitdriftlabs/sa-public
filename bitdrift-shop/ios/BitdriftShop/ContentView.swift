@@ -40,7 +40,7 @@ struct ContentView: View {
             || Prefs.forceQuit.bool(Prefs.keyResumeInfinite)
         let fastCrashActive = Prefs.crashLoop.bool(Prefs.keyActive)
             && Prefs.crashLoop.bool(Prefs.keyFastMode)
-        return resumeRequested || fastCrashActive || AppConfig.simplifiedJourneyEnabled ? .app : .config
+        return Autorun.active || resumeRequested || fastCrashActive || AppConfig.simplifiedJourneyEnabled ? .app : .config
     }
 
     private var appBody: some View {
@@ -289,6 +289,15 @@ struct ContentView: View {
         // loop below, since waiting for the sim to actually start is no longer
         // startup, it's the app running.
         ColdStartSpans.finish()
+
+        // Test harness: launch arguments request an unattended run. Start recording after
+        // the cold-start spans have closed so the record holds only complete spans.
+        if Autorun.active && !Autorun.started {
+            Autorun.started = true
+            if let file = Autorun.recordFile { Recorder.start(fileName: file) }
+            sim.autorun(nav: nav)
+            return
+        }
 
         // Relaunch timing can race with SwiftUI readiness. Retry auto-start a few
         // times so infinite sim reliably resumes.

@@ -78,6 +78,46 @@ smoke_android() {
   "$PY" "$ROOT/tools/conformance/conformance.py" --platform android --runs "$SIM_RUNS" "$OUT/android-$file"
 }
 
+# ── ios ──────────────────────────────────────────────────────────────────────
+ios_udid() { xcrun simctl list devices booted -j | "$PY" -c 'import json,sys;d=json.load(sys.stdin)["devices"];print(next((x["udid"] for l in d.values() for x in l if x["state"]=="Booted"),""))'; }
+
+unit_ios() {
+  unit_common || return 1
+  # No iOS unit-test target yet: compile for the simulator so type errors surface without a device.
+  (cd "$ROOT/ios" && xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop -configuration Debug \
+     -destination 'generic/platform=iOS Simulator' -derivedDataPath build/debug build >"$OUT/ios-unit-build.log" 2>&1) \
+    || { echo "xcodebuild failed: see $OUT/ios-unit-build.log"; return 1; }
+}
+
+smoke_ios() {
+  local udid; udid="$(ios_udid)"
+  if [[ -z "$udid" ]]; then
+    (cd "$ROOT/ios" && bash scripts/ios-2-start-simulator.sh >"$OUT/ios-sim.log" 2>&1) || { echo "simulator failed: see $OUT/ios-sim.log"; return 1; }
+    udid="$(ios_udid)"
+  fi
+  [[ -n "$udid" ]] || { echo "no booted simulator"; return 1; }
+  local bundle=ai.bitdrift.shop.ios file=smoke.jsonl
+  (cd "$ROOT/ios" && xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop -configuration Debug \
+     -destination "id=$udid" -derivedDataPath build/debug build >"$OUT/ios-build.log" 2>&1) \
+    || { echo "build failed: see $OUT/ios-build.log"; return 1; }
+  local app; app="$(find "$ROOT/ios/build/debug/Build/Products" -maxdepth 2 -name 'BitdriftShop.app' | head -1)"
+  [[ -n "$app" ]] || { echo "BitdriftShop.app not found"; return 1; }
+  xcrun simctl terminate "$udid" "$bundle" >/dev/null 2>&1
+  xcrun simctl install "$udid" "$app" || return 1
+  local data; data="$(xcrun simctl get_app_container "$udid" "$bundle" data)"
+  local rec="$data/Documents/record/$file"
+  rm -f "$rec"
+  xcrun simctl launch "$udid" "$bundle" -sim_runs "$SIM_RUNS" -sim_seed "$SIM_SEED" -persona "$PERSONA" -record_file "$file" >/dev/null || return 1
+  local waited=0
+  while (( waited < SMOKE_TIMEOUT )); do
+    grep -q '"sim_autorun_complete"' "$rec" 2>/dev/null && break
+    sleep 3; waited=$((waited + 3))
+  done
+  (( waited < SMOKE_TIMEOUT )) || { echo "timed out after ${SMOKE_TIMEOUT}s waiting for sim_autorun_complete"; return 1; }
+  cp "$rec" "$OUT/ios-$file"
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform ios --runs "$SIM_RUNS" "$OUT/ios-$file"
+}
+
 # ── dispatch ─────────────────────────────────────────────────────────────────
 run_app() {
   local app="$1" tier="$2" fn="${2}_${1//-/_}"

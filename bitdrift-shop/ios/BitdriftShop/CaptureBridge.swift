@@ -187,9 +187,9 @@ enum CaptureBridge {
         level: LogLevel = .info,
         fields: [String: String] = [:],
         parentSpanID: UUID? = nil,
-        _ body: (Span?) throws -> T
+        _ body: (RecordedSpan?) throws -> T
     ) rethrows -> T {
-        let span = Logger.startSpan(
+        let span = RecordedSpan.start(
             name: name, level: level, fields: ScreenLogger.encode(fields), parentSpanID: parentSpanID
         )
         do {
@@ -212,9 +212,9 @@ enum CaptureBridge {
         level: LogLevel = .info,
         fields: [String: String] = [:],
         parentSpanID: UUID? = nil,
-        _ body: (Span?) async throws -> T
+        _ body: (RecordedSpan?) async throws -> T
     ) async rethrows -> T {
-        let span = Logger.startSpan(
+        let span = RecordedSpan.start(
             name: name, level: level, fields: ScreenLogger.encode(fields), parentSpanID: parentSpanID
         )
         do {
@@ -261,15 +261,15 @@ enum CaptureBridge {
 /// side-by-side comparison) instead of a single TTI number, and a Timeline waterfall showing
 /// where a given cold start's time actually went. See `bd-shop-20` in `workflows/`.
 enum ColdStartSpans {
-    private static var root: Span?
-    private static var currentPhase: Span?
+    private static var root: RecordedSpan?
+    private static var currentPhase: RecordedSpan?
 
     /// Opens `root` and its `sdk_init` child. Must run as the very last line of
     /// `CaptureBridge.start()` — everything that method did (the `Logger.start()` call
     /// itself, `setEntityID`, `addField`, `reportPreviousRun`) is what `sdk_init` measures,
     /// and a span cannot be created before the SDK it will be measuring has started.
     static func beginRoot() {
-        root = Logger.startSpan(
+        root = RecordedSpan.start(
             name: SpecSpans.appColdStart,
             level: .info,
             fields: [:],
@@ -280,7 +280,7 @@ enum ColdStartSpans {
         // "now"), so it is created and ended in the same call rather than left open like the
         // phases below.
         let now = Date().timeIntervalSince1970
-        Logger.startSpan(
+        RecordedSpan.start(
             name: SpecSpans.appColdStartSdkInit,
             level: .info,
             fields: [:],
@@ -291,7 +291,7 @@ enum ColdStartSpans {
         // Opens for real, right now — everything from here (SwiftUI standing up the
         // WindowGroup, laying out the first frame, dispatching the `.task` that runs
         // `ContentView.runStartupSequence()`) needs no back-dating.
-        currentPhase = Logger.startSpan(
+        currentPhase = RecordedSpan.start(
             name: SpecSpans.appColdStartSceneRender,
             level: .info,
             parentSpanID: root?.id
@@ -306,7 +306,7 @@ enum ColdStartSpans {
     /// `state_restore`. Calling this any later charges that cost to `scene_render` instead.
     static func advanceToStateRestore() {
         currentPhase?.end(.success)
-        currentPhase = Logger.startSpan(
+        currentPhase = RecordedSpan.start(
             name: SpecSpans.appColdStartStateRestore,
             level: .info,
             parentSpanID: root?.id
