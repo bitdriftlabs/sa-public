@@ -23,7 +23,7 @@ screens:
     step: 1
     load_span: welcome_screen_load
     platform_routes: {reactnative: Welcome, flutter: "/"}
-    source: {android: "A:Screen.kt:19", ios: "I:Screen.swift:73", reactnative: "R:src/screens/ShoppingScreens.tsx:94", flutter: "F:ui/welcome.dart:32"}
+    source: {android: "A:Screen.kt:19", ios: "I:Screen.swift:73", reactnative: "R:src/screens/ShoppingScreens.tsx:104", flutter: "F:ui/welcome.dart:32"}
 
   - id: advanced
     name: Advanced

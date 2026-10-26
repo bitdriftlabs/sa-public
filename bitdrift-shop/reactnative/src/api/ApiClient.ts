@@ -15,7 +15,7 @@ import type {
 } from '../types/models';
 import {ScreenLogger} from '../utils/logger';
 import {BACKEND_BASE_URL as BASE_URL} from '../config';
-import {SpecEvents, SpecFields} from '../generated/spec';
+import {SpecEvents, SpecFields} from '../generated/specConstants';
 
 // HTTP Instrumentation
 // Every API call is timed and logged with path, method, status, and duration so the

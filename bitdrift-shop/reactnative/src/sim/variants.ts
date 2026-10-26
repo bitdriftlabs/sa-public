@@ -1,5 +1,5 @@
 import {ScreenLogger} from '../utils/logger';
-import {SpecEvents, SpecFields, SpecFlags} from '../generated/spec';
+import {SpecEvents, SpecFields, SpecFlags} from '../generated/specConstants';
 
 // ─── Personas / Variants ───────────────────────────────────────────────────────
 // Mirrors the Android app's SimVariant. Each variant biases the simulation state

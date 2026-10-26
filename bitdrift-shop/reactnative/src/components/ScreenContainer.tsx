@@ -29,6 +29,17 @@ type ScreenContainerProps = {
   children: React.ReactNode;
 };
 
+// The hero is a tinted monochrome glyph (like the native app's tinted vector icon), so map the
+// colourful emoji used as screen icons to symbols that take the accent colour.
+const HERO_GLYPHS: Record<string, string> = {
+  '🛍️': '⌂',
+  '🧺': '☰',
+  '🛒': '▣',
+  '👤': '☺',
+  '🔐': '✱',
+  '💳': '▭',
+};
+
 export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   screenName,
   title,
@@ -53,7 +64,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
           <TouchableOpacity style={styles.headerAction} onPress={onBack} disabled={!onBack}>
             <Text style={[styles.headerActionText, !onBack && styles.hidden]}>‹</Text>
           </TouchableOpacity>
-          <StepIndicator currentStep={step} activeColor={color} />
+          <StepIndicator currentStep={step} />
           <TouchableOpacity style={styles.headerAction} onPress={onCart} disabled={!onCart}>
             <Text style={[styles.headerActionText, !onCart && styles.hidden]}>🛒</Text>
           </TouchableOpacity>
@@ -67,7 +78,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
           </View>
         ) : (
           <View style={[styles.iconContainer, {backgroundColor: `${color}33`}]}>
-            <Text style={styles.icon}>{icon}</Text>
+            <Text style={[styles.icon, {color}]}>{HERO_GLYPHS[icon] ?? icon}</Text>
           </View>
         )}
 
@@ -107,7 +118,6 @@ export const ProductRowList: React.FC<ProductRowProps> = ({products, onPress}) =
             </Text>
             <Text style={styles.rowSubtitle}>${product.price.toFixed(2)}</Text>
           </View>
-          <Text style={styles.rowArrow}>›</Text>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -170,15 +180,13 @@ const styles = StyleSheet.create({
   headerAction: {
     width: 38,
     height: 38,
-    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.panelStrong,
   },
   headerActionText: {
     color: Colors.text,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '600',
   },
   hidden: {
     opacity: 0,
@@ -210,7 +218,8 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   icon: {
-    fontSize: 42,
+    fontSize: 44,
+    fontWeight: '700',
   },
   title: {
     fontSize: 32,
@@ -245,18 +254,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   productRow: {
-    backgroundColor: 'rgba(17,24,39,0.05)',
-    borderWidth: 1,
-    borderColor: Colors.panelBorder,
+    backgroundColor: 'rgba(225, 224, 236, 0.7)',
     borderRadius: 12,
-    padding: 8,
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
+    height: 66,
   },
   rowImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
+    width: 66,
+    height: 66,
     backgroundColor: 'rgba(17,24,39,0.10)',
   },
   rowTextWrap: {
@@ -274,14 +281,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   rowArrow: {
+    marginRight: 12,
     color: Colors.text,
     fontSize: 22,
     fontWeight: '300',
   },
   categoryBubble: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 66,
+    height: 66,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(17,24,39,0.10)',

@@ -1,6 +1,6 @@
 import {NativeModules} from 'react-native';
 import {ScreenLogger} from '../utils/logger';
-import {SpecFields} from '../generated/spec';
+import {SpecFields} from '../generated/specConstants';
 
 // ─── Crash catalog ──────────────────────────────────────────────────────────────
 // A 1:1 port of the Android Crashes.kt catalog (same 20 names) so crash issue groups

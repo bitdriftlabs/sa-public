@@ -10,7 +10,7 @@ import {
   setEntityId as bdSetEntityId,
   setFeatureFlagExposure as bdSetFeatureFlagExposure,
 } from '@bitdrift/react-native';
-import {SpecEvents, SpecFields} from '../generated/spec';
+import {SpecEvents, SpecFields} from '../generated/specConstants';
 
 // Centralised logger that writes to both console (local) and bitdrift (remote).
 // Fields are always Record<string, string> so they serialise cleanly as bitdrift

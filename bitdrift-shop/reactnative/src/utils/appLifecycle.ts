@@ -1,6 +1,6 @@
 import {AppState, type AppStateStatus} from 'react-native';
 import {ScreenLogger} from './logger';
-import {SpecEvents, SpecFields} from '../generated/spec';
+import {SpecEvents, SpecFields} from '../generated/specConstants';
 
 // Foreground/background lifecycle events, mirroring the Android app's
 // AppLifecycleCallbacks (app_open / app_close). React Native's AppState is the

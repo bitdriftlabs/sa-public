@@ -60,7 +60,7 @@ import {
   ConfirmationScreen,
   AdvancedScreen,
 } from './src/screens';
-import {SpecEvents, SpecFields, SpecSpans} from './src/generated/spec';
+import {SpecEvents, SpecFields, SpecSpans} from './src/generated/specConstants';
 
 // Capture wall-clock time at module evaluation for TTI measurement.
 const APP_START_TIME = Date.now();

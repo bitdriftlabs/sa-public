@@ -1,5 +1,5 @@
 import {ScreenLogger} from '../utils/logger';
-import {SpecSpans} from '../generated/spec';
+import {SpecSpans} from '../generated/specConstants';
 
 // "Smart" product recommendation engine — ports Android's RecommendationEngine.kt /
 // iOS's RecommendationEngine.swift. Computes relevance scores from description

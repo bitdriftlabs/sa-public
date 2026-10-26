@@ -12,7 +12,7 @@ import {
   type ChaosState,
 } from '../sim/variants';
 import {CRASHES, triggerAnr, triggerForceQuit} from '../sim/crashes';
-import {SpecEvents, SpecFields, SpecScreens, SpecSpans} from '../generated/spec';
+import {SpecEvents, SpecFields, SpecScreens, SpecSpans} from '../generated/specConstants';
 
 // ─── Chaos / ANR / Force-quit constants (ported from SimulationManager.kt) ──────
 const ANR_PROBABILITY = 0.25;

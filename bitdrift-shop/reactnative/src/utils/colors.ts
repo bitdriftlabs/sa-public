@@ -19,6 +19,12 @@ export const Colors = {
   black: '#000000',
   muted: 'rgba(255, 255, 255, 0.75)',
   border: 'rgba(255, 255, 255, 0.2)',
+  // Match the native Android app (Material You slate primary, lavender containers).
+  primary: '#4E5F8D',
+  onPrimary: '#FFFFFF',
+  secondaryContainer: '#E1E0EC',
+  tonal: '#DDE1F9',
+  outline: '#757680',
   // Light theme tokens (white screens, dark text, per-screen accent color).
   screen: '#FFFFFF',
   text: '#111827',

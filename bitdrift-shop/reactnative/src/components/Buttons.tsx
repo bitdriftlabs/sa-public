@@ -36,10 +36,38 @@ export const SecondaryButton: React.FC<ButtonProps> = ({title, icon, onPress, di
     disabled={disabled}
     activeOpacity={0.85}>
     <View style={styles.leftContent}>
-      <Text style={styles.icon}>{icon}</Text>
+      <Text style={[styles.icon, styles.secondaryIcon]}>{icon}</Text>
       <Text style={styles.secondaryText}>{title}</Text>
     </View>
     <Text style={styles.secondaryArrow}>›</Text>
+  </TouchableOpacity>
+);
+
+/** Full-width lavender button (native's "Device Code"). */
+export const TonalButton: React.FC<{title: string; onPress: () => void; small?: boolean}> = ({
+  title,
+  onPress,
+  small,
+}) => (
+  <TouchableOpacity style={styles.tonalButton} onPress={onPress} activeOpacity={0.85}>
+    <Text style={[styles.tonalText, small && {fontSize: 11}]} numberOfLines={1}>
+      {title}
+    </Text>
+  </TouchableOpacity>
+);
+
+/** Plain outlined, centered-label button (native's "Customer Support"). */
+export const PlainButton: React.FC<{title: string; onPress: () => void; disabled?: boolean}> = ({
+  title,
+  onPress,
+  disabled,
+}) => (
+  <TouchableOpacity
+    style={[styles.plainButton, disabled && styles.disabled]}
+    onPress={onPress}
+    disabled={disabled}
+    activeOpacity={0.85}>
+    <Text style={styles.plainText}>{title}</Text>
   </TouchableOpacity>
 );
 
@@ -51,7 +79,8 @@ export const SimButton: React.FC<SimButtonProps> = ({title, color, onPress}) => 
 
 const styles = StyleSheet.create({
   primaryButton: {
-    backgroundColor: Colors.text,
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -67,8 +96,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: Colors.panelBorder,
-    backgroundColor: Colors.panel,
+    borderColor: Colors.outline,
+    backgroundColor: 'transparent',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -85,6 +114,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginRight: 10,
   },
+  secondaryIcon: {
+    color: Colors.primary,
+  },
   primaryIcon: {
     color: Colors.white,
   },
@@ -95,7 +127,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   secondaryText: {
-    color: Colors.text,
+    color: Colors.primary,
     fontSize: 15,
     fontWeight: '600',
     flexShrink: 1,
@@ -107,16 +139,41 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   secondaryArrow: {
-    color: Colors.text,
+    color: Colors.primary,
     fontSize: 22,
     fontWeight: '300',
     marginLeft: 10,
   },
+  tonalButton: {
+    backgroundColor: Colors.tonal,
+    borderRadius: 12,
+    paddingVertical: 16,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  tonalText: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  plainButton: {
+    borderRadius: 12,
+    paddingVertical: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: Colors.panelBorder,
+    alignItems: 'center',
+  },
+  plainText: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
   simButton: {
-    borderRadius: 10,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingVertical: 16,
     paddingHorizontal: 10,
-    minWidth: 76,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

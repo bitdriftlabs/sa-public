@@ -15,7 +15,16 @@ import {useSimulation} from '../context/SimulationContext';
 import {ScreenLogger} from '../utils/logger';
 import {SimVariant, VARIANT_LABELS} from '../sim/variants';
 import {scoreProducts} from '../sim/recommendations';
-import {CategoryRowList, PrimaryButton, ProductRowList, ScreenContainer, SecondaryButton, SimButton} from '../components';
+import {
+  CategoryRowList,
+  PlainButton,
+  PrimaryButton,
+  ProductRowList,
+  ScreenContainer,
+  SecondaryButton,
+  SimButton,
+  TonalButton,
+} from '../components';
 import type {ScreenProps} from '../navigation/types';
 import type {
   BrowseResponse,
@@ -32,7 +41,7 @@ import type {
   WelcomeResponse,
   WishlistResponse,
 } from '../types/models';
-import {SpecEvents, SpecFields, SpecScreens, SpecSpans} from '../generated/spec';
+import {SpecEvents, SpecFields, SpecScreens, SpecSpans} from '../generated/specConstants';
 
 const fallbackProduct = 'prod_a1b2c3';
 
@@ -112,6 +121,8 @@ export const WelcomeScreen: React.FC<ScreenProps<'Welcome'>> = ({navigation}) =>
         onPress={() => navigation.navigate('Search')}
       />
 
+      <PlainButton title="Customer Support" disabled={isSimulating} onPress={onSupportLog} />
+
       <View style={styles.divider} />
 
       {crashLoopEnabled ? (
@@ -126,22 +137,14 @@ export const WelcomeScreen: React.FC<ScreenProps<'Welcome'>> = ({navigation}) =>
       ) : (
         <View style={styles.simButtonsRow}>
           <SimButton title="Sim 10" color={Colors.search} onPress={() => startSimulation(10)} />
-          <SimButton title="Sim 100" color="#D32F2F" onPress={() => startSimulation(100)} />
-          <SimButton title="∞ Sim" color={Colors.browse} onPress={startInfiniteSimulation} />
+          <SimButton title="SIM ∞" color={Colors.browse} onPress={startInfiniteSimulation} />
         </View>
       )}
 
-      <View style={styles.divider} />
-
-      <View style={styles.simButtonsRow}>
-        <SimButton title="Device Code" color={Colors.categories} onPress={onDeviceCode} />
-        <SimButton title="Support Log" color={Colors.wishlist} onPress={onSupportLog} />
-      </View>
-
-      <View style={styles.divider} />
+      <TonalButton title="Device Code" onPress={onDeviceCode} />
 
       <SecondaryButton
-        title="Advanced (variants, chaos)"
+        title="Advanced"
         icon="⚙"
         disabled={isSimulating}
         onPress={() => navigation.navigate('Advanced')}
@@ -929,6 +932,7 @@ export const AdvancedScreen: React.FC<ScreenProps<'Advanced'>> = ({navigation}) 
     nextCrashName,
     startAbSimulation,
     startCardinalitySimulation,
+    startSimulation,
     isSimulating,
   } = useSimulation();
 
@@ -975,6 +979,7 @@ export const AdvancedScreen: React.FC<ScreenProps<'Advanced'>> = ({navigation}) 
 
         <Text style={styles.advancedLabel}>Simulation Modes</Text>
         <View style={styles.variantRow}>
+          <SimButton title="Sim 100" color="#D32F2F" onPress={() => startSimulation(100)} />
           <SimButton title="Sim A/B (5 each)" color={Colors.browse} onPress={() => startAbSimulation(5)} />
           <SimButton title="Cardinality" color="#9C27B0" onPress={startCardinalitySimulation} />
         </View>
@@ -1065,6 +1070,7 @@ const styles = StyleSheet.create({
   },
   simButtonsRow: {
     width: '100%',
+    marginBottom: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,

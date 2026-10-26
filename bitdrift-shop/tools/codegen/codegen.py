@@ -303,7 +303,7 @@ def ts_files(platform="reactnative"):
             "\n".join(lines),
         ]
     )
-    return {"spec.ts": body + "\n"}
+    return {"specConstants.ts": body + "\n"}
 
 
 # ── Dart ─────────────────────────────────────────────────────────────────────

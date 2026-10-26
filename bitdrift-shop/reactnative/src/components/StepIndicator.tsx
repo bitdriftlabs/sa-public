@@ -10,7 +10,7 @@ type StepIndicatorProps = {
 export const StepIndicator: React.FC<StepIndicatorProps> = ({
   currentStep,
   totalSteps = 7,
-  activeColor = '#111827',
+  activeColor = '#4E5F8D',
 }) => {
   return (
     <View style={styles.container}>
