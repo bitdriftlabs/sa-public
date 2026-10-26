@@ -61,6 +61,9 @@ class ShoppingDemoApp : Application() {
         // only discriminator is `app_id`, which works but reads as an opaque bundle id.
         Logger.addField("platform", "android")
 
+        // Three install-persistent feature flags (exposure + ff_* fields); see PersistentFeatureFlags.
+        PersistentFeatureFlags.apply(applicationContext)
+
         installCrashLoopHandler()
 
         // bitdrift SDK: opens the `app_cold_start` root span plus its `sdk_init` child.

@@ -34,6 +34,12 @@ bd workflow create workflows/bd-shop-11b-slow-rendering-manual-span.json \
   --chart-metadata-file workflows/chart-metadata/bd-shop-11b-slow-rendering-manual-span.chart.json
 bd workflow create workflows/bd-shop-12-metric-grouping.json \
   --chart-metadata-file workflows/chart-metadata/bd-shop-12-metric-grouping.chart.json
+bd workflow create workflows/bd-shop-30-support-sessions.json \
+  --metadata-file workflows/bd-shop-30-support-sessions.metadata.json \
+  --chart-metadata-file workflows/chart-metadata/bd-shop-30-support-sessions.chart.json
+bd workflow create workflows/bd-shop-31-feature-flag-sessions.json \
+  --metadata-file workflows/bd-shop-31-feature-flag-sessions.metadata.json \
+  --chart-metadata-file workflows/chart-metadata/bd-shop-31-feature-flag-sessions.chart.json
 ```
 
 **`create` does not deploy.** A newly created workflow sits in `IDLE` state — it won't
@@ -97,6 +103,8 @@ time, which is what pointed at the match rule instead of a platform delay.
 | `bd-shop-11-slow-rendering.json` | Slow Rendering (Recommendations v2) | **Primary.** OOTB dropped-frame count (alert target); count/duration split by `recommendations_v2` exposure and by `_screen_name`. Zero app instrumentation. See [../demo-slow-rendering.md](../demo-slow-rendering.md). |
 | `bd-shop-11b-slow-rendering-manual-span.json` | Slow Rendering — Manual Span Example | **Secondary/illustrative, no alert.** Same shape, matched on a custom `score_products` span instead of OOTB — shows what manual instrumentation looks like when you need to pinpoint an exact function. See [../demo-slow-rendering.md](../demo-slow-rendering.md). |
 | `bd-shop-12-metric-grouping.json` | Metric Grouping | Waveform + counter metrics ported from misc-demos/metricdemo; work-latency average/histogram/table grouped by simulated `sim_app_version` — shows a regression and its fix as a shifted distribution. See [../metric-demo.md](../metric-demo.md). |
+| `bd-shop-30-support-sessions.json` | Customer Support Sessions (`cWPC`) | Records support sessions: any log carrying `support=true` flushes the session for full-timeline capture, plus a count chart of those logs. See [Customer Support sessions](#customer-support-sessions-bd-shop-30) below. |
+| `bd-shop-31-feature-flag-sessions.json` | Persistent Feature Flag Sessions | Flushes the session when a non-default persistent flag exposure is active (`express_checkout=enabled`, `product_card_layout=list`, `free_shipping_banner=treatment`), plus a count chart per flag. See [Persistent feature flag sessions](#persistent-feature-flag-sessions-bd-shop-31). |
 
 See [foreground-background-crashes.md](foreground-background-crashes.md) for why bd-shop-06/07 are
 separate workflows, the platform constraint that shapes both BDRL scripts, and how to
@@ -201,3 +209,50 @@ because the SDK helper has three gaps that all bite here:
   affects only the chart: the span is in the Timeline waterfall either way.
 - Same session-boundary rule as every other workflow here: they only evaluate
   sessions that start *after* deployment.
+
+## Customer Support sessions (`bd-shop-30`)
+
+Lets a support agent get a customer's session recorded by asking them to tap one button.
+
+**In the app:** the **Customer Support** button on the Welcome screen (`SupportMode.kt`,
+`WelcomeScreen` in `Screens.kt`) toggles support mode.
+
+- First tap: the button turns green and `Logger.addField("support", "true")` tags every
+  subsequent log, span, and network event. The app is used normally (browse, search, checkout);
+  every step carries `support=true`.
+- Second tap: the button goes back to white and `Logger.removeField("support")` stops the tagging.
+- Each toggle also logs `support_mode_on` / `support_mode_off`, marking the start and end of the
+  support window in a timeline.
+- State is in memory only: killing or restarting the app resets it to off.
+
+**In bitdrift:** `bd-shop-30-support-sessions.json` matches `log_field: support == "true"` and
+attaches a `flush_rule`, so the session is uploaded as soon as the first tagged log fires. It sets
+no `applied_daily_limit`, so support sessions are never dropped. A second action charts the count of
+tagged logs, which also confirms the button is reaching the SDK.
+
+- Scoped to Android app `ai.bitdrift.shop` (the `applicationId` in `app/build.gradle.kts`).
+- Like every capture workflow it only sees **new** sessions after deploy (`create` leaves it `IDLE`;
+  run `bd workflow deploy <ID>`).
+- Don't confuse it with the older **Support Log** toggle on the Advanced screen, which sets a
+  separate `supportlog` field and is not matched by this workflow.
+
+## Persistent feature flag sessions (`bd-shop-31`)
+
+Captures sessions from devices holding a particular value of the three install-persistent flags
+(see [Persistent feature flags](../README.md#persistent-feature-flags)).
+
+`bd-shop-31-feature-flag-sessions.json` has one flow per flag, each matching the flag's **feature flag exposure** state (`state_key` with scope `FEATURE_FLAG_EXPOSURE`, set by `Logger.setFeatureFlagExposure`), not a log field:
+
+| Flow | Matches | Why this value |
+|------|---------|----------------|
+| `express-checkout-log` | `express_checkout == enabled` | the new path |
+| `card-layout-list-log` | `product_card_layout == list` | the non-default layout |
+| `free-shipping-treatment-log` | `free_shipping_banner == treatment` | the A/B treatment cohort |
+
+Each flow flushes the session on the first log evaluated while the exposure holds the target value (no `applied_daily_limit`, so none are
+dropped) and has a count chart of matching logs. Because the flags are persistent and attached to
+every log (the exposure is re-set at each launch), a matching device is captured in every session it starts, not just one. Roughly half of
+installs match each flag; change `string_value` (or add flows) to capture other values.
+
+Same rules as the other capture workflows: scoped to `ai.bitdrift.shop`, `create` leaves it `IDLE`
+(run `bd workflow deploy <ID>`), and only sessions started after deploy are evaluated.

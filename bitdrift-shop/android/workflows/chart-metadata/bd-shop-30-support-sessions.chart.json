@@ -1,0 +1,23 @@
+[
+  {
+    "rule_id": "support-log-count",
+    "metadata": {
+      "title": "Logs with support=true",
+      "summary": { "description": "Count of logs emitted while Customer Support mode is on in the app." },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          { "title": "Support logs", "y_axis": { "description": "Logs", "unit": "UNSPECIFIED" } }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "capture-support-session",
+    "metadata": {
+      "title": "Support session capture",
+      "summary": { "description": "Sessions flushed because a log carried support=true." },
+      "flush_chart_metadata": {}
+    }
+  }
+]

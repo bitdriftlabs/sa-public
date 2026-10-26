@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -107,6 +108,22 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
             enabled = !simulationManager.isSimulating
         ) {
             navController.navigate(Screen.Search.route)
+        }
+
+        Button(
+            onClick = { SupportMode.toggle() },
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (SupportMode.enabled) Color(0xFF4CAF50) else Color.White,
+                contentColor = if (SupportMode.enabled) Color.White else Color.DarkGray
+            ),
+            border = if (SupportMode.enabled) null else BorderStroke(1.dp, Color.LightGray)
+        ) {
+            Text(
+                text = "Customer Support",
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+            )
         }
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

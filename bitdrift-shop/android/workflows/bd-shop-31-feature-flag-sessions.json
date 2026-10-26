@@ -1,0 +1,135 @@
+{
+  "name": "bd-shop \u2014 Persistent Feature Flag Sessions",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.shop"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "express-checkout-log",
+            "generic_match": {
+              "base_matcher": {
+                "operator": "EQUAL",
+                "string_value": "enabled",
+                "state_key": {
+                  "scope": "FEATURE_FLAG_EXPOSURE",
+                  "key": "express_checkout"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "card-layout-list-log",
+            "generic_match": {
+              "base_matcher": {
+                "operator": "EQUAL",
+                "string_value": "list",
+                "state_key": {
+                  "scope": "FEATURE_FLAG_EXPOSURE",
+                  "key": "product_card_layout"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "free-shipping-treatment-log",
+            "generic_match": {
+              "base_matcher": {
+                "operator": "EQUAL",
+                "string_value": "treatment",
+                "state_key": {
+                  "scope": "FEATURE_FLAG_EXPOSURE",
+                  "key": "free_shipping_banner"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "capture-express-checkout",
+      "flush_rule": {
+        "match_id": "express-checkout-log"
+      }
+    },
+    {
+      "rule_id": "express-checkout-log-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "express-checkout-log"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "capture-card-layout-list",
+      "flush_rule": {
+        "match_id": "card-layout-list-log"
+      }
+    },
+    {
+      "rule_id": "card-layout-list-log-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "card-layout-list-log"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "capture-free-shipping-treatment",
+      "flush_rule": {
+        "match_id": "free-shipping-treatment-log"
+      }
+    },
+    {
+      "rule_id": "free-shipping-treatment-log-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "free-shipping-treatment-log"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+[
+  {
+    "rule_id": "express-checkout-log-count",
+    "metadata": {
+      "title": "Logs with express_checkout=enabled",
+      "summary": {
+        "description": "Count of logs from devices where express_checkout=enabled."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "express_checkout=enabled",
+            "y_axis": {
+              "description": "Logs",
+              "unit": "UNSPECIFIED"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "capture-express-checkout",
+    "metadata": {
+      "title": "Session capture: express_checkout=enabled",
+      "summary": {
+        "description": "Sessions flushed because a log carried express_checkout=enabled."
+      },
+      "flush_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "card-layout-list-log-count",
+    "metadata": {
+      "title": "Logs with product_card_layout=list",
+      "summary": {
+        "description": "Count of logs from devices where product_card_layout=list."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "product_card_layout=list",
+            "y_axis": {
+              "description": "Logs",
+              "unit": "UNSPECIFIED"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "capture-card-layout-list",
+    "metadata": {
+      "title": "Session capture: product_card_layout=list",
+      "summary": {
+        "description": "Sessions flushed because a log carried product_card_layout=list."
+      },
+      "flush_chart_metadata": {}
+    }
+  },
+  {
+    "rule_id": "free-shipping-treatment-log-count",
+    "metadata": {
+      "title": "Logs with free_shipping_banner=treatment",
+      "summary": {
+        "description": "Count of logs from devices where free_shipping_banner=treatment."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "free_shipping_banner=treatment",
+            "y_axis": {
+              "description": "Logs",
+              "unit": "UNSPECIFIED"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "capture-free-shipping-treatment",
+    "metadata": {
+      "title": "Session capture: free_shipping_banner=treatment",
+      "summary": {
+        "description": "Sessions flushed because a log carried free_shipping_banner=treatment."
+      },
+      "flush_chart_metadata": {}
+    }
+  }
+]

@@ -30,7 +30,7 @@ val bitdriftUseLocalAar = bitdriftLocalAarPath.isNotBlank()
 
 println(
     "bitdrift capture dependency: " +
-        if (bitdriftUseLocalAar) "LOCAL AAR ($bitdriftLocalAarPath)" else "Maven Central (io.bitdrift:capture:0.24.2)"
+        if (bitdriftUseLocalAar) "LOCAL AAR ($bitdriftLocalAarPath)" else "Maven Central (io.bitdrift:capture:0.25.1)"
 )
 
 // OtelExportConfiguration (and the otelExportConfiguration param on Configuration) only exist in
@@ -196,7 +196,7 @@ dependencies {
         implementation(files(bitdriftLocalCommonAarPath))
 
         // capture.aar is a bare local file with no POM, so its runtime dependencies
-        // (mirrored from the published capture:0.24.2 POM) must be declared explicitly.
+        // (mirrored from the published capture:0.25.1 POM) must be declared explicitly.
         implementation("androidx.appcompat:appcompat:1.7.0")
         implementation("androidx.core:core:1.13.1")
         implementation("androidx.lifecycle:lifecycle-common:2.8.7")
@@ -216,7 +216,7 @@ dependencies {
         // that 2.2.10-compiled suspend functions call into (NoClassDefFoundError).
         implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
     } else {
-        implementation("io.bitdrift:capture:0.24.2")
+        implementation("io.bitdrift:capture:0.25.1")
     }
 
     // OkHttp for backend API calls
