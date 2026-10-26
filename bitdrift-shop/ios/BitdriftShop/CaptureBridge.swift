@@ -34,11 +34,20 @@ enum CaptureBridge {
 
     static var sdkVersion: String { Logger.sdkVersion }
 
+    /// Restores the signed-in `user_id` across process restarts. After startup,
+    /// the sign-in/out call sites keep it current with `addField`/`removeField`,
+    /// and global fields survive `startNewSession()`. `user_id` is a special
+    /// bitdrift field: when present it appears in the Timeline session header.
+    private static func persistedUserFields() -> Fields {
+        guard let id = Prefs.userSession.string(Prefs.keyUserID), !id.isEmpty else { return [:] }
+        return ["user_id": id]
+    }
+
     /// Starts the Capture SDK. Must run before any logging.
     ///
-    /// bitdrift SDK: `Logger.start(withAPIKey:sessionStrategy:configuration:fieldProviders:)`
-    /// initialises the SDK with the API key, endpoint, session strategy, and field
-    /// providers. The returned `LoggerIntegrator` is what turns on automatic
+    /// bitdrift SDK: `Logger.start(withAPIKey:sessionConfiguration:configuration:initialFields:)`
+    /// initialises the SDK with the API key, endpoint, session configuration, and
+    /// startup fields. The returned `LoggerIntegrator` is what turns on automatic
     /// URLSession capture.
     /// POC: crash detection, memory monitoring, visual performance (OOTB — no
     /// extra calls); session management.
@@ -48,10 +57,11 @@ enum CaptureBridge {
         // per-call code. Equivalent to the Android app's automatic OkHttp
         // instrumentation via the Gradle plugin.
         // POC: network monitoring — unsampled latency, error rates, throughput per endpoint.
-        // `.fixed()` mints a fresh session ID on every process start, matching
-        // the Android app's `SessionStrategy.Fixed()` (ShoppingDemoApp.kt).
+        // A default `SessionConfiguration()` (no inactivityTimeout) mints a fresh
+        // session ID on every process start, matching the Android app's
+        // `SessionStrategy.Fixed()` (ShoppingDemoApp.kt).
         //
-        // Tradeoff vs. the `.activityBased()` this replaced: a crash the OS
+        // Tradeoff vs. the activity-based session this replaced: a crash the OS
         // reports on the *next* launch is emitted into whatever session is
         // current at that moment. Under `.fixed()` that's always a brand-new
         // session, so the crash is permanently divorced from the screen views
@@ -62,9 +72,9 @@ enum CaptureBridge {
         // the in-progress flow can never see.
         Logger.start(
             withAPIKey: AppConfig.apiKey,
-            sessionStrategy: .fixed(),
+            sessionConfiguration: SessionConfiguration(),
             configuration: .init(apiURL: AppConfig.apiURL),
-            fieldProviders: [UserIDFieldProvider()]
+            initialFields: Self.persistedUserFields()
         )?.enableIntegrations([.urlSession()])
 
         Logger.setEntityID("demo")
@@ -317,18 +327,5 @@ enum ColdStartSpans {
         // the type doc above).
         root?.end(.success, endTimeInterval: Date().timeIntervalSince1970)
         root = nil
-    }
-}
-
-/// Exposes the currently signed-in `user_id` on every log.
-///
-/// Reading from `UserDefaults` on each call — rather than capturing the value
-/// once — means the field survives `startNewSession()` and process restarts.
-/// `user_id` is a special bitdrift field: when present it appears in the
-/// Timeline session header.
-struct UserIDFieldProvider: FieldProvider {
-    func getFields() -> Fields {
-        guard let id = Prefs.userSession.string(Prefs.keyUserID), !id.isEmpty else { return [:] }
-        return ["user_id": id]
     }
 }
