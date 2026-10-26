@@ -119,18 +119,16 @@ workflow can actually see.
 
 A dashboard composes its 5 charts into one view:
 [`../../dashboards/ios-cold-start-span-timings.dashboard.json`](../../dashboards/ios-cold-start-span-timings.dashboard.json)
-(live at workflow id `0pTX`, dashboard id `1rik5G13l_cOcZMr_Oxka`). Deploy it
-with:
+(live at workflow id `0pTX`, dashboard id `1rik5G13l_cOcZMr_Oxka`). Its charts reference the workflow
+through a `__WF_ios_cold_start_span_timings__` placeholder, so deploy it with the unified tool rather than
+`bd dashboard create`, which would submit the placeholder as-is:
 
 ```bash
-bd dashboard create --request-file ../../dashboards/ios-cold-start-span-timings.dashboard.json
+tools/bd-deploy.sh ai.bitdrift.shop.ios --apply   # workflows first, then dashboards with placeholders resolved
 ```
 
-The committed payload's chart components reference `0pTX` directly — if you
-redeploy `bd-shop-20` to a different account, edit every `workflow_id` in the
-dashboard file first (same caveat `deploy-workflows.sh` works around for the
-guided crash dashboard above, just not automated here since this dashboard
-only has one workflow behind it).
+The tool resolves each placeholder to the workflow id in the target account, so redeploying `bd-shop-20` to a
+different account needs no manual edits (see [`../../dashboards/README.md`](../../dashboards/README.md)).
 
 ## Span timings beyond cold start (`bd-shop-21` through `bd-shop-24`)
 

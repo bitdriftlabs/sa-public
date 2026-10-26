@@ -65,7 +65,7 @@ per-screen spans, which is why it's primary and the span is just the comparison 
    ```bash
    ./scripts/check-demo-state.sh --reset
    ```
-2. Backend + app running — see the main [ios-workflows.md](ios-workflows.md) Quick Start (Steps 0–2).
+2. Backend + app running — see the [README.md](README.md) Quick Start (Steps 0–2).
 3. Deploy the primary workflow, capturing its ID:
    ```bash
    WORKFLOW_ID=$(bd workflow create ../workflows/slow-rendering.json \

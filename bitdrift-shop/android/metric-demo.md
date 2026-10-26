@@ -16,7 +16,7 @@ values on its own — no manual control needed.
 
 ## Setup
 
-1. App running — see main [ios-workflows.md](ios-workflows.md) Quick Start: Step 0 (bitdrift credentials) and
+1. App running — see [README.md](README.md) Quick Start: Step 0 (bitdrift credentials) and
    Step 2 (run the app). **Step 1 (start the backend) is not required for this demo** —
    `MetricsDemoManager` only calls the bitdrift `Logger` directly and never touches
    `ApiClient`/the local FastAPI server, so Metrics works standalone even with the backend never
