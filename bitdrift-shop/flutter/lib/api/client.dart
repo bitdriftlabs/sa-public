@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../bd/capture.dart';
+import '../generated/spec.dart';
 import '../config.dart';
 
 /// Thrown for non-2xx HTTP responses (already logged as `api_response_error`).
@@ -57,28 +58,28 @@ class Api {
       }
 
       final fields = <String, String>{
-        'method': method,
-        'path': loggedPath,
-        'status': '${res.statusCode}',
-        'duration_ms': '$durMs',
+        SpecFields.method: method,
+        SpecFields.path: loggedPath,
+        SpecFields.status: '${res.statusCode}',
+        SpecFields.durationMs: '$durMs',
       };
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        await Bd.debug('api_response', fields: fields);
+        await Bd.debug(SpecEvents.apiResponse, fields: fields);
         return data;
       }
-      await Bd.warning('api_response_error', fields: fields);
+      await Bd.warning(SpecEvents.apiResponseError, fields: fields);
       throw ApiError(res.statusCode);
     } on ApiError {
       rethrow;
     } catch (e) {
       final durMs = DateTime.now().difference(start).inMilliseconds;
       await Bd.error(
-        'api_request_failed',
+        SpecEvents.apiRequestFailed,
         fields: {
-          'method': method,
-          'path': loggedPath,
-          'duration_ms': '$durMs',
-          'error': '$e',
+          SpecFields.method: method,
+          SpecFields.path: loggedPath,
+          SpecFields.durationMs: '$durMs',
+          SpecFields.error: '$e',
         },
       );
       rethrow;

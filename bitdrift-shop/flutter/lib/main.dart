@@ -4,6 +4,7 @@ import 'app.dart';
 import 'bd/capture.dart';
 import 'config.dart';
 import 'crash.dart';
+import 'generated/spec.dart';
 import 'sim/simulator.dart';
 
 Future<void> main() async {
@@ -17,14 +18,14 @@ Future<void> main() async {
   final initMs = DateTime.now().difference(initStart).inMilliseconds;
 
   // Global fields — attached to every log/span, matching the other demos.
-  await Bd.field('app_variant', Config.appVariant);
-  await Bd.field('platform', Config.platform);
-  await Bd.field('app_version', Config.appVersion);
+  await Bd.field(SpecFields.appVariant, Config.appVariant);
+  await Bd.field(SpecFields.platform, Config.platform);
+  await Bd.field(SpecFields.appVersion, Config.appVersion);
 
   // The alpha SDK has no TTI API; emit it as a completed-span pair (the same
   // signal the other demos emit via paired logs).
-  await Bd.logCompletedSpan('app_cold_start.sdk_init', initMs);
-  await Bd.info('app_launched', fields: {'sdk_started': '$started'});
+  await Bd.logCompletedSpan(SpecSpans.appColdStartSdkInit, initMs);
+  await Bd.info(SpecEvents.appLaunched, fields: {SpecFields.sdkStarted: '$started'});
 
   final navKey = GlobalKey<NavigatorState>();
   final sim = Simulator(navKey);
@@ -34,9 +35,9 @@ Future<void> main() async {
   // measured in a post-frame callback so widget build + first frame are
   // included (like the other demos' TTI).
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    Bd.logCompletedSpan('app_cold_start',
+    Bd.logCompletedSpan(SpecSpans.appColdStart,
         DateTime.now().difference(t0).inMilliseconds,
-        fields: {'sdk_started': '$started'});
+        fields: {SpecFields.sdkStarted: '$started'});
   });
 
   // Crash loop (like the Android demo's "crash on payment"): when the loop is

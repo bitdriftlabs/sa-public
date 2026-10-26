@@ -26,27 +26,27 @@ flags:
     kind: persona
     values: {control: random, variant_a: guest, variant_b: signin}
     mirror_field: ff_checkout_flow
-    source: {android: "A:SimulationManager.kt:103", ios: "I:SimulationManager.swift:126", reactnative: "R:src/sim/variants.ts:152", flutter: "F:sim/simulator.dart:184"}
+    source: {android: "A:SimulationManager.kt:103", ios: "I:SimulationManager.swift:126", reactnative: "R:src/sim/variants.ts:152", flutter: "F:sim/simulator.dart:194"}
     used_by: [android/workflows/bd-shop-01-checkout-funnel.json, android/workflows/bd-shop-04-span-durations.json]
 
   - name: payment_ui
     kind: persona
     values: {control: random, variant_a: digital, variant_b: card}
     mirror_field: ff_payment_ui
-    source: {android: "A:SimulationManager.kt:104", ios: "I:SimulationManager.swift:127", reactnative: "R:src/sim/variants.ts:153", flutter: "F:sim/simulator.dart:185"}
+    source: {android: "A:SimulationManager.kt:104", ios: "I:SimulationManager.swift:127", reactnative: "R:src/sim/variants.ts:153", flutter: "F:sim/simulator.dart:195"}
     used_by: [android/workflows/bd-shop-02-payment-errors.json]
 
   - name: cart_abandon_rate
     kind: persona
     values: {control: medium, variant_a: high, variant_b: low}
     mirror_field: ff_cart_abandon_rate
-    source: {android: "A:SimulationManager.kt:105", ios: "I:SimulationManager.swift:128", reactnative: "R:src/sim/variants.ts:154", flutter: "F:sim/simulator.dart:186"}
+    source: {android: "A:SimulationManager.kt:105", ios: "I:SimulationManager.swift:128", reactnative: "R:src/sim/variants.ts:154", flutter: "F:sim/simulator.dart:196"}
 
   - name: payment_android_pay
     kind: persona
     values: {control: enabled, variant_a: enabled, variant_b: disabled}
     mirror_field: ff_payment_android_pay
-    source: {android: "A:SimulationManager.kt:117", ios: "I:SimulationManager.swift:135", reactnative: "R:src/sim/variants.ts:155", flutter: "F:sim/simulator.dart:187"}
+    source: {android: "A:SimulationManager.kt:117", ios: "I:SimulationManager.swift:135", reactnative: "R:src/sim/variants.ts:155", flutter: "F:sim/simulator.dart:197"}
 
   - name: order_summary
     kind: toggle

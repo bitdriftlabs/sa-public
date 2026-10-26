@@ -36,7 +36,7 @@ FILES = ["screens", "telemetry", "flags", "personas", "crashes", "faults", "api"
 PLATFORMS = {"android", "ios", "reactnative", "flutter"}
 EXTRA_SOURCE_KEYS = {"backend", "kmp"}
 PLATFORM_LIST_KEYS = ("platforms", "optional_on", "missing_on", "exposure_optional_on", "persisted_on")
-PLATFORM_MAP_KEYS = ("drift", "drift_fields", "drift_level", "drift_values", "source", "source_ui",
+PLATFORM_MAP_KEYS = ("drift", "was", "drift_fields", "drift_level", "drift_values", "source", "source_ui",
                      "impl", "sim_emits", "store_source")
 REF_RE = re.compile(r"^([A-Z]+):(.+):(\d+)$")
 DECISION_ID_RE = re.compile(r"\b(OPEN-\d+|D-[A-Z]+-[A-Z0-9]+)\b")
@@ -136,7 +136,8 @@ def check_ref(ref, roots, where, token=None):
         # Apps migrated to generated constants reference the name as SpecEvents.FOO_BAR /
         # SpecEvents.fooBar / SpecEvents.foo_bar-style identifiers instead of the literal.
         window = "\n".join(lines[max(0, line - 7): line + 6])
-        if not any(v in window for v in _token_variants(str(token))):
+        norm = lambda x: "".join(ch for ch in x.lower() if ch.isalnum())
+        if not any(v in window for v in _token_variants(str(token))) and norm(str(token)) not in norm(window):
             warn("%s: %r not found near %s:%d" % (where, token, rel, line))
 
 

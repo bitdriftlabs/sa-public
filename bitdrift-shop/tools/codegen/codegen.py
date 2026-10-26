@@ -306,7 +306,87 @@ def ts_files(platform="reactnative"):
     return {"spec.ts": body + "\n"}
 
 
-LANGS = {"kotlin": kotlin_files, "swift": swift_files, "ts": ts_files}
+# ── Dart ─────────────────────────────────────────────────────────────────────
+
+DART_KEYWORDS = {
+    "abstract", "as", "assert", "async", "await", "break", "case", "catch", "class", "const", "continue",
+    "default", "do", "else", "enum", "export", "extends", "extension", "external", "factory", "false", "final",
+    "finally", "for", "get", "if", "implements", "import", "in", "interface", "is", "late", "library", "mixin",
+    "new", "null", "on", "operator", "part", "required", "rethrow", "return", "set", "show", "static", "super",
+    "switch", "this", "throw", "true", "try", "typedef", "var", "void", "while", "with", "yield",
+}
+
+
+def dart_id(n):
+    c = camel(n).strip("`")
+    return c + "_" if c in DART_KEYWORDS else c
+
+
+def dart_str(v):
+    return "'" + str(v).replace("\\", "\\\\").replace("'", "\\'").replace("$", "\\$") + "'"
+
+
+def dart_files(platform="flutter"):
+    events, fields, spans = (uniq(x) for x in telemetry_data(platform))
+    for k, n in (("events", events), ("fields", fields), ("spans", spans)):
+        check_unique_camel(k, n)
+
+    def cls(name, doc, names):
+        lines = [f"/// {doc}", f"abstract final class {name} {{"]
+        for n in names:
+            lines.append(f"  static const {dart_id(n)} = {dart_str(n)};")
+        lines.append("}")
+        return "\n".join(lines)
+
+    screens = [s for s in load("screens")["screens"] if applies(s, platform)]
+    check_unique_camel("screens", [s["id"] for s in screens])
+    lines = ["/// Screens (spec/screens.yaml): logScreenView name, template route, step; `platformRoute` is this app's route key.",
+             "enum SpecScreen {"]
+    for i, s in enumerate(screens):
+        pr = (s.get("platform_routes") or {}).get(platform, s["route"])
+        ls = dart_str(s["load_span"]) if s.get("load_span") else "null"
+        end = ";" if i == len(screens) - 1 else ","
+        lines.append(f"  {dart_id(s['id'])}({dart_str(s['id'])}, {dart_str(s['name'])}, {dart_str(s['route'])}, {dart_str(pr)}, {s['step']}, {ls}){end}")
+    lines += ["", "  const SpecScreen(this.id, this.screenName, this.route, this.platformRoute, this.step, this.loadSpan);",
+              "  final String id;", "  final String screenName;", "  final String route;", "  final String platformRoute;",
+              "  final int step;", "  final String? loadSpan;", "}"]
+    screens_block = "\n".join(lines)
+
+    flags = [f for f in load("flags")["flags"] if applies(f, platform)]
+    check_unique_camel("flags", [f["name"] for f in flags])
+    lines = ["/// Feature flags (spec/flags.yaml): exposure names, mirror field keys, persona values.", "abstract final class SpecFlags {"]
+    for f in flags:
+        c = dart_id(f["name"])
+        lines.append(f"  static const {c} = {dart_str(f['name'])};")
+        if f.get("mirror_field"):
+            lines.append(f"  static const {c}Field = {dart_str(f['mirror_field'])};")
+        if f["kind"] == "persona":
+            for persona, val in f["values"].items():
+                pc = camel(persona)
+                lines.append(f"  static const {c}{pc[:1].upper() + pc[1:]} = {dart_str(val)};")
+    lines.append("}")
+    flags_block = "\n".join(lines)
+
+    lines = ["/// Personas (spec/personas.yaml): the `variant` field label per persona.", "abstract final class SpecPersonas {"]
+    for p in load("personas")["personas"]:
+        lines.append(f"  static const {dart_id(p['id'])} = {dart_str(p['label'])};")
+    lines.append("}")
+
+    body = "\n\n".join(
+        [
+            f"// {HEADER}",
+            cls("SpecEvents", "Log message names (spec/telemetry.yaml events + sdk_events).", events),
+            cls("SpecFields", "Field keys (spec/telemetry.yaml fields). Leading '_' keys are SDK-owned (sdk prefix).", fields),
+            cls("SpecSpans", "Span names (spec/telemetry.yaml spans).", spans),
+            screens_block,
+            flags_block,
+            "\n".join(lines),
+        ]
+    )
+    return {"spec.dart": body + "\n"}
+
+
+LANGS = {"kotlin": kotlin_files, "swift": swift_files, "ts": ts_files, "dart": dart_files}
 
 
 def main():

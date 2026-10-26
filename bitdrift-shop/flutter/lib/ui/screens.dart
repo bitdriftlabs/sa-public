@@ -3,14 +3,15 @@ import 'package:flutter/material.dart';
 import '../api/client.dart';
 import '../bd/capture.dart';
 import '../models/models.dart';
-import '../sim/simulator.dart' show paymentRoute;
+import '../generated/spec.dart';
+import '../sim/simulator.dart' show paymentMethodLabel, paymentRoute;
 import 'widgets.dart';
 
 String _payLabel(String m) => switch (m) {
-      'card' => 'Card',
-      'applePay' => 'Apple Pay',
-      'paypal' => 'PayPal',
-      _ => 'Android Pay',
+      'card' => SpecScreen.paymentCard.screenName,
+      'applePay' => SpecScreen.paymentApplePay.screenName,
+      'paypal' => SpecScreen.paymentPaypal.screenName,
+      _ => SpecScreen.paymentAndroidPay.screenName,
     };
 
 Widget _productListView(BuildContext context, Map<String, dynamic> data,
@@ -37,7 +38,7 @@ class BrowseScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LoadScreen(
         title: 'Browse',
-        screenView: 'Browse',
+        screenView: SpecScreen.browse.screenName,
         fetch: Api.browse,
         builder: (context, d) => _productListView(context, d),
       );
@@ -48,7 +49,7 @@ class FeaturedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LoadScreen(
         title: 'Featured',
-        screenView: 'Featured',
+        screenView: SpecScreen.featured.screenName,
         fetch: Api.featured,
         builder: (context, d) {
           final banner = (d['banner'] is Map)
@@ -77,7 +78,7 @@ class CategoriesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LoadScreen(
         title: 'Categories',
-        screenView: 'Categories',
+        screenView: SpecScreen.categories.screenName,
         fetch: Api.categories,
         builder: (context, d) {
           final cats = Category.list(d['categories']);
@@ -114,7 +115,7 @@ class CategoryScreen extends StatelessWidget {
         (ModalRoute.of(context)?.settings.arguments as String?) ?? 'Electronics';
     return LoadScreen(
       title: name,
-      screenView: 'CategoryBrowse',
+      screenView: SpecScreen.categoryBrowse.screenName,
       fetch: () => Api.categoryProducts(name),
       builder: (context, d) => _productListView(context, d),
     );
@@ -137,7 +138,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    Bd.screenView('Search');
+    Bd.screenView(SpecScreen.search.screenName);
   }
 
   @override
@@ -220,7 +221,7 @@ class ProductScreen extends StatelessWidget {
     final id = (ModalRoute.of(context)?.settings.arguments as String?) ?? '';
     return LoadScreen(
       title: 'Product',
-      screenView: 'ProductDetail',
+      screenView: SpecScreen.productDetail.screenName,
       fetch: () => Api.product(id),
       builder: (context, d) {
         dynamic imgs = d['images'];
@@ -287,26 +288,28 @@ class ProductScreen extends StatelessWidget {
   }
 
   Future<void> _addToCart(BuildContext context, String id) async {
-    await Bd.info('add_to_cart_tapped', fields: {'product_id': id});
+    await Bd.info(SpecEvents.addToCart,
+        fields: {SpecFields.productId: id, SpecFields.sourceScreen: 'unknown'});
     try {
       await Api.addToCart(id);
       if (context.mounted) Navigator.of(context).pushNamed('cart');
     } catch (e) {
-      await Bd.warning('add_to_cart_failed',
-          fields: {'product_id': id, 'reason': '$e'});
+      await Bd.error(SpecEvents.cartFailed,
+          fields: {SpecFields.productId: id, SpecFields.reason: '$e'});
     }
   }
 
   Future<void> _wishlist(BuildContext context, String id) async {
-    await Bd.info('wishlist_add_tapped', fields: {'product_id': id});
+    await Bd.info(SpecEvents.addToWishlist,
+        fields: {SpecFields.productId: id, SpecFields.sourceScreen: 'unknown'});
     try {
       await Api.wishlist(id);
       if (context.mounted) {
         Navigator.of(context).pushNamed('wishlist', arguments: id);
       }
     } catch (e) {
-      await Bd.warning('wishlist_add_failed',
-          fields: {'product_id': id, 'reason': '$e'});
+      // No Android equivalent event; the failure is visible as the API error (spec D-EVT-F13).
+      debugPrint('wishlist add failed for $id: $e');
     }
   }
 }
@@ -318,7 +321,7 @@ class ReviewsScreen extends StatelessWidget {
     final id = (ModalRoute.of(context)?.settings.arguments as String?) ?? '';
     return LoadScreen(
       title: 'Reviews',
-      screenView: 'Reviews',
+      screenView: SpecScreen.reviews.screenName,
       fetch: () => Api.reviews(id),
       builder: (context, d) {
         final list = d['reviews'];
@@ -367,7 +370,7 @@ class CartScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LoadScreen(
         title: 'Cart',
-        screenView: 'Cart',
+        screenView: SpecScreen.cart.screenName,
         fetch: Api.cart,
         builder: (context, d) {
           final items = d['items'];
@@ -440,7 +443,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
   @override
   void initState() {
     super.initState();
-    Bd.screenView('Wishlist');
+    Bd.screenView(SpecScreen.wishlist.screenName);
   }
 
   @override
@@ -490,7 +493,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
-    Bd.screenView(widget.guest ? 'CheckoutGuest' : 'CheckoutSignIn');
+    Bd.screenView(widget.guest
+        ? SpecScreen.checkoutGuest.screenName
+        : SpecScreen.checkoutSignin.screenName);
     _loadTotal();
   }
 
@@ -519,13 +524,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ? await Api.checkoutGuest(_email.text)
           : await Api.checkoutSignIn(_email.text);
       final session = (resp['checkout_session'] ?? '').toString();
-      await Bd.info('checkout_created',
-          fields: {'checkout_type': type, 'amount': _total.toString()});
+      await Bd.info(SpecEvents.checkoutStarted,
+          fields: {SpecFields.checkoutType: type});
       if (!mounted) return;
       Navigator.of(context)
           .pushNamed('payment_card', arguments: {'session': session, 'amount': _total});
     } catch (e) {
-      await Bd.error('checkout_failed', fields: {'checkout_type': type, 'reason': '$e'});
+      await Bd.error(SpecEvents.checkoutFailed,
+          fields: {SpecFields.checkoutType: type, SpecFields.reason: '$e'});
       if (mounted) setState(() {
         _error = '$e';
         _busy = false;
@@ -615,7 +621,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _busy = true;
       _error = '';
     });
-    await Bd.info('payment_attempted', fields: {'payment_method': widget.method});
     try {
       final resp = switch (widget.method) {
         'card' => await Api.payCard(_session),
@@ -624,12 +629,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
         _ => await Api.payAndroidPay(_session),
       };
       final orderId = (resp['order_id'] ?? '').toString();
-      await Bd.info('payment_succeeded',
-          fields: {'payment_method': widget.method, 'order_id': orderId});
+      await Bd.info(SpecEvents.paymentCompleted, fields: {
+        SpecFields.paymentMethod: paymentMethodLabel(widget.method),
+        SpecFields.orderId: orderId,
+      });
       if (mounted) Navigator.of(context).pushNamed('confirmation', arguments: orderId);
     } catch (e) {
-      await Bd.error('payment_failed',
-          fields: {'payment_method': widget.method, 'reason': '$e'});
+      await Bd.error(SpecEvents.paymentFailed, fields: {
+        SpecFields.paymentMethod: paymentMethodLabel(widget.method),
+        SpecFields.reason: '$e',
+      });
       if (mounted) {
         Navigator.of(context).pushNamed('payment_failed',
             arguments: {'method': widget.method, 'reason': '$e'});
@@ -703,7 +712,7 @@ class _PaymentFailedScreenState extends State<PaymentFailedScreen> {
     _initialized = true;
     final a = ModalRoute.of(context)?.settings.arguments;
     if (a is Map) _args = a.map((k, v) => MapEntry(k.toString(), v));
-    Bd.screenView('PaymentFailed');
+    Bd.screenView(SpecScreen.paymentFailed.screenName);
   }
 
   @override
@@ -741,7 +750,7 @@ class ConfirmationScreen extends StatelessWidget {
     final orderId = (ModalRoute.of(context)?.settings.arguments as String?) ?? '';
     return LoadScreen(
       title: 'Confirmation',
-      screenView: 'Confirmation',
+      screenView: SpecScreen.confirmation.screenName,
       fetch: () =>
           Api.confirmation(orderId.isEmpty ? 'unknown' : orderId),
       builder: (context, d) => Center(
@@ -787,7 +796,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
   @override
   void initState() {
     super.initState();
-    Bd.screenView('Diagnostics');
+    Bd.screenView(SpecScreen.advanced.screenName);
     _load();
   }
 

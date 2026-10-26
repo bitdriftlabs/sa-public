@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import '../api/client.dart';
 import '../bd/capture.dart';
 import '../crash.dart';
+import '../generated/spec.dart';
 import '../models/models.dart';
 
 
@@ -118,6 +119,7 @@ class Simulator extends ChangeNotifier {
   int _currentRun = 0;
   int _totalRuns = 0;
   String _lastEntity = '';
+  bool _cancelled = false;
 
   Simulator(this._navKey);
 
@@ -134,6 +136,7 @@ class Simulator extends ChangeNotifier {
   Future<void> start({int runs = 3, bool infinite = false}) async {
     if (_running) return;
     _running = true;
+    _cancelled = false;
     _infinite = infinite;
     _totalRuns = infinite ? 0 : runs;
     _currentRun = 0;
@@ -141,14 +144,13 @@ class Simulator extends ChangeNotifier {
 
     await _applyVariant();
     await Bd.info(
-      infinite ? 'simulation_start_infinite' : 'simulation_start',
-      fields: {'total_runs': '$runs', 'variant': simVariantLabel(_variant)},
+      infinite ? SpecEvents.infiniteSimulationStart : SpecEvents.simulationStart,
+      fields: infinite ? null : {SpecFields.totalRuns: '$runs'},
     );
     try {
       while (_running && (_infinite || _currentRun < _totalRuns)) {
         _currentRun++;
         notifyListeners();
-        await Bd.info('simulation_run_start', fields: {'run': '$_currentRun'});
         await _journey();
         await Future.delayed(const Duration(milliseconds: 1500));
       }
@@ -158,14 +160,22 @@ class Simulator extends ChangeNotifier {
       // If a journey was interrupted by stop(), the stack may not be back at
       // the welcome screen — bring it back so the app is in a clean state.
       await _resetStack();
-      await Bd.info(
-        'simulation_end',
-        fields: {'completed_runs': '$_currentRun', 'total_runs': '$_totalRuns'},
-      );
+      if (_cancelled) {
+        await Bd.info(SpecEvents.simulationCancelled, fields: {
+          SpecFields.completedRuns: '${_currentRun - 1}',
+          SpecFields.totalRuns: '$_totalRuns',
+        });
+      } else {
+        await Bd.info(
+          infinite ? SpecEvents.infiniteSimulationEnd : SpecEvents.simulationEnd,
+          fields: {SpecFields.totalRuns: '$_currentRun'},
+        );
+      }
     }
   }
 
   void stop() {
+    _cancelled = _running;
     _running = false;
     notifyListeners();
   }
@@ -176,27 +186,27 @@ class Simulator extends ChangeNotifier {
       await Bd.setFlag(e.key, e.value);
     }
     await Bd.setFlag('variant', simVariantLabel(_variant));
-    await Bd.info('feature_flag_exposure_set');
+    await Bd.info(SpecEvents.featureFlagExposureSet);
   }
 
   Map<String, String> _flagsFor(SimVariant v) => switch (v) {
         SimVariant.control => {
-              'checkout_flow': 'random',
-              'payment_ui': 'random',
-              'cart_abandon_rate': 'medium',
-              'payment_android_pay': 'enabled',
+              SpecFlags.checkoutFlow: SpecFlags.checkoutFlowControl,
+              SpecFlags.paymentUi: SpecFlags.paymentUiControl,
+              SpecFlags.cartAbandonRate: SpecFlags.cartAbandonRateControl,
+              SpecFlags.paymentAndroidPay: SpecFlags.paymentAndroidPayControl,
             },
         SimVariant.variantA => {
-              'checkout_flow': 'guest',
-              'payment_ui': 'digital',
-              'cart_abandon_rate': 'high',
-              'payment_android_pay': 'enabled',
+              SpecFlags.checkoutFlow: SpecFlags.checkoutFlowVariantA,
+              SpecFlags.paymentUi: SpecFlags.paymentUiVariantA,
+              SpecFlags.cartAbandonRate: SpecFlags.cartAbandonRateVariantA,
+              SpecFlags.paymentAndroidPay: SpecFlags.paymentAndroidPayVariantA,
             },
         SimVariant.variantB => {
-              'checkout_flow': 'signin',
-              'payment_ui': 'card',
-              'cart_abandon_rate': 'low',
-              'payment_android_pay': 'disabled',
+              SpecFlags.checkoutFlow: SpecFlags.checkoutFlowVariantB,
+              SpecFlags.paymentUi: SpecFlags.paymentUiVariantB,
+              SpecFlags.cartAbandonRate: SpecFlags.cartAbandonRateVariantB,
+              SpecFlags.paymentAndroidPay: SpecFlags.paymentAndroidPayVariantB,
             },
       };
 
@@ -224,35 +234,30 @@ class Simulator extends ChangeNotifier {
       await Bd.entity(entity);
     }
     _lastEntity = entity;
-    await Bd.info('journey_start', fields: {
-      'variant': simVariantLabel(_variant),
-      'checkout_type': checkoutType,
-      if (entity.isNotEmpty) 'entity': entity,
+    await Bd.info(SpecEvents.journeyStarted, fields: {
+      SpecFields.run: '$_currentRun',
+      SpecFields.variant: simVariantLabel(_variant),
     });
-    final journeySpan = await Bd.startSpan('journey',
-        fields: {'variant': simVariantLabel(_variant)});
+    final journeySpan = await Bd.startSpan(SpecSpans.journey,
+        fields: {SpecFields.variant: simVariantLabel(_variant)});
 
     await _resetStack();
 
     // 1. Discovery (browse / search / categories).
-    final discoverySpan = await Bd.startSpan('product_discovery');
+    final discoverySpan = await Bd.startSpan(SpecSpans.productDiscovery);
     String productId = '';
-    var source = '';
     final roll = _rng.nextDouble();
     if (roll < profile.discoveryBrowseMax) {
-      source = 'browse';
       await _go('browse');
       final products = Product.list((await _safe(Api.browse))['products']);
       if (products.isNotEmpty) productId = _pickId(products);
     } else if (roll < profile.discoverySearchMax) {
-      source = 'search';
       await _go('search');
       final q = kSearchTerms[_rng.nextInt(kSearchTerms.length)];
       final products =
           Product.list((await _safe(() => Api.search(q)))['products']);
       if (products.isNotEmpty) productId = _pickId(products);
     } else {
-      source = 'categories';
       await _go('categories');
       final cats = Category.list((await _safe(Api.categories))['categories']);
       if (cats.isNotEmpty) {
@@ -269,17 +274,11 @@ class Simulator extends ChangeNotifier {
       if (products.isNotEmpty) productId = _pickId(products);
     }
     await discoverySpan?.end(success: true);
-    if (productId.isNotEmpty) {
-      await Bd.info('discovery_completed',
-          fields: {'source': source, 'product_id': productId});
-    }
     if (await _stopped(journeySpan)) return;
 
     // 2. Product detail (+ optional reviews / wishlist).
     if (productId.isNotEmpty) {
       await _go('product', args: productId);
-      await Bd.info('product_viewed',
-          fields: {'product_id': productId, 'source': source});
       if (await _stopped(journeySpan)) return;
       if (_rng.nextDouble() < profile.reviewsProb) {
         await _go('reviews', args: productId);
@@ -305,8 +304,8 @@ class Simulator extends ChangeNotifier {
 
     // 4. Checkout (guest vs signin — decided at journey start, see entity
     //    setup above; reused here rather than re-rolled).
-    final checkoutSpan = await Bd.startSpan('checkout',
-        fields: {'checkout_type': checkoutType});
+    final checkoutSpan = await Bd.startSpan(SpecSpans.checkout,
+        fields: {SpecFields.checkoutType: checkoutType});
     await _go(isGuest ? 'checkout_guest' : 'checkout_signin');
     if (await _stopped(journeySpan, checkoutSpan)) return;
     String session = '';
@@ -315,16 +314,13 @@ class Simulator extends ChangeNotifier {
           isGuest ? await Api.checkoutGuest() : await Api.checkoutSignIn();
       session = (resp['checkout_session'] ?? '').toString();
       await checkoutSpan?.end(success: true);
-      await Bd.info('checkout_created',
-          fields: {
-            'checkout_type': checkoutType,
-            'variant': simVariantLabel(_variant)
-          });
+      await Bd.info(SpecEvents.checkoutStarted,
+          fields: {SpecFields.checkoutType: checkoutType});
     } catch (e) {
       await checkoutSpan?.end(success: false);
       await journeySpan?.end(success: false);
-      await Bd.warning('checkout_failed',
-          fields: {'checkout_type': checkoutType, 'reason': '$e'});
+      await Bd.error(SpecEvents.checkoutFailed,
+          fields: {SpecFields.checkoutType: checkoutType, SpecFields.reason: '$e'});
       await _resetStack();
       return;
     }
@@ -332,8 +328,6 @@ class Simulator extends ChangeNotifier {
     // 5. Payment (variant-weighted method).
     final method = _pickPayment(profile);
     await _go(paymentRoute(method), args: {'session': session});
-    await Bd.info('payment_method_selected',
-        fields: {'payment_method': method, 'variant': simVariantLabel(_variant)});
     if (await _stopped(journeySpan)) return;
     // Crash loop (like the Android demo's "crash on payment"): when active,
     // the journey ends here with a random crash. Close the still-open journey
@@ -349,8 +343,11 @@ class Simulator extends ChangeNotifier {
       orderId = (resp['order_id'] ?? '').toString();
       paid = true;
     } catch (e) {
-      await Bd.error('payment_failed',
-          fields: {'payment_method': method, 'reason': '$e'});
+      await Bd.error(SpecEvents.paymentFailed, fields: {
+        SpecFields.paymentMethod: paymentMethodLabel(method),
+        SpecFields.variant: simVariantLabel(_variant),
+        SpecFields.reason: '$e',
+      });
     }
     if (!paid) {
       await _go('payment_failed', args: {'method': method});
@@ -361,12 +358,10 @@ class Simulator extends ChangeNotifier {
 
     // 6. Confirmation.
     await _go('confirmation', args: orderId);
-    await Bd.info('order_completed',
-        fields: {
-          'payment_method': method,
-          'order_id': orderId,
-          'variant': simVariantLabel(_variant),
-        });
+    await Bd.info(SpecEvents.confirmationReached, fields: {
+      SpecFields.sdkScreenName: SpecScreen.confirmation.screenName,
+      SpecFields.checkoutFlow: _flagsFor(_variant)[SpecFlags.checkoutFlow]!,
+    });
     await journeySpan?.end(success: true);
     await _resetStack();
   }
@@ -375,7 +370,6 @@ class Simulator extends ChangeNotifier {
   /// open and abort the journey. Returns true when the journey was stopped.
   Future<bool> _stopped(SpanHandle? journey, [SpanHandle? child]) async {
     if (_running) return false;
-    await Bd.info('journey_stopped');
     await child?.end(success: false);
     await journey?.end(success: false);
     return true;
@@ -388,8 +382,8 @@ class Simulator extends ChangeNotifier {
     try {
       nav.pushNamed(name, arguments: args);
     } catch (e) {
-      await Bd.warning('sim_navigation_failed',
-          fields: {'route': name, 'reason': '$e'});
+      // Debug-only navigation failure; no telemetry (spec D-EVT-F13).
+      debugPrint('sim navigation to $name failed: $e');
     }
     await Future.delayed(const Duration(milliseconds: 900));
   }
@@ -436,6 +430,13 @@ class Simulator extends ChangeNotifier {
         _ => Api.payAndroidPay(session),
       };
 }
+
+/// Telemetry value for a Flutter payment-method key (spec: card, apple_pay, paypal, android_pay).
+String paymentMethodLabel(String method) => switch (method) {
+      'applePay' => 'apple_pay',
+      'androidPay' => 'android_pay',
+      _ => method,
+    };
 
 /// Route name for a payment method (shared with the UI).
 String paymentRoute(String method) => switch (method) {

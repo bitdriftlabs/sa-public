@@ -227,7 +227,7 @@ global_fields:
   - {key: ff_free_shipping_banner, from_flag: free_shipping_banner}
   - key: ff_variant
     desc: "persona label; field only, not a flag exposure"
-    source: {android: "A:SimulationManager.kt:110", ios: "I:SimulationManager.swift:133", reactnative: "R:src/sim/variants.ts:165", flutter: "F:sim/simulator.dart:178"}
+    source: {android: "A:SimulationManager.kt:110", ios: "I:SimulationManager.swift:133", reactnative: "R:src/sim/variants.ts:165", flutter: "F:sim/simulator.dart:188"}
     source_token: {flutter: "'variant'"}   # Bd.setFlag prefixes ff_ (F:bd/capture.dart:58)
 
 # SDK-emitted events referenced by workflows (not emitted by app code; listed so the
@@ -252,14 +252,14 @@ events:
     trigger: sim
     required: [total_runs]
     drift_fields: {flutter: "adds completed_runs (D-EVT-F9)"}
-    source: {android: "A:ScreenLogger.kt:38", ios: "I:ScreenLogger.swift:162", reactnative: "R:src/utils/logger.ts:199", flutter: "F:sim/simulator.dart:162"}
+    source: {android: "A:ScreenLogger.kt:38", ios: "I:ScreenLogger.swift:162", reactnative: "R:src/utils/logger.ts:199", flutter: "F:sim/simulator.dart:170"}
   - name: simulation_cancelled
     level: info
     trigger: sim
     required: [completed_runs, total_runs]
-    drift: {flutter: journey_stopped}
+    was: {flutter: journey_stopped}  # conformed in Phase 2b
     drift_level: {reactnative: warning}   # D-EVT-3
-    source: {android: "A:SimulationManager.kt:166", ios: "I:SimulationManager.swift:186", reactnative: "R:src/context/SimulationContext.tsx:731", flutter: "F:sim/simulator.dart:378"}
+    source: {android: "A:SimulationManager.kt:166", ios: "I:SimulationManager.swift:186", reactnative: "R:src/context/SimulationContext.tsx:731", flutter: "F:sim/simulator.dart:164"}
   - name: ab_simulation_start
     level: info
     trigger: sim
@@ -275,7 +275,7 @@ events:
   - name: infinite_simulation_start
     level: info
     trigger: sim
-    drift: {flutter: simulation_start_infinite}
+    was: {flutter: simulation_start_infinite}  # conformed in Phase 2b
     source: {android: "A:SimulationManager.kt:299", ios: "I:SimulationManager.swift:286", reactnative: "R:src/context/SimulationContext.tsx:633", flutter: "F:sim/simulator.dart:144"}
   - name: infinite_simulation_end
     level: info
@@ -297,16 +297,16 @@ events:
   - name: feature_flag_exposure_set
     level: info
     trigger: sim
-    source: {android: "A:SimulationManager.kt:132", ios: "I:SimulationManager.swift:155", reactnative: "R:src/sim/variants.ts:172", flutter: "F:sim/simulator.dart:179"}
+    source: {android: "A:SimulationManager.kt:132", ios: "I:SimulationManager.swift:155", reactnative: "R:src/sim/variants.ts:172", flutter: "F:sim/simulator.dart:189"}
 
   # --- journey ---------------------------------------------------------------
   - name: journey_started
     level: info
     trigger: sim
     required: [run, variant]
-    drift: {flutter: journey_start}
+    was: {flutter: journey_start}  # conformed in Phase 2b
     drift_fields: {flutter: "sends variant, checkout_type, entity; no run (D-EVT-F1)"}
-    source: {android: "A:SimulationManager.kt:621", ios: "I:SimulationManager.swift:690", reactnative: "R:src/context/SimulationContext.tsx:366", flutter: "F:sim/simulator.dart:227"}
+    source: {android: "A:SimulationManager.kt:621", ios: "I:SimulationManager.swift:690", reactnative: "R:src/context/SimulationContext.tsx:366", flutter: "F:sim/simulator.dart:237"}
   - name: cart_abandoned
     level: info
     trigger: sim
@@ -345,7 +345,7 @@ events:
     required: [_screen_name]
     optional: [checkout_flow, payment_retried, retry_method]
     notes: "success path: _screen_name=Confirmation + checkout_flow; retry path: + payment_retried=true, retry_method"
-    drift: {flutter: order_completed}
+    was: {flutter: order_completed}  # conformed in Phase 2b
     drift_fields: {reactnative: "sends payment_retried=false on success and no checkout_flow (D-EVT-4)"}
     source: {android: "A:SimulationManager.kt:1090", ios: "I:SimulationManager.swift:1131", reactnative: "R:src/context/SimulationContext.tsx:613", flutter: "F:sim/simulator.dart:364"}
 
@@ -354,14 +354,14 @@ events:
     level: info
     trigger: ui
     required: [product_id, source_screen]
-    drift: {flutter: add_to_cart_tapped}
+    was: {flutter: add_to_cart_tapped}  # conformed in Phase 2b
     sim_emits: {reactnative: true}   # OPEN-5
     source: {android: "A:Screens.kt:946", ios: "I:Screens.swift:667", reactnative: "R:src/screens/ShoppingScreens.tsx:429", flutter: "F:ui/screens.dart:290"}
   - name: add_to_wishlist
     level: info
     trigger: ui
     required: [product_id, source_screen]
-    drift: {flutter: wishlist_add_tapped}
+    was: {flutter: wishlist_add_tapped}  # conformed in Phase 2b
     sim_emits: {reactnative: true}
     source: {android: "A:Screens.kt:954", ios: "I:Screens.swift:671", reactnative: "R:src/screens/ShoppingScreens.tsx:437", flutter: "F:ui/screens.dart:301"}
   - name: cart_item_removed
@@ -376,14 +376,14 @@ events:
     trigger: ui
     required: [product_id]
     optional: [reason]
-    drift: {flutter: add_to_cart_failed}
+    was: {flutter: add_to_cart_failed}  # conformed in Phase 2b
     drift_level: {flutter: warning}
     source: {android: "A:Screens.kt:1025", ios: "I:Screens.swift:799", reactnative: "R:src/screens/ShoppingScreens.tsx:536", flutter: "F:ui/screens.dart:295"}
   - name: checkout_started
     level: info
     trigger: ui
     required: [checkout_type]
-    drift: {flutter: checkout_created}
+    was: {flutter: checkout_created}  # conformed in Phase 2b
     sim_emits: {reactnative: true}
     source: {android: "A:Screens.kt:1113", ios: "I:Screens.swift:772", reactnative: "R:src/screens/ShoppingScreens.tsx:561", flutter: "F:ui/screens.dart:522"}
   - name: checkout_failed
@@ -399,7 +399,7 @@ events:
     trigger: ui
     required: [payment_method, order_id]
     optional: [card_last4]
-    drift: {flutter: payment_succeeded}
+    was: {flutter: payment_succeeded}  # conformed in Phase 2b
     sim_emits: {reactnative: true}
     source: {android: "A:Screens.kt:1345", ios: "I:Screens.swift:1137", reactnative: "R:src/screens/ShoppingScreens.tsx:729", flutter: "F:ui/screens.dart:627"}
   - name: crash_loop_stopped
@@ -515,7 +515,7 @@ events:
       - "about_to_crash (fast): {crash_kind} (context={crash_context})"   # fast crash mode (android, ios)
     match: "^about_to_crash"   # regex used by ios/workflows/bd-shop-15
     optional: [crash_kind]
-    drift: {flutter: crash_injection}
+    was: {flutter: crash_injection}  # conformed in Phase 2b
     drift_fields: {reactnative: "sim message is 'about_to_crash: {name} (idx={idx})' (D-EVT-5)", flutter: "field 'crash' instead of crash_kind global field"}
     source: {android: "A:SimulationManager.kt:578", ios: "I:SimulationManager.swift:584", reactnative: "R:src/context/SimulationContext.tsx:304", flutter: "F:crash.dart:48"}
     used_by: [ios/workflows/bd-shop-15-crashes-by-final-screen.json]
@@ -584,13 +584,13 @@ events:
 # Names currently emitted that must be removed (no spec equivalent; see D-EVT-F13). The
 # conformance tool should flag them.
 retired_events:
-  - {name: discovery_completed, platforms: [flutter], replaced_by_span: product_discovery, source: {flutter: "F:sim/simulator.dart:273"}}
-  - {name: product_viewed, platforms: [flutter], replaced_by_span: product_view, source: {flutter: "F:sim/simulator.dart:281"}}
-  - {name: payment_method_selected, platforms: [flutter], replaced_by_span: payment_screen_load, source: {flutter: "F:sim/simulator.dart:335"}}
-  - {name: payment_attempted, platforms: [flutter], replaced_by_span: payment_screen_load, source: {flutter: "F:ui/screens.dart:618"}}
-  - {name: simulation_run_start, platforms: [flutter], replaced_by: journey_started, source: {flutter: "F:sim/simulator.dart:151"}}
-  - {name: sim_navigation_failed, platforms: [flutter], source: {flutter: "F:sim/simulator.dart:391"}}
-  - {name: wishlist_add_failed, platforms: [flutter], source: {flutter: "F:ui/screens.dart:308"}}
+  - {name: discovery_completed, platforms: [flutter], replaced_by_span: product_discovery, removed_in: "Phase 2b; was F:sim/simulator.dart:273"}
+  - {name: product_viewed, platforms: [flutter], replaced_by_span: product_view, removed_in: "Phase 2b; was F:sim/simulator.dart:281"}
+  - {name: payment_method_selected, platforms: [flutter], replaced_by_span: payment_screen_load, removed_in: "Phase 2b; was F:sim/simulator.dart:335"}
+  - {name: payment_attempted, platforms: [flutter], replaced_by_span: payment_screen_load, removed_in: "Phase 2b; was F:ui/screens.dart:618"}
+  - {name: simulation_run_start, platforms: [flutter], replaced_by: journey_started, removed_in: "Phase 2b; was F:sim/simulator.dart:151"}
+  - {name: sim_navigation_failed, platforms: [flutter], removed_in: "Phase 2b; was F:sim/simulator.dart:391"}
+  - {name: wishlist_add_failed, platforms: [flutter], removed_in: "Phase 2b; was F:ui/screens.dart:308"}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Spans. parent: span name or null. fields: start fields; end_fields: fields on end.
@@ -614,7 +614,7 @@ spans:
     end_fields: [source, product_id]
     results: [success]
     drift_fields: {flutter: "no variant/end fields; not parented (alpha startSpan has no parent arg, F:bd/capture.dart:113)"}
-    source: {android: "A:SimulationManager.kt:650", ios: "I:SimulationManager.swift:735", reactnative: "R:src/context/SimulationContext.tsx:372", flutter: "F:sim/simulator.dart:238"}
+    source: {android: "A:SimulationManager.kt:650", ios: "I:SimulationManager.swift:735", reactnative: "R:src/context/SimulationContext.tsx:372", flutter: "F:sim/simulator.dart:247"}
     used_by: [android/workflows/bd-shop-04-span-durations.json]
   - name: discovery_fetch
     parent: product_discovery

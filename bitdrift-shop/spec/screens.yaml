@@ -30,8 +30,8 @@ screens:
     route: advanced
     step: 1
     platform_routes: {reactnative: Advanced, flutter: diagnostics}
-    drift: {flutter: Diagnostics}          # D-SCR-2: Flutter renames Diagnostics -> Advanced
-    source: {android: "A:Screen.kt:20", ios: "I:Screen.swift:74", reactnative: "R:src/screens/ShoppingScreens.tsx:944", flutter: "F:ui/screens.dart:790"}
+    was: {flutter: Diagnostics}          # D-SCR-2: Flutter renames Diagnostics -> Advanced
+    source: {android: "A:Screen.kt:20", ios: "I:Screen.swift:74", reactnative: "R:src/screens/ShoppingScreens.tsx:944", flutter: "F:ui/screens.dart:799"}
 
   - id: browse
     name: Browse
@@ -110,7 +110,7 @@ screens:
     step: 6
     load_span: checkout_screen_load
     platform_routes: {reactnative: CheckoutGuest, flutter: checkout_guest}
-    source: {android: "A:Screen.kt:40", ios: "I:Screen.swift:12", reactnative: "R:src/screens/ShoppingScreens.tsx:643", flutter: "F:ui/screens.dart:493"}
+    source: {android: "A:Screen.kt:40", ios: "I:Screen.swift:12", reactnative: "R:src/screens/ShoppingScreens.tsx:643", flutter: "F:ui/screens.dart:498"}
     route_source: "A:Screen.kt:59"
 
   - id: checkout_signin
@@ -119,7 +119,7 @@ screens:
     step: 6
     load_span: checkout_screen_load
     platform_routes: {reactnative: CheckoutSignIn, flutter: checkout_signin}
-    source: {android: "A:Screen.kt:41", ios: "I:Screen.swift:12", reactnative: "R:src/screens/ShoppingScreens.tsx:682", flutter: "F:ui/screens.dart:493"}
+    source: {android: "A:Screen.kt:41", ios: "I:Screen.swift:12", reactnative: "R:src/screens/ShoppingScreens.tsx:682", flutter: "F:ui/screens.dart:498"}
     route_source: "A:Screen.kt:60"
 
   - id: payment_card
@@ -129,7 +129,7 @@ screens:
     load_span: payment_screen_load
     payment_method: card
     platform_routes: {reactnative: PaymentCard, flutter: payment_card}
-    drift: {flutter: Card}                 # D-SCR-1
+    was: {flutter: Card}                 # D-SCR-1
     source: {android: "A:Screen.kt:44", ios: "I:Screen.swift:86", reactnative: "R:src/screens/ShoppingScreens.tsx:717", flutter: "F:ui/screens.dart:10"}
     route_source: "A:Screen.kt:61"
 
@@ -140,7 +140,7 @@ screens:
     load_span: payment_screen_load
     payment_method: apple_pay
     platform_routes: {reactnative: PaymentApplePay, flutter: payment_applepay}
-    drift: {flutter: "Apple Pay"}          # D-SCR-1
+    was: {flutter: "Apple Pay"}          # D-SCR-1
     source: {android: "A:Screen.kt:45", ios: "I:Screen.swift:87", reactnative: "R:src/screens/ShoppingScreens.tsx:766", flutter: "F:ui/screens.dart:11"}
     route_source: "A:Screen.kt:62"
 
@@ -151,8 +151,8 @@ screens:
     load_span: payment_screen_load
     payment_method: paypal
     platform_routes: {reactnative: PaymentPayPal, flutter: payment_paypal}
-    drift: {flutter: PayPal}               # D-SCR-1
-    source: {android: "A:Screen.kt:46", ios: "I:Screen.swift:88", reactnative: "R:src/screens/ShoppingScreens.tsx:798", flutter: "F:ui/screens.dart:12"}
+    was: {flutter: PayPal}               # D-SCR-1
+    source: {android: "A:Screen.kt:46", ios: "I:Screen.swift:88", reactnative: "R:src/screens/ShoppingScreens.tsx:798", flutter: "F:ui/screens.dart:13"}
     route_source: "A:Screen.kt:63"
 
   - id: payment_android_pay
@@ -162,7 +162,7 @@ screens:
     load_span: payment_screen_load
     payment_method: android_pay
     platform_routes: {reactnative: PaymentAndroidPay, flutter: payment_androidpay}
-    drift: {flutter: "Android Pay"}        # D-SCR-1
+    was: {flutter: "Android Pay"}        # D-SCR-1
     source: {android: "A:Screen.kt:47", ios: "I:Screen.swift:89", reactnative: "R:src/screens/ShoppingScreens.tsx:830", flutter: "F:ui/screens.dart:13"}
     route_source: "A:Screen.kt:64"
 

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform;
 
 import 'bd/capture.dart';
+import 'generated/spec.dart';
 
 /// Crash injection, limited to the shapes that work in Flutter.
 ///
@@ -45,7 +46,8 @@ class Crash {
 
   /// Inject a crash. The app is not expected to survive this call.
   static Future<void> inject(String name) async {
-    await Bd.warning('crash_injection', fields: {'crash': name});
+    await Bd.field(SpecFields.crashKind, name);
+    await Bd.warning('${SpecEvents.aboutToCrash}: $name');
     switch (name) {
       case 'sigsegv':
         _raise(11);

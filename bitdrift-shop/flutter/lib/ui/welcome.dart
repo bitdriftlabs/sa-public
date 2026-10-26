@@ -4,6 +4,7 @@ import '../api/client.dart';
 import '../bd/capture.dart';
 import '../config.dart';
 import '../crash.dart';
+import '../generated/spec.dart';
 import '../sim/simulator.dart';
 
 /// Variant selector accents, matching the Android app's variant buttons.
@@ -29,7 +30,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
-    Bd.screenView('Welcome');
+    Bd.screenView(SpecScreen.welcome.screenName);
     _loadInfo();
     _loadLoop();
   }
