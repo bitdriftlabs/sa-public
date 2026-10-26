@@ -1073,6 +1073,11 @@ class SimulationManager : ViewModel() {
                 checkoutSpan?.end(SpanResult.SUCCESS, mapOf(SpecFields.PAYMENT_METHOD to retryMethod, SpecFields.RETRIED to "true"))
                 journeySpan?.end(SpanResult.SUCCESS)
                 maybeFireCrash(nc)
+            } else {
+                // No retry: the customer abandons after the failed payment. End both
+                // spans as failures (spec OPEN-4) instead of leaving them open.
+                checkoutSpan?.end(SpanResult.FAILURE, mapOf(SpecFields.PAYMENT_METHOD to paymentMethod))
+                journeySpan?.end(SpanResult.FAILURE, mapOf(SpecFields.REASON to "payment_failed"))
             }
             return
         }

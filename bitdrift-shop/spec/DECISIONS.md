@@ -294,7 +294,10 @@ KMP adopts the generated constants when it is next touched (plan §1).
 - **Impact:** `ios/workflows/bd-shop-15-crashes-by-final-screen.json` groups by `crash_journey_point`. On Android, crash journeys would stop completing, which lowers `bd-shop-01` completions while the crash loop is on. `bd-shop-06` and `bd-shop-07` are unaffected.
 - **Recommendation:** (a) in Phase 4 (`journey.yaml` fault point), because it makes crash-by-screen data meaningful. Until then the spec records it as `platforms: [ios]`.
 
-### OPEN-4: Payment fails with no retry: the `checkout` and `journey` spans are left open
+### OPEN-4: Payment fails with no retry: the `checkout` and `journey` spans are left open — **RESOLVED 2026-10-26: (a) end both with FAILURE**
+- **Decision (user):** Android and iOS now end `checkout` (field `payment_method`) and `journey` (field `reason=payment_failed`) as failures on an unretried payment failure, as RN already does. Flutter already ended the journey as failed.
+- **Correction:** the evidence below said iOS leaves the spans open. A live tail (10 sims, 2026-10-26) showed iOS's spans did end, with `_result=unknown`, not stay open; Android's stayed open. Both are fixed by this change.
+- **Workflow impact:** `bd-shop-04` (and any workflow matching `journey`/`checkout` ends with any `_result`) will now include failed journeys; add a `_result == success` filter if only successes should count.
 - **Evidence:** When the 50% retry roll fails, Android returns without ending `checkout` or `journey` (`A:SimulationManager.kt:1001-1077`), and iOS does the same (`I:SimulationManager.swift:1061-1116`). RN ends both with `failure`, using reason `payment_failed` (`R:src/context/SimulationContext.tsx:587-588`).
 - **Options:**
   - (a) End both with FAILURE and reason `payment_failed` everywhere, as RN does.

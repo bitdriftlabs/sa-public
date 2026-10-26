@@ -347,7 +347,7 @@ events:
     notes: "success path: _screen_name=Confirmation + checkout_flow; retry path: + payment_retried=true, retry_method"
     was: {flutter: order_completed}  # conformed in Phase 2b
     drift_fields: {reactnative: "sends payment_retried=false on success and no checkout_flow (D-EVT-4)"}
-    source: {android: "A:SimulationManager.kt:1090", ios: "I:SimulationManager.swift:1131", reactnative: "R:src/context/SimulationContext.tsx:613", flutter: "F:sim/simulator.dart:364"}
+    source: {android: "A:SimulationManager.kt:1090", ios: "I:SimulationManager.swift:1140", reactnative: "R:src/context/SimulationContext.tsx:613", flutter: "F:sim/simulator.dart:364"}
 
   # --- UI (user taps) ----------------------------------------------------------
   - name: add_to_cart
@@ -543,13 +543,13 @@ events:
     trigger: fault
     message_format: "simplified_journey_crash_point (step 5 of 7): CheckoutGuest"
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:1267"}
+    source: {ios: "I:SimulationManager.swift:1276"}
   - name: simplified_journey_completed
     level: info
     trigger: sim
     required: [steps_completed, variant]
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:1288"}
+    source: {ios: "I:SimulationManager.swift:1297"}
 
   # --- demos -------------------------------------------------------------------
   - name: metric_values
@@ -604,8 +604,8 @@ spans:
     end_fields: [reason]
     results: [success, canceled]
     end_reasons: [cart_abandoned, checkout_abandoned]
-    notes: "iOS simplified mode adds mode=simplified and reasons force_quit_injected|guest_hang_injected|simplified_crash_step_5. Fail->no-retry path: OPEN-4."
-    drift_fields: {flutter: "no entity field (D-SPN-2)", reactnative: "ends failure/payment_failed on no-retry and canceled/force_quit on force quit (OPEN-4)"}
+    notes: "iOS simplified mode adds mode=simplified and reasons force_quit_injected|guest_hang_injected|simplified_crash_step_5. Fail->no-retry path: ends failure with reason payment_failed on all platforms (OPEN-4 resolved)."
+    drift_fields: {flutter: "no entity field (D-SPN-2)", reactnative: "ends failure/payment_failed on no-retry and canceled/force_quit on force quit"}
     source: {android: "A:SimulationManager.kt:643", ios: "I:SimulationManager.swift:728", reactnative: "R:src/context/SimulationContext.tsx:368", flutter: "F:sim/simulator.dart:232"}
     used_by: [android/workflows/bd-shop-04-span-durations.json]
   - name: product_discovery
@@ -653,7 +653,7 @@ spans:
   - name: checkout.confirmation
     parent: checkout
     missing_on: [reactnative, flutter]
-    source: {android: "A:SimulationManager.kt:1092", ios: "I:SimulationManager.swift:1138"}
+    source: {android: "A:SimulationManager.kt:1092", ios: "I:SimulationManager.swift:1147"}
     used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
 
   # cold start (CaptureBridge / ColdStartSpans)

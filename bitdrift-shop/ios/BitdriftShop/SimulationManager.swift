@@ -1111,6 +1111,15 @@ final class SimulationManager: ObservableObject {
                 ]))
                 journeySpan?.end(.success)
                 maybeFireCrash(at: .confirmation)
+            } else {
+                // No retry: the customer abandons after the failed payment. End both
+                // spans as failures (spec OPEN-4) instead of letting them close as unknown.
+                checkoutSpan?.end(.failure, fields: ScreenLogger.encode([
+                    SpecFields.paymentMethod: paymentMethod,
+                ]))
+                journeySpan?.end(.failure, fields: ScreenLogger.encode([
+                    SpecFields.reason: "payment_failed",
+                ]))
             }
             return
         }
