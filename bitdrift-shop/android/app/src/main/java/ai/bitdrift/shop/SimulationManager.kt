@@ -1072,6 +1072,7 @@ class SimulationManager : ViewModel() {
                 checkoutSpan?.end(SpanResult.SUCCESS, mapOf("payment_method" to retryMethod, "retried" to "true"))
                 journeySpan?.end(SpanResult.SUCCESS)
                 maybeFireCrash(nc)
+            }
             return
         }
 
@@ -1098,7 +1099,6 @@ class SimulationManager : ViewModel() {
         checkoutSpan?.end(SpanResult.SUCCESS, mapOf("payment_method" to paymentMethod))
         journeySpan?.end(SpanResult.SUCCESS)
         maybeFireCrash(nc)
-    }
     }
 
     companion object {
