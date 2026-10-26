@@ -23,7 +23,7 @@ screens:
     step: 1
     load_span: welcome_screen_load
     platform_routes: {reactnative: Welcome, flutter: "/"}
-    source: {android: "A:MainActivity.kt:65", ios: "I:Screen.swift:73", reactnative: "R:src/screens/ShoppingScreens.tsx:94", flutter: "F:ui/welcome.dart:32"}
+    source: {android: "A:Screen.kt:19", ios: "I:Screen.swift:73", reactnative: "R:src/screens/ShoppingScreens.tsx:94", flutter: "F:ui/welcome.dart:32"}
 
   - id: advanced
     name: Advanced
@@ -31,7 +31,7 @@ screens:
     step: 1
     platform_routes: {reactnative: Advanced, flutter: diagnostics}
     drift: {flutter: Diagnostics}          # D-SCR-2: Flutter renames Diagnostics -> Advanced
-    source: {android: "A:MainActivity.kt:66", ios: "I:Screen.swift:74", reactnative: "R:src/screens/ShoppingScreens.tsx:944", flutter: "F:ui/screens.dart:790"}
+    source: {android: "A:Screen.kt:20", ios: "I:Screen.swift:74", reactnative: "R:src/screens/ShoppingScreens.tsx:944", flutter: "F:ui/screens.dart:790"}
 
   - id: browse
     name: Browse
@@ -39,35 +39,35 @@ screens:
     step: 2
     load_span: browse_screen_load
     platform_routes: {reactnative: Browse, flutter: browse}
-    source: {android: "A:MainActivity.kt:67", ios: "I:Screen.swift:75", reactnative: "R:src/screens/ShoppingScreens.tsx:189", flutter: "F:ui/screens.dart:40"}
+    source: {android: "A:Screen.kt:31", ios: "I:Screen.swift:75", reactnative: "R:src/screens/ShoppingScreens.tsx:189", flutter: "F:ui/screens.dart:40"}
 
   - id: search
     name: Search
     route: search
     step: 2
     platform_routes: {reactnative: Search, flutter: search}
-    source: {android: "A:MainActivity.kt:68", ios: "I:Screen.swift:76", reactnative: "R:src/screens/ShoppingScreens.tsx:221", flutter: "F:ui/screens.dart:140"}
+    source: {android: "A:Screen.kt:24", ios: "I:Screen.swift:76", reactnative: "R:src/screens/ShoppingScreens.tsx:221", flutter: "F:ui/screens.dart:140"}
 
   - id: featured
     name: Featured
     route: featured
     step: 3
     platform_routes: {reactnative: Featured, flutter: featured}
-    source: {android: "A:MainActivity.kt:69", ios: "I:Screen.swift:77", reactnative: "R:src/screens/ShoppingScreens.tsx:254", flutter: "F:ui/screens.dart:51"}
+    source: {android: "A:Screen.kt:31", ios: "I:Screen.swift:77", reactnative: "R:src/screens/ShoppingScreens.tsx:254", flutter: "F:ui/screens.dart:51"}
 
   - id: categories
     name: Categories
     route: categories
     step: 3
     platform_routes: {reactnative: Categories, flutter: categories}
-    source: {android: "A:MainActivity.kt:70", ios: "I:Screen.swift:78", reactnative: "R:src/screens/ShoppingScreens.tsx:294", flutter: "F:ui/screens.dart:80"}
+    source: {android: "A:Screen.kt:31", ios: "I:Screen.swift:78", reactnative: "R:src/screens/ShoppingScreens.tsx:294", flutter: "F:ui/screens.dart:80"}
 
   - id: category_browse
     name: CategoryBrowse
     route: "categoryBrowse/{category}"
     step: 3
     platform_routes: {reactnative: CategoryBrowse, flutter: category}
-    source: {android: "A:MainActivity.kt:71", ios: "I:Screen.swift:79", reactnative: "R:src/screens/ShoppingScreens.tsx:333", flutter: "F:ui/screens.dart:117"}
+    source: {android: "A:Screen.kt:29", ios: "I:Screen.swift:9", reactnative: "R:src/screens/ShoppingScreens.tsx:333", flutter: "F:ui/screens.dart:117"}
     route_source: "A:Screen.kt:55"
 
   - id: product_detail
@@ -76,7 +76,7 @@ screens:
     step: 4
     load_span: product_detail_load
     platform_routes: {reactnative: ProductDetail, flutter: product}
-    source: {android: "A:MainActivity.kt:72", ios: "I:Screen.swift:80", reactnative: "R:src/screens/ShoppingScreens.tsx:416", flutter: "F:ui/screens.dart:223"}
+    source: {android: "A:Screen.kt:32", ios: "I:Screen.swift:10", reactnative: "R:src/screens/ShoppingScreens.tsx:416", flutter: "F:ui/screens.dart:223"}
     route_source: "A:Screen.kt:54"
 
   - id: reviews
@@ -84,7 +84,7 @@ screens:
     route: "reviews/{source}/{productId}"
     step: 4
     platform_routes: {reactnative: Reviews, flutter: reviews}
-    source: {android: "A:MainActivity.kt:73", ios: "I:Screen.swift:81", reactnative: "R:src/screens/ShoppingScreens.tsx:460", flutter: "F:ui/screens.dart:321"}
+    source: {android: "A:Screen.kt:58", ios: "I:Screen.swift:81", reactnative: "R:src/screens/ShoppingScreens.tsx:460", flutter: "F:ui/screens.dart:321"}
     route_source: "A:Screen.kt:56"
 
   - id: cart
@@ -93,7 +93,7 @@ screens:
     step: 5
     load_span: cart_screen_load
     platform_routes: {reactnative: Cart, flutter: cart}
-    source: {android: "A:MainActivity.kt:74", ios: "I:Screen.swift:82", reactnative: "R:src/screens/ShoppingScreens.tsx:549", flutter: "F:ui/screens.dart:370"}
+    source: {android: "A:Screen.kt:59", ios: "I:Screen.swift:82", reactnative: "R:src/screens/ShoppingScreens.tsx:549", flutter: "F:ui/screens.dart:370"}
     route_source: "A:Screen.kt:57"
 
   - id: wishlist
@@ -101,7 +101,7 @@ screens:
     route: "wishlist/{productId}"
     step: 5
     platform_routes: {reactnative: Wishlist, flutter: wishlist}
-    source: {android: "A:MainActivity.kt:75", ios: "I:Screen.swift:83", reactnative: "R:src/screens/ShoppingScreens.tsx:596", flutter: "F:ui/screens.dart:443"}
+    source: {android: "A:Screen.kt:60", ios: "I:Screen.swift:83", reactnative: "R:src/screens/ShoppingScreens.tsx:596", flutter: "F:ui/screens.dart:443"}
     route_source: "A:Screen.kt:58"
 
   - id: checkout_guest
@@ -110,7 +110,7 @@ screens:
     step: 6
     load_span: checkout_screen_load
     platform_routes: {reactnative: CheckoutGuest, flutter: checkout_guest}
-    source: {android: "A:MainActivity.kt:76", ios: "I:Screen.swift:84", reactnative: "R:src/screens/ShoppingScreens.tsx:643", flutter: "F:ui/screens.dart:493"}
+    source: {android: "A:Screen.kt:40", ios: "I:Screen.swift:12", reactnative: "R:src/screens/ShoppingScreens.tsx:643", flutter: "F:ui/screens.dart:493"}
     route_source: "A:Screen.kt:59"
 
   - id: checkout_signin
@@ -119,7 +119,7 @@ screens:
     step: 6
     load_span: checkout_screen_load
     platform_routes: {reactnative: CheckoutSignIn, flutter: checkout_signin}
-    source: {android: "A:MainActivity.kt:77", ios: "I:Screen.swift:85", reactnative: "R:src/screens/ShoppingScreens.tsx:682", flutter: "F:ui/screens.dart:493"}
+    source: {android: "A:Screen.kt:41", ios: "I:Screen.swift:12", reactnative: "R:src/screens/ShoppingScreens.tsx:682", flutter: "F:ui/screens.dart:493"}
     route_source: "A:Screen.kt:60"
 
   - id: payment_card
@@ -130,7 +130,7 @@ screens:
     payment_method: card
     platform_routes: {reactnative: PaymentCard, flutter: payment_card}
     drift: {flutter: Card}                 # D-SCR-1
-    source: {android: "A:MainActivity.kt:78", ios: "I:Screen.swift:86", reactnative: "R:src/screens/ShoppingScreens.tsx:717", flutter: "F:ui/screens.dart:10"}
+    source: {android: "A:Screen.kt:44", ios: "I:Screen.swift:86", reactnative: "R:src/screens/ShoppingScreens.tsx:717", flutter: "F:ui/screens.dart:10"}
     route_source: "A:Screen.kt:61"
 
   - id: payment_apple_pay
@@ -141,7 +141,7 @@ screens:
     payment_method: apple_pay
     platform_routes: {reactnative: PaymentApplePay, flutter: payment_applepay}
     drift: {flutter: "Apple Pay"}          # D-SCR-1
-    source: {android: "A:MainActivity.kt:79", ios: "I:Screen.swift:87", reactnative: "R:src/screens/ShoppingScreens.tsx:766", flutter: "F:ui/screens.dart:11"}
+    source: {android: "A:Screen.kt:45", ios: "I:Screen.swift:87", reactnative: "R:src/screens/ShoppingScreens.tsx:766", flutter: "F:ui/screens.dart:11"}
     route_source: "A:Screen.kt:62"
 
   - id: payment_paypal
@@ -152,7 +152,7 @@ screens:
     payment_method: paypal
     platform_routes: {reactnative: PaymentPayPal, flutter: payment_paypal}
     drift: {flutter: PayPal}               # D-SCR-1
-    source: {android: "A:MainActivity.kt:80", ios: "I:Screen.swift:88", reactnative: "R:src/screens/ShoppingScreens.tsx:798", flutter: "F:ui/screens.dart:12"}
+    source: {android: "A:Screen.kt:46", ios: "I:Screen.swift:88", reactnative: "R:src/screens/ShoppingScreens.tsx:798", flutter: "F:ui/screens.dart:12"}
     route_source: "A:Screen.kt:63"
 
   - id: payment_android_pay
@@ -163,7 +163,7 @@ screens:
     payment_method: android_pay
     platform_routes: {reactnative: PaymentAndroidPay, flutter: payment_androidpay}
     drift: {flutter: "Android Pay"}        # D-SCR-1
-    source: {android: "A:MainActivity.kt:81", ios: "I:Screen.swift:89", reactnative: "R:src/screens/ShoppingScreens.tsx:830", flutter: "F:ui/screens.dart:13"}
+    source: {android: "A:Screen.kt:47", ios: "I:Screen.swift:89", reactnative: "R:src/screens/ShoppingScreens.tsx:830", flutter: "F:ui/screens.dart:13"}
     route_source: "A:Screen.kt:64"
 
   - id: payment_failed
@@ -171,7 +171,7 @@ screens:
     route: "paymentFailed/{paymentMethod}/{checkoutSession}"
     step: 6
     platform_routes: {reactnative: PaymentFailed, flutter: payment_failed}
-    source: {android: "A:MainActivity.kt:82", ios: "I:Screen.swift:90", reactnative: "R:src/screens/ShoppingScreens.tsx:859", flutter: "F:ui/screens.dart:706"}
+    source: {android: "A:Screen.kt:50", ios: "I:Screen.swift:12", reactnative: "R:src/screens/ShoppingScreens.tsx:859", flutter: "F:ui/screens.dart:706"}
     route_source: "A:Screen.kt:65"
 
   - id: confirmation
@@ -180,5 +180,5 @@ screens:
     step: 7
     load_span: confirmation_screen_load
     platform_routes: {reactnative: Confirmation, flutter: confirmation}
-    source: {android: "A:MainActivity.kt:83", ios: "I:Screen.swift:91", reactnative: "R:src/screens/ShoppingScreens.tsx:1041", flutter: "F:ui/screens.dart:744"}
+    source: {android: "A:Screen.kt:68", ios: "I:Screen.swift:91", reactnative: "R:src/screens/ShoppingScreens.tsx:1041", flutter: "F:ui/screens.dart:744"}
     route_source: "A:Screen.kt:66"

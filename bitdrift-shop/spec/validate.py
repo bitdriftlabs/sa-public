@@ -97,6 +97,23 @@ def read_lines(rel):
     return _file_cache[rel]
 
 
+def _token_variants(token):
+    """The literal plus the identifier forms tools/codegen emits for it (Kotlin/Swift/TS/Dart)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, os.path.join(here, "..", "tools", "codegen"))
+    try:
+        import codegen
+    except Exception:
+        return {token}
+    out = {token, token[:1].lower() + token[1:]}  # PascalCase screen names -> camelCase enum cases
+    try:
+        out.add(codegen.const_name(token))
+        out.add(codegen.camel(token).strip("`"))
+    except Exception:
+        pass
+    return out
+
+
 def check_ref(ref, roots, where, token=None):
     """Resolve '<root>:<path>:<line>'; optionally confirm `token` is near that line."""
     m = REF_RE.match(str(ref))
@@ -116,8 +133,10 @@ def check_ref(ref, roots, where, token=None):
         err("%s: %s has %d lines, ref points at %d" % (where, rel, len(lines), line))
         return
     if token:
-        window = "\n".join(lines[max(0, line - 4): line + 3])
-        if str(token) not in window:
+        # Apps migrated to generated constants reference the name as SpecEvents.FOO_BAR /
+        # SpecEvents.fooBar / SpecEvents.foo_bar-style identifiers instead of the literal.
+        window = "\n".join(lines[max(0, line - 7): line + 6])
+        if not any(v in window for v in _token_variants(str(token))):
             warn("%s: %r not found near %s:%d" % (where, token, rel, line))
 
 

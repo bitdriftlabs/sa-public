@@ -452,25 +452,25 @@ events:
     trigger: startup
     required: [variant]
     platforms: [android, ios]
-    source: {android: "A:MainActivity.kt:235", ios: "I:ContentView.swift:250"}
+    source: {android: "A:MainActivity.kt:216", ios: "I:ContentView.swift:250"}
   - name: anr_restart_resume
     level: info
     trigger: startup
     required: [mode, pending_flag]
     platforms: [android, ios]
-    source: {android: "A:MainActivity.kt:246", ios: "I:ContentView.swift:257"}
+    source: {android: "A:MainActivity.kt:227", ios: "I:ContentView.swift:257"}
   - name: force_quit_restart_resume
     level: info
     trigger: startup
     required: [mode, pending_flag]
     platforms: [android, ios]
-    source: {android: "A:MainActivity.kt:264", ios: "I:ContentView.swift:267"}
+    source: {android: "A:MainActivity.kt:245", ios: "I:ContentView.swift:267"}
   - name: restart_autostart_missed
     level: error
     trigger: startup
     required: [anr_restart_pending, fq_restart_pending, anr_resume_infinite, fq_resume_infinite]
     platforms: [android, ios]
-    source: {android: "A:MainActivity.kt:294", ios: "I:ContentView.swift:302"}
+    source: {android: "A:MainActivity.kt:275", ios: "I:ContentView.swift:302"}
   - name: demo_flags_resolved
     level: info
     trigger: startup
