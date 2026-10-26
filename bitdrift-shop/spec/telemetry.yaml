@@ -267,8 +267,7 @@ events:
     trigger: harness
     required: [total_runs, sim_seed, persona]
     notes: "Test-harness exit marker: logged once when a launch-argument autorun (sim_runs/sim_seed/persona/record_file) finishes."
-    missing_on: [flutter]
-    source: {reactnative: "R:App.tsx:153", ios: "I:SimulationManager.swift:251", android: "A:SimulationManager.kt:241"}
+    source: {flutter: "F:main.dart:71", reactnative: "R:App.tsx:153", ios: "I:SimulationManager.swift:251", android: "A:SimulationManager.kt:241"}
   - name: ab_simulation_start
     level: info
     trigger: sim

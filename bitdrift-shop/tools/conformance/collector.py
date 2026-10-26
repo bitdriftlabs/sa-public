@@ -54,8 +54,19 @@ def main():
                 self._send(404)
 
         def do_POST(self):
-            n = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(n).decode("utf-8", "replace")
+            if self.headers.get("Transfer-Encoding", "").lower() == "chunked":
+                chunks = []
+                while True:
+                    size = int(self.rfile.readline().strip() or b"0", 16)
+                    if size == 0:
+                        self.rfile.readline()
+                        break
+                    chunks.append(self.rfile.read(size))
+                    self.rfile.readline()
+                body = b"".join(chunks).decode("utf-8", "replace")
+            else:
+                n = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(n).decode("utf-8", "replace")
             with lock:
                 for line in body.splitlines():
                     line = line.strip()

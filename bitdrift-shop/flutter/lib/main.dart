@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'app.dart';
 import 'bd/capture.dart';
+import 'bd/recorder.dart';
 import 'config.dart';
 import 'crash.dart';
 import 'generated/spec.dart';
@@ -30,6 +33,7 @@ Future<void> main() async {
   final navKey = GlobalKey<NavigatorState>();
   final sim = Simulator(navKey);
   runApp(ShopApp(navKey: navKey, sim: sim));
+  unawaited(_autorun(sim));
 
   // App-launch TTI: from process start until the first frame is on screen —
   // measured in a post-frame callback so widget build + first frame are
@@ -48,4 +52,26 @@ Future<void> main() async {
   if (await Crash.loopActive()) {
     WidgetsBinding.instance.addPostFrameCallback((_) => sim.start(runs: 1));
   }
+}
+
+/// Test harness (debug builds): if the local collector (tools/conformance/collector.py, started by
+/// test.sh) answers /config, run that many journeys as the requested persona, record the telemetry
+/// back to it, and log `sim_autorun_complete` as the exit marker. With no collector it does nothing.
+Future<void> _autorun(Simulator sim) async {
+  final cfg = await Recorder.fetchConfig();
+  if (cfg == null) return;
+  Recorder.start();
+  sim.setVariant(switch (cfg.persona) {
+    'variant_a' => SimVariant.variantA,
+    'variant_b' => SimVariant.variantB,
+    _ => SimVariant.control,
+  });
+  await Future<void>.delayed(const Duration(seconds: 1)); // let the first frame and navigator settle
+  await sim.start(runs: cfg.runs);
+  await Bd.info(SpecEvents.simAutorunComplete, fields: {
+    SpecFields.totalRuns: '${cfg.runs}',
+    SpecFields.simSeed: '${cfg.seed}',
+    SpecFields.persona: cfg.persona,
+  });
+  await Recorder.flush();
 }

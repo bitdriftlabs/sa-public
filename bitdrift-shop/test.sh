@@ -191,6 +191,35 @@ smoke_rn_ios() {
   "$PY" "$ROOT/tools/conformance/conformance.py" --platform reactnative --runs "$SIM_RUNS" "$out"
 }
 
+unit_flutter() {
+  unit_common || return 1
+  (cd "$ROOT/flutter" && flutter analyze --no-fatal-infos --no-fatal-warnings >"$OUT/flutter-analyze.log" 2>&1) \
+    || { echo "flutter analyze found errors: see $OUT/flutter-analyze.log"; return 1; }
+  (cd "$ROOT/flutter" && flutter test >"$OUT/flutter-test.log" 2>&1) || { echo "flutter test failed: see $OUT/flutter-test.log"; return 1; }
+}
+unit_flutter_android() { unit_flutter; }
+unit_flutter_ios() { unit_flutter; }
+
+smoke_flutter_android() {
+  local serial; serial="$(ensure_android)" || { echo "no emulator"; return 1; }
+  local out="$OUT/flutter-android-smoke.jsonl"
+  start_collector "$out"
+  (cd "$ROOT/flutter" && BDSHOP_HARNESS=1 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bash scripts/android-3-start-app.sh >"$OUT/flutter-android-start.log" 2>&1) \
+    || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/flutter-android-start.log"; return 1; }
+  await_collector "adb -s $serial shell am start -S -n ai.bitdrift.shop.flutter/.MainActivity" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform flutter --runs "$SIM_RUNS" "$out"
+}
+
+smoke_flutter_ios() {
+  local udid; udid="$(ensure_ios)" || { echo "no simulator"; return 1; }
+  local out="$OUT/flutter-ios-smoke.jsonl"
+  start_collector "$out"
+  (cd "$ROOT/flutter" && BDSHOP_HARNESS=1 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bash scripts/ios-3-start-app.sh >"$OUT/flutter-ios-start.log" 2>&1) \
+    || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/flutter-ios-start.log"; return 1; }
+  await_collector "xcrun simctl launch --terminate-running-process $udid io.bitdrift.bitdriftShopFlutter" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform flutter --runs "$SIM_RUNS" "$out"
+}
+
 # ── dispatch ─────────────────────────────────────────────────────────────────
 run_app() {
   local app="$1" tier="$2" fn="${2}_${1//-/_}"

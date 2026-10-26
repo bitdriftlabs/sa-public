@@ -1,6 +1,7 @@
 import 'package:capture_flutter/capture_flutter.dart';
 
 import '../config.dart';
+import 'recorder.dart';
 
 /// Thin, single-seam wrapper over the alpha `capture_flutter` SDK.
 ///
@@ -32,20 +33,32 @@ class Bd {
   }
 
   // -- logging ------------------------------------------------------------
-  static Future<void> trace(String m, {Map<String, String>? fields}) =>
-      _run(() => Capture.logTrace(m, fields: fields));
-  static Future<void> debug(String m, {Map<String, String>? fields}) =>
-      _run(() => Capture.logDebug(m, fields: fields));
-  static Future<void> info(String m, {Map<String, String>? fields}) =>
-      _run(() => Capture.logInfo(m, fields: fields));
-  static Future<void> warning(String m, {Map<String, String>? fields}) =>
-      _run(() => Capture.logWarning(m, fields: fields));
-  static Future<void> error(String m, {Map<String, String>? fields}) =>
-      _run(() => Capture.logError(m, fields: fields));
+  static Future<void> trace(String m, {Map<String, String>? fields}) {
+    Recorder.log('trace', m, fields);
+    return _run(() => Capture.logTrace(m, fields: fields));
+  }
+  static Future<void> debug(String m, {Map<String, String>? fields}) {
+    Recorder.log('debug', m, fields);
+    return _run(() => Capture.logDebug(m, fields: fields));
+  }
+  static Future<void> info(String m, {Map<String, String>? fields}) {
+    Recorder.log('info', m, fields);
+    return _run(() => Capture.logInfo(m, fields: fields));
+  }
+  static Future<void> warning(String m, {Map<String, String>? fields}) {
+    Recorder.log('warning', m, fields);
+    return _run(() => Capture.logWarning(m, fields: fields));
+  }
+  static Future<void> error(String m, {Map<String, String>? fields}) {
+    Recorder.log('error', m, fields);
+    return _run(() => Capture.logError(m, fields: fields));
+  }
 
   /// Log a screen view.
-  static Future<void> screenView(String name) =>
-      _run(() => Capture.logScreenView(name));
+  static Future<void> screenView(String name) {
+    Recorder.screen(name);
+    return _run(() => Capture.logScreenView(name));
+  }
 
   // -- fields -------------------------------------------------------------
   static Future<void> field(String k, String v) =>
@@ -116,7 +129,10 @@ class Bd {
   }) async {
     try {
       final s = await Capture.startSpan(name, fields: fields);
-      return s == null ? null : SpanHandle(s);
+      if (s == null) return null;
+      final h = SpanHandle(s, name);
+      Recorder.spanStart(h.localId, name, fields);
+      return h;
     } catch (_) {
       return null;
     }
@@ -132,6 +148,9 @@ class Bd {
   }) async {
     final id = 'span_${DateTime.now().microsecondsSinceEpoch}';
     final base = <String, String>{...?fields};
+    Recorder.log('info', name, {...base, '_span_id': id, '_span_type': 'start'});
+    Recorder.log('info', name,
+        {...base, '_span_id': id, '_span_type': 'end', '_result': 'success', '_duration_ms': '$durationMs'});
     await _run(() => Capture.logInfo(
           name,
           fields: {...base, '_span_id': id, '_span_type': 'start'},
@@ -152,8 +171,12 @@ class Bd {
 /// Ergonomic wrapper around the alpha `Span`.
 class SpanHandle {
   final Span span;
-  SpanHandle(this.span);
+  final String name;
+  final String localId = 'span_${DateTime.now().microsecondsSinceEpoch}_${_counter++}';
+  static int _counter = 0;
+  SpanHandle(this.span, this.name);
   Future<void> end({bool success = true}) async {
+    Recorder.spanEnd(localId, name, success);
     try {
       await Capture.endSpan(span, success: success);
     } catch (_) {
