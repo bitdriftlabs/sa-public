@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
 import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
@@ -27,7 +28,7 @@ object RecommendationEngine {
         // separate from the similarity pass below.
         // POC: event tracking — sub-phase duration within an already-spanned call.
         val products = CaptureBridge.trackSpanNested(
-            "score_products.parse_catalog", parentSpanId = parentSpanId
+            SpecSpans.SCORE_PRODUCTS_PARSE_CATALOG, parentSpanId = parentSpanId
         ) {
             val catalog = try { JSONArray(catalogJson) } catch (_: Exception) { null }
                 ?: return@trackSpanNested emptyList()
@@ -48,7 +49,7 @@ object RecommendationEngine {
         // cost centre, and the reason this engine exists as a slow-rendering demo.
         // POC: event tracking — sub-phase duration within an already-spanned call.
         return CaptureBridge.trackSpanNested(
-            "score_products.similarity_pass", parentSpanId = parentSpanId
+            SpecSpans.SCORE_PRODUCTS_SIMILARITY_PASS, parentSpanId = parentSpanId
         ) {
           products
             .filter { it.optString("id") != referenceProductId }

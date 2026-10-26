@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
@@ -61,28 +62,8 @@ enum class StartupPhase { CONFIG, APP }
 // bitdrift SDK: log screen views centrally so they fire for both user navigation and
 // simulator navigation (SimulationManager.nav()), independent of Compose composition timing.
 // POC: User Journey Sankey diagram; per-screen crash analytics
-private fun destinationToScreenName(route: String): String = when (route) {
-    Screen.Welcome.route -> "Welcome"
-    Screen.Advanced.route -> "Advanced"
-    Screen.Browse.route -> "Browse"
-    Screen.Search.route -> "Search"
-    Screen.FeaturedProducts.route -> "Featured"
-    Screen.Categories.route -> "Categories"
-    Screen.CATEGORY_BROWSE_ROUTE -> "CategoryBrowse"
-    Screen.PRODUCT_DETAIL_ROUTE -> "ProductDetail"
-    Screen.REVIEWS_ROUTE -> "Reviews"
-    Screen.CART_ROUTE -> "Cart"
-    Screen.WISHLIST_ROUTE -> "Wishlist"
-    Screen.CHECKOUT_GUEST_ROUTE -> "CheckoutGuest"
-    Screen.CHECKOUT_SIGNIN_ROUTE -> "CheckoutSignIn"
-    Screen.PAYMENT_CARD_ROUTE -> "PaymentCard"
-    Screen.PAYMENT_APPLEPAY_ROUTE -> "PaymentApplePay"
-    Screen.PAYMENT_PAYPAL_ROUTE -> "PaymentPayPal"
-    Screen.PAYMENT_ANDROIDPAY_ROUTE -> "PaymentAndroidPay"
-    Screen.PAYMENT_FAILED_ROUTE -> "PaymentFailed"
-    Screen.CONFIRMATION_ROUTE -> "Confirmation"
-    else -> route
-}
+private fun destinationToScreenName(route: String): String =
+    SpecScreen.entries.firstOrNull { it.route == route }?.screenName ?: route
 
 @Composable
 fun ShoppingDemoContent() {
@@ -232,8 +213,8 @@ fun ShoppingDemoContent() {
                                     .commit()
                                 simulationManager.restoreVariantFromPrefs()
                                 ScreenLogger.logInfo(
-                                    "crash_restart_resume",
-                                    mapOf("variant" to simulationManager.activeVariant.label)
+                                    SpecEvents.CRASH_RESTART_RESUME,
+                                    mapOf(SpecFields.VARIANT to simulationManager.activeVariant.label)
                                 )
                                 simulationManager.scheduleAutoStartInfinite()
                             } else if (anrRestartPending || anrResumeInfinite) {
@@ -243,10 +224,10 @@ fun ShoppingDemoContent() {
                                     .commit()
                                 simulationManager.restoreVariantFromPrefs()
                                 ScreenLogger.logInfo(
-                                    "anr_restart_resume",
+                                    SpecEvents.ANR_RESTART_RESUME,
                                     mapOf(
-                                        "mode" to if (anrResumeInfinite) "infinite" else "single",
-                                        "pending_flag" to anrRestartPending.toString()
+                                        SpecFields.MODE to if (anrResumeInfinite) "infinite" else "single",
+                                        SpecFields.PENDING_FLAG to anrRestartPending.toString()
                                     )
                                 )
                                 if (anrResumeInfinite) {
@@ -261,10 +242,10 @@ fun ShoppingDemoContent() {
                                     .commit()
                                 simulationManager.restoreVariantFromPrefs()
                                 ScreenLogger.logInfo(
-                                    "force_quit_restart_resume",
+                                    SpecEvents.FORCE_QUIT_RESTART_RESUME,
                                     mapOf(
-                                        "mode" to if (fqResumeInfinite) "infinite" else "single",
-                                        "pending_flag" to fqRestartPending.toString()
+                                        SpecFields.MODE to if (fqResumeInfinite) "infinite" else "single",
+                                        SpecFields.PENDING_FLAG to fqRestartPending.toString()
                                     )
                                 )
                                 if (fqResumeInfinite) {
@@ -291,12 +272,12 @@ fun ShoppingDemoContent() {
 
                             if (hadResumeRequest && !simulationManager.isSimulating) {
                                 ScreenLogger.logError(
-                                    "restart_autostart_missed",
+                                    SpecEvents.RESTART_AUTOSTART_MISSED,
                                     mapOf(
-                                        "anr_restart_pending" to anrRestartPending.toString(),
-                                        "fq_restart_pending" to fqRestartPending.toString(),
-                                        "anr_resume_infinite" to anrResumeInfinite.toString(),
-                                        "fq_resume_infinite" to fqResumeInfinite.toString()
+                                        SpecFields.ANR_RESTART_PENDING to anrRestartPending.toString(),
+                                        SpecFields.FQ_RESTART_PENDING to fqRestartPending.toString(),
+                                        SpecFields.ANR_RESUME_INFINITE to anrResumeInfinite.toString(),
+                                        SpecFields.FQ_RESUME_INFINITE to fqResumeInfinite.toString()
                                     )
                                 )
                             }

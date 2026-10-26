@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
 import android.app.AlarmManager
 import android.app.Application
 import android.app.PendingIntent
@@ -28,7 +29,7 @@ class ShoppingDemoApp : Application() {
         //
         // user_id is seeded here from SharedPreferences rather than via a FieldProvider (deprecated
         // in favor of initialFields + addField/removeField) -- the sign-in/sign-out call sites in
-        // Screens.kt already call Logger.addField("user_id", ...)/removeField("user_id") directly,
+        // Screens.kt already call Logger.addField(SpecFields.USER_ID, ...)/removeField(SpecFields.USER_ID) directly,
         // so this seed only matters for a process restart while already signed in, where addField's
         // in-memory state from the prior process is gone but the persisted value isn't.
         //
@@ -49,17 +50,17 @@ class ShoppingDemoApp : Application() {
 
         // Log app launch
         // bitdrift SDK: logInfo() emits a structured event at app launch.
-        Logger.logInfo { "app_launched" }
+        Logger.logInfo { SpecEvents.APP_LAUNCHED }
 
         // bitdrift SDK: addField() sets a global field attached to every log, span, and network
         // request for the lifetime of this process. Not persisted — re-added on each start.
         // POC: insights & visualization — slice any dashboard, Workflow, or alert by global field value
-        Logger.addField("app_variant", "sdk-demo")
+        Logger.addField(SpecFields.APP_VARIANT, "sdk-demo")
         // Matches the iOS app's `platform` field so a single chart can group or filter
         // across both apps. The span names are already identical between platforms, so
         // this field is the missing piece for cross-platform comparison — without it the
         // only discriminator is `app_id`, which works but reads as an opaque bundle id.
-        Logger.addField("platform", "android")
+        Logger.addField(SpecFields.PLATFORM, "android")
 
         // Three install-persistent feature flags (exposure + ff_* fields); see PersistentFeatureFlags.
         PersistentFeatureFlags.apply(applicationContext)
@@ -147,5 +148,5 @@ private fun readPersistedUserIdField(context: Context): Fields {
     val id = context
         .getSharedPreferences("user_session", Context.MODE_PRIVATE)
         .getString("user_id", null)
-    return if (id.isNullOrEmpty()) emptyMap() else mapOf("user_id" to id)
+    return if (id.isNullOrEmpty()) emptyMap() else mapOf(SpecFields.USER_ID to id)
 }

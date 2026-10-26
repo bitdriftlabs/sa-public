@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -63,7 +64,7 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
         // The throw below is what marks the span FAILURE; it must not escape the
         // LaunchedEffect, where an uncaught exception would take the app down.
         try {
-            CaptureBridge.trackSpanSuspend("welcome_screen_load") {
+            CaptureBridge.trackSpanSuspend(SpecSpans.WELCOME_SCREEN_LOAD) {
                 val welcome = CaptureBridge.bestEffort { ApiClient.getWelcome() }
                 val version = CaptureBridge.bestEffort { ApiClient.fetchLatestSdkVersion() }
                 apiData = welcome
@@ -85,7 +86,7 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
     } ?: "Experience different shopping journeys"
 
     ScreenContainer(
-        screenName = "Welcome",
+        screenName = SpecScreen.WELCOME.screenName,
         title = apiData?.optString("store_name", "Welcome to bitdrift Shop") ?: "Welcome to bitdrift Shop",
         subtitle = subtitle,
         step = 1,
@@ -165,7 +166,7 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
                         simulationManager.crashLoopEnabled = false
                         simulationManager.fastCrashModeEnabled = false
                         simulationManager.setVariant(simulationManager.activeVariant)
-                        Logger.logInfo { "crash_loop_stopped" }
+                        Logger.logInfo { SpecEvents.CRASH_LOOP_STOPPED }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
@@ -533,13 +534,13 @@ fun AdvancedScreen(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
 
-            // bitdrift SDK: addField("supportlog") tags all telemetry for filtering during
+            // bitdrift SDK: addField(SpecFields.SUPPORTLOG) tags all telemetry for filtering during
             // support investigations.
             // POC: ad-hoc debugging — filter Timeline to a specific device in production
             Button(
                 onClick = {
                     supportLogEnabled = !supportLogEnabled
-                    Logger.addField("supportlog", supportLogEnabled.toString())
+                    Logger.addField(SpecFields.SUPPORTLOG, supportLogEnabled.toString())
                 },
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -604,7 +605,7 @@ fun BrowseScreen(navController: NavController, simulationManager: SimulationMana
         // would swallow it and every span would record SUCCESS regardless of outcome.
         // POC: event tracking — screen-level "time to data ready".
         try {
-          CaptureBridge.trackSpanSuspend("browse_screen_load") {
+          CaptureBridge.trackSpanSuspend(SpecSpans.BROWSE_SCREEN_LOAD) {
             apiData = ApiClient.getBrowse()
             catalogJson = ApiClient.getFullCatalogJson()
             val arr = apiData?.optJSONArray("products")
@@ -626,7 +627,7 @@ fun BrowseScreen(navController: NavController, simulationManager: SimulationMana
         // similarity_pass children inside scoreProducts would have no parent to nest
         // under and would render as unrelated flat spans.
         CaptureBridge.trackSpanNested(
-            "score_products", mapOf("product_id" to pid, "screen_name" to "Browse")
+            SpecSpans.SCORE_PRODUCTS, mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SCREEN_NAME to "Browse")
         ) { span ->
             RecommendationEngine.scoreProducts(catalogJson, pid, span?.id)
         }
@@ -639,7 +640,7 @@ fun BrowseScreen(navController: NavController, simulationManager: SimulationMana
     } ?: "Explore our product catalog"
 
     ScreenContainer(
-        screenName = "Browse",
+        screenName = SpecScreen.BROWSE.screenName,
         title = "Browse",
         subtitle = subtitle,
         step = 2,
@@ -692,7 +693,7 @@ fun SearchScreen(navController: NavController) {
     } ?: "Find exactly what you're looking for"
 
     ScreenContainer(
-        screenName = "Search",
+        screenName = SpecScreen.SEARCH.screenName,
         title = "Search",
         subtitle = subtitle,
         step = 2,
@@ -746,7 +747,7 @@ fun FeaturedProductsScreen(navController: NavController) {
     } ?: "Our top picks for you"
 
     ScreenContainer(
-        screenName = "Featured",
+        screenName = SpecScreen.FEATURED.screenName,
         title = "Featured Products",
         subtitle = subtitle,
         step = 3,
@@ -793,7 +794,7 @@ fun CategoriesScreen(navController: NavController) {
     } else "Browse by product type"
 
     ScreenContainer(
-        screenName = "Categories",
+        screenName = SpecScreen.CATEGORIES.screenName,
         title = "Categories",
         subtitle = subtitle,
         step = 3,
@@ -845,7 +846,7 @@ fun CategoryBrowseScreen(navController: NavController, category: String?) {
     } else "Loading $cat..."
 
     ScreenContainer(
-        screenName = "CategoryBrowse",
+        screenName = SpecScreen.CATEGORY_BROWSE.screenName,
         title = cat,
         subtitle = subtitle,
         step = 3,
@@ -887,8 +888,8 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
         // POC: event tracking — screen-level "time to data ready".
         try {
             CaptureBridge.trackSpanSuspend(
-                "product_detail_load",
-                mapOf("rec_v2" to (simulationManager?.recommendationsV2Enabled == true).toString()),
+                SpecSpans.PRODUCT_DETAIL_LOAD,
+                mapOf(SpecFields.REC_V2 to (simulationManager?.recommendationsV2Enabled == true).toString()),
             ) {
                 apiData = ApiClient.getProduct(pid)
                 if (simulationManager?.recommendationsV2Enabled == true) {
@@ -907,7 +908,7 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
         // similarity_pass children inside scoreProducts would have no parent to nest
         // under and would render as unrelated flat spans.
         CaptureBridge.trackSpanNested(
-            "score_products", mapOf("product_id" to pid, "screen_name" to "ProductDetail")
+            SpecSpans.SCORE_PRODUCTS, mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SCREEN_NAME to "ProductDetail")
         ) { span ->
             RecommendationEngine.scoreProducts(catalogJson, pid, span?.id)
         }
@@ -923,7 +924,7 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
     } ?: "Loading..."
 
     ScreenContainer(
-        screenName = "ProductDetail",
+        screenName = SpecScreen.PRODUCT_DETAIL.screenName,
         title = title,
         subtitle = subtitle,
         step = 4,
@@ -943,7 +944,7 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
             icon = Icons.Default.Add
         ) {
             // bitdrift SDK: logInfo() with a stable event name and field map enables aggregation in the dashboard.
-            Logger.logInfo(mapOf("product_id" to pid, "source_screen" to (source ?: "unknown"))) { "add_to_cart" }
+            Logger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_CART }
             navController.navigate(Screen.Cart(pid).route)
         }
         SecondaryButton(
@@ -951,7 +952,7 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
             icon = Icons.Default.Favorite
         ) {
             // bitdrift SDK: logInfo() records wishlist events with product and source context.
-            Logger.logInfo(mapOf("product_id" to pid, "source_screen" to (source ?: "unknown"))) { "add_to_wishlist" }
+            Logger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_WISHLIST }
             navController.navigate(Screen.Wishlist(pid).route)
         }
     }
@@ -975,7 +976,7 @@ fun ReviewsScreen(navController: NavController, source: String?, productId: Stri
     } ?: "Loading reviews..."
 
     ScreenContainer(
-        screenName = "Reviews",
+        screenName = SpecScreen.REVIEWS.screenName,
         title = "Customer Reviews",
         subtitle = subtitle,
         step = 4,
@@ -989,7 +990,7 @@ fun ReviewsScreen(navController: NavController, source: String?, productId: Stri
             icon = Icons.Default.Add
         ) {
             // bitdrift SDK: logInfo() records cart-add events from the reviews screen.
-            Logger.logInfo(mapOf("product_id" to pid, "source_screen" to (source ?: "unknown"))) { "add_to_cart" }
+            Logger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_CART }
             navController.navigate(Screen.Cart(pid).route)
         }
         SecondaryButton(
@@ -997,7 +998,7 @@ fun ReviewsScreen(navController: NavController, source: String?, productId: Stri
             icon = Icons.Default.Favorite
         ) {
             // bitdrift SDK: logInfo() records wishlist events with product and source context.
-            Logger.logInfo(mapOf("product_id" to pid, "source_screen" to (source ?: "unknown"))) { "add_to_wishlist" }
+            Logger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_WISHLIST }
             navController.navigate(Screen.Wishlist(pid).route)
         }
     }
@@ -1017,12 +1018,12 @@ fun CartScreen(navController: NavController, productId: String?) {
         // would swallow it and every span would record SUCCESS regardless of outcome.
         // POC: event tracking — screen-level "time to data ready".
         try {
-            CaptureBridge.trackSpanSuspend("cart_screen_load") {
+            CaptureBridge.trackSpanSuspend(SpecSpans.CART_SCREEN_LOAD) {
                 apiData = if (pid.isNotEmpty()) ApiClient.addToCart(pid) else ApiClient.getCart()
             }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable captures the exception in the session timeline.
-            Logger.logError(mapOf("product_id" to pid), throwable = e) { "cart_failed" }
+            Logger.logError(mapOf(SpecFields.PRODUCT_ID to pid), throwable = e) { SpecEvents.CART_FAILED }
         }
     }
 
@@ -1036,7 +1037,7 @@ fun CartScreen(navController: NavController, productId: String?) {
     } ?: "Loading cart..."
 
     ScreenContainer(
-        screenName = "Cart",
+        screenName = SpecScreen.CART.screenName,
         title = "Shopping Cart",
         subtitle = subtitle,
         step = 5,
@@ -1089,7 +1090,7 @@ fun CartScreen(navController: NavController, productId: String?) {
                             )
                             IconButton(onClick = {
                                 // bitdrift SDK: logInfo() records cart mutations for funnel analysis.
-                                Logger.logInfo(mapOf("product_id" to itemProductId)) { "cart_item_removed" }
+                                Logger.logInfo(mapOf(SpecFields.PRODUCT_ID to itemProductId)) { SpecEvents.CART_ITEM_REMOVED }
                                 scope.launch {
                                     try { apiData = ApiClient.deleteCartItem(itemProductId) } catch (_: Exception) {}
                                 }
@@ -1110,7 +1111,7 @@ fun CartScreen(navController: NavController, productId: String?) {
             icon = Icons.Default.Person
         ) {
             // bitdrift SDK: logInfo() records checkout funnel entry for conversion tracking.
-            Logger.logInfo(mapOf("checkout_type" to "guest")) { "checkout_started" }
+            Logger.logInfo(mapOf(SpecFields.CHECKOUT_TYPE to "guest")) { SpecEvents.CHECKOUT_STARTED }
             navController.navigate(Screen.CheckoutGuest(pid).route)
         }
         SecondaryButton(
@@ -1118,7 +1119,7 @@ fun CartScreen(navController: NavController, productId: String?) {
             icon = Icons.Default.Lock
         ) {
             // bitdrift SDK: logInfo() records checkout funnel entry for conversion tracking.
-            Logger.logInfo(mapOf("checkout_type" to "signin")) { "checkout_started" }
+            Logger.logInfo(mapOf(SpecFields.CHECKOUT_TYPE to "signin")) { SpecEvents.CHECKOUT_STARTED }
             navController.navigate(Screen.CheckoutSignIn(pid).route)
         }
         SecondaryButton(
@@ -1149,7 +1150,7 @@ fun WishlistScreen(navController: NavController, productId: String?) {
     } ?: "Loading wishlist..."
 
     ScreenContainer(
-        screenName = "Wishlist",
+        screenName = SpecScreen.WISHLIST.screenName,
         title = "Wishlist",
         subtitle = subtitle,
         step = 5,
@@ -1186,13 +1187,13 @@ fun CheckoutGuestScreen(navController: NavController, productId: String?) {
         // would swallow it and every span would record SUCCESS regardless of outcome.
         // POC: event tracking — screen-level "time to data ready".
         try {
-            CaptureBridge.trackSpanSuspend("checkout_screen_load", mapOf("checkout_type" to "guest")) {
+            CaptureBridge.trackSpanSuspend(SpecSpans.CHECKOUT_SCREEN_LOAD, mapOf(SpecFields.CHECKOUT_TYPE to "guest")) {
                 apiData = ApiClient.checkoutGuest()
                 checkoutSession = apiData?.optString("checkout_session", "") ?: ""
             }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records checkout failures in the session timeline.
-            Logger.logError(mapOf("checkout_type" to "guest"), throwable = e) { "checkout_failed" }
+            Logger.logError(mapOf(SpecFields.CHECKOUT_TYPE to "guest"), throwable = e) { SpecEvents.CHECKOUT_FAILED }
         }
     }
 
@@ -1206,7 +1207,7 @@ fun CheckoutGuestScreen(navController: NavController, productId: String?) {
     } ?: "Loading checkout..."
 
     ScreenContainer(
-        screenName = "CheckoutGuest",
+        screenName = SpecScreen.CHECKOUT_GUEST.screenName,
         title = "Guest Checkout",
         subtitle = subtitle,
         step = 6,
@@ -1241,7 +1242,7 @@ fun CheckoutSignInScreen(navController: NavController, productId: String?) {
         // reaches the span as FAILURE rather than being swallowed. See welcome_screen_load.
         // POC: event tracking — screen-level "time to data ready".
         try {
-          CaptureBridge.trackSpanSuspend("checkout_screen_load", mapOf("checkout_type" to "signin")) {
+          CaptureBridge.trackSpanSuspend(SpecSpans.CHECKOUT_SCREEN_LOAD, mapOf(SpecFields.CHECKOUT_TYPE to "signin")) {
             apiData = ApiClient.checkoutSignIn()
             checkoutSession = apiData?.optString("checkout_session", "") ?: ""
             // bitdrift SDK: addField() sets user_id on the session so every subsequent log is tagged
@@ -1252,12 +1253,12 @@ fun CheckoutSignInScreen(navController: NavController, productId: String?) {
             if (userId.isNotEmpty()) {
                 context.getSharedPreferences("user_session", android.content.Context.MODE_PRIVATE)
                     .edit().putString("user_id", userId).apply()
-                Logger.addField("user_id", userId)
+                Logger.addField(SpecFields.USER_ID, userId)
             }
           }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records checkout failures in the session timeline.
-            Logger.logError(mapOf("checkout_type" to "signin"), throwable = e) { "checkout_failed" }
+            Logger.logError(mapOf(SpecFields.CHECKOUT_TYPE to "signin"), throwable = e) { SpecEvents.CHECKOUT_FAILED }
         }
     }
 
@@ -1272,7 +1273,7 @@ fun CheckoutSignInScreen(navController: NavController, productId: String?) {
     } ?: "Loading checkout..."
 
     ScreenContainer(
-        screenName = "CheckoutSignIn",
+        screenName = SpecScreen.CHECKOUT_SIGNIN.screenName,
         title = "Member Checkout",
         subtitle = subtitle,
         step = 6,
@@ -1310,13 +1311,13 @@ fun PaymentCardScreen(navController: NavController, checkoutSession: String?) {
         // sub-phase — the one place a processor-style latency distribution shows up.
         // POC: event tracking — screen-level "time to data ready".
         try {
-            CaptureBridge.trackSpanSuspend("payment_screen_load", mapOf("payment_method" to "card")) {
+            CaptureBridge.trackSpanSuspend(SpecSpans.PAYMENT_SCREEN_LOAD, mapOf(SpecFields.PAYMENT_METHOD to "card")) {
                 apiData = ApiClient.payCard(session)
                 orderId = apiData?.optString("order_id", "") ?: ""
             }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records payment failures in the session timeline.
-            Logger.logError(mapOf("payment_method" to "card"), throwable = e) { "payment_failed" }
+            Logger.logError(mapOf(SpecFields.PAYMENT_METHOD to "card"), throwable = e) { SpecEvents.PAYMENT_FAILED }
         }
     }
 
@@ -1328,7 +1329,7 @@ fun PaymentCardScreen(navController: NavController, checkoutSession: String?) {
     } ?: "Processing payment..."
 
     ScreenContainer(
-        screenName = "PaymentCard",
+        screenName = SpecScreen.PAYMENT_CARD.screenName,
         title = "Card Payment",
         subtitle = subtitle,
         step = 6,
@@ -1342,7 +1343,7 @@ fun PaymentCardScreen(navController: NavController, checkoutSession: String?) {
             icon = Icons.Default.Done
         ) {
             // bitdrift SDK: logInfo() records payment completion with method and order ID for conversion tracking.
-            Logger.logInfo(mapOf("payment_method" to "visa", "card_last4" to "4242", "order_id" to orderId)) { "payment_completed" }
+            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "visa", SpecFields.CARD_LAST4 to "4242", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
         SecondaryButton(
@@ -1350,7 +1351,7 @@ fun PaymentCardScreen(navController: NavController, checkoutSession: String?) {
             icon = Icons.Default.Done
         ) {
             // bitdrift SDK: logInfo() records payment completion.
-            Logger.logInfo(mapOf("payment_method" to "mastercard", "card_last4" to "8888", "order_id" to orderId)) { "payment_completed" }
+            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "mastercard", SpecFields.CARD_LAST4 to "8888", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
         SecondaryButton(
@@ -1358,7 +1359,7 @@ fun PaymentCardScreen(navController: NavController, checkoutSession: String?) {
             icon = Icons.Default.Done
         ) {
             // bitdrift SDK: logInfo() records payment completion.
-            Logger.logInfo(mapOf("payment_method" to "amex", "card_last4" to "1001", "order_id" to orderId)) { "payment_completed" }
+            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "amex", SpecFields.CARD_LAST4 to "1001", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }
@@ -1376,13 +1377,13 @@ fun PaymentApplePayScreen(navController: NavController, checkoutSession: String?
         // sub-phase — the one place a processor-style latency distribution shows up.
         // POC: event tracking — screen-level "time to data ready".
         try {
-            CaptureBridge.trackSpanSuspend("payment_screen_load", mapOf("payment_method" to "apple_pay")) {
+            CaptureBridge.trackSpanSuspend(SpecSpans.PAYMENT_SCREEN_LOAD, mapOf(SpecFields.PAYMENT_METHOD to "apple_pay")) {
                 apiData = ApiClient.payApplePay(session)
                 orderId = apiData?.optString("order_id", "") ?: ""
             }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records payment failures.
-            Logger.logError(mapOf("payment_method" to "apple_pay"), throwable = e) { "payment_failed" }
+            Logger.logError(mapOf(SpecFields.PAYMENT_METHOD to "apple_pay"), throwable = e) { SpecEvents.PAYMENT_FAILED }
         }
     }
 
@@ -1393,7 +1394,7 @@ fun PaymentApplePayScreen(navController: NavController, checkoutSession: String?
     } ?: "Authenticating..."
 
     ScreenContainer(
-        screenName = "PaymentApplePay",
+        screenName = SpecScreen.PAYMENT_APPLE_PAY.screenName,
         title = "Apple Pay",
         subtitle = subtitle,
         step = 6,
@@ -1410,7 +1411,7 @@ fun PaymentApplePayScreen(navController: NavController, checkoutSession: String?
             // payment method, not just card -- the checkout-funnel workflow keys on
             // this event, so omitting it here silently excluded these completions
             // from the conversion numbers.
-            Logger.logInfo(mapOf("payment_method" to "apple_pay", "order_id" to orderId)) { "payment_completed" }
+            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "apple_pay", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }
@@ -1428,13 +1429,13 @@ fun PaymentPayPalScreen(navController: NavController, checkoutSession: String?) 
         // sub-phase — the one place a processor-style latency distribution shows up.
         // POC: event tracking — screen-level "time to data ready".
         try {
-            CaptureBridge.trackSpanSuspend("payment_screen_load", mapOf("payment_method" to "paypal")) {
+            CaptureBridge.trackSpanSuspend(SpecSpans.PAYMENT_SCREEN_LOAD, mapOf(SpecFields.PAYMENT_METHOD to "paypal")) {
                 apiData = ApiClient.payPayPal(session)
                 orderId = apiData?.optString("order_id", "") ?: ""
             }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records payment failures.
-            Logger.logError(mapOf("payment_method" to "paypal"), throwable = e) { "payment_failed" }
+            Logger.logError(mapOf(SpecFields.PAYMENT_METHOD to "paypal"), throwable = e) { SpecEvents.PAYMENT_FAILED }
         }
     }
 
@@ -1446,7 +1447,7 @@ fun PaymentPayPalScreen(navController: NavController, checkoutSession: String?) 
     } ?: "Connecting to PayPal..."
 
     ScreenContainer(
-        screenName = "PaymentPayPal",
+        screenName = SpecScreen.PAYMENT_PAYPAL.screenName,
         title = "PayPal",
         subtitle = subtitle,
         step = 6,
@@ -1463,7 +1464,7 @@ fun PaymentPayPalScreen(navController: NavController, checkoutSession: String?) 
             // payment method, not just card -- the checkout-funnel workflow keys on
             // this event, so omitting it here silently excluded these completions
             // from the conversion numbers.
-            Logger.logInfo(mapOf("payment_method" to "paypal", "order_id" to orderId)) { "payment_completed" }
+            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "paypal", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }
@@ -1480,12 +1481,12 @@ fun PaymentAndroidPayScreen(navController: NavController, checkoutSession: Strin
         // throw reaches the span as FAILURE. See payment_screen_load on the card screen.
         // POC: event tracking — screen-level "time to data ready".
         try {
-            CaptureBridge.trackSpanSuspend("payment_screen_load", mapOf("payment_method" to "android_pay")) {
+            CaptureBridge.trackSpanSuspend(SpecSpans.PAYMENT_SCREEN_LOAD, mapOf(SpecFields.PAYMENT_METHOD to "android_pay")) {
                 apiData = ApiClient.payAndroidPay(session)
                 orderId = apiData?.optString("order_id", "") ?: ""
             }
         } catch (e: Exception) {
-            Logger.logError(mapOf("payment_method" to "android_pay"), throwable = e) { "payment_failed" }
+            Logger.logError(mapOf(SpecFields.PAYMENT_METHOD to "android_pay"), throwable = e) { SpecEvents.PAYMENT_FAILED }
         }
     }
 
@@ -1496,7 +1497,7 @@ fun PaymentAndroidPayScreen(navController: NavController, checkoutSession: Strin
     } ?: "Authenticating..."
 
     ScreenContainer(
-        screenName = "PaymentAndroidPay",
+        screenName = SpecScreen.PAYMENT_ANDROID_PAY.screenName,
         title = "Android Pay",
         subtitle = subtitle,
         step = 6,
@@ -1513,7 +1514,7 @@ fun PaymentAndroidPayScreen(navController: NavController, checkoutSession: Strin
             // payment method, not just card -- the checkout-funnel workflow keys on
             // this event, so omitting it here silently excluded these completions
             // from the conversion numbers.
-            Logger.logInfo(mapOf("payment_method" to "android_pay", "order_id" to orderId)) { "payment_completed" }
+            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "android_pay", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }
@@ -1535,7 +1536,7 @@ fun PaymentFailedScreen(navController: NavController, paymentMethod: String?, ch
     }
 
     ScreenContainer(
-        screenName = "PaymentFailed",
+        screenName = SpecScreen.PAYMENT_FAILED.screenName,
         title = "Payment Failed",
         subtitle = "Your $methodLabel payment could not be processed.\nPlease try again or use a different payment method.",
         step = 6,
@@ -1567,7 +1568,7 @@ fun ConfirmationScreen(navController: NavController, orderId: String?) {
         // would swallow it and every span would record SUCCESS regardless of outcome.
         // POC: event tracking — screen-level "time to data ready".
         try {
-            CaptureBridge.trackSpanSuspend("confirmation_screen_load") {
+            CaptureBridge.trackSpanSuspend(SpecSpans.CONFIRMATION_SCREEN_LOAD) {
                 apiData = ApiClient.getConfirmation(oid)
             }
         } catch (_: Exception) {}
@@ -1593,7 +1594,7 @@ fun ConfirmationScreen(navController: NavController, orderId: String?) {
     }
 
     ScreenContainer(
-        screenName = "Confirmation",
+        screenName = SpecScreen.CONFIRMATION.screenName,
         title = "Order Confirmed!",
         subtitle = subtitle,
         step = 7,
@@ -1612,7 +1613,7 @@ fun ConfirmationScreen(navController: NavController, orderId: String?) {
                 // bitdrift SDK: removeField() clears user_id when starting a new journey — session-level logout.
                 context.getSharedPreferences("user_session", android.content.Context.MODE_PRIVATE)
                     .edit().remove("user_id").apply()
-                Logger.removeField("user_id")
+                Logger.removeField(SpecFields.USER_ID)
 
                 navController.navigate(Screen.Welcome.route) {
                     popUpTo(Screen.Welcome.route) { inclusive = true }

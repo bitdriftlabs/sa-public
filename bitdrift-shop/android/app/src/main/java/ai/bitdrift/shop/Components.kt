@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -673,9 +674,9 @@ fun SpannedAsyncImage(
                 is AsyncImagePainter.State.Loading -> {
                     if (span.value == null && !settled.value) {
                         span.value = Logger.startSpan(
-                            "product_image_load",
+                            SpecSpans.PRODUCT_IMAGE_LOAD,
                             LogLevel.INFO,
-                            mapOf("url" to (model?.toString() ?: "")),
+                            mapOf(SpecFields.URL to (model?.toString() ?: "")),
                         )
                     }
                 }

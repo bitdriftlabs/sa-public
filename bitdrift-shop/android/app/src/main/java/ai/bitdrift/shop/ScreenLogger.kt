@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
 import ai.bitdrift.shop.BuildConfig
 import android.util.Log
 import io.bitdrift.capture.Capture.Logger
@@ -31,11 +32,11 @@ object ScreenLogger {
     }
 
     fun logSimulationStart(runs: Int) {
-        logInfo("simulation_start", mapOf("total_runs" to runs.toString()))
+        logInfo(SpecEvents.SIMULATION_START, mapOf(SpecFields.TOTAL_RUNS to runs.toString()))
     }
 
     fun logSimulationEnd(runs: Int) {
-        logInfo("simulation_end", mapOf("total_runs" to runs.toString()))
+        logInfo(SpecEvents.SIMULATION_END, mapOf(SpecFields.TOTAL_RUNS to runs.toString()))
     }
 
     private fun printLog(level: String, message: String, fields: Map<String, String>) {

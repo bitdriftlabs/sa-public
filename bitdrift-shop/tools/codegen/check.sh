@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Fail if any checked-in generated constants differ from what spec/*.yaml produces.
+# Add one line per platform as each adopts generated constants.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+RUN="$ROOT/tools/codegen/run.sh"
+"$RUN" kotlin "$ROOT/android/app/src/main/java/ai/bitdrift/shop/generated" ai.bitdrift.shop.generated --check

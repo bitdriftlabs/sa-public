@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
 import android.app.Activity
 import android.app.Application
 import android.content.ComponentCallbacks2
@@ -35,8 +36,8 @@ class AppLifecycleCallbacks : Application.ActivityLifecycleCallbacks, ComponentC
         if (activityCount == 1) {
             // bitdrift SDK: logInfo() emits a structured event with a stable name and field map.
             // POC: Workflow matching, Timeline breadcrumbs, alert triggers — stable event names are queryable
-            Logger.logInfo(mapOf("trigger" to "onActivityStarted")) { "app_open" }
-            foregroundSpan = Logger.startSpan("foreground_session", LogLevel.INFO)
+            Logger.logInfo(mapOf(SpecFields.TRIGGER to "onActivityStarted")) { SpecEvents.APP_OPEN }
+            foregroundSpan = Logger.startSpan(SpecSpans.FOREGROUND_SESSION, LogLevel.INFO)
         }
     }
 
@@ -44,7 +45,7 @@ class AppLifecycleCallbacks : Application.ActivityLifecycleCallbacks, ComponentC
         activityCount--
         if (activityCount == 0) {
             // bitdrift SDK: logInfo() emits a structured event for foreground/background transitions.
-            Logger.logInfo(mapOf("trigger" to "onActivityStopped")) { "app_close" }
+            Logger.logInfo(mapOf(SpecFields.TRIGGER to "onActivityStopped")) { SpecEvents.APP_CLOSE }
             foregroundSpan?.end(SpanResult.SUCCESS)
             foregroundSpan = null
         }
@@ -54,13 +55,13 @@ class AppLifecycleCallbacks : Application.ActivityLifecycleCallbacks, ComponentC
         if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
             // bitdrift SDK: logWarning() emits a warning-level event; severity is queryable in the dashboard.
             // POC: alert triggers — create a Workflow that fires when memory_pressure rate exceeds threshold
-            Logger.logWarning(mapOf("level" to level.toString())) { "memory_pressure" }
+            Logger.logWarning(mapOf(SpecFields.LEVEL to level.toString())) { SpecEvents.MEMORY_PRESSURE }
         }
     }
 
     override fun onLowMemory() {
         // bitdrift SDK: logWarning() with no fields — event name alone is sufficient for this signal.
-        Logger.logWarning { "low_memory" }
+        Logger.logWarning { SpecEvents.LOW_MEMORY }
     }
 
 }

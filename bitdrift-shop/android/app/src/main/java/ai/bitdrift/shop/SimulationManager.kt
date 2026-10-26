@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -100,36 +101,36 @@ class SimulationManager : ViewModel() {
             SimVariant.VARIANT_B -> "low"
         }
         // Record feature flag exposures (per-session, triggers workflow transitions)
-        Logger.setFeatureFlagExposure("checkout_flow", checkoutFlow)
-        Logger.setFeatureFlagExposure("payment_ui", paymentUi)
-        Logger.setFeatureFlagExposure("cart_abandon_rate", cartAbandon)
+        Logger.setFeatureFlagExposure(SpecFlags.CHECKOUT_FLOW, checkoutFlow)
+        Logger.setFeatureFlagExposure(SpecFlags.PAYMENT_UI, paymentUi)
+        Logger.setFeatureFlagExposure(SpecFlags.CART_ABANDON_RATE, cartAbandon)
         // Also set as global fields so every log carries the active flag values for debugging
-        Logger.addField("ff_checkout_flow", checkoutFlow)
-        Logger.addField("ff_payment_ui", paymentUi)
-        Logger.addField("ff_cart_abandon_rate", cartAbandon)
-        Logger.addField("ff_variant", variant.label)
+        Logger.addField(SpecFields.FF_CHECKOUT_FLOW, checkoutFlow)
+        Logger.addField(SpecFields.FF_PAYMENT_UI, paymentUi)
+        Logger.addField(SpecFields.FF_CART_ABANDON_RATE, cartAbandon)
+        Logger.addField(SpecFields.FF_VARIANT, variant.label)
         // Android Pay flag: enabled for Control + Variant A, disabled for Variant B
         val androidPay = when (variant) {
             SimVariant.CONTROL   -> "enabled"
             SimVariant.VARIANT_A -> "enabled"
             SimVariant.VARIANT_B -> "disabled"
         }
-        Logger.setFeatureFlagExposure("payment_android_pay", androidPay)
-        Logger.addField("ff_payment_android_pay", androidPay)
+        Logger.setFeatureFlagExposure(SpecFlags.PAYMENT_ANDROID_PAY, androidPay)
+        Logger.addField(SpecFields.FF_PAYMENT_ANDROID_PAY, androidPay)
         val orderSummary = if (crashLoopEnabled) "v2" else "v1"
-        Logger.setFeatureFlagExposure("order_summary", orderSummary)
-        Logger.addField("ff_order_summary", orderSummary)
+        Logger.setFeatureFlagExposure(SpecFlags.ORDER_SUMMARY, orderSummary)
+        Logger.addField(SpecFields.FF_ORDER_SUMMARY, orderSummary)
         val anrAState = if (anrAEnabled) "enabled" else "disabled"
-        Logger.setFeatureFlagExposure("anr_a", anrAState)
-        Logger.addField("ff_anr_a", anrAState)
+        Logger.setFeatureFlagExposure(SpecFlags.ANR_A, anrAState)
+        Logger.addField(SpecFields.FF_ANR_A, anrAState)
         val forceQuitState = if (forceQuitEnabled) "enabled" else "disabled"
-        Logger.setFeatureFlagExposure("force_quit", forceQuitState)
-        Logger.addField("ff_force_quit", forceQuitState)
+        Logger.setFeatureFlagExposure(SpecFlags.FORCE_QUIT, forceQuitState)
+        Logger.addField(SpecFields.FF_FORCE_QUIT, forceQuitState)
         val recommendationsV2State = if (recommendationsV2Enabled) "enabled" else "disabled"
-        Logger.setFeatureFlagExposure("recommendations_v2", recommendationsV2State)
-        Logger.addField("ff_recommendations_v2", recommendationsV2State)
+        Logger.setFeatureFlagExposure(SpecFlags.RECOMMENDATIONS_V2, recommendationsV2State)
+        Logger.addField(SpecFields.FF_RECOMMENDATIONS_V2, recommendationsV2State)
         // Emit an explicit log so we can verify flag exposure in the log stream
-        Logger.logInfo { "feature_flag_exposure_set" }
+        Logger.logInfo { SpecEvents.FEATURE_FLAG_EXPOSURE_SET }
     }
 
     fun syncAnrAEnabledState() {
@@ -163,10 +164,10 @@ class SimulationManager : ViewModel() {
     fun cancel() {
         isCancelled = true
         ScreenLogger.logInfo(
-            "simulation_cancelled",
+            SpecEvents.SIMULATION_CANCELLED,
             mapOf(
-                "completed_runs" to currentRun.toString(),
-                "total_runs" to totalRuns.toString()
+                SpecFields.COMPLETED_RUNS to currentRun.toString(),
+                SpecFields.TOTAL_RUNS to totalRuns.toString()
             )
         )
     }
@@ -252,7 +253,7 @@ class SimulationManager : ViewModel() {
             currentRun = 0
             val variants = SimVariant.entries  // [CONTROL, VARIANT_A, VARIANT_B]
 
-            ScreenLogger.logInfo("ab_simulation_start", mapOf("runs_each" to runsEach.toString()))
+            ScreenLogger.logInfo(SpecEvents.AB_SIMULATION_START, mapOf(SpecFields.RUNS_EACH to runsEach.toString()))
 
             for (i in 0 until totalRuns) {
                 if (isCancelled) break
@@ -262,7 +263,7 @@ class SimulationManager : ViewModel() {
                 delay(50L)
             }
 
-            ScreenLogger.logInfo("ab_simulation_end", mapOf("total_runs" to currentRun.toString()))
+            ScreenLogger.logInfo(SpecEvents.AB_SIMULATION_END, mapOf(SpecFields.TOTAL_RUNS to currentRun.toString()))
 
             navController.navigate(Screen.Welcome.route) {
                 popUpTo(Screen.Welcome.route) { inclusive = true }
@@ -296,7 +297,7 @@ class SimulationManager : ViewModel() {
                     .commit()
             }
 
-            ScreenLogger.logInfo("infinite_simulation_start", emptyMap())
+            ScreenLogger.logInfo(SpecEvents.INFINITE_SIMULATION_START, emptyMap())
 
             while (!isCancelled) {
                 currentRun++
@@ -306,7 +307,7 @@ class SimulationManager : ViewModel() {
                 delay(50L)
             }
 
-            ScreenLogger.logInfo("infinite_simulation_end", mapOf("total_runs" to currentRun.toString()))
+            ScreenLogger.logInfo(SpecEvents.INFINITE_SIMULATION_END, mapOf(SpecFields.TOTAL_RUNS to currentRun.toString()))
 
             // Reset navigation to welcome screen
             navController.navigate(Screen.Welcome.route) {
@@ -332,7 +333,7 @@ class SimulationManager : ViewModel() {
             totalRuns = -1
             currentRun = 0
 
-            ScreenLogger.logInfo("cardinality_simulation_start", emptyMap())
+            ScreenLogger.logInfo(SpecEvents.CARDINALITY_SIMULATION_START, emptyMap())
 
             while (!isCancelled) {
                 currentRun++
@@ -342,8 +343,8 @@ class SimulationManager : ViewModel() {
             }
 
             ScreenLogger.logInfo(
-                "cardinality_simulation_end",
-                mapOf("total_runs" to currentRun.toString())
+                SpecEvents.CARDINALITY_SIMULATION_END,
+                mapOf(SpecFields.TOTAL_RUNS to currentRun.toString())
             )
 
             navController.navigate(Screen.Welcome.route) {
@@ -446,12 +447,12 @@ class SimulationManager : ViewModel() {
             .commit()
 
         ScreenLogger.logError(
-            "force_quit_injected",
+            SpecEvents.FORCE_QUIT_INJECTED,
             mapOf(
-                "force_quit_enabled" to "true",
-                "force_quit_screen" to FORCE_QUIT_TARGET_SCREEN,
-                "variant" to activeVariant.label,
-                "trigger_mode" to if (forcedHit) "forced_infinite" else "random"
+                SpecFields.FORCE_QUIT_ENABLED to "true",
+                SpecFields.FORCE_QUIT_SCREEN to FORCE_QUIT_TARGET_SCREEN,
+                SpecFields.VARIANT to activeVariant.label,
+                SpecFields.TRIGGER_MODE to if (forcedHit) "forced_infinite" else "random"
             )
         )
 
@@ -490,13 +491,13 @@ class SimulationManager : ViewModel() {
             .commit()
 
         ScreenLogger.logError(
-            "guest_anr_injected",
+            SpecEvents.GUEST_ANR_INJECTED,
             mapOf(
-                "anr_a_enabled" to "true",
-                "journey_type" to "guest",
-                "anr_screen_name" to ANR_TARGET_SCREEN_NAME,
-                "variant" to activeVariant.label,
-                "trigger_mode" to if (forcedHit) "forced_infinite" else "random"
+                SpecFields.ANR_A_ENABLED to "true",
+                SpecFields.JOURNEY_TYPE to "guest",
+                SpecFields.ANR_SCREEN_NAME to ANR_TARGET_SCREEN_NAME,
+                SpecFields.VARIANT to activeVariant.label,
+                SpecFields.TRIGGER_MODE to if (forcedHit) "forced_infinite" else "random"
             )
         )
 
@@ -573,8 +574,8 @@ class SimulationManager : ViewModel() {
         val prefs = ctx.getSharedPreferences(ShoppingDemoApp.PREFS, Context.MODE_PRIVATE)
         val (name, fn, fireInBackground) = pickNextCrashCombo(prefs)
         val crashContext = if (fireInBackground) "background" else "foreground"
-        Logger.addField("crash_kind", name)
-        Logger.addField("crash_context", crashContext)
+        Logger.addField(SpecFields.CRASH_KIND, name)
+        Logger.addField(SpecFields.CRASH_CONTEXT, crashContext)
         Logger.logWarning { "about_to_crash: $name (context=$crashContext)" }
         // Pre-schedule the restart BEFORE the crash — AlarmManager survives even
         // SIGSEGV/SIGBUS where the JVM uncaught-exception handler cannot run.
@@ -603,8 +604,8 @@ class SimulationManager : ViewModel() {
         val crashContext = if (fireInBackground) "background" else "foreground"
         fastCrashStatus = FastCrashStatus(name, crashContext, prefs.getBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false))
         Logger.startNewSession()
-        Logger.addField("crash_kind", name)
-        Logger.addField("crash_context", crashContext)
+        Logger.addField(SpecFields.CRASH_KIND, name)
+        Logger.addField(SpecFields.CRASH_CONTEXT, crashContext)
         Logger.logWarning { "about_to_crash (fast): $name (context=$crashContext)" }
         ShoppingDemoApp.scheduleRestart(ctx, restartDelayFor(name))
         dispatchCrash(fn, fireInBackground, activity)
@@ -618,8 +619,8 @@ class SimulationManager : ViewModel() {
         if (!forceQuitEnabled) {
             Logger.startNewSession()
             ScreenLogger.logInfo(
-                "journey_started",
-                mapOf("run" to currentRun.toString(), "variant" to activeVariant.label)
+                SpecEvents.JOURNEY_STARTED,
+                mapOf(SpecFields.RUN to currentRun.toString(), SpecFields.VARIANT to activeVariant.label)
             )
             // Give the SDK time to fully initialise the new session before recording exposures
             delay(200L)
@@ -641,16 +642,16 @@ class SimulationManager : ViewModel() {
         // correlated via _span_id; child spans form a two-level hierarchy in the timeline.
         // POC: spans waterfall visualization in Timeline; query _duration_ms for p50/p95 of any flow
         val journeySpan = Logger.startSpan(
-            name = "journey",
+            name = SpecSpans.JOURNEY,
             level = LogLevel.INFO,
-            fields = mapOf("variant" to activeVariant.label, "entity" to entity),
+            fields = mapOf(SpecFields.VARIANT to activeVariant.label, SpecFields.ENTITY to entity),
         )
         // Tracks the discovery phase: Welcome → Browse/Search/Categories → ProductDetail → Cart.
         // Ends with SUCCESS when the first item is added to cart.
         val discoverySpan = Logger.startSpan(
-            name = "product_discovery",
+            name = SpecSpans.PRODUCT_DISCOVERY,
             level = LogLevel.INFO,
-            fields = mapOf("variant" to activeVariant.label),
+            fields = mapOf(SpecFields.VARIANT to activeVariant.label),
             parentSpanId = journeySpan?.id,
         )
 
@@ -680,7 +681,7 @@ class SimulationManager : ViewModel() {
         // caveat: the branch is a randomized per-variant roll, so this reflects
         // whichever endpoint got hit that run, not one stable operation.
         val discovered = CaptureBridge.trackSpanSuspend(
-            "discovery_fetch", parentSpanId = discoverySpan?.id
+            SpecSpans.DISCOVERY_FETCH, parentSpanId = discoverySpan?.id
         ) {
             when (discoveryChoice) {
                 0 -> {
@@ -729,7 +730,7 @@ class SimulationManager : ViewModel() {
         // real return happens after the span has closed normally.
         // POC: event tracking — sub-phase waterfall within product_discovery.
         val forceQuitInjected = CaptureBridge.trackSpanSuspend(
-            "product_view", parentSpanId = discoverySpan?.id
+            SpecSpans.PRODUCT_VIEW, parentSpanId = discoverySpan?.id
         ) {
             nav(nc, Screen.ProductDetail(source, pid).route)
             try { ApiClient.getProduct(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
@@ -764,7 +765,7 @@ class SimulationManager : ViewModel() {
             // bitdrift SDK: only opens when the roll actually adds to wishlist, so it
             // doesn't inflate the discovery-phase span count on runs that skip it.
             // POC: event tracking — sub-phase waterfall within product_discovery.
-            CaptureBridge.trackSpanSuspend("wishlist_add", parentSpanId = discoverySpan?.id) {
+            CaptureBridge.trackSpanSuspend(SpecSpans.WISHLIST_ADD, parentSpanId = discoverySpan?.id) {
                 nav(nc, Screen.Wishlist(pid).route)
                 try { ApiClient.addToWishlist(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
             }
@@ -775,7 +776,7 @@ class SimulationManager : ViewModel() {
         nav(nc, Screen.Cart(pid).route)
         try { ApiClient.addToCart(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
         // Discovery phase complete — first item is in the cart.
-        discoverySpan?.end(SpanResult.SUCCESS, mapOf("source" to source, "product_id" to pid))
+        discoverySpan?.end(SpanResult.SUCCESS, mapOf(SpecFields.SOURCE to source, SpecFields.PRODUCT_ID to pid))
 
         // bitdrift SDK: wraps the whole cart-assembly block — extra items, view,
         // maybe-remove, maybe-empty-and-rebuild, maybe-flip, final view — as one
@@ -785,7 +786,7 @@ class SimulationManager : ViewModel() {
         // sub-phase. Demo-only caveat: the branch counts are variant-driven random
         // walks and the interspersed delay(stepDelay) calls are artificial demo
         // pacing, so raw duration mixes both with real API time.
-        CaptureBridge.trackSpanSuspend("cart_assembly", parentSpanId = journeySpan?.id) {
+        CaptureBridge.trackSpanSuspend(SpecSpans.CART_ASSEMBLY, parentSpanId = journeySpan?.id) {
         val extraCount = when (activeVariant) {
             SimVariant.CONTROL   -> (1..3).random()   // 1-3 extra
             SimVariant.VARIANT_A -> (0..1).random()   // usually 1 item, occasionally grabs a second
@@ -861,15 +862,15 @@ class SimulationManager : ViewModel() {
         }
         if (Math.random() < cartAbandonProb) {
             ScreenLogger.logInfo(
-                "cart_abandoned",
+                SpecEvents.CART_ABANDONED,
                 mapOf(
-                    "items_in_cart" to cartItems.size.toString(),
-                    "variant" to activeVariant.label
+                    SpecFields.ITEMS_IN_CART to cartItems.size.toString(),
+                    SpecFields.VARIANT to activeVariant.label
                 )
             )
             android.util.Log.d("SimNav", "✗ cart_abandoned, items=${cartItems.size}, variant=${activeVariant.label}")
             delay(200L)
-            journeySpan?.end(SpanResult.CANCELED, mapOf("reason" to "cart_abandoned"))
+            journeySpan?.end(SpanResult.CANCELED, mapOf(SpecFields.REASON to "cart_abandoned"))
             return
         }
 
@@ -891,9 +892,9 @@ class SimulationManager : ViewModel() {
         // Checkout span: child of the journey span, covers Checkout → Payment → Confirmation.
         // parentSpanId links it to the root journey span so both appear together in the timeline.
         val checkoutSpan = Logger.startSpan(
-            name = "checkout",
+            name = SpecSpans.CHECKOUT,
             level = LogLevel.INFO,
-            fields = mapOf("checkout_type" to if (isGuest) "guest" else "signin"),
+            fields = mapOf(SpecFields.CHECKOUT_TYPE to if (isGuest) "guest" else "signin"),
             parentSpanId = journeySpan?.id,
         )
         val session: String
@@ -918,16 +919,16 @@ class SimulationManager : ViewModel() {
         if (Math.random() < checkoutDropoutProb) {
             val checkoutType = if (isGuest) "guest" else "signin"
             ScreenLogger.logInfo(
-                "checkout_abandoned",
+                SpecEvents.CHECKOUT_ABANDONED,
                 mapOf(
-                    "checkout_type" to checkoutType,
-                    "variant" to activeVariant.label
+                    SpecFields.CHECKOUT_TYPE to checkoutType,
+                    SpecFields.VARIANT to activeVariant.label
                 )
             )
             android.util.Log.d("SimNav", "✗ checkout_abandoned, type=$checkoutType, variant=${activeVariant.label}")
             delay(200L)
-            checkoutSpan?.end(SpanResult.CANCELED, mapOf("reason" to "checkout_abandoned"))
-            journeySpan?.end(SpanResult.CANCELED, mapOf("reason" to "checkout_abandoned"))
+            checkoutSpan?.end(SpanResult.CANCELED, mapOf(SpecFields.REASON to "checkout_abandoned"))
+            journeySpan?.end(SpanResult.CANCELED, mapOf(SpecFields.REASON to "checkout_abandoned"))
             return
         }
 
@@ -976,7 +977,7 @@ class SimulationManager : ViewModel() {
         // regardless, the field is for ad-hoc filtering.
         // POC: event tracking — sub-phase waterfall within checkout.
         val orderId: String = CaptureBridge.trackSpanSuspend(
-            "checkout.payment", mapOf("retried" to "false"), checkoutSpan?.id
+            SpecSpans.CHECKOUT_PAYMENT, mapOf(SpecFields.RETRIED to "false"), checkoutSpan?.id
         ) {
             when (paymentChoice) {
                 0 -> {
@@ -1000,11 +1001,11 @@ class SimulationManager : ViewModel() {
 
         if (willPaymentFail) {
             ScreenLogger.logError(
-                "payment_failed",
+                SpecEvents.PAYMENT_FAILED,
                 mapOf(
-                    "payment_method" to paymentMethod,
-                    "checkout_session" to session,
-                    "variant" to activeVariant.label
+                    SpecFields.PAYMENT_METHOD to paymentMethod,
+                    SpecFields.CHECKOUT_SESSION to session,
+                    SpecFields.VARIANT to activeVariant.label
                 )
             )
             android.util.Log.d("SimNav", "✗ payment_failed, method=$paymentMethod, variant=${activeVariant.label}")
@@ -1023,7 +1024,7 @@ class SimulationManager : ViewModel() {
                 // retried=true, so a retried attempt's latency isn't silently merged
                 // into the first attempt's.
                 val retried = CaptureBridge.trackSpanSuspend(
-                    "checkout.payment", mapOf("retried" to "true"), checkoutSpan?.id
+                    SpecSpans.CHECKOUT_PAYMENT, mapOf(SpecFields.RETRIED to "true"), checkoutSpan?.id
                 ) {
                     when (retryChoice) {
                         0 -> {
@@ -1047,11 +1048,11 @@ class SimulationManager : ViewModel() {
                 val retryOrderId: String = retried.first
                 val retryMethod: String = retried.second
                 ScreenLogger.logInfo(
-                    "payment_retry",
+                    SpecEvents.PAYMENT_RETRY,
                     mapOf(
-                        "original_method" to paymentMethod,
-                        "retry_method" to retryMethod,
-                        "variant" to activeVariant.label
+                        SpecFields.ORIGINAL_METHOD to paymentMethod,
+                        SpecFields.RETRY_METHOD to retryMethod,
+                        SpecFields.VARIANT to activeVariant.label
                     )
                 )
                 android.util.Log.d("SimNav", "↻ payment_retry, $paymentMethod → $retryMethod")
@@ -1061,15 +1062,15 @@ class SimulationManager : ViewModel() {
                 delay(100L)
                 nav(nc, Screen.Confirmation(retryOrderId).route)
                 Logger.logInfo(
-                    mapOf("_screen_name" to "Confirmation", "payment_retried" to "true", "retry_method" to retryMethod)
-                ) { "confirmation_reached" }
+                    mapOf(SpecFields.SDK_SCREEN_NAME to SpecScreen.CONFIRMATION.screenName, SpecFields.PAYMENT_RETRIED to "true", SpecFields.RETRY_METHOD to retryMethod)
+                ) { SpecEvents.CONFIRMATION_REACHED }
                 // bitdrift SDK: closes the checkout waterfall (entry -> payment ->
                 // confirmation) as its own sub-phase.
-                CaptureBridge.trackSpanSuspend("checkout.confirmation", parentSpanId = checkoutSpan?.id) {
+                CaptureBridge.trackSpanSuspend(SpecSpans.CHECKOUT_CONFIRMATION, parentSpanId = checkoutSpan?.id) {
                     try { ApiClient.getConfirmation(retryOrderId) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
                 }
                 delay(200L)
-                checkoutSpan?.end(SpanResult.SUCCESS, mapOf("payment_method" to retryMethod, "retried" to "true"))
+                checkoutSpan?.end(SpanResult.SUCCESS, mapOf(SpecFields.PAYMENT_METHOD to retryMethod, SpecFields.RETRIED to "true"))
                 journeySpan?.end(SpanResult.SUCCESS)
                 maybeFireCrash(nc)
             }
@@ -1084,19 +1085,19 @@ class SimulationManager : ViewModel() {
         nav(nc, Screen.Confirmation(orderId).route)
         // Emit an explicit tagged log so we can verify fields in the raw stream
         Logger.logInfo(
-            mapOf("_screen_name" to "Confirmation", "checkout_flow" to when (activeVariant) {
+            mapOf(SpecFields.SDK_SCREEN_NAME to SpecScreen.CONFIRMATION.screenName, SpecFields.CHECKOUT_FLOW to when (activeVariant) {
                 SimVariant.CONTROL -> "random"; SimVariant.VARIANT_A -> "guest"; SimVariant.VARIANT_B -> "signin"
             })
-        ) { "confirmation_reached" }
+        ) { SpecEvents.CONFIRMATION_REACHED }
         // bitdrift SDK: closes the checkout waterfall — see the retry path above.
-        CaptureBridge.trackSpanSuspend("checkout.confirmation", parentSpanId = checkoutSpan?.id) {
+        CaptureBridge.trackSpanSuspend(SpecSpans.CHECKOUT_CONFIRMATION, parentSpanId = checkoutSpan?.id) {
             try { ApiClient.getConfirmation(orderId) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
         }
         // Extra settle time so Compose's DisposableEffect fires logScreenView("Confirmation")
         // before the next journey's startNewSession() clears session-level flag state.
         delay(200L)
         android.util.Log.d("SimNav", "★ Confirmation DONE, variant=${activeVariant.label}")
-        checkoutSpan?.end(SpanResult.SUCCESS, mapOf("payment_method" to paymentMethod))
+        checkoutSpan?.end(SpanResult.SUCCESS, mapOf(SpecFields.PAYMENT_METHOD to paymentMethod))
         journeySpan?.end(SpanResult.SUCCESS)
         maybeFireCrash(nc)
     }
@@ -1135,7 +1136,7 @@ class SimulationManager : ViewModel() {
         const val KEY_ANR_A_ACTIVE = "active"
         const val KEY_RESTART_PENDING = "restart_pending"
         const val KEY_RESUME_INFINITE = "resume_infinite"
-        private const val ANR_TARGET_SCREEN_NAME = "CheckoutGuest"
+        private val ANR_TARGET_SCREEN_NAME = SpecScreen.CHECKOUT_GUEST.screenName
         private const val ANR_PROBABILITY = 0.25
         private const val ANR_FORCE_AFTER_ELIGIBLE_GUEST_JOURNEYS = 6
         private const val ANR_BLOCK_DURATION_MS = 15000L
@@ -1143,7 +1144,7 @@ class SimulationManager : ViewModel() {
 
         const val FORCE_QUIT_PREFS_NAME = "force_quit"
         const val KEY_FORCE_QUIT_ACTIVE = "active"
-        private const val FORCE_QUIT_TARGET_SCREEN = "ProductDetail"
+        private val FORCE_QUIT_TARGET_SCREEN = SpecScreen.PRODUCT_DETAIL.screenName
         private const val FORCE_QUIT_PROBABILITY = 0.60
         private const val FORCE_QUIT_FORCE_AFTER_JOURNEYS = 3
     }

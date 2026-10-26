@@ -1,5 +1,7 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -11,7 +13,7 @@ import io.bitdrift.capture.Capture.Logger
  * sessions. Disabling removes the field.
  */
 object SupportMode {
-    const val FIELD = "support"
+    const val FIELD = SpecFields.SUPPORT
 
     var enabled by mutableStateOf(false)
         private set
@@ -25,6 +27,6 @@ object SupportMode {
         } else {
             Logger.removeField(FIELD)
         }
-        ScreenLogger.logInfo(if (enabled) "support_mode_on" else "support_mode_off")
+        ScreenLogger.logInfo(if (enabled) SpecEvents.SUPPORT_MODE_ON else SpecEvents.SUPPORT_MODE_OFF)
     }
 }
