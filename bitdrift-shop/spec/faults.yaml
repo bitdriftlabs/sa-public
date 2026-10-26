@@ -1,0 +1,124 @@
+# Fault-injection and demo knobs: ANR/hang, force-quit, crash loop, fast crash, OOM-only,
+# auto-infinite, slow mode, support. Timings, targets, persisted keys and resume logic.
+#
+# Persisted stores: Android SharedPreferences file name / iOS UserDefaults suite
+# (keys are "<suite>.<key>" in UserDefaults, I:DemoPrefs.swift:16). Scripts read these
+# (android/scripts/watchdog.sh, check-demo-state.sh; ios/scripts/demo-lib.sh), so store and
+# key names are frozen per platform (D-FLT-1). RN and Flutter persist nothing in-app.
+
+version: 1
+
+source_roots:
+  A: android/app/src/main/java/ai/bitdrift/shop
+  I: ios/BitdriftShop
+  R: reactnative
+  F: flutter/lib
+
+faults:
+  - id: anr
+    description: "Main-thread block on CheckoutGuest after the guest checkout API returns (iOS: main-thread hang)."
+    flag: anr_a
+    eligible_when: {persona: variant_a, checkout_type: guest}
+    forces_guest_checkout: true          # when on + variant_a, guest branch is taken deterministically
+    target_screen: CheckoutGuest
+    probability: 0.25
+    force_after_eligible_journeys: 6     # only in infinite mode
+    block_ms: 15000
+    after_block: {android: "sleep 60000ms forever (watchdog dismisses ANR dialog)", ios: "exit(0)", reactnative: "return (native module blocks UI thread, else JS busy-wait)"}
+    hard_freeze_sleep_ms: {android: 60000}
+    log_event: guest_anr_injected
+    resume_event: anr_restart_resume
+    store: {android: anr_a, ios: app_hang}
+    keys: [active, restart_pending, resume_infinite, restart_variant]
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:1134", ios: "I:SimulationManager.swift:1369", reactnative: "R:src/context/SimulationContext.tsx:17"}
+    store_source: {android: "A:SimulationManager.kt:1134", ios: "I:DemoPrefs.swift:54"}
+
+  - id: force_quit
+    description: "User swipe-kill on ProductDetail after the product API returns."
+    flag: force_quit
+    target_screen: ProductDetail
+    probability: 0.60
+    force_after_eligible_journeys: 3     # only in infinite mode
+    keeps_startup_session: true          # runSingleJourney skips startNewSession while enabled
+    mechanism: {android: "cancel sim; host watchdog performs recents swipe-dismiss", ios: "exit(0) after crash_flush_ms; host watchdog relaunches", reactnative: "BdCrash.forceQuit() native module"}
+    log_event: force_quit_injected
+    resume_event: force_quit_restart_resume
+    store: {android: force_quit, ios: force_quit}
+    keys: [active, restart_pending, resume_infinite, restart_variant]
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:1144", ios: "I:SimulationManager.swift:1374", reactnative: "R:src/context/SimulationContext.tsx:22"}
+
+  - id: crash_loop
+    description: "Fire the next crash from crashes.yaml sweep at the end of a journey; app relaunches and resumes."
+    flag: order_summary                  # v2 while on
+    fires_at: {android: "after confirmation (success or retry path)", ios: "random back-half journey point, sets crash_journey_point (OPEN-3)", reactnative: "after confirmation", flutter: "at payment, before the pay call"}
+    crash_flush_ms: 300                  # foreground: sleep on main thread then crash
+    background_settle_ms: 2000           # background half: wait after backgrounding before crashing
+    restart_delay_ms: 2000
+    oom_restart_delay_ms: 45000          # crash kinds starting with oom_
+    uncaught_handler_restart_delay_ms: {android: 800}
+    relaunch: {android: "AlarmManager pre-scheduled before the crash", ios: "host scripts/watchdog.sh; app writes restart_delay_ms", reactnative: "none", flutter: "scripts/crash-loop.sh"}
+    log_event: about_to_crash
+    resume_event: crash_restart_resume
+    store: {android: crash_loop, ios: crash_loop, flutter: "system property debug.bd_shop_crash"}
+    keys:
+      android: [active, next_combo_index, fast_mode, oom_only, resume_infinite_with_crash, restart_variant]
+      ios: [active, next_combo_index, fast_mode, oom_only, resume_infinite_with_crash, restart_variant, awaiting_background, pending_watchdog, restart_delay_ms]
+    source: {android: "A:SimulationManager.kt:1105", ios: "I:SimulationManager.swift:1345", reactnative: "R:src/context/SimulationContext.tsx:296", flutter: "F:crash.dart:74"}
+    store_source: {android: "A:ShoppingDemoApp.kt:101", ios: "I:DemoPrefs.swift:52"}
+
+  - id: fast_crash
+    description: "Skip the journey; fire the next sweep crash immediately on every launch (startup splash toggle)."
+    requires: crash_loop
+    starts_new_session: true
+    store: {android: crash_loop, ios: crash_loop}
+    keys: [fast_mode]
+    platforms: [android, ios]
+    source: {android: "A:SimulationManager.kt:598", ios: "I:SimulationManager.swift:639"}
+
+  - id: oom_only
+    description: "Crash loop cycles only category=oom crashes."
+    requires: crash_loop
+    store: {android: crash_loop, ios: crash_loop}
+    keys: [oom_only]
+    platforms: [android, ios]
+    source: {android: "A:ShoppingDemoApp.kt:109", ios: "I:DemoPrefs.swift:74"}
+
+  - id: auto_infinite
+    description: "Start infinite simulation automatically after the startup countdown."
+    store: {android: auto_infinite, ios: auto_infinite}
+    keys: [active]
+    platforms: [android, ios]
+    source: {android: "A:MainActivity.kt:109", ios: "I:DemoPrefs.swift:58"}
+
+  - id: slow_mode
+    description: "Rec v2 / 'Slow': runs the O(n*m) recommendation scoring on Browse and ProductDetail."
+    flag: recommendations_v2
+    store: {ios: recommendations}
+    keys: [active]
+    persisted_on: [ios]                  # android/RN keep it in memory only
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:43", ios: "I:DemoPrefs.swift:63", reactnative: "R:src/context/SimulationContext.tsx:170"}
+
+  - id: support
+    description: "Customer-support session marker; global field support=true (bd-shop-30)."
+    field: support
+    platforms: [android]
+    source: {android: "A:SupportMode.kt:13"}
+
+# Startup sequence timings shared by android and ios.
+startup:
+  config_countdown_s: 5                  # startup config splash before auto-start (A:MainActivity.kt:138)
+  autostart_retries: 5                   # tryAutoStart retries (A:MainActivity.kt:286)
+  autostart_retry_delay_ms: 250
+  skip_splash_when: [anr.restart_pending, force_quit.restart_pending, anr.resume_infinite, force_quit.resume_infinite, "crash_loop.active && crash_loop.fast_mode"]
+  resume_order: [crash_loop.resume_infinite_with_crash, anr, force_quit]
+  source: {android: "A:MainActivity.kt:118", ios: "I:ContentView.swift:240"}
+
+# Other persisted keys (not faults).
+other_persisted:
+  - {store: {android: user_session, ios: user_session}, keys: [user_id], purpose: "seed user_id global field at startup", source: {android: "A:ShoppingDemoApp.kt:148", ios: "I:DemoPrefs.swift:65"}}
+  - {store: {ios: screen}, keys: [last_screen, screen_trail], purpose: "previous_run_terminated attribution", source: {ios: "I:DemoPrefs.swift:68"}}
+  - {store: {android: persistent_flags}, keys: [express_checkout, product_card_layout, free_shipping_banner], source: {android: "A:PersistentFeatureFlags.kt:18"}}
+  - {file: {ios: "Application Support/bitdrift-demo-state.json"}, purpose: "state file read by ios/scripts", source: {ios: "I:DemoStateFile.swift:26"}}

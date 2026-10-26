@@ -1,0 +1,742 @@
+# Telemetry: every app-emitted event (log message), field key, global field and span.
+#
+# Names are what live bd-shop workflows match on (log_body / _span_name / field keys),
+# so Android/iOS spellings are frozen unless DECISIONS.md says otherwise.
+#
+# Per-entry platform semantics (see README.md "Schema"):
+#   platforms    platforms that must emit it (default: all four)
+#   optional_on  platforms exempt (SDK limitation or feature intentionally absent)
+#   missing_on   platforms that should emit it but currently do not (work item, not exempt)
+#   drift        {platform: current_value} -- the platform emits a different name today
+#                and must be renamed to the spec name (resolved in DECISIONS.md)
+#   required / optional   field keys (all must exist in `fields`)
+
+version: 1
+
+source_roots:
+  A: android/app/src/main/java/ai/bitdrift/shop
+  I: ios/BitdriftShop
+  R: reactnative
+  F: flutter/lib
+
+platforms: [android, ios, reactnative, flutter]
+best_effort_platforms: [kmp]   # wip-kotlin-multiplatform: not validated, see DECISIONS.md D-KMP-1
+
+session_model:
+  # D-SES-1: Android wins. New session per process start; sim calls startNewSession()
+  # at the start of every journey (skipped while force-quit injection is enabled).
+  per_launch: true
+  new_session_per_journey: true
+  skip_new_session_when: force_quit_enabled
+  source: {android: "A:SimulationManager.kt:618", ios: "I:SimulationManager.swift:688"}
+  optional_on: [reactnative, flutter]  # RN init uses SessionStrategy.Activity (R:App.tsx:71); Flutter uses activityBased (F:bd/capture.dart:25)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Field registry. Every key used anywhere in this file must be listed here.
+# platform_specific: true  => value legitimately differs per platform (excluded from
+# cross-platform stream diffs). owner: sdk => written by the Capture SDK, not the app.
+# ─────────────────────────────────────────────────────────────────────────────
+fields:
+  # SDK-owned keys referenced by workflows or emulated by the RN/Flutter span shims
+  - {key: _screen_name, owner: sdk}
+  - {key: _span_name, owner: sdk}
+  - {key: _span_type, owner: sdk, values: [start, end]}
+  - {key: _span_id, owner: sdk}
+  - {key: _duration_ms, owner: sdk}
+  - {key: _result, owner: sdk, values: [success, failure, canceled]}
+  - {key: _app_exit_reason, owner: sdk}
+  - {key: _frame_issue_type, owner: sdk}
+  - {key: parent_span_id, desc: "RN paired-log span shim only (R:src/utils/logger.ts:119)", platforms: [reactnative]}
+
+  # Simulation bookkeeping
+  - {key: total_runs}
+  - {key: completed_runs}
+  - {key: runs_each}
+  - {key: run, desc: "1-based journey index"}
+  - {key: variant, values: ["Control", "Variant A", "Variant B"], desc: "persona label, see personas.yaml"}
+  - {key: entity, desc: "entity id set via setEntityId, from personas.yaml sim_data.entities"}
+  - {key: mode, desc: "journey span: 'simplified' (iOS only); *_restart_resume: single|infinite"}
+  - {key: pending_flag}
+  - {key: trigger_mode, values: [random, forced_infinite]}
+  - {key: anr_restart_pending}
+  - {key: fq_restart_pending}
+  - {key: anr_resume_infinite}
+  - {key: fq_resume_infinite}
+
+  # Journey / commerce
+  - {key: source, values: [browse, search, categories, featured], desc: "discovery source"}
+  - {key: source_screen, desc: "screen/source that triggered add_to_cart / add_to_wishlist"}
+  - {key: product_id}
+  - {key: items_in_cart}
+  - {key: checkout_type, values: [guest, signin]}
+  - {key: checkout_session}
+  - {key: checkout_flow, values: [random, guest, signin]}
+  - {key: payment_method, values: [card, visa, mastercard, amex, apple_pay, paypal, android_pay],
+     desc: "card|apple_pay|paypal|android_pay for method-level events and spans; visa|mastercard|amex only on payment_completed from the card screen (D-FLD-2)"}
+  - {key: card_last4, values: ["4242", "8888", "1001"]}
+  - {key: order_id}
+  - {key: original_method}
+  - {key: retry_method}
+  - {key: payment_retried, values: ["true"]}
+  - {key: retried, values: ["true", "false"]}
+  - {key: reason, desc: "span end reason (cart_abandoned, checkout_abandoned, ...); Flutter also uses it for error text on *_failed (D-FLD-3)"}
+  - {key: rec_v2, values: ["true", "false"]}
+  - {key: url}
+  - {key: screen_name, desc: "score_products span: Browse|ProductDetail (not the SDK _screen_name)"}
+
+  # Faults
+  - {key: force_quit_enabled, values: ["true"]}
+  - {key: force_quit_screen}
+  - {key: anr_a_enabled, values: ["true"]}
+  - {key: journey_type, values: [guest]}
+  - {key: anr_screen_name}
+  - {key: crash_kind, desc: "platform crash impl key from crashes.yaml (not the logical id)", platform_specific: true}
+  - {key: crash_context, values: [foreground, background]}
+  - {key: crash_journey_point, values: [cart, checkout, payment, payment_failed, confirmation, simplified_step_5_checkout_guest]}
+  - {key: watchdog_event, values: [scene_create, scene_update, process_exit]}
+  - {key: block_seconds}
+  - {key: hint}
+
+  # Lifecycle
+  - {key: trigger, platform_specific: true, desc: "app_open/app_close trigger: onActivityStarted/onActivityStopped (android), scenePhase.active/background (ios), appstate_active/background (rn)"}
+  - {key: level, platform_specific: true, desc: "memory_pressure: TRIM level int (android) or 'didReceiveMemoryWarning' (ios, rn)"}
+  - {key: sdk_started, platforms: [flutter]}
+
+  # iOS previous-run / screen trail
+  - {key: termination_reason}
+  - {key: fatal}
+  - {key: clean}
+  - {key: crashed_on_screen}
+  - {key: crashed_on_trail}
+  - {key: screen}
+  - {key: steps_completed}
+  - {key: crash_loop}
+  - {key: fast_crash}
+  - {key: oom_only}
+  - {key: app_hang, desc: "iOS demo_flags_resolved key only; the flag/telemetry name is anr_a (D-FLT-1)"}
+  - {key: force_quit}
+  - {key: auto_infinite}
+
+  # RN / Flutter app-level HTTP logs
+  - {key: method}
+  - {key: path}
+  - {key: status}
+  - {key: duration_ms}
+  - {key: error, platforms: [flutter]}
+
+  # Metrics demo
+  - {key: metric_sine}
+  - {key: metric_square}
+  - {key: metric_sawtooth}
+  - {key: metric_triangle}
+  - {key: metric_dc}
+  - {key: metric_counter}
+  - {key: metric_work_latency_ms}
+
+  # Global fields (also listed in global_fields below)
+  - {key: app_variant, platform_specific: true}
+  - {key: platform, values: [android, ios, flutter], platform_specific: true, desc: "RN sends Platform.OS (android|ios)"}
+  - {key: user_id}
+  - {key: supportlog, values: ["true", "false"]}
+  - {key: support, values: ["true"]}
+  - {key: sim_app_version, values: ["4.0.0", "4.1.0", "4.2.0", "4.3.0", "4.4.0"]}
+  - {key: app_version, platforms: [flutter]}
+  - {key: last_screen}
+  - {key: screen_current}
+  - {key: screen_prev_1}
+  - {key: screen_prev_2}
+  - {key: screen_prev_3}
+  - {key: screen_prev_4}
+  - {key: ff_checkout_flow}
+  - {key: ff_payment_ui}
+  - {key: ff_cart_abandon_rate}
+  - {key: ff_payment_android_pay}
+  - {key: ff_order_summary}
+  - {key: ff_anr_a}
+  - {key: ff_force_quit}
+  - {key: ff_recommendations_v2}
+  - {key: ff_variant}
+  - {key: ff_express_checkout}
+  - {key: ff_product_card_layout}
+  - {key: ff_free_shipping_banner}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Global fields (Logger.addField). ff_* mirrors are defined by flags.yaml (each flag
+# with mirror_field) and listed here for codegen; ff_variant is field-only.
+# ─────────────────────────────────────────────────────────────────────────────
+global_fields:
+  - key: app_variant
+    values: {android: sdk-demo, ios: ios-sdk-demo, reactnative: sdk-demo, flutter: sdk-demo, kmp: kmp-demo}
+    open: OPEN-2   # resolved: iOS unifies on sdk-demo (applied in Phase 2b); see DECISIONS.md
+    source: {android: "A:ShoppingDemoApp.kt:57", ios: "I:CaptureBridge.swift:90", reactnative: "R:src/config.ts:25", flutter: "F:main.dart:20"}
+  - key: platform
+    source: {android: "A:ShoppingDemoApp.kt:62", ios: "I:CaptureBridge.swift:91", reactnative: "R:App.tsx:97", flutter: "F:main.dart:21"}
+  - key: user_id
+    set_when: "sign-in checkout succeeds; removed on 'new journey' from Confirmation; seeded at startup from persisted user_session.user_id"
+    source: {android: "A:Screens.kt:1255", ios: "I:Screens.swift:980"}
+    missing_on: [reactnative, flutter]
+  - key: supportlog
+    set_when: "Advanced screen 'Support Log' toggle"
+    source: {android: "A:Screens.kt:542", ios: "I:Screens.swift:256", reactnative: "R:src/context/SimulationContext.tsx:181"}
+    optional_on: [flutter]
+  - key: support
+    set_when: "SupportMode toggle; removed when off (matched by bd-shop-30)"
+    platforms: [android]
+    source: {android: "A:SupportMode.kt:24"}
+  - key: crash_kind
+    set_when: "immediately before a crash or watchdog hang fires"
+    source: {android: "A:SimulationManager.kt:576", ios: "I:SimulationManager.swift:582", reactnative: "R:src/sim/crashes.ts:198"}
+    missing_on: [flutter]   # Flutter logs crash_injection{crash} instead (D-EVT-F12)
+  - key: crash_context
+    source: {android: "A:SimulationManager.kt:577", ios: "I:SimulationManager.swift:583"}
+    missing_on: [reactnative, flutter]
+  - key: crash_journey_point
+    platforms: [ios]
+    open: OPEN-3
+    source: {ios: "I:SimulationManager.swift:572"}
+  - key: watchdog_event
+    platforms: [ios]
+    source: {ios: "I:WatchdogHangs.swift:78"}
+  - key: last_screen
+    platforms: [ios]
+    source: {ios: "I:ScreenLogger.swift:51"}
+  - key: screen_current
+    platforms: [ios]
+    source: {ios: "I:ScreenLogger.swift:85"}
+  - {key: screen_prev_1, platforms: [ios], source: {ios: "I:ScreenLogger.swift:91"}, source_token: {ios: "screen_prev_"}}
+  - {key: screen_prev_2, platforms: [ios], source: {ios: "I:ScreenLogger.swift:91"}, source_token: {ios: "screen_prev_"}}
+  - {key: screen_prev_3, platforms: [ios], source: {ios: "I:ScreenLogger.swift:91"}, source_token: {ios: "screen_prev_"}}
+  - {key: screen_prev_4, platforms: [ios], source: {ios: "I:ScreenLogger.swift:91"}, source_token: {ios: "screen_prev_"}}
+  - key: sim_app_version
+    set_when: "metrics demo running; rotates every 30s"
+    optional_on: [reactnative, flutter]
+    source: {android: "A:MetricsDemo.kt:80", ios: "I:MetricsDemo.swift:86"}
+  - key: app_version
+    platforms: [flutter]
+    source: {flutter: "F:main.dart:22"}
+  - {key: ff_checkout_flow, from_flag: checkout_flow}
+  - {key: ff_payment_ui, from_flag: payment_ui}
+  - {key: ff_cart_abandon_rate, from_flag: cart_abandon_rate}
+  - {key: ff_payment_android_pay, from_flag: payment_android_pay}
+  - {key: ff_order_summary, from_flag: order_summary}
+  - {key: ff_anr_a, from_flag: anr_a}
+  - {key: ff_force_quit, from_flag: force_quit}
+  - {key: ff_recommendations_v2, from_flag: recommendations_v2}
+  - {key: ff_express_checkout, from_flag: express_checkout}
+  - {key: ff_product_card_layout, from_flag: product_card_layout}
+  - {key: ff_free_shipping_banner, from_flag: free_shipping_banner}
+  - key: ff_variant
+    desc: "persona label; field only, not a flag exposure"
+    source: {android: "A:SimulationManager.kt:110", ios: "I:SimulationManager.swift:133", reactnative: "R:src/sim/variants.ts:165", flutter: "F:sim/simulator.dart:178"}
+    source_token: {flutter: "'variant'"}   # Bd.setFlag prefixes ff_ (F:bd/capture.dart:58)
+
+# SDK-emitted events referenced by workflows (not emitted by app code; listed so the
+# validator and conformance tool know they are legal).
+sdk_events:
+  - {name: AppStart, used_by: [android/workflows/bd-shop-13-foreground-session-count.json, android/workflows/bd-shop-15-crash-rate-per-foreground.json]}
+  - {name: SceneWillEnterFG, used_by: [android/workflows/bd-shop-13-foreground-session-count.json]}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Events (log messages). trigger: sim | ui | lifecycle | startup | fault | demo | network
+# ─────────────────────────────────────────────────────────────────────────────
+events:
+  # --- simulation lifecycle -------------------------------------------------
+  - name: simulation_start
+    level: info
+    trigger: sim
+    required: [total_runs]
+    drift_fields: {flutter: "adds variant (D-EVT-F9)"}
+    source: {android: "A:ScreenLogger.kt:34", ios: "I:ScreenLogger.swift:158", reactnative: "R:src/utils/logger.ts:195", flutter: "F:sim/simulator.dart:144"}
+  - name: simulation_end
+    level: info
+    trigger: sim
+    required: [total_runs]
+    drift_fields: {flutter: "adds completed_runs (D-EVT-F9)"}
+    source: {android: "A:ScreenLogger.kt:38", ios: "I:ScreenLogger.swift:162", reactnative: "R:src/utils/logger.ts:199", flutter: "F:sim/simulator.dart:162"}
+  - name: simulation_cancelled
+    level: info
+    trigger: sim
+    required: [completed_runs, total_runs]
+    drift: {flutter: journey_stopped}
+    drift_level: {reactnative: warning}   # D-EVT-3
+    source: {android: "A:SimulationManager.kt:166", ios: "I:SimulationManager.swift:186", reactnative: "R:src/context/SimulationContext.tsx:731", flutter: "F:sim/simulator.dart:378"}
+  - name: ab_simulation_start
+    level: info
+    trigger: sim
+    required: [runs_each]
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:255", ios: "I:SimulationManager.swift:252", reactnative: "R:src/context/SimulationContext.tsx:682"}
+  - name: ab_simulation_end
+    level: info
+    trigger: sim
+    required: [total_runs]
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:265", ios: "I:SimulationManager.swift:263", reactnative: "R:src/context/SimulationContext.tsx:699"}
+  - name: infinite_simulation_start
+    level: info
+    trigger: sim
+    drift: {flutter: simulation_start_infinite}
+    source: {android: "A:SimulationManager.kt:299", ios: "I:SimulationManager.swift:286", reactnative: "R:src/context/SimulationContext.tsx:633", flutter: "F:sim/simulator.dart:144"}
+  - name: infinite_simulation_end
+    level: info
+    trigger: sim
+    required: [total_runs]
+    missing_on: [flutter]
+    source: {android: "A:SimulationManager.kt:309", ios: "I:SimulationManager.swift:294", reactnative: "R:src/context/SimulationContext.tsx:648"}
+  - name: cardinality_simulation_start
+    level: info
+    trigger: sim
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:335", ios: "I:SimulationManager.swift:311", reactnative: "R:src/context/SimulationContext.tsx:712"}
+  - name: cardinality_simulation_end
+    level: info
+    trigger: sim
+    required: [total_runs]
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:345", ios: "I:SimulationManager.swift:319", reactnative: "R:src/context/SimulationContext.tsx:723"}
+  - name: feature_flag_exposure_set
+    level: info
+    trigger: sim
+    source: {android: "A:SimulationManager.kt:132", ios: "I:SimulationManager.swift:155", reactnative: "R:src/sim/variants.ts:172", flutter: "F:sim/simulator.dart:179"}
+
+  # --- journey ---------------------------------------------------------------
+  - name: journey_started
+    level: info
+    trigger: sim
+    required: [run, variant]
+    drift: {flutter: journey_start}
+    drift_fields: {flutter: "sends variant, checkout_type, entity; no run (D-EVT-F1)"}
+    source: {android: "A:SimulationManager.kt:621", ios: "I:SimulationManager.swift:690", reactnative: "R:src/context/SimulationContext.tsx:366", flutter: "F:sim/simulator.dart:227"}
+  - name: cart_abandoned
+    level: info
+    trigger: sim
+    required: [items_in_cart, variant]
+    missing_on: [flutter]
+    source: {android: "A:SimulationManager.kt:864", ios: "I:SimulationManager.swift:954", reactnative: "R:src/context/SimulationContext.tsx:505"}
+  - name: checkout_abandoned
+    level: info
+    trigger: sim
+    required: [checkout_type, variant]
+    missing_on: [flutter]
+    source: {android: "A:SimulationManager.kt:921", ios: "I:SimulationManager.swift:1011", reactnative: "R:src/context/SimulationContext.tsx:549"}
+  - name: payment_failed
+    level: error
+    trigger: [sim, ui]
+    required: [payment_method]
+    optional: [checkout_session, variant, reason]
+    notes: >-
+      Sim path (injected failure) sends payment_method in {card, apple_pay, paypal, android_pay}
+      plus checkout_session and variant. UI path (payment API threw) sends payment_method and
+      attaches the exception. Matched by bd-shop-02 (log_body == payment_failed, grouped by
+      payment_method).
+    drift_values: {reactnative: "sim sends payment_method=visa for card (D-FLD-2)", flutter: "applePay/androidPay camelCase values (D-FLD-1)"}
+    source: {android: "A:SimulationManager.kt:1003", ios: "I:SimulationManager.swift:1062", reactnative: "R:src/context/SimulationContext.tsx:568", flutter: "F:sim/simulator.dart:352"}
+    source_ui: {android: "A:Screens.kt:1319", ios: "I:Screens.swift:1126", reactnative: "R:src/screens/ShoppingScreens.tsx:854", flutter: "F:ui/screens.dart:631"}
+    used_by: [android/workflows/bd-shop-02-payment-errors.json]
+  - name: payment_retry
+    level: info
+    trigger: sim
+    required: [original_method, retry_method, variant]
+    missing_on: [flutter]
+    source: {android: "A:SimulationManager.kt:1050", ios: "I:SimulationManager.swift:1083", reactnative: "R:src/context/SimulationContext.tsx:579"}
+  - name: confirmation_reached
+    level: info
+    trigger: sim
+    required: [_screen_name]
+    optional: [checkout_flow, payment_retried, retry_method]
+    notes: "success path: _screen_name=Confirmation + checkout_flow; retry path: + payment_retried=true, retry_method"
+    drift: {flutter: order_completed}
+    drift_fields: {reactnative: "sends payment_retried=false on success and no checkout_flow (D-EVT-4)"}
+    source: {android: "A:SimulationManager.kt:1090", ios: "I:SimulationManager.swift:1131", reactnative: "R:src/context/SimulationContext.tsx:613", flutter: "F:sim/simulator.dart:364"}
+
+  # --- UI (user taps) ----------------------------------------------------------
+  - name: add_to_cart
+    level: info
+    trigger: ui
+    required: [product_id, source_screen]
+    drift: {flutter: add_to_cart_tapped}
+    sim_emits: {reactnative: true}   # OPEN-5
+    source: {android: "A:Screens.kt:946", ios: "I:Screens.swift:667", reactnative: "R:src/screens/ShoppingScreens.tsx:429", flutter: "F:ui/screens.dart:290"}
+  - name: add_to_wishlist
+    level: info
+    trigger: ui
+    required: [product_id, source_screen]
+    drift: {flutter: wishlist_add_tapped}
+    sim_emits: {reactnative: true}
+    source: {android: "A:Screens.kt:954", ios: "I:Screens.swift:671", reactnative: "R:src/screens/ShoppingScreens.tsx:437", flutter: "F:ui/screens.dart:301"}
+  - name: cart_item_removed
+    level: info
+    trigger: ui
+    required: [product_id]
+    missing_on: [flutter]
+    sim_emits: {reactnative: true}
+    source: {android: "A:Screens.kt:1092", ios: "I:Screens.swift:818", reactnative: "R:src/screens/ShoppingScreens.tsx:533"}
+  - name: cart_failed
+    level: error
+    trigger: ui
+    required: [product_id]
+    optional: [reason]
+    drift: {flutter: add_to_cart_failed}
+    drift_level: {flutter: warning}
+    source: {android: "A:Screens.kt:1025", ios: "I:Screens.swift:799", reactnative: "R:src/screens/ShoppingScreens.tsx:536", flutter: "F:ui/screens.dart:295"}
+  - name: checkout_started
+    level: info
+    trigger: ui
+    required: [checkout_type]
+    drift: {flutter: checkout_created}
+    sim_emits: {reactnative: true}
+    source: {android: "A:Screens.kt:1113", ios: "I:Screens.swift:772", reactnative: "R:src/screens/ShoppingScreens.tsx:561", flutter: "F:ui/screens.dart:522"}
+  - name: checkout_failed
+    level: error
+    trigger: ui
+    required: [checkout_type]
+    optional: [reason]
+    drift_level: {flutter: "warning in sim path (F:sim/simulator.dart:326)"}
+    source: {android: "A:Screens.kt:1195", ios: "I:Screens.swift:912", reactnative: "R:src/screens/ShoppingScreens.tsx:633", flutter: "F:ui/screens.dart:528"}
+    used_by: [android/workflows/bd-shop-02-payment-errors.json]
+  - name: payment_completed
+    level: info
+    trigger: ui
+    required: [payment_method, order_id]
+    optional: [card_last4]
+    drift: {flutter: payment_succeeded}
+    sim_emits: {reactnative: true}
+    source: {android: "A:Screens.kt:1345", ios: "I:Screens.swift:1137", reactnative: "R:src/screens/ShoppingScreens.tsx:729", flutter: "F:ui/screens.dart:627"}
+  - name: crash_loop_stopped
+    level: info
+    trigger: ui
+    optional_on: [flutter]   # Flutter crash loop is script-driven (F:crash.dart:74)
+    source: {android: "A:Screens.kt:168", ios: "I:Screens.swift:79", reactnative: "R:src/context/SimulationContext.tsx:188"}
+  - name: support_mode_on
+    level: info
+    trigger: ui
+    platforms: [android]
+    source: {android: "A:SupportMode.kt:28"}
+  - name: support_mode_off
+    level: info
+    trigger: ui
+    platforms: [android]
+    source: {android: "A:SupportMode.kt:28"}
+
+  # --- startup / lifecycle -------------------------------------------------------
+  - name: app_launched
+    level: info
+    trigger: startup
+    optional: [sdk_started]
+    source: {android: "A:ShoppingDemoApp.kt:52", ios: "I:CaptureBridge.swift:83", reactnative: "R:App.tsx:171", flutter: "F:main.dart:27"}
+  - name: app_open
+    level: info
+    trigger: lifecycle
+    required: [trigger]
+    missing_on: [flutter]
+    source: {android: "A:AppLifecycleCallbacks.kt:38", ios: "I:BitdriftShopApp.swift:100", reactnative: "R:src/utils/appLifecycle.ts:43"}
+  - name: app_close
+    level: info
+    trigger: lifecycle
+    required: [trigger]
+    missing_on: [flutter]
+    source: {android: "A:AppLifecycleCallbacks.kt:47", ios: "I:BitdriftShopApp.swift:105", reactnative: "R:src/utils/appLifecycle.ts:45"}
+  - name: memory_pressure
+    level: warning
+    trigger: lifecycle
+    required: [level]
+    missing_on: [flutter]
+    source: {android: "A:AppLifecycleCallbacks.kt:57", ios: "I:BitdriftShopApp.swift:77", reactnative: "R:src/utils/appLifecycle.ts:37"}
+  - name: low_memory
+    level: warning
+    trigger: lifecycle
+    platforms: [android]
+    source: {android: "A:AppLifecycleCallbacks.kt:63"}
+  - name: crash_restart_resume
+    level: info
+    trigger: startup
+    required: [variant]
+    platforms: [android, ios]
+    source: {android: "A:MainActivity.kt:235", ios: "I:ContentView.swift:250"}
+  - name: anr_restart_resume
+    level: info
+    trigger: startup
+    required: [mode, pending_flag]
+    platforms: [android, ios]
+    source: {android: "A:MainActivity.kt:246", ios: "I:ContentView.swift:257"}
+  - name: force_quit_restart_resume
+    level: info
+    trigger: startup
+    required: [mode, pending_flag]
+    platforms: [android, ios]
+    source: {android: "A:MainActivity.kt:264", ios: "I:ContentView.swift:267"}
+  - name: restart_autostart_missed
+    level: error
+    trigger: startup
+    required: [anr_restart_pending, fq_restart_pending, anr_resume_infinite, fq_resume_infinite]
+    platforms: [android, ios]
+    source: {android: "A:MainActivity.kt:294", ios: "I:ContentView.swift:302"}
+  - name: demo_flags_resolved
+    level: info
+    trigger: startup
+    required: [crash_loop, fast_crash, oom_only, app_hang, force_quit, auto_infinite]
+    platforms: [ios]
+    source: {ios: "I:ContentView.swift:217"}
+  - name: previous_run_terminated
+    level: [info, error]
+    trigger: startup
+    required: [termination_reason, fatal, clean, crashed_on_screen, screen, crashed_on_trail]
+    platforms: [ios]
+    notes: "error when the previous run fatally terminated. Android adds getPreviousRunInfo in plan Phase 6."
+    source: {ios: "I:CaptureBridge.swift:165"}
+    used_by: [ios/workflows/bd-shop-15-crashes-by-final-screen.json, ios/workflows/bd-shop-17-ios-journey-vs-crashes.json]
+  - name: screen_visit
+    level: info
+    trigger: ui
+    required: [screen]
+    platforms: [ios]
+    source: {ios: "I:ScreenLogger.swift:107"}
+
+  # --- faults ------------------------------------------------------------------
+  - name: force_quit_injected
+    level: error
+    trigger: fault
+    required: [force_quit_enabled, force_quit_screen, variant, trigger_mode]
+    optional_on: [flutter]   # no Dart->native bridge in the alpha SDK (F:sim/simulator.dart:106)
+    source: {android: "A:SimulationManager.kt:449", ios: "I:SimulationManager.swift:401", reactnative: "R:src/context/SimulationContext.tsx:263"}
+    used_by: [android/workflows/bd-shop-05-anr-force-quit.json]
+  - name: guest_anr_injected
+    level: error
+    trigger: fault
+    required: [anr_a_enabled, journey_type, anr_screen_name, variant, trigger_mode]
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:493", ios: "I:SimulationManager.swift:447", reactnative: "R:src/context/SimulationContext.tsx:285"}
+    used_by: [android/workflows/bd-shop-05-anr-force-quit.json]
+  - name: about_to_crash
+    level: warning
+    trigger: fault
+    message_format: "about_to_crash: {crash_kind} (context={crash_context})"
+    message_variants:
+      - "about_to_crash (fast): {crash_kind} (context={crash_context})"   # fast crash mode (android, ios)
+    match: "^about_to_crash"   # regex used by ios/workflows/bd-shop-15
+    optional: [crash_kind]
+    drift: {flutter: crash_injection}
+    drift_fields: {reactnative: "sim message is 'about_to_crash: {name} (idx={idx})' (D-EVT-5)", flutter: "field 'crash' instead of crash_kind global field"}
+    source: {android: "A:SimulationManager.kt:578", ios: "I:SimulationManager.swift:584", reactnative: "R:src/context/SimulationContext.tsx:304", flutter: "F:crash.dart:48"}
+    used_by: [ios/workflows/bd-shop-15-crashes-by-final-screen.json]
+  - name: background_crash_armed
+    level: info
+    trigger: fault
+    required: [hint]
+    platforms: [ios]
+    source: {ios: "I:SimulationManager.swift:526"}
+  - name: watchdog_hang_armed
+    level: warning
+    trigger: fault
+    required: [watchdog_event, hint]
+    platforms: [ios]
+    source: {ios: "I:WatchdogHangs.swift:55"}
+  - name: about_to_hang
+    level: warning
+    trigger: fault
+    message_format: "about_to_hang: watchdog_{watchdog_event}"
+    required: [watchdog_event, block_seconds]
+    platforms: [ios]
+    source: {ios: "I:WatchdogHangs.swift:79"}
+  - name: simplified_journey_crash_point
+    level: warning
+    trigger: fault
+    message_format: "simplified_journey_crash_point (step 5 of 7): CheckoutGuest"
+    platforms: [ios]
+    source: {ios: "I:SimulationManager.swift:1267"}
+  - name: simplified_journey_completed
+    level: info
+    trigger: sim
+    required: [steps_completed, variant]
+    platforms: [ios]
+    source: {ios: "I:SimulationManager.swift:1288"}
+
+  # --- demos -------------------------------------------------------------------
+  - name: metric_values
+    level: info
+    trigger: demo
+    required: [metric_sine, metric_square, metric_sawtooth, metric_triangle, metric_dc, metric_counter, metric_work_latency_ms]
+    optional_on: [reactnative, flutter]
+    source: {android: "A:MetricsDemo.kt:141", ios: "I:MetricsDemo.swift:142"}
+    used_by: [android/workflows/bd-shop-12-metric-grouping.json]
+
+  # --- app-level HTTP logs (RN / Flutter only; native SDKs instrument HTTP OOTB) -----
+  - name: api_response
+    level: debug
+    trigger: network
+    required: [method, path, status, duration_ms]
+    platforms: [reactnative, flutter]
+    source: {reactnative: "R:src/api/ApiClient.ts:62", flutter: "F:api/client.dart:66"}
+  - name: api_response_error
+    level: warning
+    trigger: network
+    required: [method, path, status, duration_ms]
+    platforms: [reactnative, flutter]
+    source: {reactnative: "R:src/api/ApiClient.ts:69", flutter: "F:api/client.dart:69"}
+  - name: api_request_failed
+    level: error
+    trigger: network
+    required: [method, path, duration_ms]
+    optional: [error]
+    platforms: [reactnative, flutter]
+    source: {reactnative: "R:src/api/ApiClient.ts:81", flutter: "F:api/client.dart:76"}
+
+# Names currently emitted that must be removed (no spec equivalent; see D-EVT-F13). The
+# conformance tool should flag them.
+retired_events:
+  - {name: discovery_completed, platforms: [flutter], replaced_by_span: product_discovery, source: {flutter: "F:sim/simulator.dart:273"}}
+  - {name: product_viewed, platforms: [flutter], replaced_by_span: product_view, source: {flutter: "F:sim/simulator.dart:281"}}
+  - {name: payment_method_selected, platforms: [flutter], replaced_by_span: payment_screen_load, source: {flutter: "F:sim/simulator.dart:335"}}
+  - {name: payment_attempted, platforms: [flutter], replaced_by_span: payment_screen_load, source: {flutter: "F:ui/screens.dart:618"}}
+  - {name: simulation_run_start, platforms: [flutter], replaced_by: journey_started, source: {flutter: "F:sim/simulator.dart:151"}}
+  - {name: sim_navigation_failed, platforms: [flutter], source: {flutter: "F:sim/simulator.dart:391"}}
+  - {name: wishlist_add_failed, platforms: [flutter], source: {flutter: "F:ui/screens.dart:308"}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Spans. parent: span name or null. fields: start fields; end_fields: fields on end.
+# ─────────────────────────────────────────────────────────────────────────────
+spans:
+  # journey tree (SimulationManager)
+  - name: journey
+    parent: null
+    fields: [variant, entity]
+    optional_fields: [mode]
+    end_fields: [reason]
+    results: [success, canceled]
+    end_reasons: [cart_abandoned, checkout_abandoned]
+    notes: "iOS simplified mode adds mode=simplified and reasons force_quit_injected|guest_hang_injected|simplified_crash_step_5. Fail->no-retry path: OPEN-4."
+    drift_fields: {flutter: "no entity field (D-SPN-2)", reactnative: "ends failure/payment_failed on no-retry and canceled/force_quit on force quit (OPEN-4)"}
+    source: {android: "A:SimulationManager.kt:643", ios: "I:SimulationManager.swift:728", reactnative: "R:src/context/SimulationContext.tsx:368", flutter: "F:sim/simulator.dart:232"}
+    used_by: [android/workflows/bd-shop-04-span-durations.json]
+  - name: product_discovery
+    parent: journey
+    fields: [variant]
+    end_fields: [source, product_id]
+    results: [success]
+    drift_fields: {flutter: "no variant/end fields; not parented (alpha startSpan has no parent arg, F:bd/capture.dart:113)"}
+    source: {android: "A:SimulationManager.kt:650", ios: "I:SimulationManager.swift:735", reactnative: "R:src/context/SimulationContext.tsx:372", flutter: "F:sim/simulator.dart:238"}
+    used_by: [android/workflows/bd-shop-04-span-durations.json]
+  - name: discovery_fetch
+    parent: product_discovery
+    missing_on: [reactnative, flutter]
+    source: {android: "A:SimulationManager.kt:683", ios: "I:SimulationManager.swift:770"}
+    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+  - name: product_view
+    parent: product_discovery
+    missing_on: [reactnative, flutter]
+    source: {android: "A:SimulationManager.kt:732", ios: "I:SimulationManager.swift:813"}
+    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+  - name: wishlist_add
+    parent: product_discovery
+    missing_on: [reactnative, flutter]
+    source: {android: "A:SimulationManager.kt:767", ios: "I:SimulationManager.swift:850"}
+    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+  - name: cart_assembly
+    parent: journey
+    missing_on: [reactnative, flutter]
+    source: {android: "A:SimulationManager.kt:788", ios: "I:SimulationManager.swift:874"}
+    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+  - name: checkout
+    parent: journey
+    fields: [checkout_type]
+    end_fields: [payment_method, retried, reason]
+    results: [success, canceled]
+    source: {android: "A:SimulationManager.kt:893", ios: "I:SimulationManager.swift:981", reactnative: "R:src/context/SimulationContext.tsx:521", flutter: "F:sim/simulator.dart:308"}
+    drift_fields: {flutter: "ends right after the checkout API call instead of after confirmation (D-SPN-3)"}
+    used_by: [android/workflows/bd-shop-04-span-durations.json]
+  - name: checkout.payment
+    parent: checkout
+    fields: [retried]
+    missing_on: [reactnative, flutter]
+    source: {android: "A:SimulationManager.kt:979", ios: "I:SimulationManager.swift:1315"}
+    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+  - name: checkout.confirmation
+    parent: checkout
+    missing_on: [reactnative, flutter]
+    source: {android: "A:SimulationManager.kt:1092", ios: "I:SimulationManager.swift:1138"}
+    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+
+  # cold start (CaptureBridge / ColdStartSpans)
+  - name: app_cold_start
+    parent: null
+    optional_fields: [sdk_started]
+    source: {android: "A:CaptureBridge.kt:160", ios: "I:CaptureBridge.swift:273", reactnative: "R:App.tsx:163", flutter: "F:main.dart:37"}
+    notes: "RN/Flutter emit it as a back-dated paired-log span (logCompletedSpan)."
+    used_by: [android/workflows/bd-shop-20-android-cold-start-span-timings.json, ios/workflows/bd-shop-20-ios-cold-start-span-timings.json]
+  - name: app_cold_start.sdk_init
+    parent: app_cold_start
+    source: {android: "A:CaptureBridge.kt:165", ios: "I:CaptureBridge.swift:284", reactnative: "R:App.tsx:165", flutter: "F:main.dart:26"}
+    drift_fields: {flutter: "not parented to app_cold_start; emitted before the root"}
+    used_by: [android/workflows/bd-shop-20-android-cold-start-span-timings.json, ios/workflows/bd-shop-20-ios-cold-start-span-timings.json]
+  - name: app_cold_start.scene_render
+    parent: app_cold_start
+    optional_on: [reactnative, flutter]
+    source: {android: "A:CaptureBridge.kt:170", ios: "I:CaptureBridge.swift:295"}
+    used_by: [android/workflows/bd-shop-20-android-cold-start-span-timings.json, ios/workflows/bd-shop-20-ios-cold-start-span-timings.json]
+  - name: app_cold_start.state_restore
+    parent: app_cold_start
+    optional_on: [reactnative, flutter]
+    source: {android: "A:CaptureBridge.kt:182", ios: "I:CaptureBridge.swift:310"}
+    used_by: [android/workflows/bd-shop-20-android-cold-start-span-timings.json, ios/workflows/bd-shop-20-ios-cold-start-span-timings.json]
+
+  # lifecycle
+  - name: foreground_session
+    parent: null
+    missing_on: [reactnative, flutter]
+    source: {android: "A:AppLifecycleCallbacks.kt:39", ios: "I:BitdriftShopApp.swift:58"}
+    used_by: [android/workflows/bd-shop-14-foreground-session-duration.json]
+
+  # screen loads (standalone, no parent)
+  - {name: welcome_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:66", ios: "I:Screens.swift:134"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
+  - {name: browse_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:607", ios: "I:Screens.swift:451"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
+  - {name: catalog_serialize, parent: browse_screen_load, platforms: [ios], source: {ios: "I:Screens.swift:455"}, used_by: [ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
+  - {name: product_detail_load, parent: null, fields: [rec_v2], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:890", ios: "I:Screens.swift:683"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
+  - {name: product_image_load, parent: null, fields: [url], missing_on: [reactnative, flutter], source: {android: "A:Components.kt:676", ios: "I:Components.swift:78"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
+  - {name: cart_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1020", ios: "I:Screens.swift:790"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
+  - {name: checkout_screen_load, parent: null, fields: [checkout_type], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1189", ios: "I:Screens.swift:904"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
+  - {name: payment_screen_load, parent: null, fields: [payment_method], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1313", ios: "I:Screens.swift:1116"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
+  - {name: confirmation_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1570", ios: "I:Screens.swift:1246"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
+
+  # recommendation engine (slow mode / recommendations_v2)
+  - name: score_products
+    parent: null
+    fields: [product_id, screen_name]
+    optional_on: [flutter]
+    source: {android: "A:Screens.kt:629", ios: "I:Screens.swift:406", reactnative: "R:src/screens/ShoppingScreens.tsx:178"}
+    used_by: [android/workflows/bd-shop-11b-slow-rendering-manual-span.json]
+  - name: score_products.parse_catalog
+    parent: score_products
+    optional_on: [flutter]
+    source: {android: "A:RecommendationEngine.kt:30", ios: "I:RecommendationEngine.swift:46", reactnative: "R:src/sim/recommendations.ts:101"}
+    used_by: [android/workflows/bd-shop-23-android-recommendation-engine-timings.json, ios/workflows/bd-shop-23-ios-recommendation-engine-timings.json]
+  - name: score_products.similarity_pass
+    parent: score_products
+    optional_on: [flutter]
+    source: {android: "A:RecommendationEngine.kt:51", ios: "I:RecommendationEngine.swift:69", reactnative: "R:src/sim/recommendations.ts:127"}
+    used_by: [android/workflows/bd-shop-23-android-recommendation-engine-timings.json, ios/workflows/bd-shop-23-ios-recommendation-engine-timings.json]
+
+  # iOS persistence hot spots
+  - {name: screen_view_persist, parent: null, platforms: [ios], source: {ios: "I:ScreenLogger.swift:125"}, used_by: [ios/workflows/bd-shop-24-ios-persistence-timings.json]}
+  - {name: demo_state_publish, parent: null, platforms: [ios], source: {ios: "I:DemoStateFile.swift:63"}, used_by: [ios/workflows/bd-shop-24-ios-persistence-timings.json]}
+
+# Metrics demo ("Metrics" button): metric_values once per second.
+metrics_demo:
+  tick_seconds: 1
+  waveform_period_seconds: 300
+  session_rotation_seconds: 60
+  version_rotation_seconds: 30
+  waveforms:
+    sine: "5 + 5*sin(2*pi*t/period)"
+    square: "0 for first half of period, else 5"
+    sawtooth: "(t mod half)/half * 5"
+    triangle: "0..10..0 over period"
+    dc: 5
+    counter: 1
+  sim_app_versions:   # label, mean latency ms, jitter ms
+    - {label: "4.0.0", mean_latency_ms: 120, jitter_ms: 20}
+    - {label: "4.1.0", mean_latency_ms: 340, jitter_ms: 40}
+    - {label: "4.2.0", mean_latency_ms: 140, jitter_ms: 20}
+    - {label: "4.3.0", mean_latency_ms: 220, jitter_ms: 30}
+    - {label: "4.4.0", mean_latency_ms: 90, jitter_ms: 15}
+  optional_on: [reactnative, flutter]
+  source: {android: "A:MetricsDemo.kt:42", ios: "I:MetricsDemo.swift:120"}

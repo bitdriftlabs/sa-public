@@ -1,0 +1,88 @@
+# Backend API (backend/shopping_server.py, FastAPI on port 5173) as used by the apps,
+# path templates sent in the x-capture-path-template header, and fake vendor-SDK URLs.
+#
+# path_template is the full header value (Android/iOS pass it verbatim; RN/Flutter pass
+# the part after /api and prefix "/api", producing the identical header value).
+
+version: 1
+
+source_roots:
+  A: android/app/src/main/java/ai/bitdrift/shop
+  I: ios/BitdriftShop
+  R: reactnative
+  F: flutter/lib
+  B: backend
+
+backend:
+  port: 5173
+  base_path: /api
+  hosts:
+    android: "10.0.2.2"                  # emulator alias for host loopback, A:ApiClient.kt:19
+    ios: localhost                       # I:ApiClient.swift:30; override SHOP_BACKEND_URL
+    reactnative: {android: "10.0.2.2", ios: "127.0.0.1"}   # R:src/config.ts:46
+    flutter: {android: "10.0.2.2", other: "127.0.0.1"}     # F:config.dart:50
+  path_template_header: x-capture-path-template
+  source: {backend: "B:shopping_server.py:1302"}
+
+endpoints:
+  - {id: welcome, method: GET, path: /api/welcome, source: {backend: "B:shopping_server.py:592", android: "A:ApiClient.kt:68", ios: "I:ApiClient.swift:103", reactnative: "R:src/api/ApiClient.ts:96", flutter: "F:api/client.dart:89"}}
+  - {id: browse, method: GET, path: /api/browse, response_keys: [products], source: {backend: "B:shopping_server.py:607", android: "A:ApiClient.kt:70", ios: "I:ApiClient.swift:105", reactnative: "R:src/api/ApiClient.ts:97", flutter: "F:api/client.dart:90"}}
+  - {id: search, method: GET, path: /api/search, query: [q], response_keys: [products, result_count], source: {backend: "B:shopping_server.py:659", android: "A:ApiClient.kt:72", ios: "I:ApiClient.swift:109", flutter: "F:api/client.dart:92"}}
+  - {id: featured, method: GET, path: /api/featured, response_keys: [featured_products], source: {backend: "B:shopping_server.py:697", android: "A:ApiClient.kt:74", ios: "I:ApiClient.swift:112", reactnative: "R:src/api/ApiClient.ts:99", flutter: "F:api/client.dart:94"}}
+  - {id: categories, method: GET, path: /api/categories, response_keys: [categories], source: {backend: "B:shopping_server.py:718", android: "A:ApiClient.kt:76", ios: "I:ApiClient.swift:114", reactnative: "R:src/api/ApiClient.ts:100", flutter: "F:api/client.dart:95"}}
+  - {id: category_products, method: GET, path: "/api/categories/{category}", path_template: "/api/categories/<category>", response_keys: [products], source: {backend: "B:shopping_server.py:729", android: "A:ApiClient.kt:79", ios: "I:ApiClient.swift:118", reactnative: "R:src/api/ApiClient.ts:106", flutter: "F:api/client.dart:98"}}
+  - {id: product, method: GET, path: "/api/product/{id}", path_template: "/api/product/<id>", source: {backend: "B:shopping_server.py:741", android: "A:ApiClient.kt:83", ios: "I:ApiClient.swift:122", reactnative: "R:src/api/ApiClient.ts:109", flutter: "F:api/client.dart:102"}}
+  - {id: reviews, method: GET, path: "/api/product/{id}/reviews", path_template: "/api/product/<id>/reviews", source: {backend: "B:shopping_server.py:870", android: "A:ApiClient.kt:87", ios: "I:ApiClient.swift:126", reactnative: "R:src/api/ApiClient.ts:115", flutter: "F:api/client.dart:106"}}
+  - {id: cart_get, method: GET, path: /api/cart, source: {backend: "B:shopping_server.py:961", android: "A:ApiClient.kt:95", ios: "I:ApiClient.swift:133", reactnative: "R:src/api/ApiClient.ts:119", flutter: "F:api/client.dart:110"}}
+  - {id: cart_add, method: POST, path: /api/cart, body: [product_id, quantity], source: {backend: "B:shopping_server.py:966", android: "A:ApiClient.kt:91", ios: "I:ApiClient.swift:130", reactnative: "R:src/api/ApiClient.ts:118", flutter: "F:api/client.dart:112"}}
+  - {id: cart_delete, method: DELETE, path: "/api/cart/{id}", path_template: "/api/cart/<id>", source: {backend: "B:shopping_server.py:982", android: "A:ApiClient.kt:99", ios: "I:ApiClient.swift:136", reactnative: "R:src/api/ApiClient.ts:121", flutter: "F:api/client.dart:116"}}
+  - {id: wishlist_add, method: POST, path: /api/wishlist, body: [product_id], source: {backend: "B:shopping_server.py:988", android: "A:ApiClient.kt:103", ios: "I:ApiClient.swift:140", reactnative: "R:src/api/ApiClient.ts:123", flutter: "F:api/client.dart:119"}}
+  - {id: checkout_guest, method: POST, path: /api/checkout/guest, body: [email], response_keys: [checkout_session], source: {backend: "B:shopping_server.py:1013", android: "A:ApiClient.kt:107", ios: "I:ApiClient.swift:144", reactnative: "R:src/api/ApiClient.ts:124", flutter: "F:api/client.dart:126"}}
+  - {id: checkout_signin, method: POST, path: /api/checkout/signin, body: [email], response_keys: [checkout_session], source: {backend: "B:shopping_server.py:1039", android: "A:ApiClient.kt:111", ios: "I:ApiClient.swift:148", reactnative: "R:src/api/ApiClient.ts:125", flutter: "F:api/client.dart:128"}}
+  - {id: pay_card, method: POST, path: /api/payment/card, body: [checkout_session, card_last4], response_keys: [order_id], payment_method: card, source: {backend: "B:shopping_server.py:1077", android: "A:ApiClient.kt:115", ios: "I:ApiClient.swift:152", reactnative: "R:src/api/ApiClient.ts:127", flutter: "F:api/client.dart:130"}}
+  - {id: pay_apple_pay, method: POST, path: /api/payment/applepay, body: [checkout_session], response_keys: [order_id], payment_method: apple_pay, source: {backend: "B:shopping_server.py:1094", android: "A:ApiClient.kt:119", ios: "I:ApiClient.swift:156", reactnative: "R:src/api/ApiClient.ts:132", flutter: "F:api/client.dart:133"}}
+  - {id: pay_paypal, method: POST, path: /api/payment/paypal, body: [checkout_session], response_keys: [order_id], payment_method: paypal, source: {backend: "B:shopping_server.py:1110", android: "A:ApiClient.kt:123", ios: "I:ApiClient.swift:160", reactnative: "R:src/api/ApiClient.ts:134", flutter: "F:api/client.dart:136"}}
+  - {id: pay_android_pay, method: POST, path: /api/payment/androidpay, body: [checkout_session], response_keys: [order_id], payment_method: android_pay, source: {backend: "B:shopping_server.py:1128", android: "A:ApiClient.kt:127", ios: "I:ApiClient.swift:164", reactnative: "R:src/api/ApiClient.ts:136", flutter: "F:api/client.dart:139"}}
+  - {id: confirmation, method: GET, path: "/api/confirmation/{id}", path_template: "/api/confirmation/<id>", source: {backend: "B:shopping_server.py:1144", android: "A:ApiClient.kt:131", ios: "I:ApiClient.swift:168", reactnative: "R:src/api/ApiClient.ts:138", flutter: "F:api/client.dart:143"}}
+  - id: inventory_lookup
+    method: GET
+    path: "/api/inventory/lookup/{item}/{session}"
+    path_template: "/api/inventory/lookup/<item>/<session>"
+    purpose: "cardinality demo: session is 16 random hex chars per request; item from personas.yaml sim_data.search_terms"
+    sends_template: {android: true, ios: false, reactnative: false}   # OPEN-6
+    optional_on: [flutter]
+    source: {backend: "B:shopping_server.py:677", android: "A:ApiClient.kt:170", ios: "I:ApiClient.swift:208", reactnative: "R:src/api/ApiClient.ts:151"}
+  # Backend-only (not called by apps): /api/health, /api/chaos/{enable,disable,status,configure,reset-stats}
+  - {id: health, method: GET, path: /api/health, backend_only: true, source: {backend: "B:shopping_server.py:1288"}}
+
+# Fake third-party SDK endpoints used by the vendor-SDK crash demo (crashes.yaml
+# vendor_sdk_*). Never actually reached: the fake interceptor throws first.
+vendor_sdks:
+  - id: ads
+    url: "https://ads.fake-vendor.example/init"
+    namespace: {android: com.adsdk.fake.AdRequestInterceptor, ios: AdSDKFake.AdRequestInterceptor}
+    message: {android: "AdSDK: native ad renderer failed to initialize", ios: "AdSDK: malformed ad response envelope from <host>"}
+    source: {android: "A:Crashes.kt:302", ios: "I:Crashes.swift:317"}
+  - id: analytics
+    url: "https://ping.fake-analytics.example/batch"
+    namespace: {android: com.analytics.fake.AnalyticsPingInterceptor, ios: AnalyticsSDKFake.AnalyticsPingInterceptor}
+    message: {android: "AnalyticsSDK: ping batch serialization failed", ios: "AnalyticsSDK: unencodable event in batch bound for <host>"}
+    source: {android: "A:Crashes.kt:310", ios: "I:Crashes.swift:323"}
+
+# "SDK out of date" check on the Welcome screen (platform-specific by nature).
+sdk_release_check:
+  android: "https://api.github.com/repos/bitdriftlabs/capture-sdk/releases/latest"
+  ios: "https://api.github.com/repos/bitdriftlabs/capture-ios/releases/latest"
+  source: {android: "A:ApiClient.kt:138", ios: "I:ApiClient.swift:174"}
+
+# Build-time configuration keys (names only; values are secrets / local).
+config_keys:
+  sdk_key:
+    android: BITDRIFT_SDK_KEY            # android/app/build.gradle.kts:75
+    ios: BITDRIFT_API_KEY                # today: ios/BitdriftShop/AppConfig.swift:17, Info.plist:52; target BITDRIFT_SDK_KEY (reads old name as fallback), OPEN-1 resolved
+    reactnative: BITDRIFT_SDK_KEY        # reactnative/src/config.ts:31
+    flutter: BITDRIFT_SDK_KEY            # flutter/lib/config.dart:31
+    kmp: BITDRIFT_SDK_KEY                # wip-kotlin-multiplatform/iosApp/iosApp/ShoppingDemoKMPApp.swift:14
+    open: OPEN-1
+  api_host: {all: BITDRIFT_API_HOST}
+  backend_override: {ios: SHOP_BACKEND_URL, reactnative: BACKEND_PORT, flutter: BACKEND_PORT}
