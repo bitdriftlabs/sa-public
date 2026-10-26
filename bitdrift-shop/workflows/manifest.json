@@ -1,0 +1,474 @@
+{
+  "version": 1,
+  "apps": {
+    "android": "ai.bitdrift.shop",
+    "apple": "ai.bitdrift.shop.ios"
+  },
+  "platform_labels": {
+    "android": "Android",
+    "apple": "iOS"
+  },
+  "comment": "Source of truth for tools/bd-deploy.sh. `key` ids dashboard placeholders (__WF_<key>__); `name` is the exact workflow name used to find it in an account.",
+  "workflows": [
+    {
+      "key": "android_cold_start_span_timings",
+      "slug": "android-cold-start-span-timings",
+      "legacy": "20",
+      "platform": "android",
+      "name": "bd-shop — Android Cold-Start Span Timings",
+      "template": false,
+      "workflow": "android-cold-start-span-timings.json",
+      "metadata": "android-cold-start-span-timings.metadata.json",
+      "chart_metadata": "chart-metadata/android-cold-start-span-timings.chart.json"
+    },
+    {
+      "key": "android_journey_subphase_timings",
+      "slug": "android-journey-subphase-timings",
+      "legacy": "22",
+      "platform": "android",
+      "name": "bd-shop — Android Journey Sub-Phase Timings",
+      "template": "templates/journey-subphase-timings.template.json",
+      "metadata": "android-journey-subphase-timings.metadata.json",
+      "chart_metadata": "chart-metadata/android-journey-subphase-timings.chart.json",
+      "vars": {
+        "platform_key": "android",
+        "app_id": "ai.bitdrift.shop",
+        "platform_label": "Android"
+      }
+    },
+    {
+      "key": "android_recommendation_engine_timings",
+      "slug": "android-recommendation-engine-timings",
+      "legacy": "23",
+      "platform": "android",
+      "name": "bd-shop — Android Recommendation Engine Timings",
+      "template": "templates/recommendation-engine-timings.template.json",
+      "metadata": "android-recommendation-engine-timings.metadata.json",
+      "chart_metadata": "chart-metadata/android-recommendation-engine-timings.chart.json",
+      "vars": {
+        "platform_key": "android",
+        "app_id": "ai.bitdrift.shop",
+        "platform_label": "Android"
+      }
+    },
+    {
+      "key": "android_screen_load_timings",
+      "slug": "android-screen-load-timings",
+      "legacy": "21",
+      "platform": "android",
+      "name": "bd-shop — Android Screen Load Timings",
+      "template": false,
+      "workflow": "android-screen-load-timings.json",
+      "metadata": "android-screen-load-timings.metadata.json",
+      "chart_metadata": "chart-metadata/android-screen-load-timings.chart.json"
+    },
+    {
+      "key": "android_anr_force_quit",
+      "slug": "anr-force-quit",
+      "legacy": "05",
+      "platform": "android",
+      "name": "bd-shop — ANR & Force-Quit Tracking",
+      "template": false,
+      "workflow": "anr-force-quit.json",
+      "chart_metadata": "chart-metadata/anr-force-quit.chart.json"
+    },
+    {
+      "key": "android_attribution_rate",
+      "slug": "attribution-rate",
+      "legacy": "10",
+      "platform": "android",
+      "name": "bd-shop — Crash Attribution Rate",
+      "template": false,
+      "workflow": "attribution-rate.json",
+      "chart_metadata": "chart-metadata/attribution-rate.chart.json"
+    },
+    {
+      "key": "android_blocking_thread",
+      "slug": "blocking-thread",
+      "legacy": "08",
+      "platform": "android",
+      "name": "bd-shop — Blocking Thread Attribution",
+      "template": false,
+      "workflow": "blocking-thread.json",
+      "chart_metadata": "chart-metadata/blocking-thread.chart.json"
+    },
+    {
+      "key": "android_user_journey_sankey",
+      "slug": "user-journey-sankey",
+      "legacy": "01",
+      "platform": "android",
+      "name": "bd-shop — User Journey Sankey",
+      "template": false,
+      "workflow": "user-journey-sankey.json",
+      "chart_metadata": "chart-metadata/user-journey-sankey.chart.json"
+    },
+    {
+      "key": "android_crash_analytics",
+      "slug": "crash-analytics",
+      "legacy": "03",
+      "platform": "android",
+      "name": "bd-shop — Crash Distribution & Session Capture",
+      "template": false,
+      "workflow": "crash-analytics.json",
+      "chart_metadata": "chart-metadata/crash-analytics.chart.json"
+    },
+    {
+      "key": "android_crash_background",
+      "slug": "crash-background",
+      "legacy": "07",
+      "platform": "android",
+      "name": "bd-shop — Crashes in Background",
+      "template": false,
+      "workflow": "crash-background.json",
+      "chart_metadata": "chart-metadata/crash-background.chart.json"
+    },
+    {
+      "key": "android_crash_foreground",
+      "slug": "crash-foreground",
+      "legacy": "06",
+      "platform": "android",
+      "name": "bd-shop — Crashes in Foreground",
+      "template": false,
+      "workflow": "crash-foreground.json",
+      "chart_metadata": "chart-metadata/crash-foreground.chart.json"
+    },
+    {
+      "key": "android_crash_rate_per_foreground",
+      "slug": "crash-rate-per-foreground",
+      "legacy": "15",
+      "platform": "android",
+      "name": "bd-shop — Crash Rate per Foreground Session (WIP)",
+      "template": false,
+      "workflow": "crash-rate-per-foreground.json",
+      "chart_metadata": "chart-metadata/crash-rate-per-foreground.chart.json"
+    },
+    {
+      "key": "android_feature_flag_sessions",
+      "slug": "feature-flag-sessions",
+      "legacy": "31",
+      "platform": "android",
+      "name": "bd-shop — Persistent Feature Flag Sessions",
+      "template": false,
+      "workflow": "feature-flag-sessions.json",
+      "metadata": "feature-flag-sessions.metadata.json",
+      "chart_metadata": "chart-metadata/feature-flag-sessions.chart.json"
+    },
+    {
+      "key": "android_metric_grouping",
+      "slug": "metric-grouping",
+      "legacy": "12",
+      "platform": "android",
+      "name": "bd-shop — Metric Grouping (Waveforms + Latency by Version)",
+      "template": false,
+      "workflow": "metric-grouping.json",
+      "chart_metadata": "chart-metadata/metric-grouping.chart.json"
+    },
+    {
+      "key": "android_payment_errors",
+      "slug": "payment-errors",
+      "legacy": "02",
+      "platform": "android",
+      "name": "bd-shop — Payment & Checkout Errors",
+      "template": false,
+      "workflow": "payment-errors.json",
+      "chart_metadata": "chart-metadata/payment-errors.chart.json"
+    },
+    {
+      "key": "android_slow_rendering",
+      "slug": "slow-rendering",
+      "legacy": "11",
+      "platform": "android",
+      "name": "bd-shop — Slow Rendering (Recommendations v2)",
+      "template": false,
+      "workflow": "slow-rendering.json",
+      "chart_metadata": "chart-metadata/slow-rendering.chart.json"
+    },
+    {
+      "key": "android_slow_rendering_manual_span",
+      "slug": "slow-rendering-manual-span",
+      "legacy": "11b",
+      "platform": "android",
+      "name": "bd-shop — Slow Rendering (Recommendations v2) — Manual Span Example",
+      "template": false,
+      "workflow": "slow-rendering-manual-span.json",
+      "chart_metadata": "chart-metadata/slow-rendering-manual-span.chart.json"
+    },
+    {
+      "key": "android_span_durations",
+      "slug": "span-durations",
+      "legacy": "04",
+      "platform": "android",
+      "name": "bd-shop — Span Duration Histograms",
+      "template": false,
+      "workflow": "span-durations.json",
+      "chart_metadata": "chart-metadata/span-durations.chart.json"
+    },
+    {
+      "key": "android_support_sessions",
+      "slug": "support-sessions",
+      "legacy": "30",
+      "platform": "android",
+      "name": "bd-shop — Customer Support Sessions",
+      "template": false,
+      "workflow": "support-sessions.json",
+      "metadata": "support-sessions.metadata.json",
+      "chart_metadata": "chart-metadata/support-sessions.chart.json"
+    },
+    {
+      "key": "android_vendor_sdk_attribution",
+      "slug": "vendor-sdk-attribution",
+      "legacy": "09",
+      "platform": "android",
+      "name": "bd-shop — Vendor SDK Attribution",
+      "template": false,
+      "workflow": "vendor-sdk-attribution.json",
+      "chart_metadata": "chart-metadata/vendor-sdk-attribution.chart.json"
+    },
+    {
+      "key": "ios_crashes_by_final_screen",
+      "slug": "crashes-by-final-screen",
+      "legacy": "15",
+      "platform": "apple",
+      "name": "bd-shop — Crashes by Final Screen",
+      "template": false,
+      "workflow": "crashes-by-final-screen.json"
+    },
+    {
+      "key": "ios_app_hang_sessions",
+      "slug": "ios-app-hang-sessions",
+      "legacy": "13",
+      "platform": "apple",
+      "name": "bd-shop — iOS App Hang Sessions",
+      "template": false,
+      "workflow": "ios-app-hang-sessions.json"
+    },
+    {
+      "key": "ios_cold_start_span_timings",
+      "slug": "ios-cold-start-span-timings",
+      "legacy": "20",
+      "platform": "apple",
+      "name": "bd-shop — iOS Cold-Start Span Timings",
+      "template": false,
+      "workflow": "ios-cold-start-span-timings.json",
+      "metadata": "ios-cold-start-span-timings.metadata.json",
+      "chart_metadata": "chart-metadata/ios-cold-start-span-timings.chart.json"
+    },
+    {
+      "key": "ios_crash_terminal_sankey",
+      "slug": "ios-crash-terminal-sankey",
+      "legacy": "19",
+      "platform": "apple",
+      "name": "bd-shop — iOS Crash-Terminal Sankey",
+      "template": false,
+      "workflow": "ios-crash-terminal-sankey.json",
+      "metadata": "ios-crash-terminal-sankey.metadata.json",
+      "chart_metadata": "chart-metadata/ios-crash-terminal-sankey.chart.json"
+    },
+    {
+      "key": "ios_crashes_by_last_screen_live",
+      "slug": "ios-crashes-by-last-screen-live",
+      "legacy": "18",
+      "platform": "apple",
+      "name": "bd-shop — iOS Crashes by Last Screen (live crash reports, Ripsaw)",
+      "template": false,
+      "workflow": "ios-crashes-by-last-screen-live.json",
+      "metadata": "ios-crashes-by-last-screen-live.metadata.json",
+      "chart_metadata": "chart-metadata/ios-crashes-by-last-screen-live.chart.json"
+    },
+    {
+      "key": "ios_journey_subphase_timings",
+      "slug": "ios-journey-subphase-timings",
+      "legacy": "22",
+      "platform": "apple",
+      "name": "bd-shop — iOS Journey Sub-Phase Timings",
+      "template": "templates/journey-subphase-timings.template.json",
+      "metadata": "ios-journey-subphase-timings.metadata.json",
+      "chart_metadata": "chart-metadata/ios-journey-subphase-timings.chart.json",
+      "vars": {
+        "platform_key": "apple",
+        "app_id": "ai.bitdrift.shop.ios",
+        "platform_label": "iOS"
+      }
+    },
+    {
+      "key": "ios_journey_vs_crashes",
+      "slug": "ios-journey-vs-crashes",
+      "legacy": "17",
+      "platform": "apple",
+      "name": "bd-shop — iOS Journey vs Crashes by Screen",
+      "template": false,
+      "workflow": "ios-journey-vs-crashes.json",
+      "metadata": "ios-journey-vs-crashes.metadata.json",
+      "chart_metadata": "chart-metadata/ios-journey-vs-crashes.chart.json"
+    },
+    {
+      "key": "ios_paths_to_force_quit",
+      "slug": "ios-paths-to-force-quit",
+      "legacy": "14",
+      "platform": "apple",
+      "name": "bd-shop — iOS Paths to Force Quit",
+      "template": false,
+      "workflow": "ios-paths-to-force-quit.json"
+    },
+    {
+      "key": "ios_persistence_timings",
+      "slug": "ios-persistence-timings",
+      "legacy": "24",
+      "platform": "apple",
+      "name": "bd-shop — iOS Persistence I/O Timings",
+      "template": false,
+      "workflow": "ios-persistence-timings.json",
+      "metadata": "ios-persistence-timings.metadata.json",
+      "chart_metadata": "chart-metadata/ios-persistence-timings.chart.json"
+    },
+    {
+      "key": "ios_recommendation_engine_timings",
+      "slug": "ios-recommendation-engine-timings",
+      "legacy": "23",
+      "platform": "apple",
+      "name": "bd-shop — iOS Recommendation Engine Timings",
+      "template": "templates/recommendation-engine-timings.template.json",
+      "metadata": "ios-recommendation-engine-timings.metadata.json",
+      "chart_metadata": "chart-metadata/ios-recommendation-engine-timings.chart.json",
+      "vars": {
+        "platform_key": "apple",
+        "app_id": "ai.bitdrift.shop.ios",
+        "platform_label": "iOS"
+      }
+    },
+    {
+      "key": "ios_screen_load_timings",
+      "slug": "ios-screen-load-timings",
+      "legacy": "21",
+      "platform": "apple",
+      "name": "bd-shop — iOS Screen Load Timings",
+      "template": false,
+      "workflow": "ios-screen-load-timings.json",
+      "metadata": "ios-screen-load-timings.metadata.json",
+      "chart_metadata": "chart-metadata/ios-screen-load-timings.chart.json"
+    },
+    {
+      "key": "shared_foreground_session_count",
+      "slug": "foreground-session-count",
+      "legacy": "13",
+      "platform": "both",
+      "name": "bd-shop — Foreground Session Count (WIP)",
+      "template": false,
+      "workflow": "foreground-session-count.json",
+      "chart_metadata": "chart-metadata/foreground-session-count.chart.json"
+    },
+    {
+      "key": "shared_foreground_session_duration",
+      "slug": "foreground-session-duration",
+      "legacy": "14",
+      "platform": "both",
+      "name": "bd-shop — Foreground Session Duration (WIP)",
+      "template": false,
+      "workflow": "foreground-session-duration.json",
+      "chart_metadata": "chart-metadata/foreground-session-duration.chart.json"
+    }
+  ],
+  "dashboards": [
+    {
+      "slug": "android-cold-start-span-timings",
+      "name": "Android — Cold-Start Span Timings",
+      "platform": "android",
+      "file": "android-cold-start-span-timings.dashboard.json",
+      "workflows": [
+        "android_cold_start_span_timings"
+      ]
+    },
+    {
+      "slug": "android-journey-subphase-timings",
+      "name": "Android — Journey Sub-Phase Timings",
+      "platform": "android",
+      "file": "android-journey-subphase-timings.dashboard.json",
+      "workflows": [
+        "android_journey_subphase_timings"
+      ]
+    },
+    {
+      "slug": "android-recommendation-engine-timings",
+      "name": "Android — Recommendation Engine Timings",
+      "platform": "android",
+      "file": "android-recommendation-engine-timings.dashboard.json",
+      "workflows": [
+        "android_recommendation_engine_timings"
+      ]
+    },
+    {
+      "slug": "android-screen-load-timings",
+      "name": "Android — Screen Load Timings",
+      "platform": "android",
+      "file": "android-screen-load-timings.dashboard.json",
+      "workflows": [
+        "android_screen_load_timings"
+      ]
+    },
+    {
+      "slug": "metric-grouping",
+      "name": "bd-shop — Metric Grouping",
+      "platform": "android",
+      "file": "metric-grouping.dashboard.json",
+      "workflows": [
+        "android_metric_grouping"
+      ]
+    },
+    {
+      "slug": "ios-cold-start-span-timings",
+      "name": "iOS — Cold-Start Span Timings",
+      "platform": "apple",
+      "file": "ios-cold-start-span-timings.dashboard.json",
+      "workflows": [
+        "ios_cold_start_span_timings"
+      ]
+    },
+    {
+      "slug": "ios-journey-subphase-timings",
+      "name": "iOS — Journey Sub-Phase Timings",
+      "platform": "apple",
+      "file": "ios-journey-subphase-timings.dashboard.json",
+      "workflows": [
+        "ios_journey_subphase_timings"
+      ]
+    },
+    {
+      "slug": "ios-journey-vs-crashes-guided",
+      "name": "iOS — Journey vs Crashes by Screen (guided)",
+      "platform": "apple",
+      "file": "ios-journey-vs-crashes-guided.dashboard.json",
+      "workflows": [
+        "ios_crash_terminal_sankey",
+        "ios_crashes_by_last_screen_live",
+        "ios_journey_vs_crashes"
+      ]
+    },
+    {
+      "slug": "ios-persistence-timings",
+      "name": "iOS — Persistence I/O Timings",
+      "platform": "apple",
+      "file": "ios-persistence-timings.dashboard.json",
+      "workflows": [
+        "ios_persistence_timings"
+      ]
+    },
+    {
+      "slug": "ios-recommendation-engine-timings",
+      "name": "iOS — Recommendation Engine Timings",
+      "platform": "apple",
+      "file": "ios-recommendation-engine-timings.dashboard.json",
+      "workflows": [
+        "ios_recommendation_engine_timings"
+      ]
+    },
+    {
+      "slug": "ios-screen-load-timings",
+      "name": "iOS — Screen Load Timings",
+      "platform": "apple",
+      "file": "ios-screen-load-timings.dashboard.json",
+      "workflows": [
+        "ios_screen_load_timings"
+      ]
+    }
+  ]
+}

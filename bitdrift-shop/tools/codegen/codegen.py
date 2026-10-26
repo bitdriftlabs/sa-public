@@ -407,7 +407,32 @@ def dart_files(platform="flutter"):
     return {"spec.dart": body + "\n", "journey.dart": journey}
 
 
-LANGS = {"kotlin": kotlin_files, "swift": swift_files, "ts": ts_files, "dart": dart_files}
+# ── Shell ────────────────────────────────────────────────────────────────────
+
+def sh_files(platform=None):
+    """spec/faults.yaml persisted store and key names, for the host-side demo scripts (sourced, not per app)."""
+    faults = load("faults")["faults"]
+    lines = [f"# {HEADER}", "# Persisted fault stores (SharedPreferences file on Android, UserDefaults suite on iOS) and their keys.", ""]
+    for f in faults:
+        store = f.get("store")
+        if not isinstance(store, dict):
+            continue
+        fid = re.sub(r"[^0-9A-Za-z]+", "_", f["id"]).upper()
+        for plat, name in store.items():
+            if plat in ("android", "ios") and re.fullmatch(r"[A-Za-z0-9_]+", str(name)):
+                lines.append(f"FAULT_STORE_{fid}_{plat.upper()}={name}")
+        keys = f.get("keys")
+        for plat in ("android", "ios"):
+            k = keys.get(plat) if isinstance(keys, dict) else keys
+            if k:
+                lines.append(f"FAULT_KEYS_{fid}_{plat.upper()}=\"{' '.join(k)}\"")
+        if f.get("flag"):
+            lines.append(f"FAULT_FLAG_{fid}={f['flag']}")
+    lines.append("")
+    return {"faults.sh": "\n".join(lines)}
+
+
+LANGS = {"kotlin": kotlin_files, "swift": swift_files, "ts": ts_files, "dart": dart_files, "sh": sh_files}
 
 
 def main():

@@ -3,6 +3,10 @@
 set -uo pipefail
 
 PKG="ai.bitdrift.shop"
+
+# Persisted fault store names come from spec/faults.yaml (generated).
+# shellcheck source=../../scripts/lib/generated/faults.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../scripts/lib" && pwd)/generated/faults.sh"
 ACTIVITY="ai.bitdrift.shop/.MainActivity"
 SERIAL=""
 INTERVAL_SECS=2
@@ -215,7 +219,7 @@ dismiss_anr() {
 
 is_variant_a_restart_pending() {
   local prefs_xml
-  prefs_xml=$("${ADB[@]}" shell run-as "$PKG" cat shared_prefs/anr_a.xml 2>/dev/null | tr -d '\r') || true
+  prefs_xml=$("${ADB[@]}" shell run-as "$PKG" cat shared_prefs/${FAULT_STORE_ANR_ANDROID}.xml 2>/dev/null | tr -d '\r') || true
 
   if [[ -z "$prefs_xml" ]]; then
     echo "[$(ts)] [gate] unable to read anr_a prefs via run-as; skipping relaunch for safety"
@@ -240,7 +244,7 @@ is_variant_a_restart_pending() {
 # Check if force_quit prefs have restart_pending=true.
 is_force_quit_restart_pending() {
   local prefs_xml
-  prefs_xml=$("${ADB[@]}" shell run-as "$PKG" cat shared_prefs/force_quit.xml 2>/dev/null | tr -d '\r') || true
+  prefs_xml=$("${ADB[@]}" shell run-as "$PKG" cat shared_prefs/${FAULT_STORE_FORCE_QUIT_ANDROID}.xml 2>/dev/null | tr -d '\r') || true
 
   if [[ -z "$prefs_xml" ]]; then
     return 1
@@ -255,7 +259,7 @@ is_force_quit_restart_pending() {
 
 is_force_quit_active() {
   local prefs_xml
-  prefs_xml=$("${ADB[@]}" shell run-as "$PKG" cat shared_prefs/force_quit.xml 2>/dev/null | tr -d '\r') || true
+  prefs_xml=$("${ADB[@]}" shell run-as "$PKG" cat shared_prefs/${FAULT_STORE_FORCE_QUIT_ANDROID}.xml 2>/dev/null | tr -d '\r') || true
 
   if [[ -z "$prefs_xml" ]]; then
     return 1
@@ -327,14 +331,14 @@ request_user_force_quit() {
 # a native signal crash on a device that clears pending alarms on process death).
 is_crash_loop_active() {
   local xml
-  xml=$("${ADB[@]}" shell run-as "$PKG" cat shared_prefs/crash_loop.xml 2>/dev/null | tr -d '\r') || true
+  xml=$("${ADB[@]}" shell run-as "$PKG" cat shared_prefs/${FAULT_STORE_CRASH_LOOP_ANDROID}.xml 2>/dev/null | tr -d '\r') || true
   [[ -n "$xml" ]] && echo "$xml" | grep -q 'name="active" value="true"'
 }
 
 # Check if ANR-A mode is currently active (not restart_pending, just the toggle).
 is_anr_a_active() {
   local prefs_xml
-  prefs_xml=$("${ADB[@]}" shell run-as "$PKG" cat shared_prefs/anr_a.xml 2>/dev/null | tr -d '\r') || true
+  prefs_xml=$("${ADB[@]}" shell run-as "$PKG" cat shared_prefs/${FAULT_STORE_ANR_ANDROID}.xml 2>/dev/null | tr -d '\r') || true
   [[ -n "$prefs_xml" ]] && echo "$prefs_xml" | grep -q 'name="active" value="true"'
 }
 

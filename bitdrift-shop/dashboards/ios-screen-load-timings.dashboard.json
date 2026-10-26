@@ -1,13 +1,13 @@
 {
-  "name": "Android \u2014 Screen Load Timings",
+  "name": "iOS \u2014 Screen Load Timings",
   "tabs": [
     {
       "name": "Screen loads",
       "stylistic_components": [
         {
-          "id": "t-h",
+          "id": "t-intro-h",
           "text_component": {
-            "text": "Android \u2014 how long does each screen take to load?",
+            "text": "iOS \u2014 how long does each screen take to load?",
             "variant": "h2"
           },
           "dashboard_layout_settings": {
@@ -18,9 +18,9 @@
           }
         },
         {
-          "id": "t-p",
+          "id": "t-intro-p",
           "text_component": {
-            "text": "Each span wraps a LaunchedEffect data load, and sits OUTSIDE the existing try/catch: inside, the catch would swallow the error and every span would record SUCCESS regardless of outcome. product_image_load uses Coil's onState callback (no loader rewrite needed, unlike iOS) and its chart excludes CANCELED, which Compose produces routinely when a row scrolls out of composition. No catalog_serialize span: Android fetches the catalog over the network rather than re-serializing locally.",
+            "text": "Standalone root spans (not nested under any journey span) wrapping each screen's `.task` data fetch \u2014 see `welcome_screen_load`'s comment in Screens.swift for why they aren't nested. Because workflow matching runs on-device against every span as it's emitted, these are exact per-session numbers, not a sample. `catalog_serialize` runs on every Browse load regardless of Rec v2 \u2014 the flag only gates whether the resulting string goes on to be consumed; `product_image_load` fires once per visible product thumbnail, so a screen with N rows contributes N samples. See bd-shop-21 in workflows/.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
@@ -37,7 +37,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "vokX",
+                "workflow_id": "__WF_ios_screen_load_timings__",
                 "chart_rule_id": "hist-welcome-screen"
               }
             },
@@ -50,7 +50,7 @@
             "chart_metadata": {
               "title": "Welcome screen load",
               "summary": {
-                "description": "getWelcome() + fetchLatestSdkVersion()"
+                "description": "WelcomeScreen.task \u2014 getWelcome() + fetchLatestSDKVersion()"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -74,7 +74,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "vokX",
+                "workflow_id": "__WF_ios_screen_load_timings__",
                 "chart_rule_id": "hist-browse-screen"
               }
             },
@@ -87,7 +87,7 @@
             "chart_metadata": {
               "title": "Browse screen load",
               "summary": {
-                "description": "getBrowse() + getFullCatalogJson()"
+                "description": "BrowseScreen.task \u2014 getBrowse() + product list extraction"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -111,8 +111,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "vokX",
-                "chart_rule_id": "hist-product-detail"
+                "workflow_id": "__WF_ios_screen_load_timings__",
+                "chart_rule_id": "hist-catalog-serialize"
               }
             },
             "layout_settings": {
@@ -122,9 +122,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Product detail load",
+              "title": "Catalog re-serialize (Browse)",
               "summary": {
-                "description": "getProduct(), plus the catalog fetch when Rec v2 is on"
+                "description": "Child of browse_screen_load \u2014 the .serialized re-encode, run on every Browse load; Rec v2 only gates whether the result is consumed"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -148,8 +148,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "vokX",
-                "chart_rule_id": "hist-cart-screen"
+                "workflow_id": "__WF_ios_screen_load_timings__",
+                "chart_rule_id": "hist-product-detail"
               }
             },
             "layout_settings": {
@@ -159,9 +159,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Cart screen load",
+              "title": "Product detail load",
               "summary": {
-                "description": "addToCart()/getCart(), FAILURE-ended on error"
+                "description": "ProductDetailScreen.task \u2014 getProduct() + conditional full catalog fetch when Rec v2 is on"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -185,8 +185,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "vokX",
-                "chart_rule_id": "hist-checkout-screen"
+                "workflow_id": "__WF_ios_screen_load_timings__",
+                "chart_rule_id": "hist-cart-screen"
               }
             },
             "layout_settings": {
@@ -196,9 +196,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Checkout screen load",
+              "title": "Cart screen load",
               "summary": {
-                "description": "Guest + sign-in, distinguished by the checkout_type field"
+                "description": "CartScreen.task \u2014 getCart()/addToCart(), FAILURE-ended on error"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -222,8 +222,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "vokX",
-                "chart_rule_id": "hist-payment-screen"
+                "workflow_id": "__WF_ios_screen_load_timings__",
+                "chart_rule_id": "hist-checkout-screen"
               }
             },
             "layout_settings": {
@@ -233,9 +233,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Payment screen load",
+              "title": "Checkout screen load (guest+signin)",
               "summary": {
-                "description": "All four payment screens, distinguished by payment_method"
+                "description": "CheckoutGuestScreen/CheckoutSignInScreen.task \u2014 checkout_type field distinguishes them"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -259,8 +259,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "vokX",
-                "chart_rule_id": "hist-confirmation-screen"
+                "workflow_id": "__WF_ios_screen_load_timings__",
+                "chart_rule_id": "hist-payment-screen"
               }
             },
             "layout_settings": {
@@ -270,9 +270,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Confirmation screen load",
+              "title": "Payment screen load",
               "summary": {
-                "description": "getConfirmation()"
+                "description": "PaymentScreen.task \u2014 the actual payment-processing sub-phase"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -296,8 +296,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "vokX",
-                "chart_rule_id": "hist-product-image"
+                "workflow_id": "__WF_ios_screen_load_timings__",
+                "chart_rule_id": "hist-confirmation-screen"
               }
             },
             "layout_settings": {
@@ -307,9 +307,46 @@
               "row_span": 14
             },
             "chart_metadata": {
+              "title": "Confirmation screen load",
+              "summary": {
+                "description": "ConfirmationScreen.task \u2014 getConfirmation()"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "c-8",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__WF_ios_screen_load_timings__",
+                "chart_rule_id": "hist-product-image"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 67,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
               "title": "Product image load",
               "summary": {
-                "description": "Per-thumbnail via Coil onState; canceled loads excluded from this chart"
+                "description": "SpannedAsyncImage \u2014 replaces AsyncImage to expose a per-thumbnail load span"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},

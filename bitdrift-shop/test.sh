@@ -41,6 +41,11 @@ unit_common() {
   "$ROOT/tools/codegen/check.sh" >"$OUT/codegen-check.log" 2>&1 || { echo "codegen drift: see $OUT/codegen-check.log"; return 1; }
   "$PY" "$ROOT/spec/validate.py" --strict >"$OUT/spec-validate.log" 2>&1 || { echo "spec validation failed: see $OUT/spec-validate.log"; return 1; }
   "$PY" "$ROOT/tools/conformance/conformance.py" --self-test >"$OUT/conformance-selftest.log" 2>&1 || { echo "conformance self-test failed"; return 1; }
+  local bad=0 f
+  while IFS= read -r f; do bash -n "$f" 2>>"$OUT/shell-syntax.log" || { echo "shell syntax error: $f"; bad=1; }; done < <(
+    find "$ROOT" -name '*.sh' -not -path '*/node_modules/*' -not -path '*/.venv/*' -not -path '*/build/*' -not -path '*/Pods/*' -not -path '*/.git/*')
+  (( bad == 0 )) || return 1
+  python3 -I "$ROOT/tools/bd-deploy.py" --check >"$OUT/bd-deploy-check.log" 2>&1 || { echo "workflows manifest invalid: see $OUT/bd-deploy-check.log"; return 1; }
 }
 
 # ── android ──────────────────────────────────────────────────────────────────

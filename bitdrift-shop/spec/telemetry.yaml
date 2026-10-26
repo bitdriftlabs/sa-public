@@ -235,8 +235,8 @@ global_fields:
 # SDK-emitted events referenced by workflows (not emitted by app code; listed so the
 # validator and conformance tool know they are legal).
 sdk_events:
-  - {name: AppStart, used_by: [android/workflows/bd-shop-13-foreground-session-count.json, android/workflows/bd-shop-15-crash-rate-per-foreground.json]}
-  - {name: SceneWillEnterFG, used_by: [android/workflows/bd-shop-13-foreground-session-count.json]}
+  - {name: AppStart, used_by: [workflows/foreground-session-count.json, workflows/crash-rate-per-foreground.json]}
+  - {name: SceneWillEnterFG, used_by: [workflows/foreground-session-count.json]}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Events (log messages). trigger: sim | ui | lifecycle | startup | fault | demo | network
@@ -336,7 +336,7 @@ events:
       payment_method).
     source: {journey: "J:journey.yaml:381"}
     source_ui: {android: "A:Screens.kt:1319", ios: "I:Screens.swift:1126", reactnative: "R:src/screens/ShoppingScreens.tsx:854", flutter: "F:ui/screens.dart:631"}
-    used_by: [android/workflows/bd-shop-02-payment-errors.json]
+    used_by: [workflows/payment-errors.json]
   - name: payment_retry
     level: info
     trigger: sim
@@ -394,7 +394,7 @@ events:
     optional: [reason]
     drift_level: {flutter: "warning in sim path (F:sim/simulator.dart:326)"}
     source: {android: "A:Screens.kt:1195", ios: "I:Screens.swift:912", reactnative: "R:src/screens/ShoppingScreens.tsx:633", flutter: "F:ui/screens.dart:584"}
-    used_by: [android/workflows/bd-shop-02-payment-errors.json]
+    used_by: [workflows/payment-errors.json]
   - name: payment_completed
     level: info
     trigger: ui
@@ -485,7 +485,7 @@ events:
     platforms: [ios]
     notes: "error when the previous run fatally terminated. Android adds getPreviousRunInfo in plan Phase 6."
     source: {ios: "I:CaptureBridge.swift:165"}
-    used_by: [ios/workflows/bd-shop-15-crashes-by-final-screen.json, ios/workflows/bd-shop-17-ios-journey-vs-crashes.json]
+    used_by: [workflows/crashes-by-final-screen.json, workflows/ios-journey-vs-crashes.json]
   - name: screen_visit
     level: info
     trigger: ui
@@ -500,26 +500,26 @@ events:
     required: [force_quit_enabled, force_quit_screen, variant, trigger_mode]
     optional_on: [flutter]   # no Dart->native bridge in the alpha SDK (F:sim/simulator.dart:106)
     source: {journey: "J:journey.yaml:200"}
-    used_by: [android/workflows/bd-shop-05-anr-force-quit.json]
+    used_by: [workflows/anr-force-quit.json]
   - name: guest_anr_injected
     level: error
     trigger: fault
     required: [anr_a_enabled, journey_type, anr_screen_name, variant, trigger_mode]
     optional_on: [flutter]
     source: {journey: "J:journey.yaml:338"}
-    used_by: [android/workflows/bd-shop-05-anr-force-quit.json]
+    used_by: [workflows/anr-force-quit.json]
   - name: about_to_crash
     level: warning
     trigger: fault
     message_format: "about_to_crash: {crash_kind} (context={crash_context})"
     message_variants:
       - "about_to_crash (fast): {crash_kind} (context={crash_context})"   # fast crash mode (android, ios)
-    match: "^about_to_crash"   # regex used by ios/workflows/bd-shop-15
+    match: "^about_to_crash"   # regex used by workflows/crashes-by-final-screen.json
     optional: [crash_kind]
     was: {flutter: crash_injection}  # conformed in Phase 2b
     drift_fields: {reactnative: "sim message is 'about_to_crash: {name} (idx={idx})' (D-EVT-5)", flutter: "field 'crash' instead of crash_kind global field"}
     source: {android: "A:SimulationManager.kt:600", ios: "I:SimulationManager.swift:578", reactnative: "R:src/context/SimulationContext.tsx:216", flutter: "F:crash.dart:48"}
-    used_by: [ios/workflows/bd-shop-15-crashes-by-final-screen.json]
+    used_by: [workflows/crashes-by-final-screen.json]
   - name: background_crash_armed
     level: info
     trigger: fault
@@ -559,7 +559,7 @@ events:
     required: [metric_sine, metric_square, metric_sawtooth, metric_triangle, metric_dc, metric_counter, metric_work_latency_ms]
     optional_on: [reactnative, flutter]
     source: {android: "A:MetricsDemo.kt:141", ios: "I:MetricsDemo.swift:142"}
-    used_by: [android/workflows/bd-shop-12-metric-grouping.json]
+    used_by: [workflows/metric-grouping.json]
 
   # --- app-level HTTP logs (RN / Flutter only; native SDKs instrument HTTP OOTB) -----
   - name: api_response
@@ -607,7 +607,7 @@ spans:
     end_reasons: [cart_abandoned, checkout_abandoned, payment_failed]
     notes: "iOS simplified mode adds mode=simplified and reasons force_quit_injected|guest_hang_injected|simplified_crash_step_5. Fail->no-retry path: ends failure with reason payment_failed on all platforms (OPEN-4 resolved)."
     source: {journey: "J:journey.yaml:140"}
-    used_by: [android/workflows/bd-shop-04-span-durations.json]
+    used_by: [workflows/span-durations.json]
   - name: product_discovery
     parent: journey
     fields: [variant]
@@ -615,39 +615,39 @@ spans:
     results: [success]
     notes: "Flutter: not parented in bitdrift (the alpha startSpan has no parent arg, F:bd/capture.dart:113); the engine still records the logical parent (D-SPN-2)"
     source: {journey: "J:journey.yaml:142"}
-    used_by: [android/workflows/bd-shop-04-span-durations.json]
+    used_by: [workflows/span-durations.json]
   - name: discovery_fetch
     parent: product_discovery
     source: {journey: "J:journey.yaml:151"}
-    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+    used_by: [workflows/templates/journey-subphase-timings.template.json]
   - name: product_view
     parent: product_discovery
     source: {journey: "J:journey.yaml:191"}
-    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+    used_by: [workflows/templates/journey-subphase-timings.template.json]
   - name: wishlist_add
     parent: product_discovery
     source: {journey: "J:journey.yaml:211"}
-    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+    used_by: [workflows/templates/journey-subphase-timings.template.json]
   - name: cart_assembly
     parent: journey
     source: {journey: "J:journey.yaml:234"}
-    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+    used_by: [workflows/templates/journey-subphase-timings.template.json]
   - name: checkout
     parent: journey
     fields: [checkout_type]
     end_fields: [payment_method, retried, reason]
     results: [success, failure, canceled]
     source: {journey: "J:journey.yaml:324"}
-    used_by: [android/workflows/bd-shop-04-span-durations.json]
+    used_by: [workflows/span-durations.json]
   - name: checkout.payment
     parent: checkout
     fields: [retried]
     source: {journey: "J:journey.yaml:370"}
-    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+    used_by: [workflows/templates/journey-subphase-timings.template.json]
   - name: checkout.confirmation
     parent: checkout
     source: {journey: "J:journey.yaml:116"}
-    used_by: [android/workflows/bd-shop-22-android-journey-subphase-timings.json, ios/workflows/bd-shop-22-ios-journey-subphase-timings.json]
+    used_by: [workflows/templates/journey-subphase-timings.template.json]
 
   # cold start (CaptureBridge / ColdStartSpans)
   - name: app_cold_start
@@ -655,22 +655,22 @@ spans:
     optional_fields: [sdk_started]
     source: {android: "A:CaptureBridge.kt:160", ios: "I:CaptureBridge.swift:273", reactnative: "R:App.tsx:206", flutter: "F:main.dart:37"}
     notes: "RN/Flutter emit it as a back-dated paired-log span (logCompletedSpan)."
-    used_by: [android/workflows/bd-shop-20-android-cold-start-span-timings.json, ios/workflows/bd-shop-20-ios-cold-start-span-timings.json]
+    used_by: [workflows/android-cold-start-span-timings.json, workflows/ios-cold-start-span-timings.json]
   - name: app_cold_start.sdk_init
     parent: app_cold_start
     source: {android: "A:CaptureBridge.kt:165", ios: "I:CaptureBridge.swift:284", reactnative: "R:App.tsx:211", flutter: "F:main.dart:26"}
     drift_fields: {flutter: "not parented to app_cold_start; emitted before the root"}
-    used_by: [android/workflows/bd-shop-20-android-cold-start-span-timings.json, ios/workflows/bd-shop-20-ios-cold-start-span-timings.json]
+    used_by: [workflows/android-cold-start-span-timings.json, workflows/ios-cold-start-span-timings.json]
   - name: app_cold_start.scene_render
     parent: app_cold_start
     optional_on: [reactnative, flutter]
     source: {android: "A:CaptureBridge.kt:170", ios: "I:CaptureBridge.swift:295"}
-    used_by: [android/workflows/bd-shop-20-android-cold-start-span-timings.json, ios/workflows/bd-shop-20-ios-cold-start-span-timings.json]
+    used_by: [workflows/android-cold-start-span-timings.json, workflows/ios-cold-start-span-timings.json]
   - name: app_cold_start.state_restore
     parent: app_cold_start
     optional_on: [reactnative, flutter]
     source: {android: "A:CaptureBridge.kt:182", ios: "I:CaptureBridge.swift:310"}
-    used_by: [android/workflows/bd-shop-20-android-cold-start-span-timings.json, ios/workflows/bd-shop-20-ios-cold-start-span-timings.json]
+    used_by: [workflows/android-cold-start-span-timings.json, workflows/ios-cold-start-span-timings.json]
 
   # lifecycle
   - name: foreground_session
@@ -678,18 +678,18 @@ spans:
     parent: null
     missing_on: [reactnative, flutter]
     source: {android: "A:AppLifecycleCallbacks.kt:39", ios: "I:BitdriftShopApp.swift:58"}
-    used_by: [android/workflows/bd-shop-14-foreground-session-duration.json]
+    used_by: [workflows/foreground-session-duration.json]
 
   # screen loads (standalone, no parent)
-  - {name: welcome_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:66", ios: "I:Screens.swift:134"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
-  - {name: browse_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:607", ios: "I:Screens.swift:451"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
-  - {name: catalog_serialize, parent: browse_screen_load, platforms: [ios], source: {ios: "I:Screens.swift:455"}, used_by: [ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
-  - {name: product_detail_load, parent: null, fields: [rec_v2], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:890", ios: "I:Screens.swift:683"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
-  - {name: product_image_load, parent: null, fields: [url], missing_on: [reactnative, flutter], source: {android: "A:Components.kt:676", ios: "I:Components.swift:78"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
-  - {name: cart_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1020", ios: "I:Screens.swift:790"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
-  - {name: checkout_screen_load, parent: null, fields: [checkout_type], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1189", ios: "I:Screens.swift:904"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
-  - {name: payment_screen_load, parent: null, fields: [payment_method], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1313", ios: "I:Screens.swift:1116"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
-  - {name: confirmation_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1570", ios: "I:Screens.swift:1246"}, used_by: [android/workflows/bd-shop-21-android-screen-load-timings.json, ios/workflows/bd-shop-21-ios-screen-load-timings.json]}
+  - {name: welcome_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:66", ios: "I:Screens.swift:134"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: browse_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:607", ios: "I:Screens.swift:451"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: catalog_serialize, parent: browse_screen_load, platforms: [ios], source: {ios: "I:Screens.swift:455"}, used_by: [workflows/ios-screen-load-timings.json]}
+  - {name: product_detail_load, parent: null, fields: [rec_v2], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:890", ios: "I:Screens.swift:683"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: product_image_load, parent: null, fields: [url], missing_on: [reactnative, flutter], source: {android: "A:Components.kt:676", ios: "I:Components.swift:78"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: cart_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1020", ios: "I:Screens.swift:790"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: checkout_screen_load, parent: null, fields: [checkout_type], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1189", ios: "I:Screens.swift:904"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: payment_screen_load, parent: null, fields: [payment_method], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1313", ios: "I:Screens.swift:1116"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: confirmation_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1570", ios: "I:Screens.swift:1246"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
 
   # recommendation engine (slow mode / recommendations_v2)
   - name: score_products
@@ -697,21 +697,21 @@ spans:
     fields: [product_id, screen_name]
     optional_on: [flutter]
     source: {android: "A:Screens.kt:629", ios: "I:Screens.swift:406", reactnative: "R:src/screens/ShoppingScreens.tsx:178"}
-    used_by: [android/workflows/bd-shop-11b-slow-rendering-manual-span.json]
+    used_by: [workflows/slow-rendering-manual-span.json]
   - name: score_products.parse_catalog
     parent: score_products
     optional_on: [flutter]
     source: {android: "A:RecommendationEngine.kt:30", ios: "I:RecommendationEngine.swift:46", reactnative: "R:src/sim/recommendations.ts:101"}
-    used_by: [android/workflows/bd-shop-23-android-recommendation-engine-timings.json, ios/workflows/bd-shop-23-ios-recommendation-engine-timings.json]
+    used_by: [workflows/templates/recommendation-engine-timings.template.json]
   - name: score_products.similarity_pass
     parent: score_products
     optional_on: [flutter]
     source: {android: "A:RecommendationEngine.kt:51", ios: "I:RecommendationEngine.swift:69", reactnative: "R:src/sim/recommendations.ts:127"}
-    used_by: [android/workflows/bd-shop-23-android-recommendation-engine-timings.json, ios/workflows/bd-shop-23-ios-recommendation-engine-timings.json]
+    used_by: [workflows/templates/recommendation-engine-timings.template.json]
 
   # iOS persistence hot spots
-  - {name: screen_view_persist, parent: null, platforms: [ios], source: {ios: "I:ScreenLogger.swift:125"}, used_by: [ios/workflows/bd-shop-24-ios-persistence-timings.json]}
-  - {name: demo_state_publish, parent: null, platforms: [ios], source: {ios: "I:DemoStateFile.swift:63"}, used_by: [ios/workflows/bd-shop-24-ios-persistence-timings.json]}
+  - {name: screen_view_persist, parent: null, platforms: [ios], source: {ios: "I:ScreenLogger.swift:125"}, used_by: [workflows/ios-persistence-timings.json]}
+  - {name: demo_state_publish, parent: null, platforms: [ios], source: {ios: "I:DemoStateFile.swift:63"}, used_by: [workflows/ios-persistence-timings.json]}
 
 # Metrics demo ("Metrics" button): metric_values once per second.
 metrics_demo:

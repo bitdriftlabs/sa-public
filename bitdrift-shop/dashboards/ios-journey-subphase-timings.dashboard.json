@@ -1,13 +1,13 @@
 {
-  "name": "iOS \u2014 Screen Load Timings",
+  "name": "iOS \u2014 Journey Sub-Phase Timings",
   "tabs": [
     {
-      "name": "Screen loads",
+      "name": "Journey sub-phases",
       "stylistic_components": [
         {
           "id": "t-intro-h",
           "text_component": {
-            "text": "iOS \u2014 how long does each screen take to load?",
+            "text": "iOS \u2014 where does simulated-journey time go, sub-phase by sub-phase?",
             "variant": "h2"
           },
           "dashboard_layout_settings": {
@@ -20,7 +20,7 @@
         {
           "id": "t-intro-p",
           "text_component": {
-            "text": "Standalone root spans (not nested under any journey span) wrapping each screen's `.task` data fetch \u2014 see `welcome_screen_load`'s comment in Screens.swift for why they aren't nested. Because workflow matching runs on-device against every span as it's emitted, these are exact per-session numbers, not a sample. `catalog_serialize` runs on every Browse load regardless of Rec v2 \u2014 the flag only gates whether the resulting string goes on to be consumed; `product_image_load` fires once per visible product thumbnail, so a screen with N rows contributes N samples. See bd-shop-21 in workflows/.",
+            "text": "Children of the journey/product_discovery/checkout spans in SimulationManager.swift, passed as an explicit parentSpanID (not an ambient context stack \u2014 see the commit messages for why). The committed default is the full random journey (local.xcconfig: SIMPLIFIED_JOURNEY_ENABLED = NO), where all six spans populate. discovery_fetch/product_view/cart_assembly additionally have call sites in the simplified fixed-path journey, so those charts still fill in when someone opts into that mode. wishlist_add is the exception: the simplified path never visits Wishlist, so that one chart alone goes empty under simplified mode. See bd-shop-22 in workflows/.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
@@ -29,28 +29,91 @@
             "column_span": 12,
             "row_span": 8
           }
+        },
+        {
+          "id": "t-compared-h",
+          "text_component": {
+            "text": "All phases, compared",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 11,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "t-detail-h",
+          "text_component": {
+            "text": "Per-phase detail (full P50/P90/P99)",
+            "variant": "h3"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 30,
+            "column_span": 12,
+            "row_span": 3
+          }
         }
       ],
       "charts": [
+        {
+          "id": "c-compared",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__WF_ios_journey_subphase_timings__",
+                "chart_rule_id": "hist-compared"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 14,
+              "column_span": 12,
+              "row_span": 16
+            },
+            "chart_metadata": {
+              "title": "Journey sub-phases compared (one line per phase)",
+              "summary": {
+                "description": "Pick a single percentile from the chart dropdown to compare all phases on one axis."
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Duration",
+                    "y_axis": {
+                      "description": "Duration",
+                      "unit": "MILLISECONDS"
+                    },
+                    "sort_order": "MAX",
+                    "connector_export_config": []
+                  }
+                ]
+              }
+            }
+          }
+        },
         {
           "id": "c-0",
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "t8u9",
-                "chart_rule_id": "hist-welcome-screen"
+                "workflow_id": "__WF_ios_journey_subphase_timings__",
+                "chart_rule_id": "hist-discovery-fetch"
               }
             },
             "layout_settings": {
               "x": 0,
-              "y": 11,
+              "y": 33,
               "column_span": 6,
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Welcome screen load",
+              "title": "Discovery fetch",
               "summary": {
-                "description": "WelcomeScreen.task \u2014 getWelcome() + fetchLatestSDKVersion()"
+                "description": "Browse/Search/Categories fetch \u2014 whichever the sim picked this run"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -74,20 +137,20 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "t8u9",
-                "chart_rule_id": "hist-browse-screen"
+                "workflow_id": "__WF_ios_journey_subphase_timings__",
+                "chart_rule_id": "hist-product-view"
               }
             },
             "layout_settings": {
               "x": 6,
-              "y": 11,
+              "y": 33,
               "column_span": 6,
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Browse screen load",
+              "title": "Product view",
               "summary": {
-                "description": "BrowseScreen.task \u2014 getBrowse() + product list extraction"
+                "description": "ProductDetail fetch + maybe-Reviews (full journey only)"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -111,20 +174,20 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "t8u9",
-                "chart_rule_id": "hist-catalog-serialize"
+                "workflow_id": "__WF_ios_journey_subphase_timings__",
+                "chart_rule_id": "hist-wishlist-add"
               }
             },
             "layout_settings": {
               "x": 0,
-              "y": 25,
+              "y": 47,
               "column_span": 6,
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Catalog re-serialize (Browse)",
+              "title": "Wishlist add",
               "summary": {
-                "description": "Child of browse_screen_load \u2014 the .serialized re-encode, run on every Browse load; Rec v2 only gates whether the result is consumed"
+                "description": "Only opens when the roll actually adds to wishlist \u2014 full journey only, sparse by design"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -148,20 +211,20 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "t8u9",
-                "chart_rule_id": "hist-product-detail"
+                "workflow_id": "__WF_ios_journey_subphase_timings__",
+                "chart_rule_id": "hist-cart-assembly"
               }
             },
             "layout_settings": {
               "x": 6,
-              "y": 25,
+              "y": 47,
               "column_span": 6,
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Product detail load",
+              "title": "Cart assembly",
               "summary": {
-                "description": "ProductDetailScreen.task \u2014 getProduct() + conditional full catalog fetch when Rec v2 is on"
+                "description": "Extra items, remove, empty-and-rebuild, flip, final view \u2014 previously ran inside no span at all"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -185,20 +248,20 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "t8u9",
-                "chart_rule_id": "hist-cart-screen"
+                "workflow_id": "__WF_ios_journey_subphase_timings__",
+                "chart_rule_id": "hist-checkout-payment"
               }
             },
             "layout_settings": {
               "x": 0,
-              "y": 39,
+              "y": 61,
               "column_span": 6,
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Cart screen load",
+              "title": "Checkout: payment sub-phase",
               "summary": {
-                "description": "CartScreen.task \u2014 getCart()/addToCart(), FAILURE-ended on error"
+                "description": "The shared runPayment() call site for all four payment methods"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -222,131 +285,20 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "t8u9",
-                "chart_rule_id": "hist-checkout-screen"
+                "workflow_id": "__WF_ios_journey_subphase_timings__",
+                "chart_rule_id": "hist-checkout-confirmation"
               }
             },
             "layout_settings": {
               "x": 6,
-              "y": 39,
+              "y": 61,
               "column_span": 6,
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Checkout screen load (guest+signin)",
+              "title": "Checkout: confirmation sub-phase",
               "summary": {
-                "description": "CheckoutGuestScreen/CheckoutSignInScreen.task \u2014 checkout_type field distinguishes them"
-              },
-              "metric_chart_metadata": {
-                "time_series_display_mode": {},
-                "metadata": [
-                  {
-                    "title": "Duration",
-                    "y_axis": {
-                      "description": "Duration",
-                      "unit": "MILLISECONDS"
-                    },
-                    "sort_order": "MAX",
-                    "connector_export_config": []
-                  }
-                ]
-              }
-            }
-          }
-        },
-        {
-          "id": "c-6",
-          "chart_component_layout": {
-            "chart_id": {
-              "workflow": {
-                "workflow_id": "t8u9",
-                "chart_rule_id": "hist-payment-screen"
-              }
-            },
-            "layout_settings": {
-              "x": 0,
-              "y": 53,
-              "column_span": 6,
-              "row_span": 14
-            },
-            "chart_metadata": {
-              "title": "Payment screen load",
-              "summary": {
-                "description": "PaymentScreen.task \u2014 the actual payment-processing sub-phase"
-              },
-              "metric_chart_metadata": {
-                "time_series_display_mode": {},
-                "metadata": [
-                  {
-                    "title": "Duration",
-                    "y_axis": {
-                      "description": "Duration",
-                      "unit": "MILLISECONDS"
-                    },
-                    "sort_order": "MAX",
-                    "connector_export_config": []
-                  }
-                ]
-              }
-            }
-          }
-        },
-        {
-          "id": "c-7",
-          "chart_component_layout": {
-            "chart_id": {
-              "workflow": {
-                "workflow_id": "t8u9",
-                "chart_rule_id": "hist-confirmation-screen"
-              }
-            },
-            "layout_settings": {
-              "x": 6,
-              "y": 53,
-              "column_span": 6,
-              "row_span": 14
-            },
-            "chart_metadata": {
-              "title": "Confirmation screen load",
-              "summary": {
-                "description": "ConfirmationScreen.task \u2014 getConfirmation()"
-              },
-              "metric_chart_metadata": {
-                "time_series_display_mode": {},
-                "metadata": [
-                  {
-                    "title": "Duration",
-                    "y_axis": {
-                      "description": "Duration",
-                      "unit": "MILLISECONDS"
-                    },
-                    "sort_order": "MAX",
-                    "connector_export_config": []
-                  }
-                ]
-              }
-            }
-          }
-        },
-        {
-          "id": "c-8",
-          "chart_component_layout": {
-            "chart_id": {
-              "workflow": {
-                "workflow_id": "t8u9",
-                "chart_rule_id": "hist-product-image"
-              }
-            },
-            "layout_settings": {
-              "x": 0,
-              "y": 67,
-              "column_span": 6,
-              "row_span": 14
-            },
-            "chart_metadata": {
-              "title": "Product image load",
-              "summary": {
-                "description": "SpannedAsyncImage \u2014 replaces AsyncImage to expose a per-thumbnail load span"
+                "description": "Closes the checkout waterfall: checkout -> payment -> confirmation"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},

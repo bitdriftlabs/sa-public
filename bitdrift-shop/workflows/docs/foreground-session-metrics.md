@@ -85,18 +85,18 @@ adapted to an iOS-equivalent crash-context field.
 ## Deploy
 
 ```bash
-WORKFLOW_ID=$(bd workflow create workflows/bd-shop-13-foreground-session-count.json \
-  --chart-metadata-file workflows/chart-metadata/bd-shop-13-foreground-session-count.chart.json \
+WORKFLOW_ID=$(bd workflow create ../../workflows/foreground-session-count.json \
+  --chart-metadata-file ../../workflows/chart-metadata/foreground-session-count.chart.json \
   -ojson --jq '.id' -r)
 bd workflow deploy "$WORKFLOW_ID"
 
-WORKFLOW_ID=$(bd workflow create workflows/bd-shop-14-foreground-session-duration.json \
-  --chart-metadata-file workflows/chart-metadata/bd-shop-14-foreground-session-duration.chart.json \
+WORKFLOW_ID=$(bd workflow create ../../workflows/foreground-session-duration.json \
+  --chart-metadata-file ../../workflows/chart-metadata/foreground-session-duration.chart.json \
   -ojson --jq '.id' -r)
 bd workflow deploy "$WORKFLOW_ID"
 
-WORKFLOW_ID=$(bd workflow create workflows/bd-shop-15-crash-rate-per-foreground.json \
-  --chart-metadata-file workflows/chart-metadata/bd-shop-15-crash-rate-per-foreground.chart.json \
+WORKFLOW_ID=$(bd workflow create ../../workflows/crash-rate-per-foreground.json \
+  --chart-metadata-file ../../workflows/chart-metadata/crash-rate-per-foreground.chart.json \
   -ojson --jq '.id' -r)
 bd workflow deploy "$WORKFLOW_ID"
 ```

@@ -136,10 +136,10 @@ Look for `crash_context` in the field list and compare it against which workflow
 ## Deploy
 
 ```bash
-bd workflow create workflows/bd-shop-06-crash-foreground.json \
-  --chart-metadata-file workflows/chart-metadata/bd-shop-06-crash-foreground.chart.json
-bd workflow create workflows/bd-shop-07-crash-background.json \
-  --chart-metadata-file workflows/chart-metadata/bd-shop-07-crash-background.chart.json
+bd workflow create ../../workflows/crash-foreground.json \
+  --chart-metadata-file ../../workflows/chart-metadata/crash-foreground.chart.json
+bd workflow create ../../workflows/crash-background.json \
+  --chart-metadata-file ../../workflows/chart-metadata/crash-background.chart.json
 ```
 
 ### Optional: clearer graph-node titles
@@ -160,7 +160,7 @@ cat > /tmp/bd-shop-06.metadata.json <<'EOF'
 }
 EOF
 bd workflow update --workflow-id <ID> \
-  --workflow-file workflows/bd-shop-06-crash-foreground.json \
+  --workflow-file ../../workflows/crash-foreground.json \
   --metadata-file /tmp/bd-shop-06.metadata.json
 ```
 

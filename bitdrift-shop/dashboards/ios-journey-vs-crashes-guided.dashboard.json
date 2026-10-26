@@ -141,7 +141,7 @@
           "chart_component_layout": {
             "chart_id": {
               "sankey_chart": {
-                "workflow_id": "yhl5",
+                "workflow_id": "__WF_ios_crash_terminal_sankey__",
                 "rule_id": "crash-terminal-sankey"
               }
             },
@@ -165,7 +165,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "yhl5",
+                "workflow_id": "__WF_ios_crash_terminal_sankey__",
                 "chart_rule_id": "flow-closed-count"
               }
             },
@@ -191,7 +191,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "yhl5",
+                "workflow_id": "__WF_ios_crash_terminal_sankey__",
                 "chart_rule_id": "crash-alone-count"
               }
             },
@@ -217,7 +217,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow_funnel_chart": {
-                "workflow_id": "DVE2",
+                "workflow_id": "__WF_ios_journey_vs_crashes__",
                 "funnel_rule_id": "journey-funnel"
               }
             },
@@ -251,7 +251,7 @@
           "chart_component_layout": {
             "chart_id": {
               "sankey_chart": {
-                "workflow_id": "DVE2",
+                "workflow_id": "__WF_ios_journey_vs_crashes__",
                 "rule_id": "journey-sankey"
               }
             },
@@ -275,7 +275,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "DVE2",
+                "workflow_id": "__WF_ios_journey_vs_crashes__",
                 "chart_rule_id": "conversions"
               }
             },
@@ -301,7 +301,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "DVE2",
+                "workflow_id": "__WF_ios_journey_vs_crashes__",
                 "chart_rule_id": "screen-visits-by-name"
               }
             },
@@ -327,7 +327,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "DVE2",
+                "workflow_id": "__WF_ios_journey_vs_crashes__",
                 "chart_rule_id": "crashes-by-last-screen"
               }
             },
@@ -353,7 +353,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "DVE2",
+                "workflow_id": "__WF_ios_journey_vs_crashes__",
                 "chart_rule_id": "terminations-by-reason"
               }
             },
@@ -491,7 +491,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "55Um",
+                "workflow_id": "__WF_ios_crashes_by_last_screen_live__",
                 "chart_rule_id": "crashes-by-came-from"
               }
             },
@@ -517,7 +517,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "55Um",
+                "workflow_id": "__WF_ios_crashes_by_last_screen_live__",
                 "chart_rule_id": "crashes-by-path"
               }
             },
@@ -543,7 +543,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "55Um",
+                "workflow_id": "__WF_ios_crashes_by_last_screen_live__",
                 "chart_rule_id": "crashes-by-last-screen-live"
               }
             },
@@ -569,7 +569,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "55Um",
+                "workflow_id": "__WF_ios_crashes_by_last_screen_live__",
                 "chart_rule_id": "screen-attribution-by-error"
               }
             },
@@ -595,7 +595,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "55Um",
+                "workflow_id": "__WF_ios_crashes_by_last_screen_live__",
                 "chart_rule_id": "crashes-by-error-name"
               }
             },

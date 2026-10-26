@@ -27,14 +27,14 @@ flags:
     values: {control: random, variant_a: guest, variant_b: signin}
     mirror_field: ff_checkout_flow
     source: {android: "A:SimulationManager.kt:103", ios: "I:SimulationManager.swift:126", reactnative: "R:src/sim/variants.ts:30", flutter: "F:sim/simulator.dart:122"}
-    used_by: [android/workflows/bd-shop-01-checkout-funnel.json, android/workflows/bd-shop-04-span-durations.json]
+    used_by: [workflows/user-journey-sankey.json, workflows/span-durations.json]
 
   - name: payment_ui
     kind: persona
     values: {control: random, variant_a: digital, variant_b: card}
     mirror_field: ff_payment_ui
     source: {android: "A:SimulationManager.kt:104", ios: "I:SimulationManager.swift:127", reactnative: "R:src/sim/variants.ts:31", flutter: "F:sim/simulator.dart:123"}
-    used_by: [android/workflows/bd-shop-02-payment-errors.json]
+    used_by: [workflows/payment-errors.json]
 
   - name: cart_abandon_rate
     kind: persona
@@ -64,7 +64,7 @@ flags:
     notes: "Name kept as anr_a on iOS too (main-thread hang), for parity with bd-shop-05. Toggle is only selectable while Variant A is active and auto-clears otherwise (A:Screens.kt:258, R:src/context/SimulationContext.tsx:134)."
     optional_on: [flutter]
     source: {android: "A:SimulationManager.kt:123", ios: "I:SimulationManager.swift:143", reactnative: "R:src/sim/variants.ts:60"}
-    used_by: [android/workflows/bd-shop-05-anr-force-quit.json]
+    used_by: [workflows/anr-force-quit.json]
 
   - name: force_quit
     kind: toggle
@@ -73,7 +73,7 @@ flags:
     mirror_field: ff_force_quit
     optional_on: [flutter]
     source: {android: "A:SimulationManager.kt:126", ios: "I:SimulationManager.swift:147", reactnative: "R:src/sim/variants.ts:61"}
-    used_by: [android/workflows/bd-shop-05-anr-force-quit.json]
+    used_by: [workflows/anr-force-quit.json]
 
   - name: recommendations_v2
     kind: toggle
@@ -82,7 +82,7 @@ flags:
     mirror_field: ff_recommendations_v2
     optional_on: [flutter]
     source: {android: "A:SimulationManager.kt:129", ios: "I:SimulationManager.swift:151", reactnative: "R:src/sim/variants.ts:62"}
-    used_by: [android/workflows/bd-shop-11-slow-rendering.json, android/workflows/bd-shop-11b-slow-rendering-manual-span.json]
+    used_by: [workflows/slow-rendering.json, workflows/slow-rendering-manual-span.json]
 
   # Install-persistent flags (hard cap 3, A:PersistentFeatureFlags.kt:30). Android only today.
   - name: express_checkout
@@ -92,7 +92,7 @@ flags:
     platforms: [android]
     persisted: {android: "SharedPreferences persistent_flags/express_checkout"}
     source: {android: "A:PersistentFeatureFlags.kt:24"}
-    used_by: [android/workflows/bd-shop-31-feature-flag-sessions.json]
+    used_by: [workflows/feature-flag-sessions.json]
   - name: product_card_layout
     kind: persistent
     values: [grid, list]
@@ -100,7 +100,7 @@ flags:
     platforms: [android]
     persisted: {android: "SharedPreferences persistent_flags/product_card_layout"}
     source: {android: "A:PersistentFeatureFlags.kt:25"}
-    used_by: [android/workflows/bd-shop-31-feature-flag-sessions.json]
+    used_by: [workflows/feature-flag-sessions.json]
   - name: free_shipping_banner
     kind: persistent
     values: [control, treatment]
@@ -108,7 +108,7 @@ flags:
     platforms: [android]
     persisted: {android: "SharedPreferences persistent_flags/free_shipping_banner"}
     source: {android: "A:PersistentFeatureFlags.kt:26"}
-    used_by: [android/workflows/bd-shop-31-feature-flag-sessions.json]
+    used_by: [workflows/feature-flag-sessions.json]
 
 # KMP (best effort, not validated): sets flag values to the variant name and
 # anr_a/force_quit to "injected" (wip-kotlin-multiplatform/shared/.../SimVariants.kt:81,

@@ -179,7 +179,7 @@ the dashboard in real time.
 |---------|-------------|----------------|
 | **SDK dependency** | `capture-ios` 0.24.2 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
 | **Logger startup** | `Logger.start(withAPIKey:sessionStrategy:configuration:fieldProviders:)` in `App.init()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
-| **Session strategy** | `.fixed()` — mints a fresh session on every process start, matching the Android app's `SessionStrategy.Fixed()`. Was `.activityBased()`, which is what let `bd-shop-19`'s crash-terminal Sankey close (see [workflows/README.md](workflows/README.md#journey-to-crash-sankey-it-depends-on-session-strategy)) — that Sankey now reads empty under `.fixed()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
+| **Session strategy** | `.fixed()` — mints a fresh session on every process start, matching the Android app's `SessionStrategy.Fixed()`. Was `.activityBased()`, which is what let `bd-shop-19`'s crash-terminal Sankey close (see [../workflows/docs/ios-workflows.md](../workflows/docs/ios-workflows.md#journey-to-crash-sankey-it-depends-on-session-strategy)) — that Sankey now reads empty under `.fixed()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Network capture** | `.enableIntegrations([.urlSession()])` — automatic, no per-call code | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Path templates** | `x-capture-path-template` header on parameterised routes | [ApiClient.swift](BitdriftShop/ApiClient.swift) |
 | **Screen views** | `Logger.logScreenView(screenName:)`, centrally from `Navigator` | [Navigator.swift](BitdriftShop/Navigator.swift), [ScreenLogger.swift](BitdriftShop/ScreenLogger.swift) |
@@ -220,7 +220,7 @@ cross-platform comparisons in a dashboard are apples to apples.
 
 `SIMPLIFIED_JOURNEY_ENABLED = YES` in `.local.xcconfig` replaces the randomized
 funnel above with a fixed, non-random 7-step path, matching
-[`bd-shop-17`](workflows/bd-shop-17-ios-journey-vs-crashes.json)'s funnel stages
+[`bd-shop-17`](../workflows/ios-journey-vs-crashes.json)'s funnel stages
 1:1 so the funnel chart reads as a clean staircase:
 
 ```
@@ -314,7 +314,7 @@ the defect is a runtime performance characteristic.
 On Android this is caught by the OOTB `DROPPED_FRAME` condition. **That condition
 is Android-only**, so on iOS the `score_products` span wrapped around each call
 site is the detection path — the shape
-[`bd-shop-11b-slow-rendering-manual-span.json`](../android/workflows/bd-shop-11b-slow-rendering-manual-span.json)
+[`bd-shop-11b-slow-rendering-manual-span.json`](../workflows/slow-rendering-manual-span.json)
 matches on. Background and walkthrough:
 [demo-slow-rendering.md](../android/demo-slow-rendering.md).
 
@@ -474,116 +474,24 @@ the setting survives the watchdog's subsequent relaunches. Clear it with
 
 ## Deploy workflows and dashboards
 
-The `bd-shop-*` workflows and dashboards in [`../android/workflows/`](../android/workflows/)
-and [`../android/dashboards/`](../android/dashboards/) apply to this app too — the
-event names, field names, screen names, and span names all match. Two caveats:
-
-- `bd-shop-11-slow-rendering.json` matches Android-only frame detection; use
-  `bd-shop-11b` for iOS.
-- `bd-shop-05-anr-force-quit.json` matches on `anr_*` fields, which this app emits
-  for main-thread hangs.
-
-Use the **bd-cli** skill to deploy them, then filter by `platform == "ios"` (a
-global field set at startup) to separate the two apps, or leave it off to compare
-them.
-
-iOS-specific workflows live in [`workflows/`](workflows/) and the dashboard
-payload in [`dashboards/`](dashboards/). Everything is re-deployable as code:
+The `bd-shop-*` workflows and dashboards live once for all apps in [`../workflows/`](../workflows/) and
+[`../dashboards/`](../dashboards/), described by [`../workflows/manifest.json`](../workflows/manifest.json).
+Deploy this app's set with one command:
 
 ```bash
-./scripts/deploy-workflows.sh
+../tools/bd-deploy.sh ai.bitdrift.shop.ios            # dry run: shows what exists and what would be created
+../tools/bd-deploy.sh ai.bitdrift.shop.ios --apply    # create what is missing (asks first), then the dashboards
 ```
 
-That creates and deploys every `bd-shop-*` iOS workflow plus the two-tab
-**Journey vs Crashes** dashboard. See [`workflows/README.md`](workflows/README.md)
-for what each one shows, the `stop`/`update`/`deploy` rule for editing a live
-workflow, and — measured, not inferred — the conditions under which a crash
-*can* be the terminal node of a Sankey on iOS (`.activityBased()` sessions plus
-a relaunch inside `inactivityThresholdMins`, which is what `bd-shop-19` needs —
-**not currently met**, since the app now runs `.fixed()`, see the Session
-strategy row above) and what `bd-shop-18` does instead when those conditions do
-not hold.
+It finds workflows in the account by exact name, so an account that already has them is left alone, and
+nothing is ever deleted or duplicated. Dashboards get the account's workflow IDs substituted for their
+`__WF_<key>__` placeholders. See [`../workflows/README.md`](../workflows/README.md) for options (updating a
+live workflow, trial runs with a name suffix). What each iOS workflow shows, and the `stop`/`update`/`deploy`
+rule for editing a live one, is in [`../workflows/docs/ios-workflows.md`](../workflows/docs/ios-workflows.md).
 
-Two API quirks the committed payloads work around: `bd dashboard get` returns
-neither `layout_settings` nor row positions, so the checked-in dashboard JSON is
-the only complete record of its layout; and multi-entry chart-metadata files must
-be sent alongside `--workflow-file`, never on their own.
-
-### Span-timing workflows and dashboards
-
-Beyond the crash/journey workflows above, `workflows/bd-shop-20` through
-`bd-shop-24` cover every span added throughout the app — cold start, screen
-loads, journey sub-phases, the recommendation engine, and local persistence
-I/O — each with its own dashboard. Pull these up when demoing performance
-instrumentation specifically:
-
-| Dashboard | Live id | What it shows |
-|---|---|---|
-| [Cold-Start Span Timings](https://explorations.bitdrift.io/dashboards/1rik5G13l_cOcZMr_Oxka) | `1rik5G13l_cOcZMr_Oxka` | `app_cold_start` waterfall: `sdk_init` / `scene_render` / `state_restore` |
-| [Screen Load Timings](https://explorations.bitdrift.io/dashboards/6nkAoIli6rgustvUJA2Es) | `6nkAoIli6rgustvUJA2Es` | 9 spans: "time to data ready" for 7 screens (Welcome, Browse, ProductDetail, Cart, Checkout, Payment, Confirmation — not every screen in the app) plus 2 sub-operations (catalog re-serialize, per-image load) |
-| [Journey Sub-Phase Timings](https://explorations.bitdrift.io/dashboards/7jSnw6WcGPFxYA3D9YtF8) | `7jSnw6WcGPFxYA3D9YtF8` | `discovery_fetch` / `product_view` / `wishlist_add` / `cart_assembly` / `checkout.payment` / `checkout.confirmation` |
-| [Recommendation Engine Timings](https://explorations.bitdrift.io/dashboards/gBqNwTjMdc0KKL4bRD64C) | `gBqNwTjMdc0KKL4bRD64C` | `score_products`: parse vs. the O(n·m) similarity pass |
-| [Persistence I/O Timings](https://explorations.bitdrift.io/dashboards/GuxEP0btHJDxhTv5TtNrb) | `GuxEP0btHJDxhTv5TtNrb` | `screen_view_persist` vs. `demo_state_publish` |
-
-These links are tied to *this* account's dashboard IDs (the table above) *and*
-workflow IDs (`0pTX`, `t8u9`, `beLW`, `49io`, `qt3D` — see the "Live id" column
-in [`workflows/README.md`](workflows/README.md#span-timings-beyond-cold-start-bd-shop-21-through-bd-shop-24)'s
-table, not the dashboard table above). Deploying to a fresh account means
-creating new workflows and dashboards, whose IDs will differ from both. Each
-dashboard file's `chart_id.workflow.workflow_id` fields reference the
-*workflow* id, so **edit those before creating the dashboard, not after** —
-running `bd dashboard create` against the committed files as-is produces a
-dashboard whose charts still point at the *old* account's workflows:
-
-```bash
-./scripts/deploy-workflows.sh --no-dash   # bd-shop-13 through bd-shop-24, prints each new id
-
-cd workflows
-# Each dashboard file has exactly one workflow_id to replace (grep -o
-# '"workflow_id": "[^"]*"' <file> to confirm which). Substitute the old id
-# for the new one deploy-workflows.sh just printed, THEN create — same as the
-# guided crash dashboard's deploy-workflows.sh substitution, just not
-# automated here since each of these five only has one workflow behind it.
-sed -i '' 's/0pTX/<new-bd-shop-20-id>/' ../dashboards/ios-cold-start-span-timings.dashboard.json
-bd dashboard create --request-file ../dashboards/ios-cold-start-span-timings.dashboard.json
-
-sed -i '' 's/t8u9/<new-bd-shop-21-id>/' ../dashboards/ios-screen-load-timings.dashboard.json
-bd dashboard create --request-file ../dashboards/ios-screen-load-timings.dashboard.json
-
-sed -i '' 's/beLW/<new-bd-shop-22-id>/' ../dashboards/ios-journey-subphase-timings.dashboard.json
-bd dashboard create --request-file ../dashboards/ios-journey-subphase-timings.dashboard.json
-
-sed -i '' 's/49io/<new-bd-shop-23-id>/' ../dashboards/ios-recommendation-engine-timings.dashboard.json
-bd dashboard create --request-file ../dashboards/ios-recommendation-engine-timings.dashboard.json
-
-sed -i '' 's/qt3D/<new-bd-shop-24-id>/' ../dashboards/ios-persistence-timings.dashboard.json
-bd dashboard create --request-file ../dashboards/ios-persistence-timings.dashboard.json
-```
-
-Don't run these `sed` commands against *this* account's own copies of the
-files — they're meant for a one-time substitution when standing up a fresh
-account, not for the checked-in files, which must keep referencing this
-account's real IDs.
-
-Before demoing these, two things worth doing first:
-
-- **Make sure the backend is actually reachable.** Every span behind an API
-  call (most of the Screen Load Timings dashboard) times out identically and
-  silently if `.local.xcconfig`'s `SHOP_BACKEND_URL` has drifted — see the
-  comment there and [`workflows/README.md`](workflows/README.md#a-live-example-of-why-the-unitslabels-matter-silent-backend-drift)
-  for what that looks like on a chart (several unrelated spans reporting the
-  exact same duration) and how it was caught.
-- **Toggle Rec v2** if you want the Recommendation Engine dashboard populated
-  — off by default, and nothing in the automated sim turns it on:
-  ```bash
-  xcrun simctl launch <udid> ai.bitdrift.shop.ios -recommendations.active 1
-  ```
-
-See [`workflows/README.md`](workflows/README.md) for the full per-workflow
-breakdown, caveats (which spans are conditional/per-row, which only populate
-under the full journey vs. the simplified one, session-boundary rules), and
-the `ColdStartSpans`/`SpannedAsyncImage`/`CaptureBridge.trackSpan` source
-pointers for each span.
+Caveats when using the Android workflows with this app: `slow-rendering` matches Android-only frame detection
+(use `slow-rendering-manual-span` for iOS), and `anr-force-quit` matches on `anr_*` fields, which this app emits
+for main-thread hangs. Filter by `platform == "ios"` (a global field set at startup) to separate the two apps.
 
 ## Project layout
 

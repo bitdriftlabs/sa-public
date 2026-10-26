@@ -58,7 +58,7 @@
           "id": "cs-compared",
           "chart_component_layout": {
             "chart_id": {
-              "workflow": { "workflow_id": "0pTX", "chart_rule_id": "hist-phases-compared" }
+              "workflow": { "workflow_id": "__WF_ios_cold_start_span_timings__", "chart_rule_id": "hist-phases-compared" }
             },
             "layout_settings": { "x": 0, "y": 18, "column_span": 12, "row_span": 16 },
             "chart_metadata": {
@@ -84,7 +84,7 @@
           "id": "cs-root",
           "chart_component_layout": {
             "chart_id": {
-              "workflow": { "workflow_id": "0pTX", "chart_rule_id": "hist-root" }
+              "workflow": { "workflow_id": "__WF_ios_cold_start_span_timings__", "chart_rule_id": "hist-root" }
             },
             "layout_settings": { "x": 0, "y": 41, "column_span": 6, "row_span": 14 },
             "chart_metadata": {
@@ -108,7 +108,7 @@
           "id": "cs-sdk-init",
           "chart_component_layout": {
             "chart_id": {
-              "workflow": { "workflow_id": "0pTX", "chart_rule_id": "hist-sdk-init" }
+              "workflow": { "workflow_id": "__WF_ios_cold_start_span_timings__", "chart_rule_id": "hist-sdk-init" }
             },
             "layout_settings": { "x": 6, "y": 41, "column_span": 6, "row_span": 14 },
             "chart_metadata": {
@@ -132,7 +132,7 @@
           "id": "cs-scene-render",
           "chart_component_layout": {
             "chart_id": {
-              "workflow": { "workflow_id": "0pTX", "chart_rule_id": "hist-scene-render" }
+              "workflow": { "workflow_id": "__WF_ios_cold_start_span_timings__", "chart_rule_id": "hist-scene-render" }
             },
             "layout_settings": { "x": 0, "y": 55, "column_span": 6, "row_span": 14 },
             "chart_metadata": {
@@ -156,7 +156,7 @@
           "id": "cs-state-restore",
           "chart_component_layout": {
             "chart_id": {
-              "workflow": { "workflow_id": "0pTX", "chart_rule_id": "hist-state-restore" }
+              "workflow": { "workflow_id": "__WF_ios_cold_start_span_timings__", "chart_rule_id": "hist-state-restore" }
             },
             "layout_settings": { "x": 6, "y": 55, "column_span": 6, "row_span": 14 },
             "chart_metadata": {

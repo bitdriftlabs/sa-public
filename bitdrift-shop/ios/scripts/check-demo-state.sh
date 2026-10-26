@@ -22,6 +22,9 @@ set -uo pipefail
 
 # shellcheck source=demo-lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo-lib.sh"
+# Persisted fault store names come from spec/faults.yaml (generated).
+# shellcheck source=../../scripts/lib/generated/faults.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../scripts/lib" && pwd)/generated/faults.sh"
 
 RESET=0
 parse_target_flags "$@"
@@ -78,15 +81,15 @@ if [[ "$RESET" -eq 1 ]]; then
 fi
 
 FLAGS=(
-  "crash_loop|Crash loop"
+  "${FAULT_STORE_CRASH_LOOP_IOS}|Crash loop"
   "fast_crash|Fast crash mode"
   "oom_only|OOM crashes only"
   "resume_infinite_with_crash|Resume infinite after crash"
-  "app_hang|Hang-A (main-thread hang)"
-  "app_hang_restart_pending|Hang restart pending"
-  "force_quit|Force quit"
-  "force_quit_restart_pending|Force-quit restart pending"
-  "auto_infinite|Auto infinite sim on launch"
+  "${FAULT_STORE_ANR_IOS}|Hang-A (main-thread hang)"
+  "${FAULT_STORE_ANR_IOS}_restart_pending|Hang restart pending"
+  "${FAULT_STORE_FORCE_QUIT_IOS}|Force quit"
+  "${FAULT_STORE_FORCE_QUIT_IOS}_restart_pending|Force-quit restart pending"
+  "${FAULT_STORE_AUTO_INFINITE_IOS}|Auto infinite sim on launch"
   "awaiting_background|Background crash armed"
   "recommendations_v2|Rec v2 (score_products spans)"
 )

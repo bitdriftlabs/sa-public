@@ -1,13 +1,13 @@
 {
-  "name": "iOS \u2014 Persistence I/O Timings",
+  "name": "Android \u2014 Recommendation Engine Timings",
   "tabs": [
     {
-      "name": "Persistence I/O",
+      "name": "Recommendation engine",
       "stylistic_components": [
         {
-          "id": "t-intro-h",
+          "id": "t-h",
           "text_component": {
-            "text": "iOS \u2014 what does local UserDefaults/file I/O actually cost?",
+            "text": "Android \u2014 is a slow score_products call parsing, or the similarity pass?",
             "variant": "h2"
           },
           "dashboard_layout_settings": {
@@ -18,9 +18,9 @@
           }
         },
         {
-          "id": "t-intro-p",
+          "id": "t-p",
           "text_component": {
-            "text": "screen_view_persist wraps the UserDefaults write+flush that fires on every single screen transition (flush() calls the deprecated, main-thread-blocking UserDefaults.synchronize()) \u2014 the highest-frequency span in the app. demo_state_publish wraps the JSON serialize + atomic file write scripts/watchdog.sh reads; demo-only bookkeeping, not representative of production behavior, but it runs on the main actor so a slow write blocks the UI for real. See bd-shop-24 in workflows/.",
+            "text": "score_products is the slow-rendering trap: a Levenshtein pass over each product's full JSON profile, run unmemoized from a Composable. These two children isolate which half actually costs. Gated behind recommendationsV2Enabled (the Rec v2 toggle on the Advanced screen) \u2014 off by default, so this dashboard is empty until it's switched on.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
@@ -31,7 +31,7 @@
           }
         },
         {
-          "id": "t-compared-h",
+          "id": "t-c",
           "text_component": {
             "text": "All phases, compared",
             "variant": "h3"
@@ -44,7 +44,7 @@
           }
         },
         {
-          "id": "t-detail-h",
+          "id": "t-d",
           "text_component": {
             "text": "Per-phase detail (full P50/P90/P99)",
             "variant": "h3"
@@ -59,11 +59,11 @@
       ],
       "charts": [
         {
-          "id": "c-compared",
+          "id": "c-cmp",
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "qt3D",
+                "workflow_id": "__WF_android_recommendation_engine_timings__",
                 "chart_rule_id": "hist-compared"
               }
             },
@@ -74,9 +74,9 @@
               "row_span": 16
             },
             "chart_metadata": {
-              "title": "screen_view_persist vs demo_state_publish, compared",
+              "title": "All phases compared (one line per phase)",
               "summary": {
-                "description": "Pick a single percentile from the chart dropdown to compare all phases on one axis."
+                "description": "Pick a single percentile from the chart dropdown to compare every phase on one axis."
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -100,8 +100,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "qt3D",
-                "chart_rule_id": "hist-screen-view-persist"
+                "workflow_id": "__WF_android_recommendation_engine_timings__",
+                "chart_rule_id": "hist-parse-catalog"
               }
             },
             "layout_settings": {
@@ -111,9 +111,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "screen_view_persist",
+              "title": "score_products: parse catalog JSON",
               "summary": {
-                "description": "UserDefaults write+flush, fires on every screen transition"
+                "description": "JSONArray parse of the catalog string \u2014 typically near-instant"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -137,8 +137,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "qt3D",
-                "chart_rule_id": "hist-demo-state-publish"
+                "workflow_id": "__WF_android_recommendation_engine_timings__",
+                "chart_rule_id": "hist-similarity-pass"
               }
             },
             "layout_settings": {
@@ -148,9 +148,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "demo_state_publish",
+              "title": "score_products: similarity pass",
               "summary": {
-                "description": "JSON serialize + atomic file write, called from many fault-injection call sites"
+                "description": "The O(n*m) Levenshtein comparison per product \u2014 the real cost centre"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},

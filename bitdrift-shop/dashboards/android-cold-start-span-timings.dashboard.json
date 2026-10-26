@@ -1,13 +1,13 @@
 {
-  "name": "iOS \u2014 Journey Sub-Phase Timings",
+  "name": "Android \u2014 Cold-Start Span Timings",
   "tabs": [
     {
-      "name": "Journey sub-phases",
+      "name": "Cold start",
       "stylistic_components": [
         {
-          "id": "t-intro-h",
+          "id": "t-h",
           "text_component": {
-            "text": "iOS \u2014 where does simulated-journey time go, sub-phase by sub-phase?",
+            "text": "Android \u2014 where does cold start time actually go?",
             "variant": "h2"
           },
           "dashboard_layout_settings": {
@@ -18,9 +18,9 @@
           }
         },
         {
-          "id": "t-intro-p",
+          "id": "t-p",
           "text_component": {
-            "text": "Children of the journey/product_discovery/checkout spans in SimulationManager.swift, passed as an explicit parentSpanID (not an ambient context stack \u2014 see the commit messages for why). The committed default is the full random journey (local.xcconfig: SIMPLIFIED_JOURNEY_ENABLED = NO), where all six spans populate. discovery_fetch/product_view/cart_assembly additionally have call sites in the simplified fixed-path journey, so those charts still fill in when someone opts into that mode. wishlist_add is the exception: the simplified path never visits Wishlist, so that one chart alone goes empty under simplified mode. See bd-shop-22 in workflows/.",
+            "text": "app_cold_start is opened at the end of ShoppingDemoApp.onCreate(), back-dated to process start. Note the Android-specific conversion: appStartUptimeMs is SystemClock.uptimeMillis() (monotonic), but the SDK feeds a custom span start time into LogAttributesOverrides.OccurredAt, an epoch timestamp \u2014 passing uptime straight through would stamp the span in 1970. Three children nest under the root: sdk_init (Logger.start + config), scene_render (Compose standing the activity up through the startup effect), state_restore (demo prefs/flag bookkeeping). Same span names as iOS bd-shop-20.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
@@ -31,7 +31,7 @@
           }
         },
         {
-          "id": "t-compared-h",
+          "id": "t-c",
           "text_component": {
             "text": "All phases, compared",
             "variant": "h3"
@@ -44,7 +44,7 @@
           }
         },
         {
-          "id": "t-detail-h",
+          "id": "t-d",
           "text_component": {
             "text": "Per-phase detail (full P50/P90/P99)",
             "variant": "h3"
@@ -59,11 +59,11 @@
       ],
       "charts": [
         {
-          "id": "c-compared",
+          "id": "c-cmp",
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "beLW",
+                "workflow_id": "__WF_android_cold_start_span_timings__",
                 "chart_rule_id": "hist-compared"
               }
             },
@@ -74,9 +74,9 @@
               "row_span": 16
             },
             "chart_metadata": {
-              "title": "Journey sub-phases compared (one line per phase)",
+              "title": "All phases compared (one line per phase)",
               "summary": {
-                "description": "Pick a single percentile from the chart dropdown to compare all phases on one axis."
+                "description": "Pick a single percentile from the chart dropdown to compare every phase on one axis."
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -100,8 +100,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "beLW",
-                "chart_rule_id": "hist-discovery-fetch"
+                "workflow_id": "__WF_android_cold_start_span_timings__",
+                "chart_rule_id": "hist-root"
               }
             },
             "layout_settings": {
@@ -111,9 +111,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Discovery fetch",
+              "title": "Cold start \u2014 total duration",
               "summary": {
-                "description": "Browse/Search/Categories fetch \u2014 whichever the sim picked this run"
+                "description": "Process start through end of state_restore."
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -137,8 +137,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "beLW",
-                "chart_rule_id": "hist-product-view"
+                "workflow_id": "__WF_android_cold_start_span_timings__",
+                "chart_rule_id": "hist-sdk-init"
               }
             },
             "layout_settings": {
@@ -148,9 +148,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Product view",
+              "title": "sdk_init",
               "summary": {
-                "description": "ProductDetail fetch + maybe-Reviews (full journey only)"
+                "description": "Logger.start(), setEntityId, addField, crash-loop handler install."
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -174,8 +174,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "beLW",
-                "chart_rule_id": "hist-wishlist-add"
+                "workflow_id": "__WF_android_cold_start_span_timings__",
+                "chart_rule_id": "hist-scene-render"
               }
             },
             "layout_settings": {
@@ -185,9 +185,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Wishlist add",
+              "title": "scene_render",
               "summary": {
-                "description": "Only opens when the roll actually adds to wishlist \u2014 full journey only, sparse by design"
+                "description": "Compose standing up the activity, through reaching the startup LaunchedEffect."
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -211,8 +211,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "beLW",
-                "chart_rule_id": "hist-cart-assembly"
+                "workflow_id": "__WF_android_cold_start_span_timings__",
+                "chart_rule_id": "hist-state-restore"
               }
             },
             "layout_settings": {
@@ -222,83 +222,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Cart assembly",
+              "title": "state_restore",
               "summary": {
-                "description": "Extra items, remove, empty-and-rebuild, flip, final view \u2014 previously ran inside no span at all"
-              },
-              "metric_chart_metadata": {
-                "time_series_display_mode": {},
-                "metadata": [
-                  {
-                    "title": "Duration",
-                    "y_axis": {
-                      "description": "Duration",
-                      "unit": "MILLISECONDS"
-                    },
-                    "sort_order": "MAX",
-                    "connector_export_config": []
-                  }
-                ]
-              }
-            }
-          }
-        },
-        {
-          "id": "c-4",
-          "chart_component_layout": {
-            "chart_id": {
-              "workflow": {
-                "workflow_id": "beLW",
-                "chart_rule_id": "hist-checkout-payment"
-              }
-            },
-            "layout_settings": {
-              "x": 0,
-              "y": 61,
-              "column_span": 6,
-              "row_span": 14
-            },
-            "chart_metadata": {
-              "title": "Checkout: payment sub-phase",
-              "summary": {
-                "description": "The shared runPayment() call site for all four payment methods"
-              },
-              "metric_chart_metadata": {
-                "time_series_display_mode": {},
-                "metadata": [
-                  {
-                    "title": "Duration",
-                    "y_axis": {
-                      "description": "Duration",
-                      "unit": "MILLISECONDS"
-                    },
-                    "sort_order": "MAX",
-                    "connector_export_config": []
-                  }
-                ]
-              }
-            }
-          }
-        },
-        {
-          "id": "c-5",
-          "chart_component_layout": {
-            "chart_id": {
-              "workflow": {
-                "workflow_id": "beLW",
-                "chart_rule_id": "hist-checkout-confirmation"
-              }
-            },
-            "layout_settings": {
-              "x": 6,
-              "y": 61,
-              "column_span": 6,
-              "row_span": 14
-            },
-            "chart_metadata": {
-              "title": "Checkout: confirmation sub-phase",
-              "summary": {
-                "description": "Closes the checkout waterfall: checkout -> payment -> confirmation"
+                "description": "SharedPreferences reads/writes and flag resolution in the startup effect."
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},

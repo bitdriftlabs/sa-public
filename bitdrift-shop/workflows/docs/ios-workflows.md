@@ -118,12 +118,12 @@ show up. Relaunch the app once after deploying to get a session the new
 workflow can actually see.
 
 A dashboard composes its 5 charts into one view:
-[`dashboards/ios-cold-start-span-timings.dashboard.json`](../dashboards/ios-cold-start-span-timings.dashboard.json)
+[`../../dashboards/ios-cold-start-span-timings.dashboard.json`](../../dashboards/ios-cold-start-span-timings.dashboard.json)
 (live at workflow id `0pTX`, dashboard id `1rik5G13l_cOcZMr_Oxka`). Deploy it
 with:
 
 ```bash
-bd dashboard create --request-file ../dashboards/ios-cold-start-span-timings.dashboard.json
+bd dashboard create --request-file ../../dashboards/ios-cold-start-span-timings.dashboard.json
 ```
 
 The committed payload's chart components reference `0pTX` directly — if you

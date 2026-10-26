@@ -27,7 +27,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "__BD_SHOP_12_WORKFLOW_ID__",
+                "workflow_id": "__WF_android_metric_grouping__",
                 "chart_rule_id": "work-latency-average"
               }
             },
@@ -61,7 +61,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "__BD_SHOP_12_WORKFLOW_ID__",
+                "workflow_id": "__WF_android_metric_grouping__",
                 "chart_rule_id": "work-latency-histogram"
               }
             },
@@ -95,7 +95,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "__BD_SHOP_12_WORKFLOW_ID__",
+                "workflow_id": "__WF_android_metric_grouping__",
                 "chart_rule_id": "work-latency-table"
               }
             },
@@ -148,7 +148,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "__BD_SHOP_12_WORKFLOW_ID__",
+                "workflow_id": "__WF_android_metric_grouping__",
                 "chart_rule_id": "metrics-chart"
               }
             },
@@ -210,7 +210,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "__BD_SHOP_12_WORKFLOW_ID__",
+                "workflow_id": "__WF_android_metric_grouping__",
                 "chart_rule_id": "counter-chart"
               }
             },

@@ -1,13 +1,13 @@
 {
-  "name": "Android \u2014 Cold-Start Span Timings",
+  "name": "iOS \u2014 Recommendation Engine Timings",
   "tabs": [
     {
-      "name": "Cold start",
+      "name": "Recommendation engine",
       "stylistic_components": [
         {
-          "id": "t-h",
+          "id": "t-intro-h",
           "text_component": {
-            "text": "Android \u2014 where does cold start time actually go?",
+            "text": "iOS \u2014 is a slow score_products call parsing, or the similarity pass?",
             "variant": "h2"
           },
           "dashboard_layout_settings": {
@@ -18,9 +18,9 @@
           }
         },
         {
-          "id": "t-p",
+          "id": "t-intro-p",
           "text_component": {
-            "text": "app_cold_start is opened at the end of ShoppingDemoApp.onCreate(), back-dated to process start. Note the Android-specific conversion: appStartUptimeMs is SystemClock.uptimeMillis() (monotonic), but the SDK feeds a custom span start time into LogAttributesOverrides.OccurredAt, an epoch timestamp \u2014 passing uptime straight through would stamp the span in 1970. Three children nest under the root: sdk_init (Logger.start + config), scene_render (Compose standing the activity up through the startup effect), state_restore (demo prefs/flag bookkeeping). Same span names as iOS bd-shop-20.",
+            "text": "score_products is deliberately the slow-rendering trap described in android/demo-slow-rendering.md: a Levenshtein-similarity pass over each product's full JSON profile, run synchronously and unmemoized from a SwiftUI view body. These two child spans isolate which half is actually slow. Gated behind the recommendationsV2Enabled flag \u2014 off by default; toggle \"Rec v2\" on the Advanced screen, or headlessly: `xcrun simctl launch <udid> ai.bitdrift.shop.ios -recommendations.active 1`. See bd-shop-23 in workflows/.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
@@ -31,7 +31,7 @@
           }
         },
         {
-          "id": "t-c",
+          "id": "t-compared-h",
           "text_component": {
             "text": "All phases, compared",
             "variant": "h3"
@@ -44,7 +44,7 @@
           }
         },
         {
-          "id": "t-d",
+          "id": "t-detail-h",
           "text_component": {
             "text": "Per-phase detail (full P50/P90/P99)",
             "variant": "h3"
@@ -59,11 +59,11 @@
       ],
       "charts": [
         {
-          "id": "c-cmp",
+          "id": "c-compared",
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "RLXS",
+                "workflow_id": "__WF_ios_recommendation_engine_timings__",
                 "chart_rule_id": "hist-compared"
               }
             },
@@ -74,9 +74,9 @@
               "row_span": 16
             },
             "chart_metadata": {
-              "title": "All phases compared (one line per phase)",
+              "title": "parse_catalog vs similarity_pass, compared",
               "summary": {
-                "description": "Pick a single percentile from the chart dropdown to compare every phase on one axis."
+                "description": "Pick a single percentile from the chart dropdown to compare all phases on one axis."
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -100,8 +100,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "RLXS",
-                "chart_rule_id": "hist-root"
+                "workflow_id": "__WF_ios_recommendation_engine_timings__",
+                "chart_rule_id": "hist-parse-catalog"
               }
             },
             "layout_settings": {
@@ -111,9 +111,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "Cold start \u2014 total duration",
+              "title": "score_products: parse catalog JSON",
               "summary": {
-                "description": "Process start through end of state_restore."
+                "description": "JSON.parse() of the whole catalog string \u2014 typically near-instant"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -137,8 +137,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "RLXS",
-                "chart_rule_id": "hist-sdk-init"
+                "workflow_id": "__WF_ios_recommendation_engine_timings__",
+                "chart_rule_id": "hist-similarity-pass"
               }
             },
             "layout_settings": {
@@ -148,83 +148,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "sdk_init",
+              "title": "score_products: similarity pass",
               "summary": {
-                "description": "Logger.start(), setEntityId, addField, crash-loop handler install."
-              },
-              "metric_chart_metadata": {
-                "time_series_display_mode": {},
-                "metadata": [
-                  {
-                    "title": "Duration",
-                    "y_axis": {
-                      "description": "Duration",
-                      "unit": "MILLISECONDS"
-                    },
-                    "sort_order": "MAX",
-                    "connector_export_config": []
-                  }
-                ]
-              }
-            }
-          }
-        },
-        {
-          "id": "c-2",
-          "chart_component_layout": {
-            "chart_id": {
-              "workflow": {
-                "workflow_id": "RLXS",
-                "chart_rule_id": "hist-scene-render"
-              }
-            },
-            "layout_settings": {
-              "x": 0,
-              "y": 47,
-              "column_span": 6,
-              "row_span": 14
-            },
-            "chart_metadata": {
-              "title": "scene_render",
-              "summary": {
-                "description": "Compose standing up the activity, through reaching the startup LaunchedEffect."
-              },
-              "metric_chart_metadata": {
-                "time_series_display_mode": {},
-                "metadata": [
-                  {
-                    "title": "Duration",
-                    "y_axis": {
-                      "description": "Duration",
-                      "unit": "MILLISECONDS"
-                    },
-                    "sort_order": "MAX",
-                    "connector_export_config": []
-                  }
-                ]
-              }
-            }
-          }
-        },
-        {
-          "id": "c-3",
-          "chart_component_layout": {
-            "chart_id": {
-              "workflow": {
-                "workflow_id": "RLXS",
-                "chart_rule_id": "hist-state-restore"
-              }
-            },
-            "layout_settings": {
-              "x": 6,
-              "y": 47,
-              "column_span": 6,
-              "row_span": 14
-            },
-            "chart_metadata": {
-              "title": "state_restore",
-              "summary": {
-                "description": "SharedPreferences reads/writes and flag resolution in the startup effect."
+                "description": "The O(n*m) Levenshtein comparison per product \u2014 the actual cost center"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},

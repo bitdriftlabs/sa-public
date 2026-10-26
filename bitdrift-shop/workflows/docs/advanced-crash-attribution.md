@@ -237,10 +237,10 @@ with the attribution-rate chart tying both together.
 ## Deploy
 
 ```bash
-bd workflow create workflows/bd-shop-08-blocking-thread.json \
-  --chart-metadata-file workflows/chart-metadata/bd-shop-08-blocking-thread.chart.json
-bd workflow create workflows/bd-shop-09-vendor-sdk-attribution.json \
-  --chart-metadata-file workflows/chart-metadata/bd-shop-09-vendor-sdk-attribution.chart.json
-bd workflow create workflows/bd-shop-10-attribution-rate.json \
-  --chart-metadata-file workflows/chart-metadata/bd-shop-10-attribution-rate.chart.json
+bd workflow create ../../workflows/blocking-thread.json \
+  --chart-metadata-file ../../workflows/chart-metadata/blocking-thread.chart.json
+bd workflow create ../../workflows/vendor-sdk-attribution.json \
+  --chart-metadata-file ../../workflows/chart-metadata/vendor-sdk-attribution.chart.json
+bd workflow create ../../workflows/attribution-rate.json \
+  --chart-metadata-file ../../workflows/chart-metadata/attribution-rate.chart.json
 ```

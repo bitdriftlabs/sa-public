@@ -1,7 +1,7 @@
 # Screens: the single list of navigation destinations.
 #
 # `name` is the value passed to logScreenView (the SDK-owned `_screen_name` field).
-# Live workflows match on it (android/workflows/bd-shop-01, ios/workflows/bd-shop-17/19),
+# Live workflows match on it (workflows/user-journey-sankey.json, workflows/ios-journey-vs-crashes.json, workflows/ios-crash-terminal-sankey.json),
 # so Android/iOS values are frozen. `route` is the Android/iOS navigation route template
 # (byte-identical on both). RN uses the screen name as its route; Flutter uses its own
 # route keys (platform_routes) -- routes are not telemetry.

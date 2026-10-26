@@ -6,7 +6,7 @@ the decision, the reason, and workflow impact. Path prefixes: `A:` =
 `reactnative/`, `F:` = `flutter/lib/`.
 
 **Ground rules applied.** Android is the reference. A name that a committed `bd-shop`
-workflow matches on (`android/workflows/*.json`, `ios/workflows/*.json`,
+workflow matches on (`workflows/*.json`, `workflows/templates/*.json`,
 `sessionmetricsdemo/workflows/*.json`) is never renamed on Android or iOS. Every committed
 workflow targets only `ai.bitdrift.shop` (Android) or `ai.bitdrift.shop.ios` (iOS), so the
 React Native (`ai.bitdrift.rn.shop`) and Flutter (`ai.bitdrift.shop.flutter`) apps have
@@ -292,13 +292,13 @@ KMP adopts the generated constants when it is next touched (plan §1).
 
 ### OPEN-3: Where in the journey does the crash loop fire? — **RESOLVED 2026-10-26 (Phase 4): (a) iOS's random back-half point, everywhere**
 - **Decision (the plan's recommendation, applied in Phase 4):** while the crash loop is on, the journey engine draws one of `crash_points` (cart, checkout, payment, payment_failed, confirmation) per journey. It fires at that `crash_point` step, with `confirmation` as the fallback so the sweep never stalls, and sets the global field `crash_journey_point` on every app (it was iOS-only).
-- **Workflow impact:** `ios/workflows/bd-shop-15-crashes-by-final-screen.json` keeps working. While the crash loop runs on Android, fewer journeys reach Confirmation, which lowers `bd-shop-01` completions.
+- **Workflow impact:** `workflows/crashes-by-final-screen.json` keeps working. While the crash loop runs on Android, fewer journeys reach Confirmation, which lowers `bd-shop-01` completions.
 - **Evidence:** Android fires only after Confirmation (`A:SimulationManager.kt:1074,1101`), and so does RN (`R:src/context/SimulationContext.tsx:621`). iOS picks a random point among cart, checkout, payment, payment_failed and confirmation, and records it as the global field `crash_journey_point` (`I:SimulationManager.swift:82-88,568-575,706`). Flutter fires at payment (`F:sim/simulator.dart:341`).
 - **Options:**
   - (a) Adopt iOS's random back-half point on every platform.
   - (b) Keep the Android behavior.
   - (c) Keep it per platform.
-- **Impact:** `ios/workflows/bd-shop-15-crashes-by-final-screen.json` groups by `crash_journey_point`. On Android, crash journeys would stop completing, which lowers `bd-shop-01` completions while the crash loop is on. `bd-shop-06` and `bd-shop-07` are unaffected.
+- **Impact:** `workflows/crashes-by-final-screen.json` groups by `crash_journey_point`. On Android, crash journeys would stop completing, which lowers `bd-shop-01` completions while the crash loop is on. `bd-shop-06` and `bd-shop-07` are unaffected.
 - **Recommendation:** (a) in Phase 4 (`journey.yaml` fault point), because it makes crash-by-screen data meaningful. Until then the spec records it as `platforms: [ios]`.
 
 ### OPEN-4: Payment fails with no retry: the `checkout` and `journey` spans are left open — **RESOLVED 2026-10-26: (a) end both with FAILURE**
@@ -309,7 +309,7 @@ KMP adopts the generated constants when it is next touched (plan §1).
 - **Options:**
   - (a) End both with FAILURE and reason `payment_failed` everywhere, as RN does.
   - (b) Keep them open.
-- **Impact:** `android/workflows/bd-shop-04-span-durations.json` matches `journey` and `checkout` end logs with any `_result`, so it would start including failed journeys. Add a `_result == success` filter if only successes should count. The Phase 3 conformance rule "spans closed" fails on Android and iOS without (a).
+- **Impact:** `workflows/span-durations.json` matches `journey` and `checkout` end logs with any `_result`, so it would start including failed journeys. Add a `_result == success` filter if only successes should count. The Phase 3 conformance rule "spans closed" fails on Android and iOS without (a).
 - **Recommendation:** (a).
 
 ### OPEN-5: Should simulated journeys emit the UI-tap events? — **RESOLVED 2026-10-26 (Phase 4): (a) the engine emits them everywhere**

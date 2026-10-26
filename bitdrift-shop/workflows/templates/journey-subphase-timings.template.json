@@ -1,11 +1,11 @@
 {
-  "name": "bd-shop \u2014 Android Journey Sub-Phase Timings",
+  "name": "bd-shop \u2014 {{platform_label}} Journey Sub-Phase Timings",
   "platform_targets": [
     {
-      "android": {
+      "{{platform_key}}": {
         "apps": [
           {
-            "app_id": "ai.bitdrift.shop"
+            "app_id": "{{app_id}}"
           }
         ]
       }

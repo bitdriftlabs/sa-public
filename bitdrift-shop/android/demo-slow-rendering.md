@@ -33,7 +33,7 @@ the demo.
 
 ## The two workflows
 
-**`bd-shop-11-slow-rendering.json` — primary.** Matches bitdrift's OOTB Android frame detection:
+**`slow-rendering.json` — primary.** Matches bitdrift's OOTB Android frame detection:
 
 ```json
 { "match_id": "slow-render", "ootb_match": { "android_condition": "DROPPED_FRAME",
@@ -45,7 +45,7 @@ doesn't blend in unrelated Frozen/ANR events from elsewhere in the app. Four act
 count (alert target), count by `recommendations_v2` exposure, duration histogram by exposure,
 count by `_screen_name`. **Zero app instrumentation required.**
 
-**`bd-shop-11b-slow-rendering-manual-span.json` — secondary, no alert.** Same four-chart shape,
+**`slow-rendering-manual-span.json` — secondary, no alert.** Same four-chart shape,
 matched on the custom `score_products` span instead
 (`_span_name == "score_products" AND _span_type == "end" AND _duration_ms >= 16`). Kept only as
 a worked example of what manual instrumentation looks like when OOTB detection isn't an option
@@ -65,11 +65,11 @@ per-screen spans, which is why it's primary and the span is just the comparison 
    ```bash
    ./scripts/check-demo-state.sh --reset
    ```
-2. Backend + app running — see the main [README.md](README.md) Quick Start (Steps 0–2).
+2. Backend + app running — see the main [ios-workflows.md](ios-workflows.md) Quick Start (Steps 0–2).
 3. Deploy the primary workflow, capturing its ID:
    ```bash
-   WORKFLOW_ID=$(bd workflow create workflows/bd-shop-11-slow-rendering.json \
-     --chart-metadata-file workflows/chart-metadata/bd-shop-11-slow-rendering.chart.json \
+   WORKFLOW_ID=$(bd workflow create ../workflows/slow-rendering.json \
+     --chart-metadata-file ../workflows/chart-metadata/slow-rendering.chart.json \
      -ojson --jq '.id' -r)
    bd workflow deploy "$WORKFLOW_ID"
    ```
@@ -85,8 +85,8 @@ per-screen spans, which is why it's primary and the span is just the comparison 
    `threshold=3` over `5m` is a demo threshold, not a production SLO — tune after the first run.
 5. (Optional) Deploy the secondary example, no alert needed:
    ```bash
-   bd workflow create workflows/bd-shop-11b-slow-rendering-manual-span.json \
-     --chart-metadata-file workflows/chart-metadata/bd-shop-11b-slow-rendering-manual-span.chart.json \
+   bd workflow create ../workflows/slow-rendering-manual-span.json \
+     --chart-metadata-file ../workflows/chart-metadata/slow-rendering-manual-span.chart.json \
      -ojson --jq '.id' -r | xargs bd workflow deploy
    ```
 

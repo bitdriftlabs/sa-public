@@ -20,87 +20,28 @@
 #                                      # env vars still override either default).
 set -uo pipefail
 
-cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB="$HERE/../../scripts/lib"
+cd "$HERE/.."
 
 # shellcheck source=demo-lib.sh
 source "scripts/demo-lib.sh"
+# shellcheck source=../../scripts/lib/foreground-cycle.sh
+source "$LIB/foreground-cycle.sh"
 
-usage() {
-  local exit_code="${1:-1}"
-  echo "Usage: $(basename "$0") [--simulator|--device] [--slow] [-N]" >&2
-  echo "  No -N: cycle forever (Ctrl-C to stop). -N: cycle exactly N times." >&2
-  echo "  --slow: 30s foreground / 20s background per cycle, instead of 6s/5s." >&2
-  echo "  --simulator|--device: pick the target explicitly (default: auto-detect)." >&2
-  echo "  --help|-h: show this message." >&2
-  exit "$exit_code"
+FC_USAGE_FLAGS="[--simulator|--device] "
+FC_USAGE_EXTRA="  --simulator|--device: pick the target explicitly (default: auto-detect)."
+
+fc_parse_args() { parse_target_flags "$@"; FC_REST=(${PARSED_REST[@]+"${PARSED_REST[@]}"}); }
+fc_prepare() {
+  if ! resolve_target "$PARSED_KIND" "$PARSED_ID"; then
+    [[ "${RESOLVE_ERROR:-none}" == "none" ]] && echo "No target found. Boot a simulator, or connect a device and pass --device." >&2
+    return 1
+  fi
+  if ! app_installed; then echo "$BUNDLE_ID is not installed on $(target_label)." >&2; return 1; fi
+  FC_LABEL="$BUNDLE_ID on $(target_label)"
 }
+fc_foreground() { launch_app; }
+fc_background() { background_app; }
 
-for arg in "$@"; do
-  [[ "$arg" == "--help" || "$arg" == "-h" ]] && usage 0
-done
-
-parse_target_flags "$@"
-set -- ${PARSED_REST[@]+"${PARSED_REST[@]}"}
-
-SLOW=0
-REMAINING=()
-for arg in "$@"; do
-  if [[ "$arg" == "--slow" ]]; then
-    SLOW=1
-  else
-    REMAINING+=("$arg")
-  fi
-done
-set -- ${REMAINING[@]+"${REMAINING[@]}"}
-
-CYCLES=""
-if [[ $# -gt 0 ]]; then
-  [[ "$1" =~ ^-([0-9]+)$ ]] || usage
-  CYCLES="${BASH_REMATCH[1]}"
-fi
-
-if [[ "$SLOW" -eq 1 ]]; then
-  FOREGROUND_SECONDS="${FOREGROUND_SECONDS:-30}"
-  BACKGROUND_SECONDS="${BACKGROUND_SECONDS:-20}"
-else
-  FOREGROUND_SECONDS="${FOREGROUND_SECONDS:-6}"
-  BACKGROUND_SECONDS="${BACKGROUND_SECONDS:-5}"
-fi
-
-if ! resolve_target "$PARSED_KIND" "$PARSED_ID"; then
-  if [[ "${RESOLVE_ERROR:-none}" == "none" ]]; then
-    echo "No target found. Boot a simulator, or connect a device and pass --device." >&2
-  fi
-  exit 1
-fi
-
-if ! app_installed; then
-  echo "$BUNDLE_ID is not installed on $(target_label)." >&2
-  exit 1
-fi
-
-if [[ -n "$CYCLES" ]]; then
-  echo "Cycling $BUNDLE_ID on $(target_label): $CYCLES foreground/background cycles" \
-    "(${FOREGROUND_SECONDS}s foreground, ${BACKGROUND_SECONDS}s background each)"
-else
-  echo "Cycling $BUNDLE_ID on $(target_label) indefinitely (Ctrl-C to stop)" \
-    "(${FOREGROUND_SECONDS}s foreground, ${BACKGROUND_SECONDS}s background each)"
-fi
-
-launch_app
-
-i=0
-while [[ -z "$CYCLES" || "$i" -lt "$CYCLES" ]]; do
-  i=$((i + 1))
-  sleep "$FOREGROUND_SECONDS"
-  background_app
-  sleep "$BACKGROUND_SECONDS"
-  launch_app
-  if [[ -n "$CYCLES" ]]; then
-    echo "cycle $i/$CYCLES done"
-  else
-    echo "cycle $i done"
-  fi
-done
-
-echo "Done."
+foreground_cycle_main "$@"

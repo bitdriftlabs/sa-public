@@ -1,11 +1,11 @@
 {
-  "name": "bd-shop \u2014 iOS Recommendation Engine Timings",
+  "name": "bd-shop \u2014 {{platform_label}} Recommendation Engine Timings",
   "platform_targets": [
     {
-      "apple": {
+      "{{platform_key}}": {
         "apps": [
           {
-            "app_id": "ai.bitdrift.shop.ios"
+            "app_id": "{{app_id}}"
           }
         ]
       }

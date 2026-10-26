@@ -1,13 +1,13 @@
 {
-  "name": "iOS \u2014 Recommendation Engine Timings",
+  "name": "iOS \u2014 Persistence I/O Timings",
   "tabs": [
     {
-      "name": "Recommendation engine",
+      "name": "Persistence I/O",
       "stylistic_components": [
         {
           "id": "t-intro-h",
           "text_component": {
-            "text": "iOS \u2014 is a slow score_products call parsing, or the similarity pass?",
+            "text": "iOS \u2014 what does local UserDefaults/file I/O actually cost?",
             "variant": "h2"
           },
           "dashboard_layout_settings": {
@@ -20,7 +20,7 @@
         {
           "id": "t-intro-p",
           "text_component": {
-            "text": "score_products is deliberately the slow-rendering trap described in android/demo-slow-rendering.md: a Levenshtein-similarity pass over each product's full JSON profile, run synchronously and unmemoized from a SwiftUI view body. These two child spans isolate which half is actually slow. Gated behind the recommendationsV2Enabled flag \u2014 off by default; toggle \"Rec v2\" on the Advanced screen, or headlessly: `xcrun simctl launch <udid> ai.bitdrift.shop.ios -recommendations.active 1`. See bd-shop-23 in workflows/.",
+            "text": "screen_view_persist wraps the UserDefaults write+flush that fires on every single screen transition (flush() calls the deprecated, main-thread-blocking UserDefaults.synchronize()) \u2014 the highest-frequency span in the app. demo_state_publish wraps the JSON serialize + atomic file write scripts/watchdog.sh reads; demo-only bookkeeping, not representative of production behavior, but it runs on the main actor so a slow write blocks the UI for real. See bd-shop-24 in workflows/.",
             "variant": "p"
           },
           "dashboard_layout_settings": {
@@ -63,7 +63,7 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "49io",
+                "workflow_id": "__WF_ios_persistence_timings__",
                 "chart_rule_id": "hist-compared"
               }
             },
@@ -74,7 +74,7 @@
               "row_span": 16
             },
             "chart_metadata": {
-              "title": "parse_catalog vs similarity_pass, compared",
+              "title": "screen_view_persist vs demo_state_publish, compared",
               "summary": {
                 "description": "Pick a single percentile from the chart dropdown to compare all phases on one axis."
               },
@@ -100,8 +100,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "49io",
-                "chart_rule_id": "hist-parse-catalog"
+                "workflow_id": "__WF_ios_persistence_timings__",
+                "chart_rule_id": "hist-screen-view-persist"
               }
             },
             "layout_settings": {
@@ -111,9 +111,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "score_products: parse catalog JSON",
+              "title": "screen_view_persist",
               "summary": {
-                "description": "JSON.parse() of the whole catalog string \u2014 typically near-instant"
+                "description": "UserDefaults write+flush, fires on every screen transition"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -137,8 +137,8 @@
           "chart_component_layout": {
             "chart_id": {
               "workflow": {
-                "workflow_id": "49io",
-                "chart_rule_id": "hist-similarity-pass"
+                "workflow_id": "__WF_ios_persistence_timings__",
+                "chart_rule_id": "hist-demo-state-publish"
               }
             },
             "layout_settings": {
@@ -148,9 +148,9 @@
               "row_span": 14
             },
             "chart_metadata": {
-              "title": "score_products: similarity pass",
+              "title": "demo_state_publish",
               "summary": {
-                "description": "The O(n*m) Levenshtein comparison per product \u2014 the actual cost center"
+                "description": "JSON serialize + atomic file write, called from many fault-injection call sites"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
