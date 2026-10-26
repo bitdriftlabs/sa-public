@@ -79,7 +79,7 @@ sdk_release_check:
 config_keys:
   sdk_key:
     android: BITDRIFT_SDK_KEY            # android/app/build.gradle.kts:75
-    ios: BITDRIFT_API_KEY                # today: ios/BitdriftShop/AppConfig.swift:17, Info.plist:52; target BITDRIFT_SDK_KEY (reads old name as fallback), OPEN-1 resolved
+    ios: BITDRIFT_SDK_KEY                # ios/BitdriftShop/AppConfig.swift:17; falls back to legacy BITDRIFT_API_KEY (OPEN-1 resolved)
     reactnative: BITDRIFT_SDK_KEY        # reactnative/src/config.ts:31
     flutter: BITDRIFT_SDK_KEY            # flutter/lib/config.dart:31
     kmp: BITDRIFT_SDK_KEY                # wip-kotlin-multiplatform/iosApp/iosApp/ShoppingDemoKMPApp.swift:14

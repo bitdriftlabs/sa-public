@@ -48,17 +48,17 @@ fi
 
 # ── Preflight: the API key is the whole point of a Release build here ─────
 API_KEY_PRESENT=0
-if [[ -n "${BITDRIFT_API_KEY:-}" ]]; then
+if [[ -n "${BITDRIFT_SDK_KEY:-}${BITDRIFT_API_KEY:-}" ]]; then
   API_KEY_PRESENT=1
 elif xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
-       -showBuildSettings 2>/dev/null | grep -qE "^\s+BITDRIFT_API_KEY = .+"; then
+       -showBuildSettings 2>/dev/null | grep -qE "^\s+BITDRIFT_(SDK|API)_KEY = .+"; then
   API_KEY_PRESENT=1
 fi
 
 if [[ "$API_KEY_PRESENT" -eq 0 ]]; then
-  echo "WARNING: BITDRIFT_API_KEY is not set — the build will succeed but dSYMs"
+  echo "WARNING: BITDRIFT_SDK_KEY is not set — the build will succeed but dSYMs"
   echo "         will NOT be uploaded, so crashes stay unsymbolicated."
-  echo "         Add it to .local.xcconfig:  BITDRIFT_API_KEY = <platform-api-key>"
+  echo "         Add it to .local.xcconfig:  BITDRIFT_SDK_KEY = <sdk-key>"
   echo
 fi
 

@@ -3,9 +3,11 @@
 // everything here. Mirrors the android/ app's local.properties/.local.properties
 // split.
 //
-//   BITDRIFT_API_KEY    Your bitdrift API key. Used for both jobs it authorizes:
+//   BITDRIFT_SDK_KEY    Your bitdrift SDK key. Used for both jobs it authorizes:
 //                       Logger.start(withAPIKey:) at runtime, and the dSYM upload
-//                       for crash symbolication at build time.
+//                       for crash symbolication at build time. Same name as the
+//                       Android, React Native and Flutter apps. The old name
+//                       BITDRIFT_API_KEY is still read if this one is blank.
 //   BITDRIFT_API_HOST   bitdrift API host. Defaults to api.bitdrift.io.
 //
 //   SHOP_BACKEND_URL    Optional. Base URL of the bitdrift-shop demo backend —
@@ -18,6 +20,7 @@
 // xcconfig treats `//` as a comment, so a URL has to break it with the
 // empty-variable trick:  SHOP_BACKEND_URL = http:/$()/192.168.1.20:5173
 
+BITDRIFT_SDK_KEY =
 BITDRIFT_API_KEY =
 BITDRIFT_API_HOST = api.bitdrift.io
 SHOP_BACKEND_URL =

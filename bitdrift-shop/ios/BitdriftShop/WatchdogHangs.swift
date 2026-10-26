@@ -52,9 +52,9 @@ enum WatchdogHangs {
         Prefs.crashLoop.set(Prefs.keyPendingWatchdog, hang.rawValue)
         Prefs.crashLoop.flush()
         DemoStateFile.publish()
-        ScreenLogger.logWarning("watchdog_hang_armed", [
-            "watchdog_event": hang.rawValue,
-            "hint": "fires on the next matching lifecycle transition",
+        ScreenLogger.logWarning(SpecEvents.watchdogHangArmed, [
+            SpecFields.watchdogEvent: hang.rawValue,
+            SpecFields.hint: "fires on the next matching lifecycle transition",
         ])
     }
 
@@ -74,11 +74,11 @@ enum WatchdogHangs {
         // no way in to switch it off.
         disarm()
 
-        Logger.addField(withKey: "crash_kind", value: "watchdog_\(hang.rawValue)")
-        Logger.addField(withKey: "watchdog_event", value: hang.rawValue)
+        Logger.addField(withKey: SpecFields.crashKind, value: "watchdog_\(hang.rawValue)")
+        Logger.addField(withKey: SpecFields.watchdogEvent, value: hang.rawValue)
         ScreenLogger.logWarning("about_to_hang: watchdog_\(hang.rawValue)", [
-            "watchdog_event": hang.rawValue,
-            "block_seconds": String(Int(hang.blockDuration)),
+            SpecFields.watchdogEvent: hang.rawValue,
+            SpecFields.blockSeconds: String(Int(hang.blockDuration)),
         ])
 
         // Give the SDK a moment to flush the breadcrumb above before the main

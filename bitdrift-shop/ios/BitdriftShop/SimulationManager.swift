@@ -123,36 +123,36 @@ final class SimulationManager: ObservableObject {
         }
 
         // Feature flag exposures are per-session and trigger workflow transitions.
-        Logger.setFeatureFlagExposure(withName: "checkout_flow", variant: checkoutFlow)
-        Logger.setFeatureFlagExposure(withName: "payment_ui", variant: paymentUI)
-        Logger.setFeatureFlagExposure(withName: "cart_abandon_rate", variant: cartAbandon)
+        Logger.setFeatureFlagExposure(withName: SpecFlags.checkoutFlow, variant: checkoutFlow)
+        Logger.setFeatureFlagExposure(withName: SpecFlags.paymentUi, variant: paymentUI)
+        Logger.setFeatureFlagExposure(withName: SpecFlags.cartAbandonRate, variant: cartAbandon)
         // Also set as global fields so every log carries the active flag values.
-        Logger.addField(withKey: "ff_checkout_flow", value: checkoutFlow)
-        Logger.addField(withKey: "ff_payment_ui", value: paymentUI)
-        Logger.addField(withKey: "ff_cart_abandon_rate", value: cartAbandon)
-        Logger.addField(withKey: "ff_variant", value: variant.label)
+        Logger.addField(withKey: SpecFields.ffCheckoutFlow, value: checkoutFlow)
+        Logger.addField(withKey: SpecFields.ffPaymentUi, value: paymentUI)
+        Logger.addField(withKey: SpecFields.ffCartAbandonRate, value: cartAbandon)
+        Logger.addField(withKey: SpecFields.ffVariant, value: variant.label)
 
-        Logger.setFeatureFlagExposure(withName: "payment_android_pay", variant: androidPay)
-        Logger.addField(withKey: "ff_payment_android_pay", value: androidPay)
+        Logger.setFeatureFlagExposure(withName: SpecFlags.paymentAndroidPay, variant: androidPay)
+        Logger.addField(withKey: SpecFields.ffPaymentAndroidPay, value: androidPay)
 
         let orderSummary = crashLoopEnabled ? "v2" : "v1"
-        Logger.setFeatureFlagExposure(withName: "order_summary", variant: orderSummary)
-        Logger.addField(withKey: "ff_order_summary", value: orderSummary)
+        Logger.setFeatureFlagExposure(withName: SpecFlags.orderSummary, variant: orderSummary)
+        Logger.addField(withKey: SpecFields.ffOrderSummary, value: orderSummary)
 
         let hangState = appHangEnabled ? "enabled" : "disabled"
-        Logger.setFeatureFlagExposure(withName: "anr_a", variant: hangState)
-        Logger.addField(withKey: "ff_anr_a", value: hangState)
+        Logger.setFeatureFlagExposure(withName: SpecFlags.anrA, variant: hangState)
+        Logger.addField(withKey: SpecFields.ffAnrA, value: hangState)
 
         let forceQuitState = forceQuitEnabled ? "enabled" : "disabled"
-        Logger.setFeatureFlagExposure(withName: "force_quit", variant: forceQuitState)
-        Logger.addField(withKey: "ff_force_quit", value: forceQuitState)
+        Logger.setFeatureFlagExposure(withName: SpecFlags.forceQuit, variant: forceQuitState)
+        Logger.addField(withKey: SpecFields.ffForceQuit, value: forceQuitState)
 
         let recommendationsV2State = recommendationsV2Enabled ? "enabled" : "disabled"
-        Logger.setFeatureFlagExposure(withName: "recommendations_v2", variant: recommendationsV2State)
-        Logger.addField(withKey: "ff_recommendations_v2", value: recommendationsV2State)
+        Logger.setFeatureFlagExposure(withName: SpecFlags.recommendationsV2, variant: recommendationsV2State)
+        Logger.addField(withKey: SpecFields.ffRecommendationsV2, value: recommendationsV2State)
 
         // Explicit log so flag exposure is verifiable in the raw log stream.
-        ScreenLogger.logInfo("feature_flag_exposure_set")
+        ScreenLogger.logInfo(SpecEvents.featureFlagExposureSet)
 
         // Every Advanced-screen toggle routes through here, so this is the one
         // hook that keeps the on-disk state the scripts read in step with the UI.
@@ -183,9 +183,9 @@ final class SimulationManager: ObservableObject {
 
     func cancel() {
         isCancelled = true
-        ScreenLogger.logInfo("simulation_cancelled", [
-            "completed_runs": String(currentRun),
-            "total_runs": String(totalRuns),
+        ScreenLogger.logInfo(SpecEvents.simulationCancelled, [
+            SpecFields.completedRuns: String(currentRun),
+            SpecFields.totalRuns: String(totalRuns),
         ])
     }
 
@@ -249,7 +249,7 @@ final class SimulationManager: ObservableObject {
             self.totalRuns = runsEach * SimVariant.allCases.count
             self.currentRun = 0
 
-            ScreenLogger.logInfo("ab_simulation_start", ["runs_each": String(runsEach)])
+            ScreenLogger.logInfo(SpecEvents.abSimulationStart, [SpecFields.runsEach: String(runsEach)])
 
             let variants = SimVariant.allCases
             for i in 0..<self.totalRuns {
@@ -260,7 +260,7 @@ final class SimulationManager: ObservableObject {
                 await self.sleep(0.05)
             }
 
-            ScreenLogger.logInfo("ab_simulation_end", ["total_runs": String(self.currentRun)])
+            ScreenLogger.logInfo(SpecEvents.abSimulationEnd, [SpecFields.totalRuns: String(self.currentRun)])
             self.finish(nav)
         }
     }
@@ -283,7 +283,7 @@ final class SimulationManager: ObservableObject {
                 Prefs.crashLoop.flush()
             }
 
-            ScreenLogger.logInfo("infinite_simulation_start")
+            ScreenLogger.logInfo(SpecEvents.infiniteSimulationStart)
 
             while !self.isCancelled {
                 self.currentRun += 1
@@ -291,7 +291,7 @@ final class SimulationManager: ObservableObject {
                 await self.sleep(0.05)
             }
 
-            ScreenLogger.logInfo("infinite_simulation_end", ["total_runs": String(self.currentRun)])
+            ScreenLogger.logInfo(SpecEvents.infiniteSimulationEnd, [SpecFields.totalRuns: String(self.currentRun)])
             self.finish(nav)
         }
     }
@@ -308,7 +308,7 @@ final class SimulationManager: ObservableObject {
             self.totalRuns = -1
             self.currentRun = 0
 
-            ScreenLogger.logInfo("cardinality_simulation_start")
+            ScreenLogger.logInfo(SpecEvents.cardinalitySimulationStart)
 
             while !self.isCancelled {
                 self.currentRun += 1
@@ -316,7 +316,7 @@ final class SimulationManager: ObservableObject {
                 await self.sleep(self.stepDelay)
             }
 
-            ScreenLogger.logInfo("cardinality_simulation_end", ["total_runs": String(self.currentRun)])
+            ScreenLogger.logInfo(SpecEvents.cardinalitySimulationEnd, [SpecFields.totalRuns: String(self.currentRun)])
             self.finish(nav)
         }
     }
@@ -398,11 +398,11 @@ final class SimulationManager: ObservableObject {
         Prefs.forceQuit.set(Prefs.keyRestartVariant, activeVariant.rawValue)
         Prefs.forceQuit.flush()
 
-        ScreenLogger.logError("force_quit_injected", [
-            "force_quit_enabled": "true",
-            "force_quit_screen": Self.forceQuitTargetScreen,
-            "variant": activeVariant.label,
-            "trigger_mode": forcedHit ? "forced_infinite" : "random",
+        ScreenLogger.logError(SpecEvents.forceQuitInjected, [
+            SpecFields.forceQuitEnabled: "true",
+            SpecFields.forceQuitScreen: Self.forceQuitTargetScreen,
+            SpecFields.variant: activeVariant.label,
+            SpecFields.triggerMode: forcedHit ? "forced_infinite" : "random",
         ])
 
         isCancelled = true
@@ -444,12 +444,12 @@ final class SimulationManager: ObservableObject {
         Prefs.appHang.set(Prefs.keyRestartVariant, activeVariant.rawValue)
         Prefs.appHang.flush()
 
-        ScreenLogger.logError("guest_anr_injected", [
-            "anr_a_enabled": "true",
-            "journey_type": "guest",
-            "anr_screen_name": Self.hangTargetScreenName,
-            "variant": activeVariant.label,
-            "trigger_mode": forcedHit ? "forced_infinite" : "random",
+        ScreenLogger.logError(SpecEvents.guestAnrInjected, [
+            SpecFields.anrAEnabled: "true",
+            SpecFields.journeyType: "guest",
+            SpecFields.anrScreenName: Self.hangTargetScreenName,
+            SpecFields.variant: activeVariant.label,
+            SpecFields.triggerMode: forcedHit ? "forced_infinite" : "random",
         ])
 
         isCancelled = true
@@ -523,8 +523,8 @@ final class SimulationManager: ObservableObject {
         Prefs.crashLoop.flush()
         DemoStateFile.publish(awaitingBackground: true)
 
-        ScreenLogger.logInfo("background_crash_armed", [
-            "hint": "waiting for the app to background",
+        ScreenLogger.logInfo(SpecEvents.backgroundCrashArmed, [
+            SpecFields.hint: "waiting for the app to background",
         ])
 
         guard backgroundObserver == nil else { return }
@@ -569,7 +569,7 @@ final class SimulationManager: ObservableObject {
         guard crashLoopEnabled, !crashFiredThisJourney else { return false }
         guard point == journeyCrashPoint || point == .confirmation else { return false }
         crashFiredThisJourney = true
-        Logger.addField(withKey: "crash_journey_point", value: point.rawValue)
+        Logger.addField(withKey: SpecFields.crashJourneyPoint, value: point.rawValue)
         fireCrashNow()
         return true
     }
@@ -579,8 +579,8 @@ final class SimulationManager: ObservableObject {
         guard crashLoopEnabled else { return }
         let combo = pickNextCrashCombo()
         let crashContext = combo.fireInBackground ? "background" : "foreground"
-        Logger.addField(withKey: "crash_kind", value: combo.name)
-        Logger.addField(withKey: "crash_context", value: crashContext)
+        Logger.addField(withKey: SpecFields.crashKind, value: combo.name)
+        Logger.addField(withKey: SpecFields.crashContext, value: crashContext)
         ScreenLogger.logWarning("about_to_crash: \(combo.name) (context=\(crashContext))")
         // Persist the resume intent before the crash — on iOS the relaunch comes
         // from the host watchdog, which reads these flags back on next start.
@@ -623,8 +623,8 @@ final class SimulationManager: ObservableObject {
     private func fireSimplifiedCrashNow() {
         guard crashLoopEnabled else { return }
         let combo = pickNextCrashOnlyCombo()
-        Logger.addField(withKey: "crash_kind", value: combo.name)
-        Logger.addField(withKey: "crash_context", value: "foreground")
+        Logger.addField(withKey: SpecFields.crashKind, value: combo.name)
+        Logger.addField(withKey: SpecFields.crashContext, value: "foreground")
         ScreenLogger.logWarning("about_to_crash: \(combo.name) (context=foreground)")
         persistCrashResumeIntent(restartDelay: restartDelay(for: combo.name))
         isCancelled = true
@@ -646,8 +646,8 @@ final class SimulationManager: ObservableObject {
             oomOnly: Prefs.crashLoop.bool(Prefs.keyOomOnly)
         )
         Logger.startNewSession()
-        Logger.addField(withKey: "crash_kind", value: combo.name)
-        Logger.addField(withKey: "crash_context", value: crashContext)
+        Logger.addField(withKey: SpecFields.crashKind, value: combo.name)
+        Logger.addField(withKey: SpecFields.crashContext, value: crashContext)
         ScreenLogger.logWarning("about_to_crash (fast): \(combo.name) (context=\(crashContext))")
         persistCrashResumeIntent(restartDelay: restartDelay(for: combo.name))
         dispatchCrash(combo.fire, fireInBackground: combo.fireInBackground)
@@ -687,9 +687,9 @@ final class SimulationManager: ObservableObject {
         // session.
         if !forceQuitEnabled {
             Logger.startNewSession()
-            ScreenLogger.logInfo("journey_started", [
-                "run": String(currentRun),
-                "variant": activeVariant.label,
+            ScreenLogger.logInfo(SpecEvents.journeyStarted, [
+                SpecFields.run: String(currentRun),
+                SpecFields.variant: activeVariant.label,
             ])
             // Give the SDK time to fully initialise the new session before
             // recording exposures.
@@ -726,16 +726,16 @@ final class SimulationManager: ObservableObject {
         // POC: spans waterfall visualization in Timeline; query _duration_ms for
         // p50/p95 of any flow.
         let journeySpan = Logger.startSpan(
-            name: "journey",
+            name: SpecSpans.journey,
             level: .info,
-            fields: ScreenLogger.encode(["variant": activeVariant.label, "entity": entity])
+            fields: ScreenLogger.encode([SpecFields.variant: activeVariant.label, SpecFields.entity: entity])
         )
         // Tracks the discovery phase: Welcome → Browse/Search/Categories →
         // ProductDetail → Cart. Ends SUCCESS when the first item hits the cart.
         let discoverySpan = Logger.startSpan(
-            name: "product_discovery",
+            name: SpecSpans.productDiscovery,
             level: .info,
-            fields: ScreenLogger.encode(["variant": activeVariant.label]),
+            fields: ScreenLogger.encode([SpecFields.variant: activeVariant.label]),
             parentSpanID: journeySpan?.id
         )
 
@@ -767,7 +767,7 @@ final class SimulationManager: ObservableObject {
         // just a single lump duration. Demo-only caveat: the branch taken is a
         // randomized per-variant roll, so this reflects whichever backend endpoint
         // got hit that run, not a stable operation.
-        await CaptureBridge.trackSpan("discovery_fetch", parentSpanID: discoverySpan?.id) { _ in
+        await CaptureBridge.trackSpan(SpecSpans.discoveryFetch, parentSpanID: discoverySpan?.id) { _ in
             switch discoveryChoice {
             case 0:
                 await nav(navigator, .browse)
@@ -810,7 +810,7 @@ final class SimulationManager: ObservableObject {
         // the span has already closed normally.
         // POC: event tracking — sub-phase waterfall within product_discovery.
         let forceQuitInjected = await CaptureBridge.trackSpan(
-            "product_view", parentSpanID: discoverySpan?.id
+            SpecSpans.productView, parentSpanID: discoverySpan?.id
         ) { _ -> Bool in
             await nav(navigator, .productDetail(source: source, productID: pid))
             _ = try? await ApiClient.getProduct(pid)
@@ -847,7 +847,7 @@ final class SimulationManager: ObservableObject {
             // the roll actually adds to wishlist, so it doesn't inflate the
             // discovery-phase span count on runs that skip it.
             // POC: event tracking — sub-phase waterfall within product_discovery.
-            await CaptureBridge.trackSpan("wishlist_add", parentSpanID: discoverySpan?.id) { _ in
+            await CaptureBridge.trackSpan(SpecSpans.wishlistAdd, parentSpanID: discoverySpan?.id) { _ in
                 await nav(navigator, .wishlist(productID: pid))
                 _ = try? await ApiClient.addToWishlist(pid)
             }
@@ -858,7 +858,7 @@ final class SimulationManager: ObservableObject {
         await nav(navigator, .cart(productID: pid))
         _ = try? await ApiClient.addToCart(pid)
         // Discovery phase complete — first item is in the cart.
-        discoverySpan?.end(.success, fields: ScreenLogger.encode(["source": source, "product_id": pid]))
+        discoverySpan?.end(.success, fields: ScreenLogger.encode([SpecFields.source: source, SpecFields.productId: pid]))
 
         // bitdrift SDK: trackSpan() wraps the whole cart-assembly block — extra
         // items, view, maybe-remove, maybe-empty-and-rebuild, maybe-flip, final
@@ -871,7 +871,7 @@ final class SimulationManager: ObservableObject {
         // interspersed below are artificial demo pacing, not real work — they
         // inflate this span's duration by a constant that has nothing to do with
         // the underlying API calls.
-        await CaptureBridge.trackSpan("cart_assembly", parentSpanID: journeySpan?.id) { _ in
+        await CaptureBridge.trackSpan(SpecSpans.cartAssembly, parentSpanID: journeySpan?.id) { _ in
             let extraCount: Int
             switch activeVariant {
             case .control:  extraCount = Int.random(in: 1...3)  // 1-3 extra
@@ -951,12 +951,12 @@ final class SimulationManager: ObservableObject {
         case .variantB: cartAbandonProb = 0.0
         }
         if Double.random(in: 0..<1) < cartAbandonProb {
-            ScreenLogger.logInfo("cart_abandoned", [
-                "items_in_cart": String(cartItems.count),
-                "variant": activeVariant.label,
+            ScreenLogger.logInfo(SpecEvents.cartAbandoned, [
+                SpecFields.itemsInCart: String(cartItems.count),
+                SpecFields.variant: activeVariant.label,
             ])
             await sleep(0.2)
-            journeySpan?.end(.canceled, fields: ScreenLogger.encode(["reason": "cart_abandoned"]))
+            journeySpan?.end(.canceled, fields: ScreenLogger.encode([SpecFields.reason: "cart_abandoned"]))
             return
         }
 
@@ -979,9 +979,9 @@ final class SimulationManager: ObservableObject {
         // Confirmation. `parentSpanID` links it to the root journey span so both
         // appear together in the timeline.
         let checkoutSpan = Logger.startSpan(
-            name: "checkout",
+            name: SpecSpans.checkout,
             level: .info,
-            fields: ScreenLogger.encode(["checkout_type": isGuest ? "guest" : "signin"]),
+            fields: ScreenLogger.encode([SpecFields.checkoutType: isGuest ? "guest" : "signin"]),
             parentSpanID: journeySpan?.id
         )
 
@@ -1008,13 +1008,13 @@ final class SimulationManager: ObservableObject {
         case .variantB: checkoutDropoutProb = 0.05
         }
         if Double.random(in: 0..<1) < checkoutDropoutProb {
-            ScreenLogger.logInfo("checkout_abandoned", [
-                "checkout_type": isGuest ? "guest" : "signin",
-                "variant": activeVariant.label,
+            ScreenLogger.logInfo(SpecEvents.checkoutAbandoned, [
+                SpecFields.checkoutType: isGuest ? "guest" : "signin",
+                SpecFields.variant: activeVariant.label,
             ])
             await sleep(0.2)
-            checkoutSpan?.end(.canceled, fields: ScreenLogger.encode(["reason": "checkout_abandoned"]))
-            journeySpan?.end(.canceled, fields: ScreenLogger.encode(["reason": "checkout_abandoned"]))
+            checkoutSpan?.end(.canceled, fields: ScreenLogger.encode([SpecFields.reason: "checkout_abandoned"]))
+            journeySpan?.end(.canceled, fields: ScreenLogger.encode([SpecFields.reason: "checkout_abandoned"]))
             return
         }
 
@@ -1059,10 +1059,10 @@ final class SimulationManager: ObservableObject {
         if maybeFireCrash(at: .payment) { return }
 
         if willPaymentFail {
-            ScreenLogger.logError("payment_failed", [
-                "payment_method": paymentMethod,
-                "checkout_session": session,
-                "variant": activeVariant.label,
+            ScreenLogger.logError(SpecEvents.paymentFailed, [
+                SpecFields.paymentMethod: paymentMethod,
+                SpecFields.checkoutSession: session,
+                SpecFields.variant: activeVariant.label,
             ])
 
             // Navigate to the PaymentFailed screen so it appears in the Sankey.
@@ -1080,20 +1080,20 @@ final class SimulationManager: ObservableObject {
                     parentSpanID: checkoutSpan?.id, retried: true
                 )
 
-                ScreenLogger.logInfo("payment_retry", [
-                    "original_method": paymentMethod,
-                    "retry_method": retryMethod,
-                    "variant": activeVariant.label,
+                ScreenLogger.logInfo(SpecEvents.paymentRetry, [
+                    SpecFields.originalMethod: paymentMethod,
+                    SpecFields.retryMethod: retryMethod,
+                    SpecFields.variant: activeVariant.label,
                 ])
 
                 // Retry succeeds — proceed to confirmation with the retried order.
                 setVariant(activeVariant)
                 await sleep(0.1)
                 await nav(navigator, .confirmation(orderID: retryOrderID))
-                ScreenLogger.logInfo("confirmation_reached", [
-                    "_screen_name": "Confirmation",
-                    "payment_retried": "true",
-                    "retry_method": retryMethod,
+                ScreenLogger.logInfo(SpecEvents.confirmationReached, [
+                    SpecFields.sdkScreenName: SpecScreen.confirmation.screenName,
+                    SpecFields.paymentRetried: "true",
+                    SpecFields.retryMethod: retryMethod,
                 ])
                 // bitdrift SDK: trackSpan() isolates the confirmation fetch as its
                 // own checkout sub-phase, closing the checkout -> payment ->
@@ -1101,13 +1101,13 @@ final class SimulationManager: ObservableObject {
                 // in Screens.swift cover the first two on the screen side).
                 // POC: event tracking — sub-phase waterfall within checkout.
                 await CaptureBridge.trackSpan(
-                    "checkout.confirmation", parentSpanID: checkoutSpan?.id
+                    SpecSpans.checkoutConfirmation, parentSpanID: checkoutSpan?.id
                 ) { _ in
                     _ = try? await ApiClient.getConfirmation(retryOrderID)
                 }
                 await sleep(0.2)
                 checkoutSpan?.end(.success, fields: ScreenLogger.encode([
-                    "payment_method": retryMethod, "retried": "true",
+                    SpecFields.paymentMethod: retryMethod, SpecFields.retried: "true",
                 ]))
                 journeySpan?.end(.success)
                 maybeFireCrash(at: .confirmation)
@@ -1128,18 +1128,18 @@ final class SimulationManager: ObservableObject {
         case .variantA: checkoutFlow = "guest"
         case .variantB: checkoutFlow = "signin"
         }
-        ScreenLogger.logInfo("confirmation_reached", [
-            "_screen_name": "Confirmation",
-            "checkout_flow": checkoutFlow,
+        ScreenLogger.logInfo(SpecEvents.confirmationReached, [
+            SpecFields.sdkScreenName: SpecScreen.confirmation.screenName,
+            SpecFields.checkoutFlow: checkoutFlow,
         ])
         // bitdrift SDK: trackSpan() isolates the confirmation fetch as its own
         // checkout sub-phase — see the retry path above for the same pattern.
         // POC: event tracking — sub-phase waterfall within checkout.
-        await CaptureBridge.trackSpan("checkout.confirmation", parentSpanID: checkoutSpan?.id) { _ in
+        await CaptureBridge.trackSpan(SpecSpans.checkoutConfirmation, parentSpanID: checkoutSpan?.id) { _ in
             _ = try? await ApiClient.getConfirmation(orderID)
         }
         await sleep(0.2)
-        checkoutSpan?.end(.success, fields: ScreenLogger.encode(["payment_method": paymentMethod]))
+        checkoutSpan?.end(.success, fields: ScreenLogger.encode([SpecFields.paymentMethod: paymentMethod]))
         journeySpan?.end(.success)
         maybeFireCrash(at: .confirmation)
     }
@@ -1180,12 +1180,12 @@ final class SimulationManager: ObservableObject {
 
     private func runSimplifiedJourney(_ navigator: Navigator, entity: String) async {
         let journeySpan = Logger.startSpan(
-            name: "journey",
+            name: SpecSpans.journey,
             level: .info,
             fields: ScreenLogger.encode([
-                "variant": activeVariant.label,
-                "entity": entity,
-                "mode": "simplified",
+                SpecFields.variant: activeVariant.label,
+                SpecFields.entity: entity,
+                SpecFields.mode: "simplified",
             ])
         )
 
@@ -1204,7 +1204,7 @@ final class SimulationManager: ObservableObject {
         // POC: event tracking — sub-phase waterfall, populated regardless of
         // which journey mode is active.
         let productIDs = await CaptureBridge.trackSpan(
-            "discovery_fetch", parentSpanID: journeySpan?.id
+            SpecSpans.discoveryFetch, parentSpanID: journeySpan?.id
         ) { _ in
             await nav(navigator, .browse)
             return await fetchBrowseIDs()
@@ -1219,7 +1219,7 @@ final class SimulationManager: ObservableObject {
         // product_view for why a bare `return` inside the closure won't do.
         // POC: event tracking — sub-phase waterfall.
         let forceQuitInjected = await CaptureBridge.trackSpan(
-            "product_view", parentSpanID: journeySpan?.id
+            SpecSpans.productView, parentSpanID: journeySpan?.id
         ) { _ -> Bool in
             await nav(navigator, .productDetail(source: "browse", productID: pid))
             _ = try? await ApiClient.getProduct(pid)
@@ -1232,7 +1232,7 @@ final class SimulationManager: ObservableObject {
             return maybeInjectForceQuit()
         }
         if forceQuitInjected {
-            journeySpan?.end(.canceled, fields: ScreenLogger.encode(["reason": "force_quit_injected"]))
+            journeySpan?.end(.canceled, fields: ScreenLogger.encode([SpecFields.reason: "force_quit_injected"]))
             return
         }
 
@@ -1241,7 +1241,7 @@ final class SimulationManager: ObservableObject {
         // uses, though this mode only does the one plain addToCart (no extra
         // items/remove/flip logic).
         // POC: event tracking — sub-phase waterfall.
-        await CaptureBridge.trackSpan("cart_assembly", parentSpanID: journeySpan?.id) { _ in
+        await CaptureBridge.trackSpan(SpecSpans.cartAssembly, parentSpanID: journeySpan?.id) { _ in
             await nav(navigator, .cart(productID: pid))
             _ = try? await ApiClient.addToCart(pid)
         }
@@ -1254,7 +1254,7 @@ final class SimulationManager: ObservableObject {
         // checkout API call, before anything else can terminate the journey.
         // This mode is always a guest checkout, so `isGuest` is fixed true.
         if maybeInjectGuestHang(isGuest: true) {
-            journeySpan?.end(.canceled, fields: ScreenLogger.encode(["reason": "guest_hang_injected"]))
+            journeySpan?.end(.canceled, fields: ScreenLogger.encode([SpecFields.reason: "guest_hang_injected"]))
             return
         }
 
@@ -1263,10 +1263,10 @@ final class SimulationManager: ObservableObject {
             // (cart/checkout/payment/...) so this mode's crashes are
             // unambiguously identifiable in the raw log stream and in any
             // chart grouped by that field.
-            Logger.addField(withKey: "crash_journey_point", value: "simplified_step_5_checkout_guest")
+            Logger.addField(withKey: SpecFields.crashJourneyPoint, value: "simplified_step_5_checkout_guest")
             ScreenLogger.logWarning("simplified_journey_crash_point (step 5 of 7): CheckoutGuest")
             fireSimplifiedCrashNow()
-            journeySpan?.end(.canceled, fields: ScreenLogger.encode(["reason": "simplified_crash_step_5"]))
+            journeySpan?.end(.canceled, fields: ScreenLogger.encode([SpecFields.reason: "simplified_crash_step_5"]))
             return
         }
 
@@ -1281,13 +1281,13 @@ final class SimulationManager: ObservableObject {
 
         // ── Step 7: Confirmation ─────────────────────────────────────────
         await nav(navigator, .confirmation(orderID: orderID))
-        await CaptureBridge.trackSpan("checkout.confirmation", parentSpanID: journeySpan?.id) { _ in
+        await CaptureBridge.trackSpan(SpecSpans.checkoutConfirmation, parentSpanID: journeySpan?.id) { _ in
             _ = try? await ApiClient.getConfirmation(orderID)
         }
 
-        ScreenLogger.logInfo("simplified_journey_completed", [
-            "steps_completed": "7",
-            "variant": activeVariant.label,
+        ScreenLogger.logInfo(SpecEvents.simplifiedJourneyCompleted, [
+            SpecFields.stepsCompleted: "7",
+            SpecFields.variant: activeVariant.label,
         ])
         await sleep(0.2)
         journeySpan?.end(.success)
@@ -1312,7 +1312,7 @@ final class SimulationManager: ObservableObject {
         _ navigator: Navigator, choice: Int, session: String, parentSpanID: UUID?, retried: Bool = false
     ) async -> String {
         return await CaptureBridge.trackSpan(
-            "checkout.payment", fields: ["retried": String(retried)], parentSpanID: parentSpanID
+            SpecSpans.checkoutPayment, fields: [SpecFields.retried: String(retried)], parentSpanID: parentSpanID
         ) { _ in
             switch choice {
             case 0:
@@ -1366,12 +1366,12 @@ final class SimulationManager: ObservableObject {
         "Moe", "Larry", "Curly", "Abbott", "Costello",
     ]
 
-    private static let hangTargetScreenName = "CheckoutGuest"
+    private static let hangTargetScreenName = SpecScreen.checkoutGuest.screenName
     private static let hangProbability = 0.25
     private static let hangForceAfterEligibleGuestJourneys = 6
     private static let hangBlockDuration: TimeInterval = 15
 
-    private static let forceQuitTargetScreen = "ProductDetail"
+    private static let forceQuitTargetScreen = SpecScreen.productDetail.screenName
     private static let forceQuitProbability = 0.60
     private static let forceQuitForceAfterJourneys = 3
 }

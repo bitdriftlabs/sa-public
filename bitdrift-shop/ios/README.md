@@ -38,7 +38,7 @@ Create `.local.xcconfig` in this directory (gitignored — your real values go h
 overlaying the blank `local.xcconfig` template that it is `#include?`d from):
 
 ```
-BITDRIFT_API_KEY = <your-api-key>
+BITDRIFT_SDK_KEY = <your-sdk-key>
 BITDRIFT_API_HOST = api.bitdrift.io
 ```
 
@@ -48,9 +48,8 @@ project that owns this key. The same key authorizes both jobs it's needed for:
 `Logger.start(withAPIKey:)` at runtime, and the dSYM upload for crash
 symbolication at build time.
 
-> Named `BITDRIFT_API_KEY` to match what bitdrift calls it — the SDK's own
-> parameter is `withAPIKey:` and the CLI's flag is `--api-key`. The Android app
-> calls the same credential `BITDRIFT_SDK_KEY` in its `local.properties`.
+> Named `BITDRIFT_SDK_KEY`, the same as the Android, React Native and Flutter apps
+> (the earlier name `BITDRIFT_API_KEY` is still read if `BITDRIFT_SDK_KEY` is blank).
 
 For bitdrift-internal testing against a non-production environment, point
 `BITDRIFT_API_HOST` at that environment instead (e.g. `api.bitdrift.dev`), making
@@ -400,10 +399,10 @@ Android app's `bdUpload*` Gradle tasks. It needs the `bd` CLI on `PATH` and a
 platform API key:
 
 ```
-BITDRIFT_API_KEY = <platform-api-key>
+BITDRIFT_SDK_KEY = <sdk-key>
 ```
 
-It reuses `BITDRIFT_API_KEY` — the same key the app starts the SDK with. Xcode
+It reuses `BITDRIFT_SDK_KEY` — the same key the app starts the SDK with. Xcode
 exports build settings into script phases, so defining it in `.local.xcconfig` is
 all that's needed.
 
@@ -427,7 +426,7 @@ build needs a signing team — pass `--team`, or put it in `.local.xcconfig` onc
 DEVELOPMENT_TEAM = <your-team-id>
 ```
 
-The script warns up front if `BITDRIFT_API_KEY` is missing, then prints the app
+The script warns up front if `BITDRIFT_SDK_KEY` is missing, then prints the app
 and dSYM paths and **verifies the upload actually landed** by counting debug files
 before and after:
 
@@ -451,7 +450,7 @@ crashes coming off the phone.
 
 ```bash
 # manual / CI equivalent
-BITDRIFT_API_KEY=<key> ./scripts/upload-symbols.sh <path-to-dSYMs>
+BITDRIFT_SDK_KEY=<key> ./scripts/upload-symbols.sh <path-to-dSYMs>
 ```
 
 ### Arming a demo from the command line

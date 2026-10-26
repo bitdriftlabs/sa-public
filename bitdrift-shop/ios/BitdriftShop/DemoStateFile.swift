@@ -60,7 +60,7 @@ enum DemoStateFile {
         // a latency profile.
         // POC: event tracking — local file I/O, called from many unrelated sites
         // (crash/hang/quit arming, variant changes), hence standalone.
-        CaptureBridge.trackSpan("demo_state_publish") { _ in
+        CaptureBridge.trackSpan(SpecSpans.demoStatePublish) { _ in
             guard let data = try? JSONSerialization.data(
                 withJSONObject: state, options: [.prettyPrinted, .sortedKeys]
             ) else { return }

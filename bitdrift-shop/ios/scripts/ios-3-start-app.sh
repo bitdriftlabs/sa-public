@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build and run BitdriftShop on the booted iOS Simulator (no Xcode UI).
 #
-# Credentials come from ios/.local.xcconfig (BITDRIFT_API_KEY, BITDRIFT_API_HOST,
+# Credentials come from ios/.local.xcconfig (BITDRIFT_SDK_KEY, BITDRIFT_API_HOST,
 # etc. - see ios-1-setup.sh) - xcodebuild picks these up automatically via the
 # project's baseConfigurationReference, so unlike the Flutter app's script there
 # is no key-baking step here.
@@ -24,8 +24,8 @@ if ! resolve_target sim ""; then
 fi
 echo "Targeting simulator: $TARGET_ID"
 
-if [[ ! -f .local.xcconfig ]] || ! grep -q "BITDRIFT_API_KEY" .local.xcconfig 2>/dev/null; then
-  echo "WARNING: .local.xcconfig missing or has no BITDRIFT_API_KEY — the app" >&2
+if [[ ! -f .local.xcconfig ]] || ! grep -qE "BITDRIFT_(SDK|API)_KEY" .local.xcconfig 2>/dev/null; then
+  echo "WARNING: .local.xcconfig missing or has no BITDRIFT_SDK_KEY — the app" >&2
   echo "         will build but start without a key. See ios-1-setup.sh." >&2
 fi
 

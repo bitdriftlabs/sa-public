@@ -70,25 +70,25 @@ enum Screen: Hashable {
     /// and per-screen crash analytics group on.
     var screenName: String {
         switch self {
-        case .welcome: return "Welcome"
-        case .advanced: return "Advanced"
-        case .browse: return "Browse"
-        case .search: return "Search"
-        case .featured: return "Featured"
-        case .categories: return "Categories"
-        case .categoryBrowse: return "CategoryBrowse"
-        case .productDetail: return "ProductDetail"
-        case .reviews: return "Reviews"
-        case .cart: return "Cart"
-        case .wishlist: return "Wishlist"
-        case .checkoutGuest: return "CheckoutGuest"
-        case .checkoutSignIn: return "CheckoutSignIn"
-        case .paymentCard: return "PaymentCard"
-        case .paymentApplePay: return "PaymentApplePay"
-        case .paymentPayPal: return "PaymentPayPal"
-        case .paymentAndroidPay: return "PaymentAndroidPay"
-        case .paymentFailed: return "PaymentFailed"
-        case .confirmation: return "Confirmation"
+        case .welcome: return SpecScreen.welcome.screenName
+        case .advanced: return SpecScreen.advanced.screenName
+        case .browse: return SpecScreen.browse.screenName
+        case .search: return SpecScreen.search.screenName
+        case .featured: return SpecScreen.featured.screenName
+        case .categories: return SpecScreen.categories.screenName
+        case .categoryBrowse: return SpecScreen.categoryBrowse.screenName
+        case .productDetail: return SpecScreen.productDetail.screenName
+        case .reviews: return SpecScreen.reviews.screenName
+        case .cart: return SpecScreen.cart.screenName
+        case .wishlist: return SpecScreen.wishlist.screenName
+        case .checkoutGuest: return SpecScreen.checkoutGuest.screenName
+        case .checkoutSignIn: return SpecScreen.checkoutSignin.screenName
+        case .paymentCard: return SpecScreen.paymentCard.screenName
+        case .paymentApplePay: return SpecScreen.paymentApplePay.screenName
+        case .paymentPayPal: return SpecScreen.paymentPaypal.screenName
+        case .paymentAndroidPay: return SpecScreen.paymentAndroidPay.screenName
+        case .paymentFailed: return SpecScreen.paymentFailed.screenName
+        case .confirmation: return SpecScreen.confirmation.screenName
         }
     }
 

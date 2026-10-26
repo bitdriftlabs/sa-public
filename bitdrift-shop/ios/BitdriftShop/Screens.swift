@@ -76,7 +76,7 @@ struct WelcomeScreen: View {
                         sim.crashLoopEnabled = false
                         sim.fastCrashModeEnabled = false
                         sim.setVariant(sim.activeVariant)
-                        ScreenLogger.logInfo("crash_loop_stopped")
+                        ScreenLogger.logInfo(SpecEvents.crashLoopStopped)
                     } label: {
                         Text("Stop crash loop").frame(maxWidth: .infinity).padding(.vertical, 8)
                     }
@@ -131,7 +131,7 @@ struct WelcomeScreen: View {
             // POC: event tracking — screen-level "time to data ready", standalone
             // (not nested under any journey span — this fires on every Welcome visit,
             // including simulated journey restarts).
-            await CaptureBridge.trackSpan("welcome_screen_load") { _ in
+            await CaptureBridge.trackSpan(SpecSpans.welcomeScreenLoad) { _ in
                 apiData = try? await ApiClient.getWelcome()
                 latestSDKVersion = await ApiClient.fetchLatestSDKVersion()
             }
@@ -253,7 +253,7 @@ struct AdvancedScreen: View {
                         onColor: Palette.green
                     ) {
                         supportLogEnabled.toggle()
-                        Logger.addField(withKey: "supportlog", value: String(supportLogEnabled))
+                        Logger.addField(withKey: SpecFields.supportlog, value: String(supportLogEnabled))
                     }
                 }
             }
@@ -403,8 +403,8 @@ struct BrowseScreen: View {
         // the OOTB DROPPED_FRAME condition is Android-only.
         // POC: event tracking — unsampled duration histogram (p50/p95).
         return CaptureBridge.trackSpan(
-            "score_products",
-            fields: ["product_id": pid, "screen_name": "Browse"]
+            SpecSpans.scoreProducts,
+            fields: [SpecFields.productId: pid, SpecFields.screenName: SpecScreen.browse.screenName]
         ) { span in
             RecommendationEngine.scoreProducts(
                 catalogJSON: catalogJSON, referenceProductID: pid, parentSpanID: span?.id
@@ -448,11 +448,11 @@ struct BrowseScreen: View {
             // POC: event tracking — screen-load waterfall, standalone (fires on every
             // Browse visit; see WelcomeScreen for why these screen-load spans don't
             // nest under a journey span).
-            await CaptureBridge.trackSpan("browse_screen_load") { browseSpan in
+            await CaptureBridge.trackSpan(SpecSpans.browseScreenLoad) { browseSpan in
                 apiData = try? await ApiClient.getBrowse()
                 products = apiData?["products"].array ?? []
                 catalogJSON = CaptureBridge.trackSpan(
-                    "catalog_serialize", parentSpanID: browseSpan?.id
+                    SpecSpans.catalogSerialize, parentSpanID: browseSpan?.id
                 ) { _ in
                     apiData?["products"].serialized ?? "[]"
                 }
@@ -633,8 +633,8 @@ struct ProductDetailScreen: View {
     private var recommendations: [(product: JSON, score: Double)] {
         guard sim.recommendationsV2Enabled else { return [] }
         return CaptureBridge.trackSpan(
-            "score_products",
-            fields: ["product_id": productID, "screen_name": "ProductDetail"]
+            SpecSpans.scoreProducts,
+            fields: [SpecFields.productId: productID, SpecFields.screenName: SpecScreen.productDetail.screenName]
         ) { span in
             RecommendationEngine.scoreProducts(
                 catalogJSON: catalogJSON, referenceProductID: productID, parentSpanID: span?.id
@@ -664,11 +664,11 @@ struct ProductDetailScreen: View {
             PrimaryButton(title: "Add to Cart", systemImage: "plus") {
                 // bitdrift SDK: logInfo() with a stable event name and field map
                 // enables aggregation in the dashboard.
-                ScreenLogger.logInfo("add_to_cart", ["product_id": productID, "source_screen": source])
+                ScreenLogger.logInfo(SpecEvents.addToCart, [SpecFields.productId: productID, SpecFields.sourceScreen: source])
                 nav.navigate(to: .cart(productID: productID))
             }
             SecondaryButton(title: "Save to Wishlist", systemImage: "heart.fill") {
-                ScreenLogger.logInfo("add_to_wishlist", ["product_id": productID, "source_screen": source])
+                ScreenLogger.logInfo(SpecEvents.addToWishlist, [SpecFields.productId: productID, SpecFields.sourceScreen: source])
                 nav.navigate(to: .wishlist(productID: productID))
             }
         }
@@ -680,7 +680,7 @@ struct ProductDetailScreen: View {
             // POC: event tracking — screen-load waterfall, standalone (fires many
             // times per journey and outside journeys alike).
             await CaptureBridge.trackSpan(
-                "product_detail_load", fields: ["rec_v2": String(sim.recommendationsV2Enabled)]
+                SpecSpans.productDetailLoad, fields: [SpecFields.recV2: String(sim.recommendationsV2Enabled)]
             ) { _ in
                 apiData = try? await ApiClient.getProduct(productID)
                 if sim.recommendationsV2Enabled {
@@ -715,11 +715,11 @@ struct ReviewsScreen: View {
             onCart: { nav.navigate(to: .cart(productID: "")) }
         ) {
             PrimaryButton(title: "Add to Cart", systemImage: "plus") {
-                ScreenLogger.logInfo("add_to_cart", ["product_id": productID, "source_screen": source])
+                ScreenLogger.logInfo(SpecEvents.addToCart, [SpecFields.productId: productID, SpecFields.sourceScreen: source])
                 nav.navigate(to: .cart(productID: productID))
             }
             SecondaryButton(title: "Save to Wishlist", systemImage: "heart.fill") {
-                ScreenLogger.logInfo("add_to_wishlist", ["product_id": productID, "source_screen": source])
+                ScreenLogger.logInfo(SpecEvents.addToWishlist, [SpecFields.productId: productID, SpecFields.sourceScreen: source])
                 nav.navigate(to: .wishlist(productID: productID))
             }
         }
@@ -769,11 +769,11 @@ struct CartScreen: View {
             PrimaryButton(title: "Checkout as Guest", systemImage: "person") {
                 // bitdrift SDK: logInfo() records checkout funnel entry for
                 // conversion tracking.
-                ScreenLogger.logInfo("checkout_started", ["checkout_type": "guest"])
+                ScreenLogger.logInfo(SpecEvents.checkoutStarted, [SpecFields.checkoutType: "guest"])
                 nav.navigate(to: .checkoutGuest(productID: productID))
             }
             SecondaryButton(title: "Sign In to Checkout", systemImage: "lock") {
-                ScreenLogger.logInfo("checkout_started", ["checkout_type": "signin"])
+                ScreenLogger.logInfo(SpecEvents.checkoutStarted, [SpecFields.checkoutType: "signin"])
                 nav.navigate(to: .checkoutSignIn(productID: productID))
             }
             SecondaryButton(title: "Keep Shopping", systemImage: "cart") {
@@ -787,7 +787,7 @@ struct CartScreen: View {
             // fit; ending explicitly on each branch is what makes the span still
             // reflect a failed call's own latency.
             // POC: event tracking — screen-load waterfall, standalone.
-            let cartSpan = Logger.startSpan(name: "cart_screen_load", level: .info)
+            let cartSpan = Logger.startSpan(name: SpecSpans.cartScreenLoad, level: .info)
             do {
                 apiData = productID.isEmpty
                     ? try await ApiClient.getCart()
@@ -796,7 +796,7 @@ struct CartScreen: View {
             } catch {
                 // bitdrift SDK: logError() with an error captures the exception in
                 // the session timeline.
-                ScreenLogger.logError("cart_failed", error: error, ["product_id": productID])
+                ScreenLogger.logError(SpecEvents.cartFailed, error: error, [SpecFields.productId: productID])
                 cartSpan?.end(.failure)
             }
         }
@@ -815,7 +815,7 @@ struct CartScreen: View {
             Text(money(item.num("line_total"))).font(.subheadline.bold())
             Button {
                 // bitdrift SDK: logInfo() records cart mutations for funnel analysis.
-                ScreenLogger.logInfo("cart_item_removed", ["product_id": itemProductID])
+                ScreenLogger.logInfo(SpecEvents.cartItemRemoved, [SpecFields.productId: itemProductID])
                 Task { apiData = try? await ApiClient.deleteCartItem(itemProductID) }
             } label: {
                 Image(systemName: "trash").foregroundStyle(Palette.red)
@@ -901,7 +901,7 @@ struct CheckoutGuestScreen: View {
             // rethrowing.
             // POC: event tracking — screen-load waterfall.
             let checkoutSpan = Logger.startSpan(
-                name: "checkout_screen_load", level: .info, fields: ["checkout_type": "guest"]
+                name: SpecSpans.checkoutScreenLoad, level: .info, fields: [SpecFields.checkoutType: "guest"]
             )
             do {
                 let data = try await ApiClient.checkoutGuest()
@@ -909,7 +909,7 @@ struct CheckoutGuestScreen: View {
                 checkoutSession = data.str("checkout_session")
                 checkoutSpan?.end(.success)
             } catch {
-                ScreenLogger.logError("checkout_failed", error: error, ["checkout_type": "guest"])
+                ScreenLogger.logError(SpecEvents.checkoutFailed, error: error, [SpecFields.checkoutType: "guest"])
                 checkoutSpan?.end(.failure)
             }
         }
@@ -955,7 +955,7 @@ struct CheckoutSignInScreen: View {
             // user_id-tagging logic below only runs on success.
             // POC: event tracking — screen-load waterfall.
             let checkoutSpan = Logger.startSpan(
-                name: "checkout_screen_load", level: .info, fields: ["checkout_type": "signin"]
+                name: SpecSpans.checkoutScreenLoad, level: .info, fields: [SpecFields.checkoutType: "signin"]
             )
             do {
                 let data = try await ApiClient.checkoutSignIn()
@@ -977,11 +977,11 @@ struct CheckoutSignInScreen: View {
                 let userID = user.str("id").isEmpty ? user.str("email") : user.str("id")
                 if !userID.isEmpty {
                     Prefs.userSession.set(Prefs.keyUserID, userID)
-                    Logger.addField(withKey: "user_id", value: userID)
+                    Logger.addField(withKey: SpecFields.userId, value: userID)
                 }
                 checkoutSpan?.end(.success)
             } catch {
-                ScreenLogger.logError("checkout_failed", error: error, ["checkout_type": "signin"])
+                ScreenLogger.logError(SpecEvents.checkoutFailed, error: error, [SpecFields.checkoutType: "signin"])
                 checkoutSpan?.end(.failure)
             }
         }
@@ -1097,9 +1097,9 @@ struct PaymentScreen: View {
                     // workflow keys on this event, so omitting it here silently
                     // excluded every Apple Pay / PayPal / Android Pay completion
                     // from the conversion numbers.
-                    ScreenLogger.logInfo("payment_completed", [
-                        "payment_method": method.fieldValue,
-                        "order_id": orderID,
+                    ScreenLogger.logInfo(SpecEvents.paymentCompleted, [
+                        SpecFields.paymentMethod: method.fieldValue,
+                        SpecFields.orderId: orderID,
                     ])
                     nav.navigate(to: .confirmation(orderID: orderID))
                 }
@@ -1113,7 +1113,7 @@ struct PaymentScreen: View {
             // its own, distinct from checkout entry and confirmation.
             // POC: event tracking — screen-load waterfall.
             let paymentSpan = Logger.startSpan(
-                name: "payment_screen_load", level: .info, fields: ["payment_method": method.fieldValue]
+                name: SpecSpans.paymentScreenLoad, level: .info, fields: [SpecFields.paymentMethod: method.fieldValue]
             )
             do {
                 let data = try await method.call(checkoutSession)
@@ -1123,7 +1123,7 @@ struct PaymentScreen: View {
             } catch {
                 // bitdrift SDK: logError() with an error records payment failures
                 // in the session timeline.
-                ScreenLogger.logError("payment_failed", error: error, ["payment_method": method.fieldValue])
+                ScreenLogger.logError(SpecEvents.paymentFailed, error: error, [SpecFields.paymentMethod: method.fieldValue])
                 paymentSpan?.end(.failure)
             }
         }
@@ -1134,8 +1134,8 @@ struct PaymentScreen: View {
         let tap = {
             // bitdrift SDK: logInfo() records payment completion with method and
             // order ID for conversion tracking.
-            ScreenLogger.logInfo("payment_completed", [
-                "payment_method": brand, "card_last4": last4, "order_id": orderID,
+            ScreenLogger.logInfo(SpecEvents.paymentCompleted, [
+                SpecFields.paymentMethod: brand, SpecFields.cardLast4: last4, SpecFields.orderId: orderID,
             ])
             nav.navigate(to: .confirmation(orderID: orderID))
         }
@@ -1224,7 +1224,7 @@ struct ConfirmationScreen: View {
                 // bitdrift SDK: removeField() clears user_id when starting a new
                 // journey — session-level logout.
                 Prefs.userSession.remove(Prefs.keyUserID)
-                Logger.removeField(withKey: "user_id")
+                Logger.removeField(withKey: SpecFields.userId)
 
                 nav.popToWelcome()
             } label: {
@@ -1243,7 +1243,7 @@ struct ConfirmationScreen: View {
             // screen-load waterfall (checkout -> payment -> confirmation), not this
             // call's own weight.
             // POC: event tracking — screen-load waterfall.
-            await CaptureBridge.trackSpan("confirmation_screen_load") { _ in
+            await CaptureBridge.trackSpan(SpecSpans.confirmationScreenLoad) { _ in
                 apiData = try? await ApiClient.getConfirmation(orderID)
             }
         }

@@ -83,7 +83,7 @@ final class MetricsDemoManager: ObservableObject {
 
     private func start() {
         isRunning = true
-        Logger.addField(withKey: "sim_app_version", value: simVersion.label)
+        Logger.addField(withKey: SpecFields.simAppVersion, value: simVersion.label)
         // Fresh session boundary right away — see the type doc for why. Whatever
         // workflow is deployed at this moment sees everything from here on,
         // without a relaunch.
@@ -100,7 +100,7 @@ final class MetricsDemoManager: ObservableObject {
                 }
                 if self.elapsedSeconds % Self.versionRotationSeconds == 0 {
                     self.simVersion = self.nextRandomVersion()
-                    Logger.addField(withKey: "sim_app_version", value: self.simVersion.label)
+                    Logger.addField(withKey: SpecFields.simAppVersion, value: self.simVersion.label)
                 }
                 self.logTick(Double(self.elapsedSeconds))
             }
@@ -139,14 +139,14 @@ final class MetricsDemoManager: ObservableObject {
         let jitter = Double.random(in: -1...1) * version.jitterMs
         let latency = max(version.meanLatencyMs + jitter, 1)
 
-        ScreenLogger.logInfo("metric_values", [
-            "metric_sine": String(format: "%.4f", sine),
-            "metric_square": String(format: "%.4f", square),
-            "metric_sawtooth": String(format: "%.4f", sawtooth),
-            "metric_triangle": String(format: "%.4f", triangle),
-            "metric_dc": String(format: "%.4f", dc),
-            "metric_counter": String(format: "%.4f", counter),
-            "metric_work_latency_ms": String(format: "%.2f", latency),
+        ScreenLogger.logInfo(SpecEvents.metricValues, [
+            SpecFields.metricSine: String(format: "%.4f", sine),
+            SpecFields.metricSquare: String(format: "%.4f", square),
+            SpecFields.metricSawtooth: String(format: "%.4f", sawtooth),
+            SpecFields.metricTriangle: String(format: "%.4f", triangle),
+            SpecFields.metricDc: String(format: "%.4f", dc),
+            SpecFields.metricCounter: String(format: "%.4f", counter),
+            SpecFields.metricWorkLatencyMs: String(format: "%.2f", latency),
         ])
     }
 

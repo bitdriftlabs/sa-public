@@ -40,7 +40,7 @@ enum CaptureBridge {
     /// bitdrift field: when present it appears in the Timeline session header.
     private static func persistedUserFields() -> Fields {
         guard let id = Prefs.userSession.string(Prefs.keyUserID), !id.isEmpty else { return [:] }
-        return ["user_id": id]
+        return [SpecFields.userId: id]
     }
 
     /// Starts the Capture SDK. Must run before any logging.
@@ -80,15 +80,15 @@ enum CaptureBridge {
         Logger.setEntityID("demo")
 
         // bitdrift SDK: logInfo() emits a structured event at app launch.
-        Logger.logInfo("app_launched")
+        Logger.logInfo(SpecEvents.appLaunched)
 
         // bitdrift SDK: addField() sets a global field attached to every log, span,
         // and network request for the lifetime of this process. Not persisted — it
         // is re-added on each start.
         // POC: insights & visualization — slice any dashboard, Workflow, or alert
         // by global field value.
-        Logger.addField(withKey: "app_variant", value: "ios-sdk-demo")
-        Logger.addField(withKey: "platform", value: "ios")
+        Logger.addField(withKey: SpecFields.appVariant, value: "sdk-demo")
+        Logger.addField(withKey: SpecFields.platform, value: "ios")
 
         reportPreviousRun()
 
@@ -141,30 +141,30 @@ enum CaptureBridge {
 
         guard let info = Logger.previousRunInfo else { return }
         let fields = [
-            "termination_reason": info.terminationReason.rawValue,
-            "fatal": String(info.hasFatallyTerminated),
-            "clean": String(info.wasCleanTermination),
+            SpecFields.terminationReason: info.terminationReason.rawValue,
+            SpecFields.fatal: String(info.hasFatallyTerminated),
+            SpecFields.clean: String(info.wasCleanTermination),
             // Named distinctly from the live `last_screen` global field so a query
             // can tell "where the user is now" from "where the previous run died".
-            "crashed_on_screen": lastScreen,
+            SpecFields.crashedOnScreen: lastScreen,
             // Same value again under the key `screen_visit` logs use, so a
             // workflow can compute crashes-per-visit as a grouped `rate`. A
             // grouped rate requires both sides bucketed by an identical field
             // key; `crashed_on_screen` is kept for existing charts that already
             // group by it.
-            "screen": lastScreen,
+            SpecFields.screen: lastScreen,
             // The path the dead run took, newest first, joined by `>`. An
             // in-process crash carries this on the report itself via the
             // `screen_prev_N` global fields; a hang or jetsam kill leaves no
             // report at all, so this persisted copy is the only way those
             // terminations get a journey rather than just a final screen.
-            "crashed_on_trail": screenTrail,
+            SpecFields.crashedOnTrail: screenTrail,
         ]
 
         if info.hasFatallyTerminated {
-            ScreenLogger.logError("previous_run_terminated", fields)
+            ScreenLogger.logError(SpecEvents.previousRunTerminated, fields)
         } else {
-            ScreenLogger.logInfo("previous_run_terminated", fields)
+            ScreenLogger.logInfo(SpecEvents.previousRunTerminated, fields)
         }
     }
 
@@ -270,7 +270,7 @@ enum ColdStartSpans {
     /// and a span cannot be created before the SDK it will be measuring has started.
     static func beginRoot() {
         root = Logger.startSpan(
-            name: "app_cold_start",
+            name: SpecSpans.appColdStart,
             level: .info,
             fields: [:],
             startTimeInterval: CaptureBridge.processStart.timeIntervalSince1970
@@ -281,7 +281,7 @@ enum ColdStartSpans {
         // phases below.
         let now = Date().timeIntervalSince1970
         Logger.startSpan(
-            name: "app_cold_start.sdk_init",
+            name: SpecSpans.appColdStartSdkInit,
             level: .info,
             fields: [:],
             startTimeInterval: CaptureBridge.processStart.timeIntervalSince1970,
@@ -292,7 +292,7 @@ enum ColdStartSpans {
         // WindowGroup, laying out the first frame, dispatching the `.task` that runs
         // `ContentView.runStartupSequence()`) needs no back-dating.
         currentPhase = Logger.startSpan(
-            name: "app_cold_start.scene_render",
+            name: SpecSpans.appColdStartSceneRender,
             level: .info,
             parentSpanID: root?.id
         )
@@ -307,7 +307,7 @@ enum ColdStartSpans {
     static func advanceToStateRestore() {
         currentPhase?.end(.success)
         currentPhase = Logger.startSpan(
-            name: "app_cold_start.state_restore",
+            name: SpecSpans.appColdStartStateRestore,
             level: .info,
             parentSpanID: root?.id
         )

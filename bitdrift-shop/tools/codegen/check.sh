@@ -5,3 +5,4 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN="$ROOT/tools/codegen/run.sh"
 "$RUN" kotlin "$ROOT/android/app/src/main/java/ai/bitdrift/shop/generated" ai.bitdrift.shop.generated --check
+"$RUN" swift "$ROOT/ios/BitdriftShop/Generated" --check

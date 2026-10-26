@@ -214,13 +214,13 @@ struct ContentView: View {
         // These flags persist across launches and silently change what the app
         // does, so record what was actually armed at startup. Saves guessing at
         // "why did it crash / why didn't it" from the session timeline alone.
-        ScreenLogger.logInfo("demo_flags_resolved", [
-            "crash_loop": String(sim.crashLoopEnabled),
-            "fast_crash": String(sim.fastCrashModeEnabled),
-            "oom_only": String(Prefs.crashLoop.bool(Prefs.keyOomOnly)),
-            "app_hang": String(sim.appHangEnabled),
-            "force_quit": String(sim.forceQuitEnabled),
-            "auto_infinite": String(Prefs.autoInfinite.bool(Prefs.keyActive)),
+        ScreenLogger.logInfo(SpecEvents.demoFlagsResolved, [
+            SpecFields.crashLoop: String(sim.crashLoopEnabled),
+            SpecFields.fastCrash: String(sim.fastCrashModeEnabled),
+            SpecFields.oomOnly: String(Prefs.crashLoop.bool(Prefs.keyOomOnly)),
+            SpecFields.appHang: String(sim.appHangEnabled),
+            SpecFields.forceQuit: String(sim.forceQuitEnabled),
+            SpecFields.autoInfinite: String(Prefs.autoInfinite.bool(Prefs.keyActive)),
         ])
         DemoStateFile.publish()
 
@@ -247,16 +247,16 @@ struct ContentView: View {
             Prefs.crashLoop.set(Prefs.keyResumeInfiniteWithCrash, false)
             Prefs.crashLoop.flush()
             sim.restoreVariantFromPrefs()
-            ScreenLogger.logInfo("crash_restart_resume", ["variant": sim.activeVariant.label])
+            ScreenLogger.logInfo(SpecEvents.crashRestartResume, [SpecFields.variant: sim.activeVariant.label])
             sim.scheduleAutoStartInfinite()
         } else if hangRestartPending || hangResumeInfinite {
             Prefs.appHang.set(Prefs.keyRestartPending, false)
             Prefs.appHang.set(Prefs.keyResumeInfinite, false)
             Prefs.appHang.flush()
             sim.restoreVariantFromPrefs()
-            ScreenLogger.logInfo("anr_restart_resume", [
-                "mode": hangResumeInfinite ? "infinite" : "single",
-                "pending_flag": String(hangRestartPending),
+            ScreenLogger.logInfo(SpecEvents.anrRestartResume, [
+                SpecFields.mode: hangResumeInfinite ? "infinite" : "single",
+                SpecFields.pendingFlag: String(hangRestartPending),
             ])
             hangResumeInfinite ? sim.scheduleAutoStartInfinite() : sim.scheduleAutoStart()
         } else if quitRestartPending || quitResumeInfinite {
@@ -264,9 +264,9 @@ struct ContentView: View {
             Prefs.forceQuit.set(Prefs.keyResumeInfinite, false)
             Prefs.forceQuit.flush()
             sim.restoreVariantFromPrefs()
-            ScreenLogger.logInfo("force_quit_restart_resume", [
-                "mode": quitResumeInfinite ? "infinite" : "single",
-                "pending_flag": String(quitRestartPending),
+            ScreenLogger.logInfo(SpecEvents.forceQuitRestartResume, [
+                SpecFields.mode: quitResumeInfinite ? "infinite" : "single",
+                SpecFields.pendingFlag: String(quitRestartPending),
             ])
             quitResumeInfinite ? sim.scheduleAutoStartInfinite() : sim.scheduleAutoStart()
         }
@@ -299,11 +299,11 @@ struct ContentView: View {
         }
 
         if hadResumeRequest && !sim.isSimulating {
-            ScreenLogger.logError("restart_autostart_missed", [
-                "anr_restart_pending": String(hangRestartPending),
-                "fq_restart_pending": String(quitRestartPending),
-                "anr_resume_infinite": String(hangResumeInfinite),
-                "fq_resume_infinite": String(quitResumeInfinite),
+            ScreenLogger.logError(SpecEvents.restartAutostartMissed, [
+                SpecFields.anrRestartPending: String(hangRestartPending),
+                SpecFields.fqRestartPending: String(quitRestartPending),
+                SpecFields.anrResumeInfinite: String(hangResumeInfinite),
+                SpecFields.fqResumeInfinite: String(quitResumeInfinite),
             ])
         }
     }

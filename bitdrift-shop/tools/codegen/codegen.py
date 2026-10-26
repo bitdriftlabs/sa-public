@@ -136,7 +136,111 @@ def kotlin_files(package, platform="android"):
     return files
 
 
-LANGS = {"kotlin": kotlin_files}
+# ── Swift ────────────────────────────────────────────────────────────────────
+
+SWIFT_KEYWORDS = {
+    "default", "class", "in", "is", "as", "do", "for", "if", "else", "case", "switch", "return", "self",
+    "super", "init", "let", "var", "func", "import", "where", "while", "repeat", "break", "continue",
+    "true", "false", "nil", "try", "throw", "throws", "static", "struct", "enum", "extension", "protocol",
+    "public", "private", "internal", "open", "operator", "subscript", "typealias", "guard", "defer", "inout",
+}
+
+
+def camel(s):
+    """spec name -> lowerCamelCase identifier (leading '_' -> 'sdk' prefix)."""
+    parts = [p for p in re.split(r"[^0-9A-Za-z]+", s.lstrip("_")) if p]
+    out = parts[0].lower() + "".join(p[:1].upper() + p[1:].lower() for p in parts[1:])
+    if s.startswith("_"):
+        out = "sdk" + out[:1].upper() + out[1:]
+    if out[0].isdigit():
+        out = "_" + out
+    return f"`{out}`" if out in SWIFT_KEYWORDS else out
+
+
+def check_unique_camel(kind, names):
+    seen = {}
+    for n in names:
+        c = camel(n)
+        if c in seen and seen[c] != n:
+            raise SystemExit(f"{kind}: '{n}' and '{seen[c]}' both map to {c}")
+        seen[c] = n
+
+
+def sw_str(v):
+    return '"' + str(v).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def swift_files(platform="ios"):
+    events, fields, spans = (uniq(x) for x in telemetry_data(platform))
+    for k, n in (("events", events), ("fields", fields), ("spans", spans)):
+        check_unique_camel(k, n)
+
+    def enum(name, doc, names):
+        lines = [f"/// {doc}", f"enum {name} {{"]
+        for n in names:
+            lines.append(f"    static let {camel(n)} = {sw_str(n)}")
+        lines.append("}")
+        return "\n".join(lines)
+
+    files = {}
+    files["SpecTelemetry.swift"] = "\n".join(
+        [
+            f"// {HEADER}",
+            "",
+            enum("SpecEvents", "Log message names (spec/telemetry.yaml events + sdk_events).", events),
+            "",
+            enum("SpecFields", "Field keys (spec/telemetry.yaml fields). Leading '_' keys are SDK-owned (sdk prefix).", fields),
+            "",
+            enum("SpecSpans", "Span names (spec/telemetry.yaml spans).", spans),
+            "",
+        ]
+    )
+
+    screens = [s for s in load("screens")["screens"] if applies(s, platform)]
+    check_unique_camel("screens", [s["id"] for s in screens])
+    lines = [f"// {HEADER}", "", "/// Screens (spec/screens.yaml): logScreenView name, nav route template, step.",
+             "enum SpecScreen: CaseIterable {"]
+    for s in screens:
+        lines.append(f"    case {camel(s['id'])}")
+    lines += ["", "    var id: String {", "        switch self {"]
+    for s in screens:
+        lines.append(f"        case .{camel(s['id'])}: return {sw_str(s['id'])}")
+    for prop, key in (("screenName", "name"), ("route", "route")):
+        lines += ["        }", "    }", "", f"    var {prop}: String {{", "        switch self {"]
+        for s in screens:
+            lines.append(f"        case .{camel(s['id'])}: return {sw_str(s[key])}")
+    lines += ["        }", "    }", "", "    var step: Int {", "        switch self {"]
+    for s in screens:
+        lines.append(f"        case .{camel(s['id'])}: return {s['step']}")
+    lines += ["        }", "    }", "", "    var loadSpan: String? {", "        switch self {"]
+    for s in screens:
+        lines.append(f"        case .{camel(s['id'])}: return {sw_str(s['load_span']) if s.get('load_span') else 'nil'}")
+    lines += ["        }", "    }", "}", ""]
+    files["SpecScreens.swift"] = "\n".join(lines)
+
+    flags = [f for f in load("flags")["flags"] if applies(f, platform)]
+    check_unique_camel("flags", [f["name"] for f in flags])
+    lines = [f"// {HEADER}", "", "/// Feature flags (spec/flags.yaml): exposure names, mirror field keys, persona values.", "enum SpecFlags {"]
+    for f in flags:
+        c = camel(f["name"])
+        lines.append(f"    static let {c} = {sw_str(f['name'])}")
+        if f.get("mirror_field"):
+            lines.append(f"    static let {c}Field = {sw_str(f['mirror_field'])}")
+        if f["kind"] == "persona":
+            for persona, val in f["values"].items():
+                lines.append(f"    static let {c}{camel(persona)[:1].upper() + camel(persona)[1:]} = {sw_str(val)}")
+    lines += ["}", ""]
+    files["SpecFlags.swift"] = "\n".join(lines)
+
+    lines = [f"// {HEADER}", "", "/// Personas (spec/personas.yaml): the `variant` field label per persona.", "enum SpecPersonas {"]
+    for p in load("personas")["personas"]:
+        lines.append(f"    static let {camel(p['id'])} = {sw_str(p['label'])}")
+    lines += ["}", ""]
+    files["SpecPersonas.swift"] = "\n".join(lines)
+    return files
+
+
+LANGS = {"kotlin": kotlin_files, "swift": swift_files}
 
 
 def main():

@@ -166,7 +166,7 @@ fields:
 # ─────────────────────────────────────────────────────────────────────────────
 global_fields:
   - key: app_variant
-    values: {android: sdk-demo, ios: ios-sdk-demo, reactnative: sdk-demo, flutter: sdk-demo, kmp: kmp-demo}
+    values: {android: sdk-demo, ios: sdk-demo, reactnative: sdk-demo, flutter: sdk-demo, kmp: kmp-demo}
     open: OPEN-2   # resolved: iOS unifies on sdk-demo (applied in Phase 2b); see DECISIONS.md
     source: {android: "A:ShoppingDemoApp.kt:57", ios: "I:CaptureBridge.swift:90", reactnative: "R:src/config.ts:25", flutter: "F:main.dart:20"}
   - key: platform
