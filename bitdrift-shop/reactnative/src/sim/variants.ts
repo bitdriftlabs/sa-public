@@ -2,9 +2,9 @@ import {ScreenLogger} from '../utils/logger';
 import {SpecEvents, SpecFields, SpecFlags} from '../generated/specConstants';
 
 // ─── Personas / Variants ───────────────────────────────────────────────────────
-// Mirrors the Android app's SimVariant. Each variant biases the simulation state
-// machine and maps to a fixed set of feature-flag exposures, so the dashboard can
-// slice every metric, crash, and funnel by variant.
+// Mirrors the Android app's SimVariant. Each variant is a journey persona and maps to a
+// fixed set of feature-flag exposures, so the dashboard can slice every metric, crash,
+// and funnel by variant.
 
 export enum SimVariant {
   Control = 'Control',
@@ -18,87 +18,11 @@ export const VARIANT_LABELS: Record<SimVariant, string> = {
   [SimVariant.VariantB]: 'Variant B',
 };
 
-// Probability profile per variant. Numbers are exact ports of SimulationManager.kt.
-export type VariantProfile = {
-  // Discovery: cumulative thresholds for [browse, search, categories].
-  // browseMax = P(browse); searchMax = P(browse)+P(search); rest = categories.
-  discoveryBrowseMax: number;
-  discoverySearchMax: number;
-  featuredProb: number; // visit Featured
-  reviewsProb: number; // read Reviews
-  wishlistProb: number; // visit Wishlist
-  extraCartMin: number; // extra items added beyond first
-  extraCartMax: number;
-  removeItemProb: number; // remove an item
-  emptyReaddProb: number; // empty cart + re-add
-  quantityFlipProb: number; // remove & re-add same item
-  cartAbandonProb: number; // abandon before checkout (journey ends)
-  guestProb: number; // P(guest) vs signin
-  checkoutDropoutProb: number; // abandon at checkout screen (journey ends)
-  // Payment method weights: card, applePay, payPal, androidPay (sum = 1.0).
-  paymentWeights: {card: number; applePay: number; payPal: number; androidPay: number};
-  paymentFailProb: number; // failure rate for non-Android-Pay methods
-  androidPayFailProb: number; // failure rate specifically for Android Pay
-};
-
-export const VARIANT_PROFILES: Record<SimVariant, VariantProfile> = {
-  // CONTROL — baseline, mostly uniform/random.
-  [SimVariant.Control]: {
-    discoveryBrowseMax: 0.3333,
-    discoverySearchMax: 0.6666,
-    featuredProb: 0.5,
-    reviewsProb: 0.5,
-    wishlistProb: 0.4,
-    extraCartMin: 1,
-    extraCartMax: 3,
-    removeItemProb: 0.6,
-    emptyReaddProb: 0.2,
-    quantityFlipProb: 0.3,
-    cartAbandonProb: 0.05,
-    guestProb: 0.5,
-    checkoutDropoutProb: 0.0,
-    paymentWeights: {card: 0.25, applePay: 0.25, payPal: 0.25, androidPay: 0.25},
-    paymentFailProb: 0.15,
-    androidPayFailProb: 0.3,
-  },
-  // VARIANT A — digital native: snap decisions, guest + digital pay, more friction.
-  [SimVariant.VariantA]: {
-    discoveryBrowseMax: 0.4,
-    discoverySearchMax: 0.85,
-    featuredProb: 0.15,
-    reviewsProb: 0.1,
-    wishlistProb: 0.05,
-    extraCartMin: 0,
-    extraCartMax: 1,
-    removeItemProb: 0.1,
-    emptyReaddProb: 0.05,
-    quantityFlipProb: 0.05,
-    cartAbandonProb: 0.15,
-    guestProb: 0.95,
-    checkoutDropoutProb: 0.35,
-    paymentWeights: {card: 0.05, applePay: 0.4, payPal: 0.35, androidPay: 0.2},
-    paymentFailProb: 0.35,
-    androidPayFailProb: 0.2,
-  },
-  // VARIANT B — deliberate shopper: reads everything, signin + card, low friction.
-  [SimVariant.VariantB]: {
-    discoveryBrowseMax: 0.25,
-    discoverySearchMax: 0.5,
-    featuredProb: 0.75,
-    reviewsProb: 0.9,
-    wishlistProb: 0.75,
-    extraCartMin: 2,
-    extraCartMax: 4,
-    removeItemProb: 0.9,
-    emptyReaddProb: 0.6,
-    quantityFlipProb: 0.7,
-    cartAbandonProb: 0.0,
-    guestProb: 0.05,
-    checkoutDropoutProb: 0.05,
-    paymentWeights: {card: 0.95, applePay: 0.03, payPal: 0.02, androidPay: 0.0},
-    paymentFailProb: 0.05,
-    androidPayFailProb: 0.0,
-  },
+// Persona ids in spec/personas.yaml, which drive spec/journey.yaml (probabilities live there).
+export const VARIANT_PERSONAS: Record<SimVariant, string> = {
+  [SimVariant.Control]: 'control',
+  [SimVariant.VariantA]: 'variant_a',
+  [SimVariant.VariantB]: 'variant_b',
 };
 
 // Feature-flag values per variant (ports SimulationManager.setVariant()).
@@ -141,7 +65,7 @@ export type ChaosState = {
 };
 
 // Apply a variant: records every feature-flag exposure AND its mirror global field,
-// exactly like Android's setVariant(). Call after every new session/journey start.
+// exactly like Android's setVariant(). Called by the journey's `exposures` step.
 export const applyVariant = (variant: SimVariant, chaos: ChaosState): void => {
   const flags = VARIANT_FLAGS[variant];
   const orderSummary = chaos.crashLoopEnabled ? 'v2' : 'v1';
@@ -172,9 +96,3 @@ export const applyVariant = (variant: SimVariant, chaos: ChaosState): void => {
 
   ScreenLogger.logInfo(SpecEvents.featureFlagExposureSet);
 };
-
-// Fixed entity pool, rotated per journey (ports DEMO_ENTITIES).
-export const DEMO_ENTITIES = [
-  'Groucho', 'Harpo', 'Chico', 'Gummo', 'Zeppo',
-  'Moe', 'Larry', 'Curly', 'Abbott', 'Costello',
-];

@@ -32,7 +32,7 @@ faults:
     store: {android: anr_a, ios: app_hang}
     keys: [active, restart_pending, resume_infinite, restart_variant]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:510", ios: "I:SimulationManager.swift:1369", reactnative: "R:src/context/SimulationContext.tsx:17"}
+    source: {android: "A:SimulationManager.kt:510", ios: "I:SimulationManager.swift:418", reactnative: "R:src/context/SimulationContext.tsx:17"}
     store_source: {android: "A:SimulationManager.kt:661", ios: "I:DemoPrefs.swift:54"}
 
   - id: force_quit
@@ -48,7 +48,7 @@ faults:
     store: {android: force_quit, ios: force_quit}
     keys: [active, restart_pending, resume_infinite, restart_variant]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:493", ios: "I:SimulationManager.swift:1374", reactnative: "R:src/context/SimulationContext.tsx:22"}
+    source: {android: "A:SimulationManager.kt:493", ios: "I:SimulationManager.swift:388", reactnative: "R:src/context/SimulationContext.tsx:22"}
 
   - id: crash_loop
     description: "Fire the next crash from crashes.yaml sweep at the end of a journey; app relaunches and resumes."
@@ -66,7 +66,7 @@ faults:
     keys:
       android: [active, next_combo_index, fast_mode, oom_only, resume_infinite_with_crash, restart_variant]
       ios: [active, next_combo_index, fast_mode, oom_only, resume_infinite_with_crash, restart_variant, awaiting_background, pending_watchdog, restart_delay_ms]
-    source: {android: "A:SimulationManager.kt:580", ios: "I:SimulationManager.swift:1345", reactnative: "R:src/context/SimulationContext.tsx:296", flutter: "F:crash.dart:74"}
+    source: {android: "A:SimulationManager.kt:580", ios: "I:SimulationManager.swift:572", reactnative: "R:src/context/SimulationContext.tsx:296", flutter: "F:crash.dart:74"}
     store_source: {android: "A:ShoppingDemoApp.kt:101", ios: "I:DemoPrefs.swift:52"}
 
   - id: fast_crash

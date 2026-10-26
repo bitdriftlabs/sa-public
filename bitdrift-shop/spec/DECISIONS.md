@@ -172,36 +172,41 @@ Android, iOS and RN are identical (`A:SimulationManager.kt:670-969`, `I:Simulati
 Android, iOS and RN rotate `entities[(run-1) % 10]` (`A:SimulationManager.kt:635`, `I:SimulationManager.swift:711`, `R:src/context/SimulationContext.tsx:360`). Flutter picks a random name, appends a timestamp for sign-in journeys, and clears the entity for guest journeys (`F:sim/simulator.dart:216-224`). Decision: Android's rotation. The Entities demo relies on a small, stable pool.
 
 ### D-PER-3: A/B rotation order
-Android and iOS interleave personas per run (`i % 3`, `A:SimulationManager.kt:259`, `I:SimulationManager.swift:257`). RN runs blocks: Control N times, then A N times, then B N times (`R:src/context/SimulationContext.tsx:685-697`). Decision: interleaved.
+Android and iOS interleave personas per run (`i % 3`, `A:SimulationManager.kt:259`, `I:SimulationManager.swift:257`). RN runs blocks: Control N times, then A N times, then B N times (`R:src/context/SimulationContext.tsx:685-697`). Decision: interleaved. The run loops stay platform code (they drive UI state), so each app's A/B loop picks `personas[i % 3]`; RN switched from blocks in Phase 4.
 
 ### D-PER-4: Search terms
 Android, iOS and RN use the same 10 terms (`A:SimulationManager.kt:377`, `I:SimulationManager.swift:344`, `R:src/context/SimulationContext.tsx:87`). Flutter uses 5 different terms, including `coffee maker` and `yoga mat` (`F:sim/simulator.dart:97`). Decision: the 10 terms.
 
 ### D-JRN-1: Flutter journey graph
-Flutter skips Featured, the cart edits, abandon, dropout, payment failure injection and retry. It also ends the journey span with failure when the pay call fails (`F:sim/simulator.dart:203-372`). Decision: conform to Android in Phase 4. This is recorded in the spec through `missing_on: [flutter]` on the affected events and spans.
+Flutter skips Featured, the cart edits, abandon, dropout, payment failure injection and retry. It also ends the journey span with failure when the pay call fails (`F:sim/simulator.dart:203-372`). Decision: conform to Android in Phase 4. This is recorded in the spec through `missing_on: [flutter]` on the affected events and spans. **Resolved in Phase 4:** every app runs `spec/journey.yaml` through the shared journey engine, so Flutter has the full graph and those `missing_on: [flutter]` marks are gone.
 
 ### D-JRN-2: Payment retry
 - **Differs:** Android and iOS log `payment_failed`, navigate to PaymentFailed, then retry with probability 0.5, choosing uniformly among the *other three* methods including `android_pay` (`A:SimulationManager.kt:1013-1021`, `I:SimulationManager.swift:1069-1076`). RN goes straight to the retry without visiting PaymentFailed, and excludes `android_pay` from the alternatives (`R:src/context/SimulationContext.tsx:567-586`).
-- **Decision:** Android's flow.
+- **Decision:** Android's flow. Since Phase 4 it lives once in `spec/journey.yaml` (`retry_methods` minus the failed method), so RN now visits PaymentFailed and can retry with `android_pay`.
 
 ### D-JRN-3: Where the sim emits UI-tap events
-See OPEN-5.
+See OPEN-5 (resolved in Phase 4: the journey emits them on every app).
 
 ### D-JRN-4: Step pacing
 Android, iOS and RN use 50 ms between steps and between runs (`A:SimulationManager.kt:73,226`, `I:SimulationManager.swift:100`, `R:src/context/SimulationContext.tsx:27`). Flutter uses 900 ms per navigation and 1500 ms between runs (`F:sim/simulator.dart:394,153`). Decision: 50 ms. If Flutter's route transitions need longer, raise it in Flutter's adapter and note that it is platform-specific.
+
+### D-JRN-5: One journey, interpreted everywhere (Phase 4)
+- **Decision:** `spec/journey.yaml` plus one small interpreter per app replaces the hand-written simulators (`tools/journey/README.md`). Every probability, step, span and event of the journey lives in the spec. Journeys are seeded (mulberry32, `journey_seed = sim_seed * 1000003 + run`), so the same persona and seed produce the same journey on every app, and `journey_started` carries `sim_seed`. The drift entries above that cite simulator code are now historical.
+- **Shape changes from Android's old simulator:** the sim emits the tap events (OPEN-5) and the crash loop fires at a random back-half point (OPEN-3). The Welcome step now waits the step delay before its API call instead of after it, which changes timing only.
+- **Kept per platform:** the run loops (N runs, infinite, A/B, cardinality), flag exposure, the physical mechanism of each fault and crash, record mode, and iOS's fixed *simplified journey* demo mode, a separate deterministic 7-step path used to test one workflow.
 
 ---
 
 ## Spans
 
 ### D-SPN-1: Span names are frozen
-Every span name used by `bd-shop-04`, `11b`, `14`, `20`, `21`, `22`, `23` and `24` is identical on Android and iOS. RN emulates spans with paired logs (`R:src/utils/logger.ts:111-135`) and lacks `discovery_fetch`, `product_view`, `wishlist_add`, `cart_assembly`, `checkout.payment`, `checkout.confirmation`, the screen-load spans and `foreground_session`. Flutter lacks those too. Decision: `missing_on: [reactnative, flutter]`, which is work for Phase 4. `app_cold_start.scene_render` and `.state_restore` are `optional_on: [reactnative, flutter]`, because they have no equivalent phase (`R:App.tsx:155-162`).
+Every span name used by `bd-shop-04`, `11b`, `14`, `20`, `21`, `22`, `23` and `24` is identical on Android and iOS. RN emulates spans with paired logs (`R:src/utils/logger.ts:111-135`) and lacks `discovery_fetch`, `product_view`, `wishlist_add`, `cart_assembly`, `checkout.payment`, `checkout.confirmation`, the screen-load spans and `foreground_session`. Flutter lacks those too. Decision: `missing_on: [reactnative, flutter]`, which is work for Phase 4. Phase 4: the journey sub-phase spans (`discovery_fetch`, `product_view`, `wishlist_add`, `cart_assembly`, `checkout.payment`, `checkout.confirmation`) now come from the shared journey engine on all four apps; the screen-load spans and `foreground_session` are still `missing_on` RN and Flutter. `app_cold_start.scene_render` and `.state_restore` are `optional_on: [reactnative, flutter]`, because they have no equivalent phase (`R:App.tsx:155-162`).
 
 ### D-SPN-2: Flutter journey span fields and parenting
 Flutter's `journey` span has no `entity` field (`F:sim/simulator.dart:232`), `product_discovery` has no fields, and spans are not parented, because the alpha `startSpan` has no parent argument (`F:bd/capture.dart:113`). Decision: Android's fields. Parenting is exempt on Flutter until the SDK supports it.
 
 ### D-SPN-3: When Flutter ends the `checkout` span
-Flutter ends `checkout` right after the checkout API call (`F:sim/simulator.dart:317`). Android ends it after Confirmation, with {payment_method, retried?} (`A:SimulationManager.kt:1099`). Decision: Android's timing.
+Flutter ends `checkout` right after the checkout API call (`F:sim/simulator.dart:317`). Android ends it after Confirmation, with {payment_method, retried?} (`A:SimulationManager.kt:1099`). Decision: Android's timing. Resolved in Phase 4 by the shared journey engine.
 
 ---
 
@@ -285,7 +290,9 @@ KMP adopts the generated constants when it is next touched (plan §1).
 - **Impact:** No committed workflow or dashboard references `app_variant` (verified by extracting every matcher and field key). Live saved views or UI-edited workflows filtering `app_variant=ios-sdk-demo` could not be checked.
 - **Recommendation:** (a), after a `bd workflow list` or saved-view check in Phase 2b confirms nothing live filters on `ios-sdk-demo`.
 
-### OPEN-3: Where in the journey does the crash loop fire?
+### OPEN-3: Where in the journey does the crash loop fire? — **RESOLVED 2026-10-26 (Phase 4): (a) iOS's random back-half point, everywhere**
+- **Decision (the plan's recommendation, applied in Phase 4):** while the crash loop is on, the journey engine draws one of `crash_points` (cart, checkout, payment, payment_failed, confirmation) per journey. It fires at that `crash_point` step, with `confirmation` as the fallback so the sweep never stalls, and sets the global field `crash_journey_point` on every app (it was iOS-only).
+- **Workflow impact:** `ios/workflows/bd-shop-15-crashes-by-final-screen.json` keeps working. While the crash loop runs on Android, fewer journeys reach Confirmation, which lowers `bd-shop-01` completions.
 - **Evidence:** Android fires only after Confirmation (`A:SimulationManager.kt:1074,1101`), and so does RN (`R:src/context/SimulationContext.tsx:621`). iOS picks a random point among cart, checkout, payment, payment_failed and confirmation, and records it as the global field `crash_journey_point` (`I:SimulationManager.swift:82-88,568-575,706`). Flutter fires at payment (`F:sim/simulator.dart:341`).
 - **Options:**
   - (a) Adopt iOS's random back-half point on every platform.
@@ -305,7 +312,9 @@ KMP adopts the generated constants when it is next touched (plan §1).
 - **Impact:** `android/workflows/bd-shop-04-span-durations.json` matches `journey` and `checkout` end logs with any `_result`, so it would start including failed journeys. Add a `_result == success` filter if only successes should count. The Phase 3 conformance rule "spans closed" fails on Android and iOS without (a).
 - **Recommendation:** (a).
 
-### OPEN-5: Should simulated journeys emit the UI-tap events?
+### OPEN-5: Should simulated journeys emit the UI-tap events? — **RESOLVED 2026-10-26 (Phase 4): (a) the engine emits them everywhere**
+- **Decision (the plan's recommendation, applied in Phase 4):** `spec/journey.yaml` logs `add_to_cart`, `add_to_wishlist`, `cart_item_removed`, `checkout_started` and `payment_completed` where a real user would tap. For `add_to_cart`, `source_screen` is the discovery source for the first item and `cart` for later ones. `cart_item_removed` is logged on a single remove and for each item when the cart is emptied. For `payment_completed`, `payment_method` is the method, not a card brand. Real taps on the screens still log them, as before.
+- **Workflow impact:** no committed workflow matches these five events. Volume rises by roughly 5 to 10 logs per journey.
 - **Evidence:**
   - On Android and iOS, `add_to_cart`, `add_to_wishlist`, `cart_item_removed`, `checkout_started` and `payment_completed` fire only on real taps (`A:Screens.kt:946-1516`, `I:Screens.swift:667-1137`). The sim navigates past them, so sim sessions never contain them.
   - RN's sim emits all five itself (`R:src/context/SimulationContext.tsx:437,446,469,539,602`).
@@ -316,7 +325,7 @@ KMP adopts the generated constants when it is next touched (plan §1).
 - **Impact:** No committed workflow matches these five events. `bd-shop-02` matches only `payment_failed` and `checkout_failed`. Option (a) adds volume and makes funnels on events possible.
 - **Recommendation:** (a) in Phase 4, which makes sim sessions look like real user sessions. The spec marks these events `trigger: ui` with `sim_emits: {reactnative: true}` for now.
 
-### OPEN-6: Cardinality demo: send the path template or not?
+### OPEN-6: Cardinality demo: send the path template or not? (still open; not part of the journey, so deferred out of Phase 4)
 - **Evidence:** Android sends `x-capture-path-template: /api/inventory/lookup/<item>/<session>` (`A:ApiClient.kt:170`), which collapses the explosion. iOS omits it on purpose, with a "to apply, add pathTemplate" comment (`I:ApiClient.swift:200-208`). RN also omits it on purpose (`R:src/api/ApiClient.ts:26-27,151`).
 - **Options:**
   - (a) Omit it by default, so the demo shows the problem.

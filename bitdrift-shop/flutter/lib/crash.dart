@@ -47,7 +47,9 @@ class Crash {
   /// Inject a crash. The app is not expected to survive this call.
   static Future<void> inject(String name) async {
     await Bd.field(SpecFields.crashKind, name);
-    await Bd.warning('${SpecEvents.aboutToCrash}: $name');
+    await Bd.field(SpecFields.crashContext, 'foreground');
+    await Bd.warning('${SpecEvents.aboutToCrash}: $name (context=foreground)');
+    await Future<void>.delayed(const Duration(milliseconds: 300)); // let the SDK persist the breadcrumb
     switch (name) {
       case 'sigsegv':
         _raise(11);

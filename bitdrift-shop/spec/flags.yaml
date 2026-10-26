@@ -26,27 +26,27 @@ flags:
     kind: persona
     values: {control: random, variant_a: guest, variant_b: signin}
     mirror_field: ff_checkout_flow
-    source: {android: "A:SimulationManager.kt:103", ios: "I:SimulationManager.swift:126", reactnative: "R:src/sim/variants.ts:152", flutter: "F:sim/simulator.dart:194"}
+    source: {android: "A:SimulationManager.kt:103", ios: "I:SimulationManager.swift:126", reactnative: "R:src/sim/variants.ts:30", flutter: "F:sim/simulator.dart:122"}
     used_by: [android/workflows/bd-shop-01-checkout-funnel.json, android/workflows/bd-shop-04-span-durations.json]
 
   - name: payment_ui
     kind: persona
     values: {control: random, variant_a: digital, variant_b: card}
     mirror_field: ff_payment_ui
-    source: {android: "A:SimulationManager.kt:104", ios: "I:SimulationManager.swift:127", reactnative: "R:src/sim/variants.ts:153", flutter: "F:sim/simulator.dart:195"}
+    source: {android: "A:SimulationManager.kt:104", ios: "I:SimulationManager.swift:127", reactnative: "R:src/sim/variants.ts:31", flutter: "F:sim/simulator.dart:123"}
     used_by: [android/workflows/bd-shop-02-payment-errors.json]
 
   - name: cart_abandon_rate
     kind: persona
     values: {control: medium, variant_a: high, variant_b: low}
     mirror_field: ff_cart_abandon_rate
-    source: {android: "A:SimulationManager.kt:105", ios: "I:SimulationManager.swift:128", reactnative: "R:src/sim/variants.ts:154", flutter: "F:sim/simulator.dart:196"}
+    source: {android: "A:SimulationManager.kt:105", ios: "I:SimulationManager.swift:128", reactnative: "R:src/sim/variants.ts:32", flutter: "F:sim/simulator.dart:124"}
 
   - name: payment_android_pay
     kind: persona
     values: {control: enabled, variant_a: enabled, variant_b: disabled}
     mirror_field: ff_payment_android_pay
-    source: {android: "A:SimulationManager.kt:117", ios: "I:SimulationManager.swift:135", reactnative: "R:src/sim/variants.ts:155", flutter: "F:sim/simulator.dart:197"}
+    source: {android: "A:SimulationManager.kt:117", ios: "I:SimulationManager.swift:135", reactnative: "R:src/sim/variants.ts:33", flutter: "F:sim/simulator.dart:125"}
 
   - name: order_summary
     kind: toggle
@@ -54,7 +54,7 @@ flags:
     values: {"on": v2, "off": v1}
     mirror_field: ff_order_summary
     missing_on: [flutter]
-    source: {android: "A:SimulationManager.kt:120", ios: "I:SimulationManager.swift:139", reactnative: "R:src/sim/variants.ts:156"}
+    source: {android: "A:SimulationManager.kt:120", ios: "I:SimulationManager.swift:139", reactnative: "R:src/sim/variants.ts:71"}
 
   - name: anr_a
     kind: toggle
@@ -63,7 +63,7 @@ flags:
     mirror_field: ff_anr_a
     notes: "Name kept as anr_a on iOS too (main-thread hang), for parity with bd-shop-05. Toggle is only selectable while Variant A is active and auto-clears otherwise (A:Screens.kt:258, R:src/context/SimulationContext.tsx:134)."
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:123", ios: "I:SimulationManager.swift:143", reactnative: "R:src/sim/variants.ts:157"}
+    source: {android: "A:SimulationManager.kt:123", ios: "I:SimulationManager.swift:143", reactnative: "R:src/sim/variants.ts:60"}
     used_by: [android/workflows/bd-shop-05-anr-force-quit.json]
 
   - name: force_quit
@@ -72,7 +72,7 @@ flags:
     values: {"on": enabled, "off": disabled}
     mirror_field: ff_force_quit
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:126", ios: "I:SimulationManager.swift:147", reactnative: "R:src/sim/variants.ts:158"}
+    source: {android: "A:SimulationManager.kt:126", ios: "I:SimulationManager.swift:147", reactnative: "R:src/sim/variants.ts:61"}
     used_by: [android/workflows/bd-shop-05-anr-force-quit.json]
 
   - name: recommendations_v2
@@ -81,7 +81,7 @@ flags:
     values: {"on": enabled, "off": disabled}
     mirror_field: ff_recommendations_v2
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:129", ios: "I:SimulationManager.swift:151", reactnative: "R:src/sim/variants.ts:159"}
+    source: {android: "A:SimulationManager.kt:129", ios: "I:SimulationManager.swift:151", reactnative: "R:src/sim/variants.ts:62"}
     used_by: [android/workflows/bd-shop-11-slow-rendering.json, android/workflows/bd-shop-11b-slow-rendering-manual-span.json]
 
   # Install-persistent flags (hard cap 3, A:PersistentFeatureFlags.kt:30). Android only today.

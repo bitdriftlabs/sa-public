@@ -10,6 +10,15 @@ enum SimVariant: String, CaseIterable {
     case variantA      // digital native: snap decisions, skips research, guest + digital pay
     case variantB      // deliberate shopper: reads everything, huge cart churn, signin + card
 
+    /// The spec persona id (personas.yaml), which selects the journey's probability tables.
+    var id: String {
+        switch self {
+        case .control: return "control"
+        case .variantA: return "variant_a"
+        case .variantB: return "variant_b"
+        }
+    }
+
     var label: String {
         switch self {
         case .control: return "Control"
@@ -19,11 +28,15 @@ enum SimVariant: String, CaseIterable {
     }
 }
 
-/// Automated simulation of user journeys through the app. Randomly selects
-/// paths at each decision point to generate varied journey data.
+/// Automated simulation of user journeys through the app. The journey itself is data
+/// (spec/journey.yaml), interpreted by `JourneyEngine` — identically on Android, React
+/// Native and Flutter — so all platforms feed the same `bd-shop-*` workflows. This class
+/// keeps only what is iOS-specific: navigation, the API client, the SDK calls, and how
+/// each fault physically happens (`SimAdapter`).
 ///
-/// The probabilities, event names, field names and span structure are identical
-/// to the Android app's, so both platforms feed the same `bd-shop-*` workflows.
+/// Every simulation is seeded: the engine draws from mulberry32 keyed on (sim_seed, run),
+/// so the same seed replays the same journeys. Autorun takes `-sim_seed`; every other
+/// entry point draws a fresh random seed per simulation (logged on `journey_started`).
 @MainActor
 final class SimulationManager: ObservableObject {
 
@@ -68,33 +81,14 @@ final class SimulationManager: ObservableObject {
     private var pendingBackgroundCrash: (() -> Void)?
     private var backgroundObserver: NSObjectProtocol?
 
-    /// Where in a journey a crash is allowed to fire.
-    ///
-    /// Firing every crash at Confirmation — as this used to — makes crash data
-    /// useless for the question teams actually ask, which is *where in the funnel
-    /// are we losing people*. Every issue would report the same last screen, and
-    /// the Sankey would show a single crash point that says nothing.
-    ///
-    /// All the points sit in the back half deliberately: a crash on the Welcome
-    /// screen is not a realistic e-commerce failure and would drown out the
-    /// checkout-and-payment region that matters. The chosen point is recorded on
-    /// the crash as `crash_journey_point`, so issues can be grouped by it.
-    private enum JourneyCrashPoint: String, CaseIterable {
-        case cart
-        case checkout
-        case payment
-        case paymentFailed = "payment_failed"
-        case confirmation
-    }
-
-    private var journeyCrashPoint: JourneyCrashPoint = .confirmation
-    private var crashFiredThisJourney = false
-
-    private var eligibleForceQuitJourneysSinceInject = 0
-    private var eligibleHangGuestJourneysSinceInject = 0
-
     private var isCancelled = false
     private var runTask: Task<Void, Never>?
+
+    /// Seed for the current simulation: the autorun seed, else random (0..<2^31).
+    private var simSeed: Int64 = 0
+
+    /// Navigator of the simulation in flight; the adapter navigates through it.
+    private var navigator: Navigator?
 
     /// Delay between navigation steps.
     private let stepDelay: TimeInterval = 0.05
@@ -215,10 +209,11 @@ final class SimulationManager: ObservableObject {
     // MARK: - Simulation entry points
 
     /// Runs the simulation for a specified number of journeys.
-    func simulate(runs: Int, nav: Navigator) {
+    func simulate(runs: Int, nav: Navigator, seed: Int64? = nil) {
         guard runTask == nil else { return }
         runTask = Task { [weak self] in
             guard let self else { return }
+            self.simSeed = seed ?? Self.newSimSeed()
             self.isSimulating = true
             self.isCancelled = false
             self.totalRuns = runs
@@ -239,18 +234,18 @@ final class SimulationManager: ObservableObject {
     }
 
     /// Test-harness autorun (launch arguments, see `Autorun`): runs `Autorun.runs` journeys as the
-    /// requested persona, then logs `sim_autorun_complete` so the script driving the app knows to
+    /// requested persona and seed, then logs `sim_autorun_complete` so the script driving the app knows to
     /// stop waiting.
     func autorun(nav: Navigator) {
         let runs = Autorun.runs
         setVariant(Autorun.variant)
-        simulate(runs: runs, nav: nav)
+        simulate(runs: runs, nav: nav, seed: Autorun.simSeed)
         let task = runTask
         Task {
             await task?.value
             ScreenLogger.logInfo(SpecEvents.simAutorunComplete, [
                 SpecFields.totalRuns: String(runs),
-                SpecFields.simSeed: String(Autorun.seed),
+                SpecFields.simSeed: String(Autorun.simSeed),
                 SpecFields.persona: Autorun.persona,
             ])
         }
@@ -262,6 +257,7 @@ final class SimulationManager: ObservableObject {
         guard runTask == nil else { return }
         runTask = Task { [weak self] in
             guard let self else { return }
+            self.simSeed = Self.newSimSeed()
             self.isSimulating = true
             self.isCancelled = false
             self.totalRuns = runsEach * SimVariant.allCases.count
@@ -288,6 +284,7 @@ final class SimulationManager: ObservableObject {
         guard runTask == nil else { return }
         runTask = Task { [weak self] in
             guard let self else { return }
+            self.simSeed = Self.newSimSeed()
             self.isSimulating = true
             self.isCancelled = false
             self.totalRuns = -1
@@ -354,6 +351,8 @@ final class SimulationManager: ObservableObject {
         try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
     }
 
+    private static func newSimSeed() -> Int64 { Int64.random(in: 0..<(1 << 31)) }
+
     private func nav(_ navigator: Navigator, _ screen: Screen) async {
         navigator.navigate(to: screen)
         await sleep(stepDelay)
@@ -371,57 +370,26 @@ final class SimulationManager: ObservableObject {
         return ids.isEmpty ? [Self.fallbackProductID] : ids
     }
 
+
     private func fetchBrowseIDs() async -> [String] {
         ids(from: try? await ApiClient.getBrowse(), key: "products")
-    }
-
-    private func fetchSearchIDs() async -> [String] {
-        ids(from: try? await ApiClient.search(Self.searchQueries.randomElement()!), key: "products")
-    }
-
-    private func fetchFeaturedIDs() async -> [String] {
-        ids(from: try? await ApiClient.getFeatured(), key: "featured_products")
-    }
-
-    private func fetchCategoryNames() async -> [String] {
-        let names = ((try? await ApiClient.getCategories())?["categories"].array ?? [])
-            .map { $0.str("name", "Electronics") }
-        return names.isEmpty ? ["Electronics"] : names
-    }
-
-    private func fetchCategoryProductIDs(_ category: String) async -> [String] {
-        ids(from: try? await ApiClient.getCategoryProducts(category), key: "products")
     }
 
     // MARK: - Fault injection
 
     /// Simulates the user force-quitting (swipe-up from the app switcher) on the
-    /// ProductDetail screen. The Sankey shows ProductDetail → (dropout) since no
-    /// subsequent screens are reached.
+    /// ProductDetail screen. The engine decided to inject it and logged
+    /// `force_quit_injected`; this persists the restart intent and exits. The Sankey
+    /// shows ProductDetail → (dropout) since no subsequent screens are reached.
     ///
     /// iOS has no equivalent of Android's AlarmManager, so the app cannot
     /// schedule its own relaunch — `scripts/watchdog.sh` notices the dead process
     /// and relaunches it, which is what the persisted resume flags below are for.
-    private func maybeInjectForceQuit() -> Bool {
-        guard forceQuitEnabled else { return false }
-
-        eligibleForceQuitJourneysSinceInject += 1
-        let randomHit = Double.random(in: 0..<1) < Self.forceQuitProbability
-        let forcedHit = isInfiniteMode && eligibleForceQuitJourneysSinceInject >= Self.forceQuitForceAfterJourneys
-        guard randomHit || forcedHit else { return false }
-        eligibleForceQuitJourneysSinceInject = 0
-
+    private func performForceQuit() {
         Prefs.forceQuit.set(Prefs.keyRestartPending, true)
         Prefs.forceQuit.set(Prefs.keyResumeInfinite, isInfiniteMode)
         Prefs.forceQuit.set(Prefs.keyRestartVariant, activeVariant.rawValue)
         Prefs.forceQuit.flush()
-
-        ScreenLogger.logError(SpecEvents.forceQuitInjected, [
-            SpecFields.forceQuitEnabled: "true",
-            SpecFields.forceQuitScreen: Self.forceQuitTargetScreen,
-            SpecFields.variant: activeVariant.label,
-            SpecFields.triggerMode: forcedHit ? "forced_infinite" : "random",
-        ])
 
         isCancelled = true
 
@@ -430,14 +398,13 @@ final class SimulationManager: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.crashFlush) {
             exit(0)
         }
-        return true
     }
 
     /// Simulates a main-thread hang on the CheckoutGuest screen — as if a
-    /// synchronous post-checkout validation call blocked the main thread. Called
-    /// after navigation and the API call complete so the screen is rendered and
-    /// visible. The Sankey shows CheckoutGuest → (dropout) since Payment is never
-    /// reached.
+    /// synchronous post-checkout validation call blocked the main thread. The engine
+    /// calls this after navigation and the API call complete (and has logged
+    /// `guest_anr_injected`) so the screen is rendered and visible. The Sankey shows
+    /// CheckoutGuest → (dropout) since Payment is never reached.
     ///
     /// This is the iOS analogue of Android's ANR. iOS has no ANR dialog; a hung
     /// main thread is picked up by MetricKit's hang diagnostics, which the SDK
@@ -448,27 +415,11 @@ final class SimulationManager: ObservableObject {
     /// the ANR dialog — the block here is bounded and followed by an exit, since
     /// nothing on the host side can detect or clear a hung iOS app. That leaves a
     /// permanently frozen Simulator as the only alternative.
-    private func maybeInjectGuestHang(isGuest: Bool) -> Bool {
-        guard appHangEnabled, activeVariant == .variantA, isGuest else { return false }
-
-        eligibleHangGuestJourneysSinceInject += 1
-        let randomHit = Double.random(in: 0..<1) < Self.hangProbability
-        let forcedHit = isInfiniteMode && eligibleHangGuestJourneysSinceInject >= Self.hangForceAfterEligibleGuestJourneys
-        guard randomHit || forcedHit else { return false }
-        eligibleHangGuestJourneysSinceInject = 0
-
+    private func performGuestHang() {
         Prefs.appHang.set(Prefs.keyRestartPending, true)
         Prefs.appHang.set(Prefs.keyResumeInfinite, isInfiniteMode)
         Prefs.appHang.set(Prefs.keyRestartVariant, activeVariant.rawValue)
         Prefs.appHang.flush()
-
-        ScreenLogger.logError(SpecEvents.guestAnrInjected, [
-            SpecFields.anrAEnabled: "true",
-            SpecFields.journeyType: "guest",
-            SpecFields.anrScreenName: Self.hangTargetScreenName,
-            SpecFields.variant: activeVariant.label,
-            SpecFields.triggerMode: forcedHit ? "forced_infinite" : "random",
-        ])
 
         isCancelled = true
 
@@ -477,6 +428,46 @@ final class SimulationManager: ObservableObject {
         // synchronous guest-session validation call would.
         Thread.sleep(forTimeInterval: Self.hangBlockDuration)
         exit(0)
+    }
+
+    /// The simplified journey is not run by the engine, so it rolls its own faults
+    /// (same probabilities as spec/faults.yaml) and reuses the physical mechanics above.
+    private var simplifiedEligible: [String: Int] = [:]
+
+    private func rollSimplifiedFault(_ id: String, probability: Double, forceAfter: Int) -> String? {
+        simplifiedEligible[id, default: 0] += 1
+        let randomHit = Double.random(in: 0..<1) < probability
+        let forcedHit = isInfiniteMode && simplifiedEligible[id, default: 0] >= forceAfter
+        guard randomHit || forcedHit else { return nil }
+        simplifiedEligible[id] = 0
+        return forcedHit && !randomHit ? "forced_infinite" : "random"
+    }
+
+    private func maybeInjectForceQuit() -> Bool {
+        guard forceQuitEnabled,
+              let mode = rollSimplifiedFault("force_quit", probability: 0.60, forceAfter: 3) else { return false }
+        ScreenLogger.logError(SpecEvents.forceQuitInjected, [
+            SpecFields.forceQuitEnabled: "true",
+            SpecFields.forceQuitScreen: Self.forceQuitTargetScreen,
+            SpecFields.variant: activeVariant.label,
+            SpecFields.triggerMode: mode,
+        ])
+        performForceQuit()
+        return true
+    }
+
+    private func maybeInjectGuestHang(isGuest: Bool) -> Bool {
+        guard appHangEnabled, activeVariant == .variantA, isGuest,
+              let mode = rollSimplifiedFault("anr", probability: 0.25, forceAfter: 6) else { return false }
+        ScreenLogger.logError(SpecEvents.guestAnrInjected, [
+            SpecFields.anrAEnabled: "true",
+            SpecFields.journeyType: "guest",
+            SpecFields.anrScreenName: Self.hangTargetScreenName,
+            SpecFields.variant: activeVariant.label,
+            SpecFields.triggerMode: mode,
+        ])
+        performGuestHang()
+        return true
     }
 
     // MARK: - Crash cycling
@@ -577,21 +568,6 @@ final class SimulationManager: ObservableObject {
         }
     }
 
-    /// Fires the next crash if `point` is this journey's chosen crash point.
-    ///
-    /// `.confirmation` doubles as the fallback: a journey that picked, say,
-    /// `.paymentFailed` but whose payment succeeded would otherwise complete
-    /// without crashing, and the deterministic sweep would stall.
-    @discardableResult
-    private func maybeFireCrash(at point: JourneyCrashPoint) -> Bool {
-        guard crashLoopEnabled, !crashFiredThisJourney else { return false }
-        guard point == journeyCrashPoint || point == .confirmation else { return false }
-        crashFiredThisJourney = true
-        Logger.addField(withKey: SpecFields.crashJourneyPoint, value: point.rawValue)
-        fireCrashNow()
-        return true
-    }
-
     /// Picks the next crash combo, logs it, then dispatches it.
     private func fireCrashNow() {
         guard crashLoopEnabled else { return }
@@ -682,493 +658,153 @@ final class SimulationManager: ObservableObject {
         DemoStateFile.publish()
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Fully random journey simulator — each journey walks through every major
-    // step of the shopping funnel, randomly choosing a branch at each decision
-    // point.
-    //
-    //  Welcome
-    //    → discovery: Browse | Search | Categories→CategoryBrowse (random)
-    //    → maybe Featured (coin flip)
-    //    → ProductDetail
-    //    → maybe Reviews (coin flip)
-    //    → maybe Wishlist (coin flip)
-    //    → Cart
-    //    → checkout: CheckoutGuest | CheckoutSignIn (random)
-    //    → payment: Card | Apple Pay | PayPal | Android Pay (random)
-    //    → Confirmation
-    // ═══════════════════════════════════════════════════════════════════════
+    // The journey itself is data: spec/journey.yaml, interpreted by `JourneyEngine`
+    // (identically on Android, React Native and Flutter). `runSingleJourney` hands the
+    // engine one persona, run number and seed; `SimAdapter` below maps its calls onto
+    // the navigator, `ApiClient`, the recording facade and the fault mechanics.
+
+    /// Toggles the engine's `if`/`fault`/`crash_point` ops read (spec/faults.yaml ids).
+    private var journeyToggles: Set<String> {
+        var toggles: Set<String> = []
+        if crashLoopEnabled { toggles.insert("crash_loop") }
+        if appHangEnabled { toggles.insert("anr") }
+        if forceQuitEnabled { toggles.insert("force_quit") }
+        return toggles
+    }
+
+    private lazy var adapter = SimAdapter(self)
+    private lazy var engine = JourneyEngine(bundleJson: SpecJourney.json, adapter: adapter)
 
     private func runSingleJourney(_ navigator: Navigator) async {
-        // Keep force-quit runs in the startup session so workflows that begin
-        // with SDK configuration and end with app termination match in a single
-        // session.
-        if !forceQuitEnabled {
-            Logger.startNewSession()
-            ScreenLogger.logInfo(SpecEvents.journeyStarted, [
-                SpecFields.run: String(currentRun),
-                SpecFields.variant: activeVariant.label,
-            ])
-            // Give the SDK time to fully initialise the new session before
-            // recording exposures.
-            await sleep(0.2)
-            // Re-apply flag exposures after startNewSession() — exposure is
-            // per-session, so it must be recorded again on the new session for
-            // the dashboard to detect it.
-            setVariant(activeVariant)
-            await sleep(0.2)
-        }
-
-        // Pick where in the back half of this journey a crash may fire, so crash
-        // data spreads across the funnel instead of piling up on Confirmation.
-        journeyCrashPoint = JourneyCrashPoint.allCases.randomElement() ?? .confirmation
-        crashFiredThisJourney = false
-
-        // Rotate through the fixed entity list so each journey appears as a
-        // different user in the bitdrift Entities view. `currentRun` is 1-indexed.
-        let entity = Self.demoEntities[(max(currentRun, 1) - 1) % Self.demoEntities.count]
-        // bitdrift SDK: setEntityID() associates all subsequent logs with this
-        // user identity.
-        // POC: ad-hoc debugging — search any entity in the dashboard to retrieve
-        // all their sessions on demand.
-        Logger.setEntityID(entity)
-
+        self.navigator = navigator
         if AppConfig.simplifiedJourneyEnabled {
-            await runSimplifiedJourney(navigator, entity: entity)
+            await runSimplifiedPreamble(navigator)
             return
         }
+        _ = await engine.run(
+            persona: activeVariant.id, run: max(currentRun, 1), simSeed: simSeed,
+            toggles: journeyToggles, infinite: isInfiniteMode
+        )
+    }
 
-        // bitdrift SDK: startSpan() opens a root span for the journey. All logs
-        // are correlated via _span_id; child spans form a two-level hierarchy in
-        // the timeline.
+    /// Maps the engine's adapter calls onto the iOS app.
+    private final class SimAdapter: JourneyAdapter {
+        private unowned let sim: SimulationManager
+
+        init(_ sim: SimulationManager) { self.sim = sim }
+
+        func isCancelled() -> Bool { sim.isCancelled }
+
+        func startNewSession() { Logger.startNewSession() }
+
+        func applyExposures(persona: String) { sim.setVariant(sim.activeVariant) }
+
+        func setEntity(_ entity: String) {
+            // bitdrift SDK: setEntityID() associates all subsequent logs with this
+            // user identity.
+            // POC: ad-hoc debugging — search any entity in the dashboard to retrieve
+            // all their sessions on demand.
+            Logger.setEntityID(entity)
+        }
+
+        func delay(ms: Int) async { await sim.sleep(Double(ms) / 1000) }
+
+        func navigate(screen: String, args: [String: String]) async {
+            guard let nav = sim.navigator else { return }
+            func a(_ key: String) -> String { args[key] ?? "" }
+            switch screen {
+            case "welcome": nav.popToWelcome()
+            case "browse": nav.navigate(to: .browse)
+            case "search": nav.navigate(to: .search)
+            case "featured": nav.navigate(to: .featured)
+            case "categories": nav.navigate(to: .categories)
+            case "category_browse": nav.navigate(to: .categoryBrowse(category: a("category")))
+            case "product_detail": nav.navigate(to: .productDetail(source: a("source"), productID: a("productId")))
+            case "reviews": nav.navigate(to: .reviews(source: a("source"), productID: a("productId")))
+            case "cart": nav.navigate(to: .cart(productID: a("productId")))
+            case "wishlist": nav.navigate(to: .wishlist(productID: a("productId")))
+            case "checkout_guest": nav.navigate(to: .checkoutGuest(productID: a("productId")))
+            case "checkout_signin": nav.navigate(to: .checkoutSignIn(productID: a("productId")))
+            case "payment_card": nav.navigate(to: .paymentCard(checkoutSession: a("checkoutSession")))
+            case "payment_apple_pay": nav.navigate(to: .paymentApplePay(checkoutSession: a("checkoutSession")))
+            case "payment_paypal": nav.navigate(to: .paymentPayPal(checkoutSession: a("checkoutSession")))
+            case "payment_android_pay": nav.navigate(to: .paymentAndroidPay(checkoutSession: a("checkoutSession")))
+            case "payment_failed":
+                nav.navigate(to: .paymentFailed(paymentMethod: a("paymentMethod"), checkoutSession: a("checkoutSession")))
+            case "confirmation": nav.navigate(to: .confirmation(orderID: a("orderId")))
+            default: assertionFailure("unknown journey screen \(screen)")
+            }
+        }
+
+        func callApi(endpoint: String, args: [String: String]) async -> [String: Any]? {
+            func a(_ key: String) -> String { args[key] ?? "" }
+            let json: JSON?
+            switch endpoint {
+            case "welcome": json = try? await ApiClient.getWelcome()
+            case "browse": json = try? await ApiClient.getBrowse()
+            case "search": json = try? await ApiClient.search(a("q"))
+            case "featured": json = try? await ApiClient.getFeatured()
+            case "categories": json = try? await ApiClient.getCategories()
+            case "category_products": json = try? await ApiClient.getCategoryProducts(a("category"))
+            case "product": json = try? await ApiClient.getProduct(a("id"))
+            case "reviews": json = try? await ApiClient.getReviews(a("id"))
+            case "cart_get": json = try? await ApiClient.getCart()
+            case "cart_add": json = try? await ApiClient.addToCart(a("product_id"), quantity: Int(a("quantity")) ?? 1)
+            case "cart_delete": json = try? await ApiClient.deleteCartItem(a("id"))
+            case "wishlist_add": json = try? await ApiClient.addToWishlist(a("product_id"))
+            case "checkout_guest": json = try? await ApiClient.checkoutGuest()
+            case "checkout_signin": json = try? await ApiClient.checkoutSignIn()
+            case "pay_card": json = try? await ApiClient.payCard(a("checkout_session"), cardLast4: args["card_last4"] ?? "4242")
+            case "pay_apple_pay": json = try? await ApiClient.payApplePay(a("checkout_session"))
+            case "pay_paypal": json = try? await ApiClient.payPayPal(a("checkout_session"))
+            case "pay_android_pay": json = try? await ApiClient.payAndroidPay(a("checkout_session"))
+            case "confirmation": json = try? await ApiClient.getConfirmation(a("id"))
+            default: fatalError("unknown journey endpoint \(endpoint)")
+            }
+            return json?.raw as? [String: Any]
+        }
+
+        func log(level: String, event: String, fields: [String: String]) {
+            switch level {
+            case "error": ScreenLogger.logError(event, fields)
+            case "warning": ScreenLogger.logWarning(event, fields)
+            default: ScreenLogger.logInfo(event, fields)
+            }
+        }
+
+        // bitdrift SDK: startSpan() with parentSpanID builds the journey waterfall
+        // (journey → product_discovery/cart_assembly/checkout → sub-phases); all logs are
+        // correlated via _span_id.
         // POC: spans waterfall visualization in Timeline; query _duration_ms for
         // p50/p95 of any flow.
-        let journeySpan = RecordedSpan.start(
-            name: SpecSpans.journey,
-            level: .info,
-            fields: ScreenLogger.encode([SpecFields.variant: activeVariant.label, SpecFields.entity: entity])
-        )
-        // Tracks the discovery phase: Welcome → Browse/Search/Categories →
-        // ProductDetail → Cart. Ends SUCCESS when the first item hits the cart.
-        let discoverySpan = RecordedSpan.start(
-            name: SpecSpans.productDiscovery,
-            level: .info,
-            fields: ScreenLogger.encode([SpecFields.variant: activeVariant.label]),
-            parentSpanID: journeySpan?.id
-        )
-
-        // ── Step 1: Welcome ──────────────────────────────────────────────
-        navigator.popToWelcome()
-        _ = try? await ApiClient.getWelcome()
-        await sleep(stepDelay)
-
-        // ── Step 2: Discovery — Browse, Search, or Categories ────────────
-        // Variant-biased but still random:
-        //   A (digital native) — 45% Search, 40% Browse, 15% Categories
-        //   B (deliberate)     — 50% Categories, 25% Browse, 25% Search
-        //   Control            — equal 33 / 33 / 33
-        var productIDs: [String] = []
-        var source = ""
-        let discoveryRoll = Double.random(in: 0..<1)
-        let discoveryChoice: Int
-        switch activeVariant {
-        case .variantA: discoveryChoice = discoveryRoll < 0.40 ? 0 : (discoveryRoll < 0.85 ? 1 : 2)
-        case .variantB: discoveryChoice = discoveryRoll < 0.25 ? 0 : (discoveryRoll < 0.50 ? 1 : 2)
-        case .control:  discoveryChoice = Int.random(in: 0...2)
+        func startSpan(name: String, parent: AnyObject?, fields: [String: String]) -> AnyObject? {
+            RecordedSpan.start(
+                name: name, level: .info, fields: ScreenLogger.encode(fields),
+                parentSpanID: (parent as? RecordedSpan)?.id
+            )
         }
 
-        // bitdrift SDK: trackSpan() isolates the discovery-method fetch (whichever
-        // of browse/search/categories was picked this run) as its own sub-phase of
-        // product_discovery, distinct from the ProductDetail/Reviews/Wishlist steps
-        // that follow.
-        // POC: event tracking — sub-phase waterfall within an existing span, not
-        // just a single lump duration. Demo-only caveat: the branch taken is a
-        // randomized per-variant roll, so this reflects whichever backend endpoint
-        // got hit that run, not a stable operation.
-        await CaptureBridge.trackSpan(SpecSpans.discoveryFetch, parentSpanID: discoverySpan?.id) { _ in
-            switch discoveryChoice {
-            case 0:
-                await nav(navigator, .browse)
-                productIDs = await fetchBrowseIDs()
-                source = "browse"
-            case 1:
-                await nav(navigator, .search)
-                productIDs = await fetchSearchIDs()
-                source = "search"
-            default:
-                await nav(navigator, .categories)
-                let category = (await fetchCategoryNames()).randomElement()!
-                await nav(navigator, .categoryBrowse(category: category))
-                productIDs = await fetchCategoryProductIDs(category)
-                source = "categories"
+        func endSpan(handle: AnyObject, result: String, fields: [String: String]) {
+            let spanResult: SpanResult
+            switch result {
+            case "failure": spanResult = .failure
+            case "canceled": spanResult = .canceled
+            default: spanResult = .success
+            }
+            (handle as? RecordedSpan)?.end(spanResult, fields: ScreenLogger.encode(fields))
+        }
+
+        func addField(key: String, value: String) { Logger.addField(withKey: key, value: value) }
+
+        func injectFault(id: String) {
+            switch id {
+            case "force_quit": sim.performForceQuit()
+            case "anr": sim.performGuestHang()
+            default: break
             }
         }
 
-        // ── Maybe visit Featured — A skips it (15%), B almost always (75%)
-        let featuredProb: Double
-        switch activeVariant {
-        case .control:  featuredProb = 0.5
-        case .variantA: featuredProb = 0.15  // decisive, goes straight to product
-        case .variantB: featuredProb = 0.75  // comparison shopper, checks everything
-        }
-        if Double.random(in: 0..<1) < featuredProb {
-            await nav(navigator, .featured)
-            productIDs = await fetchFeaturedIDs()
-            source = "featured"
-        }
-
-        let pid = productIDs.randomElement()!
-
-        // ── Step 3: ProductDetail ────────────────────────────────────────
-        // bitdrift SDK: trackSpan() wraps ProductDetail + the maybe-Reviews visit
-        // as one product_discovery sub-phase. `maybeInjectForceQuit()` below aborts
-        // the *whole journey*, not just this span — a bare `return` inside the
-        // closure would only exit the closure, so the abort is signalled back out
-        // via the return value instead, and the actual early return happens after
-        // the span has already closed normally.
-        // POC: event tracking — sub-phase waterfall within product_discovery.
-        let forceQuitInjected = await CaptureBridge.trackSpan(
-            SpecSpans.productView, parentSpanID: discoverySpan?.id
-        ) { _ -> Bool in
-            await nav(navigator, .productDetail(source: source, productID: pid))
-            _ = try? await ApiClient.getProduct(pid)
-
-            // Force-quit injection: fires after ProductDetail renders and the API
-            // completes. Simulates the user swiping the app away on an uninteresting
-            // product page.
-            if maybeInjectForceQuit() { return true }
-
-            // ── Maybe visit Reviews — A rarely (10%), B almost always (90%)
-            let reviewsProb: Double
-            switch activeVariant {
-            case .control:  reviewsProb = 0.5
-            case .variantA: reviewsProb = 0.10  // trusts the product, skips reviews
-            case .variantB: reviewsProb = 0.90  // reads every review before deciding
-            }
-            if Double.random(in: 0..<1) < reviewsProb {
-                await nav(navigator, .reviews(source: source, productID: pid))
-                _ = try? await ApiClient.getReviews(pid)
-            }
-            return false
-        }
-        if forceQuitInjected { return }
-
-        // ── Maybe visit Wishlist — A almost never (5%), B very often (75%)
-        let wishlistProb: Double
-        switch activeVariant {
-        case .control:  wishlistProb = 0.4
-        case .variantA: wishlistProb = 0.05  // immediate buyer, doesn't save for later
-        case .variantB: wishlistProb = 0.75  // saves many items before committing
-        }
-        if Double.random(in: 0..<1) < wishlistProb {
-            // bitdrift SDK: trackSpan() wraps the wishlist visit — only opens when
-            // the roll actually adds to wishlist, so it doesn't inflate the
-            // discovery-phase span count on runs that skip it.
-            // POC: event tracking — sub-phase waterfall within product_discovery.
-            await CaptureBridge.trackSpan(SpecSpans.wishlistAdd, parentSpanID: discoverySpan?.id) { _ in
-                await nav(navigator, .wishlist(productID: pid))
-                _ = try? await ApiClient.addToWishlist(pid)
-            }
-        }
-
-        // ── Step 4: Cart — A adds just 1, B loads up with 3-5 ────────────
-        var cartItems = [pid]
-        await nav(navigator, .cart(productID: pid))
-        _ = try? await ApiClient.addToCart(pid)
-        // Discovery phase complete — first item is in the cart.
-        discoverySpan?.end(.success, fields: ScreenLogger.encode([SpecFields.source: source, SpecFields.productId: pid]))
-
-        // bitdrift SDK: trackSpan() wraps the whole cart-assembly block — extra
-        // items, view, maybe-remove, maybe-empty-and-rebuild, maybe-flip, final
-        // view — as one sibling span alongside product_discovery and checkout,
-        // parented directly off the journey span. Previously this ran inside no
-        // span at all.
-        // POC: event tracking — multi-step cart operations as one measurable
-        // sub-phase. Demo-only caveat: branch counts/probabilities are
-        // variant-driven random walks, and the fixed `sleep(stepDelay)` calls
-        // interspersed below are artificial demo pacing, not real work — they
-        // inflate this span's duration by a constant that has nothing to do with
-        // the underlying API calls.
-        await CaptureBridge.trackSpan(SpecSpans.cartAssembly, parentSpanID: journeySpan?.id) { _ in
-            let extraCount: Int
-            switch activeVariant {
-            case .control:  extraCount = Int.random(in: 1...3)  // 1-3 extra
-            case .variantA: extraCount = Int.random(in: 0...1)  // usually 1 item, occasionally a second
-            case .variantB: extraCount = Int.random(in: 2...4)  // loads up the cart
-            }
-            for _ in 0..<extraCount {
-                let extraPid = productIDs.randomElement()!
-                cartItems.append(extraPid)
-                _ = try? await ApiClient.addToCart(extraPid, quantity: Int.random(in: 1...3))
-                await sleep(stepDelay)
-            }
-
-            // View the cart
-            _ = try? await ApiClient.getCart()
-            await sleep(stepDelay)
-
-            // Maybe remove an item — A almost never (10%), B almost always (90%)
-            let removeProb: Double
-            switch activeVariant {
-            case .control:  removeProb = 0.6
-            case .variantA: removeProb = 0.10  // keeps what they add
-            case .variantB: removeProb = 0.90  // constant second-guessing
-            }
-            if Double.random(in: 0..<1) < removeProb, cartItems.count > 1 {
-                let removePid = cartItems.remove(at: Int.random(in: 0..<cartItems.count))
-                _ = try? await ApiClient.deleteCartItem(removePid)
-                await sleep(stepDelay)
-            }
-
-            // Maybe empty cart and re-add — A almost never (5%), B very often (60%)
-            let emptyCartProb: Double
-            switch activeVariant {
-            case .control:  emptyCartProb = 0.2
-            case .variantA: emptyCartProb = 0.05  // commits to their choice
-            case .variantB: emptyCartProb = 0.60  // starts over frequently
-            }
-            if Double.random(in: 0..<1) < emptyCartProb {
-                for item in cartItems {
-                    _ = try? await ApiClient.deleteCartItem(item)
-                    await sleep(stepDelay)
-                }
-                cartItems.removeAll()
-                // Re-add one product so checkout works
-                let rePid = productIDs.randomElement()!
-                cartItems.append(rePid)
-                _ = try? await ApiClient.addToCart(rePid)
-                await sleep(stepDelay)
-            }
-
-            // Maybe remove and re-add same item — A almost never (5%), B often (70%)
-            let flipProb: Double
-            switch activeVariant {
-            case .control:  flipProb = 0.3
-            case .variantA: flipProb = 0.05  // no quantity dithering
-            case .variantB: flipProb = 0.70  // changes quantity repeatedly
-            }
-            if Double.random(in: 0..<1) < flipProb, let flippedPid = cartItems.randomElement() {
-                _ = try? await ApiClient.deleteCartItem(flippedPid)
-                await sleep(stepDelay)
-                _ = try? await ApiClient.addToCart(flippedPid, quantity: Int.random(in: 1...5))
-                await sleep(stepDelay)
-            }
-
-            // View cart one more time before checkout
-            _ = try? await ApiClient.getCart()
-            await sleep(stepDelay)
-        }
-
-        if maybeFireCrash(at: .cart) { return }
-
-        // ── Cart abandonment — A: 15%, Control: 5%, B: 0% ────────────────
-        let cartAbandonProb: Double
-        switch activeVariant {
-        case .control:  cartAbandonProb = 0.05
-        case .variantA: cartAbandonProb = 0.15
-        case .variantB: cartAbandonProb = 0.0
-        }
-        if Double.random(in: 0..<1) < cartAbandonProb {
-            ScreenLogger.logInfo(SpecEvents.cartAbandoned, [
-                SpecFields.itemsInCart: String(cartItems.count),
-                SpecFields.variant: activeVariant.label,
-            ])
-            await sleep(0.2)
-            journeySpan?.end(.canceled, fields: ScreenLogger.encode([SpecFields.reason: "cart_abandoned"]))
-            return
-        }
-
-        let checkoutPid = cartItems.last ?? pid
-
-        // ── Step 5: Checkout — A almost always guest, B almost always signin
-        let guestProb: Double
-        switch activeVariant {
-        case .control:  guestProb = 0.5   // 50/50 baseline
-        case .variantA: guestProb = 0.95  // never bothers with an account
-        case .variantB: guestProb = 0.05  // always signs in for loyalty points
-        }
-        // Keep hang injection deterministic across environments: when it is
-        // enabled and Variant A is selected, always take the guest branch.
-        let isGuest = (appHangEnabled && activeVariant == .variantA)
-            ? true
-            : Double.random(in: 0..<1) < guestProb
-
-        // Checkout span: child of the journey span, covers Checkout → Payment →
-        // Confirmation. `parentSpanID` links it to the root journey span so both
-        // appear together in the timeline.
-        let checkoutSpan = RecordedSpan.start(
-            name: SpecSpans.checkout,
-            level: .info,
-            fields: ScreenLogger.encode([SpecFields.checkoutType: isGuest ? "guest" : "signin"]),
-            parentSpanID: journeySpan?.id
-        )
-
-        let session: String
-        if isGuest {
-            await nav(navigator, .checkoutGuest(productID: checkoutPid))
-            session = (try? await ApiClient.checkoutGuest())?.str("checkout_session") ?? ""
-            // Hang injection: fires after the checkout API call completes, which
-            // gives SwiftUI time to render the screen. The Sankey shows
-            // CheckoutGuest → (dropout) since Payment is never reached.
-            if maybeInjectGuestHang(isGuest: isGuest) { return }
-        } else {
-            await nav(navigator, .checkoutSignIn(productID: checkoutPid))
-            session = (try? await ApiClient.checkoutSignIn())?.str("checkout_session") ?? ""
-        }
-
-        if maybeFireCrash(at: .checkout) { return }
-
-        // ── Checkout dropout — A: 35%, B: 5%, Control: 0% ────────────────
-        let checkoutDropoutProb: Double
-        switch activeVariant {
-        case .control:  checkoutDropoutProb = 0.0
-        case .variantA: checkoutDropoutProb = 0.35
-        case .variantB: checkoutDropoutProb = 0.05
-        }
-        if Double.random(in: 0..<1) < checkoutDropoutProb {
-            ScreenLogger.logInfo(SpecEvents.checkoutAbandoned, [
-                SpecFields.checkoutType: isGuest ? "guest" : "signin",
-                SpecFields.variant: activeVariant.label,
-            ])
-            await sleep(0.2)
-            checkoutSpan?.end(.canceled, fields: ScreenLogger.encode([SpecFields.reason: "checkout_abandoned"]))
-            journeySpan?.end(.canceled, fields: ScreenLogger.encode([SpecFields.reason: "checkout_abandoned"]))
-            return
-        }
-
-        // ── Step 6: Payment ─────────────────────────────────────────────
-        // 0=card, 1=apple_pay, 2=paypal, 3=android_pay
-        let paymentChoice: Int
-        switch activeVariant {
-        case .control:
-            paymentChoice = Int.random(in: 0...3)          // equal 25/25/25/25
-        case .variantA:                                     // 5% card, 40% Apple Pay, 35% PayPal, 20% Android Pay
-            let r = Double.random(in: 0..<1)
-            paymentChoice = r < 0.05 ? 0 : (r < 0.45 ? 1 : (r < 0.80 ? 2 : 3))
-        case .variantB:                                     // 95% card, 3% Apple Pay, 2% PayPal
-            let r = Double.random(in: 0..<1)
-            paymentChoice = r < 0.95 ? 0 : (r < 0.98 ? 1 : 2)
-        }
-        let paymentMethod = Self.paymentMethodName(paymentChoice)
-
-        // ── Payment failure simulation ──────────────────────────────────
-        // Android Pay carries its own elevated failure rates; other methods use
-        // variant-level rates.
-        let failureProb: Double
-        if paymentMethod == "android_pay" {
-            switch activeVariant {
-            case .control:  failureProb = 0.30
-            case .variantA: failureProb = 0.20
-            case .variantB: failureProb = 0.0  // never reaches here — signin doesn't use Android Pay
-            }
-        } else {
-            switch activeVariant {
-            case .control:  failureProb = 0.15
-            case .variantA: failureProb = 0.35
-            case .variantB: failureProb = 0.05
-            }
-        }
-        let willPaymentFail = Double.random(in: 0..<1) < failureProb
-
-        let orderID = await runPayment(
-            navigator, choice: paymentChoice, session: session, parentSpanID: checkoutSpan?.id
-        )
-
-        if maybeFireCrash(at: .payment) { return }
-
-        if willPaymentFail {
-            ScreenLogger.logError(SpecEvents.paymentFailed, [
-                SpecFields.paymentMethod: paymentMethod,
-                SpecFields.checkoutSession: session,
-                SpecFields.variant: activeVariant.label,
-            ])
-
-            // Navigate to the PaymentFailed screen so it appears in the Sankey.
-            await nav(navigator, .paymentFailed(paymentMethod: paymentMethod, checkoutSession: session))
-            await sleep(0.2)
-
-            if maybeFireCrash(at: .paymentFailed) { return }
-
-            // ── Payment retry: 50% chance to retry with a different method
-            if Double.random(in: 0..<1) < 0.50 {
-                let retryChoice = [0, 1, 2, 3].filter { $0 != paymentChoice }.randomElement()!
-                let retryMethod = Self.paymentMethodName(retryChoice)
-                let retryOrderID = await runPayment(
-                    navigator, choice: retryChoice, session: session,
-                    parentSpanID: checkoutSpan?.id, retried: true
-                )
-
-                ScreenLogger.logInfo(SpecEvents.paymentRetry, [
-                    SpecFields.originalMethod: paymentMethod,
-                    SpecFields.retryMethod: retryMethod,
-                    SpecFields.variant: activeVariant.label,
-                ])
-
-                // Retry succeeds — proceed to confirmation with the retried order.
-                setVariant(activeVariant)
-                await sleep(0.1)
-                await nav(navigator, .confirmation(orderID: retryOrderID))
-                ScreenLogger.logInfo(SpecEvents.confirmationReached, [
-                    SpecFields.sdkScreenName: SpecScreen.confirmation.screenName,
-                    SpecFields.paymentRetried: "true",
-                    SpecFields.retryMethod: retryMethod,
-                ])
-                // bitdrift SDK: trackSpan() isolates the confirmation fetch as its
-                // own checkout sub-phase, closing the checkout -> payment ->
-                // confirmation waterfall (checkout_screen_load/payment_screen_load
-                // in Screens.swift cover the first two on the screen side).
-                // POC: event tracking — sub-phase waterfall within checkout.
-                await CaptureBridge.trackSpan(
-                    SpecSpans.checkoutConfirmation, parentSpanID: checkoutSpan?.id
-                ) { _ in
-                    _ = try? await ApiClient.getConfirmation(retryOrderID)
-                }
-                await sleep(0.2)
-                checkoutSpan?.end(.success, fields: ScreenLogger.encode([
-                    SpecFields.paymentMethod: retryMethod, SpecFields.retried: "true",
-                ]))
-                journeySpan?.end(.success)
-                maybeFireCrash(at: .confirmation)
-            } else {
-                // No retry: the customer abandons after the failed payment. End both
-                // spans as failures (spec OPEN-4) instead of letting them close as unknown.
-                checkoutSpan?.end(.failure, fields: ScreenLogger.encode([
-                    SpecFields.paymentMethod: paymentMethod,
-                ]))
-                journeySpan?.end(.failure, fields: ScreenLogger.encode([
-                    SpecFields.reason: "payment_failed",
-                ]))
-            }
-            return
-        }
-
-        // ── Step 7: Confirmation ────────────────────────────────────────
-        // Re-assert flag exposure right before Confirmation to guarantee it is
-        // on this session.
-        setVariant(activeVariant)
-        await sleep(0.1)
-        await nav(navigator, .confirmation(orderID: orderID))
-        // Explicit tagged log so fields are verifiable in the raw stream.
-        let checkoutFlow: String
-        switch activeVariant {
-        case .control:  checkoutFlow = "random"
-        case .variantA: checkoutFlow = "guest"
-        case .variantB: checkoutFlow = "signin"
-        }
-        ScreenLogger.logInfo(SpecEvents.confirmationReached, [
-            SpecFields.sdkScreenName: SpecScreen.confirmation.screenName,
-            SpecFields.checkoutFlow: checkoutFlow,
-        ])
-        // bitdrift SDK: trackSpan() isolates the confirmation fetch as its own
-        // checkout sub-phase — see the retry path above for the same pattern.
-        // POC: event tracking — sub-phase waterfall within checkout.
-        await CaptureBridge.trackSpan(SpecSpans.checkoutConfirmation, parentSpanID: checkoutSpan?.id) { _ in
-            _ = try? await ApiClient.getConfirmation(orderID)
-        }
-        await sleep(0.2)
-        checkoutSpan?.end(.success, fields: ScreenLogger.encode([SpecFields.paymentMethod: paymentMethod]))
-        journeySpan?.end(.success)
-        maybeFireCrash(at: .confirmation)
+        func fireCrash() { sim.fireCrashNow() }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1205,6 +841,28 @@ final class SimulationManager: ObservableObject {
     // never demonstrated the window at all.
     // ═══════════════════════════════════════════════════════════════════════
 
+    /// The setup the engine would otherwise do (new session, journey_started, exposures,
+    /// entity), then the fixed path.
+    private func runSimplifiedPreamble(_ navigator: Navigator) async {
+        // Keep force-quit runs in the startup session so workflows that begin
+        // with SDK configuration and end with app termination match in a single
+        // session.
+        if !forceQuitEnabled {
+            Logger.startNewSession()
+            ScreenLogger.logInfo(SpecEvents.journeyStarted, [
+                SpecFields.run: String(currentRun),
+                SpecFields.simSeed: String(simSeed),
+                SpecFields.variant: activeVariant.label,
+            ])
+            await sleep(0.2)
+            setVariant(activeVariant)
+            await sleep(0.2)
+        }
+        let entity = Self.demoEntities[(max(currentRun, 1) - 1) % Self.demoEntities.count]
+        Logger.setEntityID(entity)
+        await runSimplifiedJourney(navigator, entity: entity)
+    }
+
     private func runSimplifiedJourney(_ navigator: Navigator, entity: String) async {
         let journeySpan = RecordedSpan.start(
             name: SpecSpans.journey,
@@ -1223,7 +881,7 @@ final class SimulationManager: ObservableObject {
 
         // ── Step 2: Browse ───────────────────────────────────────────────
         // bitdrift SDK: trackSpan() — the same discovery_fetch span the full
-        // journey uses (see runSingleJourney), parented directly on journeySpan
+        // journey uses (see spec/journey.yaml), parented directly on journeySpan
         // since this mode has no separate discoverySpan. Without a call site
         // here, bd-shop-22's discovery_fetch chart is empty for anyone who opts
         // into this mode (SIMPLIFIED_JOURNEY_ENABLED = YES; the committed
@@ -1242,8 +900,8 @@ final class SimulationManager: ObservableObject {
         // bitdrift SDK: trackSpan() — same product_view span the full journey
         // uses; this mode has no Reviews step, so it only covers the
         // ProductDetail fetch. Force-quit injection aborts the whole journey,
-        // not just this span — same Bool-signal pattern as runSingleJourney's
-        // product_view for why a bare `return` inside the closure won't do.
+        // not just this span — same Bool-signal pattern as the full
+        // journey's product_view for why a bare `return` inside the closure won't do.
         // POC: event tracking — sub-phase waterfall.
         let forceQuitInjected = await CaptureBridge.trackSpan(
             SpecSpans.productView, parentSpanID: journeySpan?.id
@@ -1254,7 +912,7 @@ final class SimulationManager: ObservableObject {
             // Force-quit injection, same placement as the full journey: after
             // ProductDetail renders and its API call completes. Kept here so the
             // persisted force-quit toggle behaves identically in both modes — and
-            // so `runSingleJourney`'s force-quit session suppression is never
+            // so the spec journey's force-quit session suppression is never
             // applied to a mode that can't actually inject the quit.
             return maybeInjectForceQuit()
         }
@@ -1358,14 +1016,6 @@ final class SimulationManager: ObservableObject {
         }
     }
 
-    private static func paymentMethodName(_ choice: Int) -> String {
-        switch choice {
-        case 0: return "card"
-        case 1: return "apple_pay"
-        case 2: return "paypal"
-        default: return "android_pay"
-        }
-    }
 
     // MARK: - Constants
 

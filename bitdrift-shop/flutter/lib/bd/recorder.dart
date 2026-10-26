@@ -122,15 +122,17 @@ class Recorder {
     if (_recording) _enqueue({'kind': 'screen', 'name': name});
   }
 
-  static void spanStart(String id, String name, Map<String, String>? fields) {
+  /// [parent] is the logical parent span's id: the alpha SDK cannot parent spans, but the
+  /// recording still carries the spec's parent so conformance sees the span tree.
+  static void spanStart(String id, String name, Map<String, String>? fields, {String? parent}) {
     _open[id] = _Open(name, fields);
-    if (_recording) _enqueue({'kind': 'span_start', 'id': id, 'name': name, 'parent': null, 'fields': fields});
+    if (_recording) _enqueue({'kind': 'span_start', 'id': id, 'name': name, 'parent': parent, 'fields': fields});
   }
 
-  static void spanEnd(String id, String name, bool success) {
+  static void spanEnd(String id, String name, String result, Map<String, String>? fields) {
     _open.remove(id);
     if (_recording) {
-      _enqueue({'kind': 'span_end', 'id': id, 'name': name, 'result': success ? 'success' : 'failure'});
+      _enqueue({'kind': 'span_end', 'id': id, 'name': name, 'result': result, 'fields': fields});
     }
   }
 }

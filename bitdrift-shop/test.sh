@@ -4,7 +4,8 @@
 #   ./test.sh <app|all> <unit|smoke>
 #   app:  android | ios | rn-android | rn-ios | flutter-android | flutter-ios   (kmp: best effort, not wired)
 #   unit:  no emulator/simulator: codegen drift check, spec validation, conformance self-test,
-#          and the app's own unit tests where it has them.
+#          the app's journey-engine golden replay (tools/journey/golden.json), and the
+#          app's own unit tests where it has them.
 #   smoke: build, install, launch with `sim_runs/sim_seed/persona/record_file` launch arguments,
 #          wait for the `sim_autorun_complete` marker, pull the recorded JSONL off the device and
 #          run tools/conformance on it, including the journey check against the reference
@@ -85,10 +86,13 @@ ios_udid() { xcrun simctl list devices booted -j | "$PY" -c 'import json,sys;d=j
 
 unit_ios() {
   unit_common || return 1
-  # No iOS unit-test target yet: compile for the simulator so type errors surface without a device.
+  # No iOS unit-test target: compile for the simulator so type errors surface without a device,
+  # then replay the journey golden traces against JourneyEngine.swift built for the host.
   (cd "$ROOT/ios" && xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop -configuration Debug \
      -destination 'generic/platform=iOS Simulator' -derivedDataPath build/debug build >"$OUT/ios-unit-build.log" 2>&1) \
     || { echo "xcodebuild failed: see $OUT/ios-unit-build.log"; return 1; }
+  bash "$ROOT/ios/scripts/test-journey-engine.sh" >"$OUT/ios-journey-engine.log" 2>&1 \
+    || { echo "journey engine golden test failed: see $OUT/ios-journey-engine.log"; return 1; }
 }
 
 smoke_ios() {
@@ -168,6 +172,7 @@ await_collector() {
 unit_rn() {
   unit_common || return 1
   (cd "$ROOT/reactnative" && npx tsc --noEmit >"$OUT/rn-tsc.log" 2>&1) || { echo "tsc failed: see $OUT/rn-tsc.log"; return 1; }
+  (cd "$ROOT/reactnative" && npx jest journeyEngine >"$OUT/rn-jest.log" 2>&1) || { echo "journey engine golden test (jest) failed: see $OUT/rn-jest.log"; return 1; }
 }
 unit_rn_android() { unit_rn; }
 unit_rn_ios() { unit_rn; }

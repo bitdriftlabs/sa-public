@@ -132,7 +132,7 @@ const AppNavigator: React.FC = () => {
           : SimVariant.Control,
       );
       await new Promise(resolve => setTimeout(resolve, 500)); // let navigation settle
-      startSimulation(cfg.runs);
+      startSimulation(cfg.runs, cfg.seed & 0x7fffffff);
     })();
     return () => {
       cancelled = true;
@@ -152,7 +152,7 @@ const AppNavigator: React.FC = () => {
       autorun.current = null;
       ScreenLogger.logInfo(SpecEvents.simAutorunComplete, {
         [SpecFields.totalRuns]: String(a.cfg.runs),
-        [SpecFields.simSeed]: String(a.cfg.seed),
+        [SpecFields.simSeed]: String(a.cfg.seed & 0x7fffffff),
         [SpecFields.persona]: a.cfg.persona,
       });
       void flushRecording();

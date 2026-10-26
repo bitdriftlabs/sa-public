@@ -123,15 +123,17 @@ class Bd {
   }
 
   // -- spans --------------------------------------------------------------
+  /// The alpha SDK's startSpan has no parent argument; [parent] only reaches the recorder.
   static Future<SpanHandle?> startSpan(
     String name, {
     Map<String, String>? fields,
+    SpanHandle? parent,
   }) async {
     try {
       final s = await Capture.startSpan(name, fields: fields);
       if (s == null) return null;
       final h = SpanHandle(s, name);
-      Recorder.spanStart(h.localId, name, fields);
+      Recorder.spanStart(h.localId, name, fields, parent: parent?.localId);
       return h;
     } catch (_) {
       return null;
@@ -175,10 +177,12 @@ class SpanHandle {
   final String localId = 'span_${DateTime.now().microsecondsSinceEpoch}_${_counter++}';
   static int _counter = 0;
   SpanHandle(this.span, this.name);
-  Future<void> end({bool success = true}) async {
-    Recorder.spanEnd(localId, name, success);
+  /// [result] is the spec result (success / failure / canceled); the alpha SDK only knows
+  /// success vs not, and takes no end fields, so those reach the recorder alone.
+  Future<void> end({String result = 'success', Map<String, String>? fields}) async {
+    Recorder.spanEnd(localId, name, result, fields);
     try {
-      await Capture.endSpan(span, success: success);
+      await Capture.endSpan(span, success: result == 'success');
     } catch (_) {
       // best-effort
     }

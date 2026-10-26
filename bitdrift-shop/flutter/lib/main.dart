@@ -44,9 +44,9 @@ Future<void> main() async {
         fields: {SpecFields.sdkStarted: '$started'});
   });
 
-  // Crash loop (like the Android demo's "crash on payment"): when the loop is
-  // active (scripts/crash-loop.sh set the property), run one journey right
-  // after launch; the journey crashes at payment with a random crash shape.
+  // Crash loop (like the Android demo's crash loop): when the loop is active
+  // (scripts/crash-loop.sh set the property), run one journey right after launch;
+  // the journey crashes at its chosen point with a random crash shape.
   // The script relaunches the app — each pass is a fresh journey ending in a
   // fresh random crash in a live session.
   if (await Crash.loopActive()) {
@@ -67,10 +67,11 @@ Future<void> _autorun(Simulator sim) async {
     _ => SimVariant.control,
   });
   await Future<void>.delayed(const Duration(seconds: 1)); // let the first frame and navigator settle
-  await sim.start(runs: cfg.runs);
+  final seed = cfg.seed & 0x7FFFFFFF;
+  await sim.start(runs: cfg.runs, seed: seed);
   await Bd.info(SpecEvents.simAutorunComplete, fields: {
     SpecFields.totalRuns: '${cfg.runs}',
-    SpecFields.simSeed: '${cfg.seed}',
+    SpecFields.simSeed: '$seed',
     SpecFields.persona: cfg.persona,
   });
   await Recorder.flush();

@@ -6,9 +6,11 @@ values were extracted from the code as it stands, with Android as the reference.
 cross-platform mismatch and how it was resolved is recorded in **[DECISIONS.md](DECISIONS.md)**,
 including the open questions in "Needs user decision".
 
-Later phases generate per-language constants from these files (Phase 2b), validate
-recorded event streams against them (Phase 3), and add `journey.yaml`, `workflows/` and
-`dashboards/` (Phases 4-5).
+The apps consume these files in three ways. They use per-language constants generated
+from them (Phase 2b). Their recorded event streams are validated against them (Phase 3).
+And they run the journey in `journey.yaml` through a shared engine (Phase 4, see
+[tools/journey](../tools/journey/README.md)), so the probabilities, timings and journey
+graph here drive all four apps. `workflows/` and `dashboards/` come in Phase 5.
 
 | File | What it holds |
 |---|---|
@@ -16,6 +18,7 @@ recorded event streams against them (Phase 3), and add `journey.yaml`, `workflow
 | `telemetry.yaml` | Field-key registry, global fields, every app-emitted event (level, trigger, required/optional fields), the span tree, SDK-owned names that workflows reference, retired names, metrics-demo waveforms |
 | `flags.yaml` | Feature flags: persona-driven, toggle-driven and install-persistent, with values and `ff_*` mirror fields |
 | `personas.yaml` | Control / Variant A / Variant B and the per-persona probability tables, plus journey constants, search terms, entity pool and fallbacks |
+| `journey.yaml` | The simulated journey as data: steps, branches (by `personas.yaml` decision), spans, events, fault and crash points, seeded-RNG rules. Compiled into every app by `tools/codegen`; the op reference is in its header |
 | `crashes.yaml` | Logical crash ids mapped to per-platform impl keys (the `crash_kind` value), with category, expected bitdrift issue type, sweep rules and timings |
 | `faults.yaml` | ANR/hang, force-quit, crash loop, fast crash, OOM-only, auto-infinite, slow mode and support: probabilities, timings, target screens, persisted store and key names, startup resume order |
 | `api.yaml` | Backend endpoints, path templates, hosts, fake vendor-SDK URLs, SDK release-check URLs, build-time config key names |
@@ -38,12 +41,18 @@ The checker verifies the following:
 - Every `used_by:` workflow file exists.
 - Every `OPEN-n`/`D-*` id used in YAML is defined in DECISIONS.md.
 - (Warning only) The cited source line, within ±3 lines, contains the expected name.
+- `journey.yaml` compiles: every screen, route param, endpoint, event (with its required fields), span (with its spec parent), decision, constant, fault and variable it references exists.
+
+When code moves, `python3 spec/validate.py --fix-refs` re-points stale `source:` refs to the
+line that now holds the name (or its generated constant). It rewrites the YAML in place;
+review the diff.
 
 ## Schema notes
 
 **Source refs.** Each file declares `source_roots` (for example `A: android/app/src/main/java/ai/bitdrift/shop`).
 A ref is `ROOT:path:line`, such as `A:SimulationManager.kt:621`. A `source:` map is keyed
-by platform. Line numbers are as of this commit, and the validator flags refs that go
+by platform, or by `journey` (root `J: spec`) for names and numbers that the shared
+journey engine emits or consumes. Those refs cite the step in `journey.yaml` that uses them. Line numbers are as of this commit, and the validator flags refs that go
 stale.
 
 **Platforms.** The four supported platforms are `android`, `ios`, `reactnative` and `flutter`.

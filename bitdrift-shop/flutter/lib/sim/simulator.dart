@@ -4,12 +4,19 @@ import 'package:flutter/widgets.dart';
 import '../api/client.dart';
 import '../bd/capture.dart';
 import '../crash.dart';
+import '../generated/journey.dart';
 import '../generated/spec.dart';
-import '../models/models.dart';
+import 'journey_engine.dart';
 
+/// Persona presets (spec/personas.yaml ids).
+enum SimVariant {
+  control('control'),
+  variantA('variant_a'),
+  variantB('variant_b');
 
-/// Persona presets — exact ports of the other demos' variant profiles.
-enum SimVariant { control, variantA, variantB }
+  const SimVariant(this.id);
+  final String id;
+}
 
 String simVariantLabel(SimVariant v) => switch (v) {
       SimVariant.control => 'Control',
@@ -17,108 +24,24 @@ String simVariantLabel(SimVariant v) => switch (v) {
       SimVariant.variantB => 'Variant B',
     };
 
-class SimProfile {
-  final double discoveryBrowseMax;
-  final double discoverySearchMax;
-  final double reviewsProb;
-  final double wishlistProb;
-  final int extraCartMin;
-  final int extraCartMax;
-  final double guestProb;
-  final double paymentCard;
-  final double paymentApplePay;
-  final double paymentPayPal;
-  final double paymentAndroidPay;
-
-  SimProfile({
-    required this.discoveryBrowseMax,
-    required this.discoverySearchMax,
-    required this.reviewsProb,
-    required this.wishlistProb,
-    required this.extraCartMin,
-    required this.extraCartMax,
-    required this.guestProb,
-    required this.paymentCard,
-    required this.paymentApplePay,
-    required this.paymentPayPal,
-    required this.paymentAndroidPay,
-  });
-}
-
-final Map<SimVariant, SimProfile> kProfiles = {
-  // CONTROL — baseline, mostly uniform.
-  SimVariant.control: SimProfile(
-    discoveryBrowseMax: 0.3333,
-    discoverySearchMax: 0.6666,
-    reviewsProb: 0.5,
-    wishlistProb: 0.4,
-    extraCartMin: 1,
-    extraCartMax: 3,
-    guestProb: 0.5,
-    paymentCard: 0.25,
-    paymentApplePay: 0.25,
-    paymentPayPal: 0.25,
-    paymentAndroidPay: 0.25,
-  ),
-  // VARIANT A — digital native: guest + digital pay, more friction.
-  SimVariant.variantA: SimProfile(
-    discoveryBrowseMax: 0.4,
-    discoverySearchMax: 0.85,
-    reviewsProb: 0.1,
-    wishlistProb: 0.05,
-    extraCartMin: 0,
-    extraCartMax: 1,
-    guestProb: 0.95,
-    paymentCard: 0.05,
-    paymentApplePay: 0.4,
-    paymentPayPal: 0.35,
-    paymentAndroidPay: 0.2,
-  ),
-  // VARIANT B — deliberate shopper: signin + card, low friction.
-  SimVariant.variantB: SimProfile(
-    discoveryBrowseMax: 0.25,
-    discoverySearchMax: 0.5,
-    reviewsProb: 0.9,
-    wishlistProb: 0.75,
-    extraCartMin: 2,
-    extraCartMax: 4,
-    guestProb: 0.05,
-    paymentCard: 0.95,
-    paymentApplePay: 0.03,
-    paymentPayPal: 0.02,
-    paymentAndroidPay: 0.0,
-  ),
-};
-
-const List<String> kEntities = [
-  'Groucho', 'Harpo', 'Chico', 'Gummo', 'Zeppo',
-  'Moe', 'Larry', 'Curly', 'Abbott', 'Costello',
-];
-
-const List<String> kSearchTerms = [
-  'headphones', 'running shoes', 'coffee maker', 'yoga mat', 'backpack',
-];
-
-/// Simplified, variant-driven journey driver.
-///
-/// Best-effort port of the React Native simulation: it drives the real screens
-/// (via the app's root navigator) while emitting the same structured bitdrift
-/// signal — feature-flag fields, entity, and spans (journey / discovery /
-/// checkout). Deliberately **omits** ANR and force-quit (the alpha SDK has no
-/// Dart→native bridge for those). Crash loop: when the loop property is set
-/// (scripts/crash-loop.sh), the journey crashes at payment with a random
-/// native-signal crash, like the Android demo's "crash on payment". Screen
-/// views are logged by the app's route observer, not here.
-class Simulator extends ChangeNotifier {
+/// Journey driver: runs the shared journey (spec/journey.yaml) through [JourneyEngine] and
+/// maps each step onto this app: the root navigator, [Api], and the [Bd] wrapper (which
+/// also feeds the harness recorder). The alpha SDK has no ANR / force-quit bridge, so
+/// those toggles are never passed. Crash loop: when the loop property is set
+/// (scripts/crash-loop.sh) the `crash_loop` toggle is on and [fireCrash] raises a random
+/// native-signal crash at the journey point the engine chose. Screen views are logged by
+/// the screens themselves, not here.
+class Simulator extends ChangeNotifier implements JourneyAdapter {
   final GlobalKey<NavigatorState> _navKey;
-  final Random _rng = Random();
+  late final JourneyEngine _engine = JourneyEngine(specJourneyJson, this);
 
   SimVariant _variant = SimVariant.control;
   bool _running = false;
   bool _infinite = false;
   int _currentRun = 0;
   int _totalRuns = 0;
-  String _lastEntity = '';
+  int _simSeed = 0;
+  bool _crashLoop = false;
   bool _cancelled = false;
 
   Simulator(this._navKey);
@@ -129,20 +52,22 @@ class Simulator extends ChangeNotifier {
   int get currentRun => _currentRun;
   int get totalRuns => _totalRuns;
   SimVariant get variant => _variant;
-  String get lastEntity => _lastEntity;
 
   void setVariant(SimVariant v) => _variant = v;
 
-  Future<void> start({int runs = 3, bool infinite = false}) async {
+  /// Runs [runs] journeys (or until stopped when [infinite]). [seed] (0..2^31-1) fixes the
+  /// simulation's journeys; without one each simulation draws a random seed.
+  Future<void> start({int runs = 3, bool infinite = false, int? seed}) async {
     if (_running) return;
     _running = true;
     _cancelled = false;
     _infinite = infinite;
     _totalRuns = infinite ? 0 : runs;
     _currentRun = 0;
+    _simSeed = (seed ?? Random().nextInt(1 << 31)) & 0x7FFFFFFF;
+    _crashLoop = await Crash.loopActive();
     notifyListeners();
 
-    await _applyVariant();
     await Bd.info(
       infinite ? SpecEvents.infiniteSimulationStart : SpecEvents.simulationStart,
       fields: infinite ? null : {SpecFields.totalRuns: '$runs'},
@@ -151,7 +76,9 @@ class Simulator extends ChangeNotifier {
       while (_running && (_infinite || _currentRun < _totalRuns)) {
         _currentRun++;
         notifyListeners();
-        await _journey();
+        final outcome = await _engine.run(
+            _variant.id, _currentRun, _simSeed, {if (_crashLoop) 'crash_loop'}, _infinite);
+        debugPrint('journey $_currentRun (${simVariantLabel(_variant)}, seed=$_simSeed): $outcome');
         await Future.delayed(const Duration(milliseconds: 1500));
       }
     } finally {
@@ -180,256 +107,156 @@ class Simulator extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── internals ───────────────────────────────────────────────────────────
-  Future<void> _applyVariant() async {
-    for (final e in _flagsFor(_variant).entries) {
+  // ── JourneyAdapter ──────────────────────────────────────────────────────
+  @override
+  bool isCancelled() => !_running;
+
+  @override
+  Future<void> startNewSession() => Bd.startNewSession();
+
+  @override
+  Future<void> applyExposures(String persona) async {
+    // The alpha SDK has no exposure API: flags are `ff_*` global fields only.
+    final flags = switch (_variant) {
+      SimVariant.control => {
+          SpecFlags.checkoutFlow: SpecFlags.checkoutFlowControl,
+          SpecFlags.paymentUi: SpecFlags.paymentUiControl,
+          SpecFlags.cartAbandonRate: SpecFlags.cartAbandonRateControl,
+          SpecFlags.paymentAndroidPay: SpecFlags.paymentAndroidPayControl,
+        },
+      SimVariant.variantA => {
+          SpecFlags.checkoutFlow: SpecFlags.checkoutFlowVariantA,
+          SpecFlags.paymentUi: SpecFlags.paymentUiVariantA,
+          SpecFlags.cartAbandonRate: SpecFlags.cartAbandonRateVariantA,
+          SpecFlags.paymentAndroidPay: SpecFlags.paymentAndroidPayVariantA,
+        },
+      SimVariant.variantB => {
+          SpecFlags.checkoutFlow: SpecFlags.checkoutFlowVariantB,
+          SpecFlags.paymentUi: SpecFlags.paymentUiVariantB,
+          SpecFlags.cartAbandonRate: SpecFlags.cartAbandonRateVariantB,
+          SpecFlags.paymentAndroidPay: SpecFlags.paymentAndroidPayVariantB,
+        },
+    };
+    for (final e in flags.entries) {
       await Bd.setFlag(e.key, e.value);
     }
-    await Bd.setFlag('variant', simVariantLabel(_variant));
+    await Bd.field(SpecFields.ffVariant, simVariantLabel(_variant));
     await Bd.info(SpecEvents.featureFlagExposureSet);
   }
 
-  Map<String, String> _flagsFor(SimVariant v) => switch (v) {
-        SimVariant.control => {
-              SpecFlags.checkoutFlow: SpecFlags.checkoutFlowControl,
-              SpecFlags.paymentUi: SpecFlags.paymentUiControl,
-              SpecFlags.cartAbandonRate: SpecFlags.cartAbandonRateControl,
-              SpecFlags.paymentAndroidPay: SpecFlags.paymentAndroidPayControl,
-            },
-        SimVariant.variantA => {
-              SpecFlags.checkoutFlow: SpecFlags.checkoutFlowVariantA,
-              SpecFlags.paymentUi: SpecFlags.paymentUiVariantA,
-              SpecFlags.cartAbandonRate: SpecFlags.cartAbandonRateVariantA,
-              SpecFlags.paymentAndroidPay: SpecFlags.paymentAndroidPayVariantA,
-            },
-        SimVariant.variantB => {
-              SpecFlags.checkoutFlow: SpecFlags.checkoutFlowVariantB,
-              SpecFlags.paymentUi: SpecFlags.paymentUiVariantB,
-              SpecFlags.cartAbandonRate: SpecFlags.cartAbandonRateVariantB,
-              SpecFlags.paymentAndroidPay: SpecFlags.paymentAndroidPayVariantB,
-            },
-      };
+  @override
+  Future<void> setEntity(String entity) => Bd.entity(entity);
 
-  Future<void> _journey() async {
-    final profile = kProfiles[_variant]!; // every SimVariant has a profile
+  @override
+  Future<void> delay(int ms) => Future.delayed(Duration(milliseconds: ms));
 
-    // Decide guest vs signed-in up front so entity correlation covers the
-    // whole journey, not just checkout, and reuse it at checkout below
-    // instead of re-rolling. Signed-in journeys get a fresh, unique entity
-    // every run (real setEntityId as of SDK 0.0.3) — each run models a
-    // different signed-in user, never a repeat. Guest journeys clear any
-    // prior entity (real clearEntityId, also new in 0.0.3) — a true
-    // anonymous session, which the 0.0.1 alpha had no way to represent.
-    final isGuest = _rng.nextDouble() < profile.guestProb;
-    final checkoutType = isGuest ? 'guest' : 'signin';
-    var entity = '';
-    if (isGuest) {
-      await Bd.clearEntity();
-    } else {
-      // _currentRun resets to 0 on every start() call, so it alone can repeat
-      // across separate simulation batches; microsecondsSinceEpoch is the
-      // non-resetting unique component (matches logCompletedSpan's pattern).
-      entity =
-          '${kEntities[_rng.nextInt(kEntities.length)]}-${DateTime.now().microsecondsSinceEpoch}';
-      await Bd.entity(entity);
-    }
-    _lastEntity = entity;
-    await Bd.info(SpecEvents.journeyStarted, fields: {
-      SpecFields.run: '$_currentRun',
-      SpecFields.variant: simVariantLabel(_variant),
-    });
-    final journeySpan = await Bd.startSpan(SpecSpans.journey,
-        fields: {SpecFields.variant: simVariantLabel(_variant)});
-
-    await _resetStack();
-
-    // 1. Discovery (browse / search / categories).
-    final discoverySpan = await Bd.startSpan(SpecSpans.productDiscovery);
-    String productId = '';
-    final roll = _rng.nextDouble();
-    if (roll < profile.discoveryBrowseMax) {
-      await _go('browse');
-      final products = Product.list((await _safe(Api.browse))['products']);
-      if (products.isNotEmpty) productId = _pickId(products);
-    } else if (roll < profile.discoverySearchMax) {
-      await _go('search');
-      final q = kSearchTerms[_rng.nextInt(kSearchTerms.length)];
-      final products =
-          Product.list((await _safe(() => Api.search(q)))['products']);
-      if (products.isNotEmpty) productId = _pickId(products);
-    } else {
-      await _go('categories');
-      final cats = Category.list((await _safe(Api.categories))['categories']);
-      if (cats.isNotEmpty) {
-        final c = cats[_rng.nextInt(cats.length)].name;
-        await _go('category', args: c);
-        final products =
-            Product.list((await _safe(() => Api.categoryProducts(c)))['products']);
-        if (products.isNotEmpty) productId = _pickId(products);
-      }
-    }
-    if (productId.isEmpty) {
-      // Fallback so the journey can still reach cart / checkout.
-      final products = Product.list((await _safe(Api.browse))['products']);
-      if (products.isNotEmpty) productId = _pickId(products);
-    }
-    await discoverySpan?.end(success: true);
-    if (await _stopped(journeySpan)) return;
-
-    // 2. Product detail (+ optional reviews / wishlist).
-    if (productId.isNotEmpty) {
-      await _go('product', args: productId);
-      if (await _stopped(journeySpan)) return;
-      if (_rng.nextDouble() < profile.reviewsProb) {
-        await _go('reviews', args: productId);
-      }
-      if (await _stopped(journeySpan)) return;
-      if (_rng.nextDouble() < profile.wishlistProb) {
-        await _go('wishlist', args: productId);
-        await _safe(() => Api.wishlist(productId));
-      }
-    }
-
-    // 3. Cart.
-    await _go('cart');
-    if (await _stopped(journeySpan)) return;
-    if (productId.isNotEmpty) await _safe(() => Api.addToCart(productId));
-    final extra = profile.extraCartMin +
-        _rng.nextInt(
-            (profile.extraCartMax - profile.extraCartMin + 1).clamp(0, 64));
-    final catalog = Product.list((await _safe(Api.browse))['products']);
-    for (var i = 0; i < extra && catalog.isNotEmpty; i++) {
-      await _safe(() => Api.addToCart(catalog[_rng.nextInt(catalog.length)].id));
-    }
-
-    // 4. Checkout (guest vs signin — decided at journey start, see entity
-    //    setup above; reused here rather than re-rolled).
-    final checkoutSpan = await Bd.startSpan(SpecSpans.checkout,
-        fields: {SpecFields.checkoutType: checkoutType});
-    await _go(isGuest ? 'checkout_guest' : 'checkout_signin');
-    if (await _stopped(journeySpan, checkoutSpan)) return;
-    String session = '';
+  @override
+  Future<void> navigate(String screen, Map<String, String> args) async {
+    final spec = SpecScreen.values.firstWhere((s) => s.id == screen);
+    if (spec == SpecScreen.welcome) return _resetStack();
     try {
-      final resp =
-          isGuest ? await Api.checkoutGuest() : await Api.checkoutSignIn();
-      session = (resp['checkout_session'] ?? '').toString();
-      await checkoutSpan?.end(success: true);
-      await Bd.info(SpecEvents.checkoutStarted,
-          fields: {SpecFields.checkoutType: checkoutType});
+      _navKey.currentState?.pushNamed(spec.platformRoute, arguments: _routeArgs(spec, args));
     } catch (e) {
-      await checkoutSpan?.end(success: false);
-      await journeySpan?.end(success: false);
-      await Bd.error(SpecEvents.checkoutFailed,
-          fields: {SpecFields.checkoutType: checkoutType, SpecFields.reason: '$e'});
-      await _resetStack();
-      return;
+      // Debug-only navigation failure; no telemetry (spec D-EVT-F13).
+      debugPrint('sim navigation to ${spec.platformRoute} failed: $e');
     }
-
-    // 5. Payment (variant-weighted method).
-    final method = _pickPayment(profile);
-    await _go(paymentRoute(method), args: {'session': session});
-    if (await _stopped(journeySpan)) return;
-    // Crash loop (like the Android demo's "crash on payment"): when active,
-    // the journey ends here with a random crash. Close the still-open journey
-    // span for a chance to flush, then die — the script relaunches the app.
-    if (await Crash.loopActive()) {
-      await journeySpan?.end(success: false);
-      await Crash.injectRandom();
-    }
-    bool paid = false;
-    String orderId = '';
-    try {
-      final resp = await _pay(method, session);
-      orderId = (resp['order_id'] ?? '').toString();
-      paid = true;
-    } catch (e) {
-      await Bd.error(SpecEvents.paymentFailed, fields: {
-        SpecFields.paymentMethod: paymentMethodLabel(method),
-        SpecFields.variant: simVariantLabel(_variant),
-        SpecFields.reason: '$e',
-      });
-    }
-    if (!paid) {
-      await _go('payment_failed', args: {'method': method});
-      await journeySpan?.end(success: false);
-      await _resetStack();
-      return;
-    }
-
-    // 6. Confirmation.
-    await _go('confirmation', args: orderId);
-    await Bd.info(SpecEvents.confirmationReached, fields: {
-      SpecFields.sdkScreenName: SpecScreen.confirmation.screenName,
-      SpecFields.checkoutFlow: _flagsFor(_variant)[SpecFlags.checkoutFlow]!,
-    });
-    await journeySpan?.end(success: true);
-    await _resetStack();
   }
 
-  /// If [stop] was pressed while a journey was in flight, close any spans still
-  /// open and abort the journey. Returns true when the journey was stopped.
-  Future<bool> _stopped(SpanHandle? journey, [SpanHandle? child]) async {
-    if (_running) return false;
-    await child?.end(success: false);
-    await journey?.end(success: false);
-    return true;
+  /// The route-argument shape each screen reads from `ModalRoute.settings.arguments`.
+  Object? _routeArgs(SpecScreen s, Map<String, String> a) => switch (s) {
+        SpecScreen.productDetail || SpecScreen.reviews || SpecScreen.wishlist => a['productId'],
+        SpecScreen.categoryBrowse => a['category'],
+        SpecScreen.confirmation => a['orderId'],
+        SpecScreen.paymentCard ||
+        SpecScreen.paymentApplePay ||
+        SpecScreen.paymentPaypal ||
+        SpecScreen.paymentAndroidPay =>
+          {'session': a['checkoutSession']},
+        SpecScreen.paymentFailed => {
+            'method': _methodKey(a['paymentMethod'] ?? ''),
+            'session': a['checkoutSession'],
+          },
+        _ => null,
+      };
+
+  @override
+  Future<Map<String, dynamic>?> callApi(String endpoint, Map<String, String> args) async {
+    String a(String k) => args[k] ?? '';
+    try {
+      return await switch (endpoint) {
+        'welcome' => Api.welcome(),
+        'browse' => Api.browse(),
+        'search' => Api.search(a('q')),
+        'featured' => Api.featured(),
+        'categories' => Api.categories(),
+        'category_products' => Api.categoryProducts(a('category')),
+        'product' => Api.product(a('id')),
+        'reviews' => Api.reviews(a('id')),
+        'cart_get' => Api.cart(),
+        'cart_add' => Api.addToCart(a('product_id'), int.tryParse(a('quantity')) ?? 1),
+        'cart_delete' => Api.removeCartItem(a('id')),
+        'wishlist_add' => Api.wishlist(a('product_id')),
+        'checkout_guest' => Api.checkoutGuest(),
+        'checkout_signin' => Api.checkoutSignIn(),
+        'pay_card' => Api.payCard(a('checkout_session'), args['card_last4'] ?? '4242'),
+        'pay_apple_pay' => Api.payApplePay(a('checkout_session')),
+        'pay_paypal' => Api.payPayPal(a('checkout_session')),
+        'pay_android_pay' => Api.payAndroidPay(a('checkout_session')),
+        'confirmation' => Api.confirmation(a('id')),
+        _ => throw StateError('unknown endpoint $endpoint'),
+      };
+    } catch (_) {
+      return null; // the client already logged the failure
+    }
+  }
+
+  @override
+  Future<void> log(String level, String event, Map<String, String> fields) {
+    final f = fields.isEmpty ? null : fields;
+    return switch (level) {
+      'error' => Bd.error(event, fields: f),
+      'warning' => Bd.warning(event, fields: f),
+      'debug' => Bd.debug(event, fields: f),
+      'trace' => Bd.trace(event, fields: f),
+      _ => Bd.info(event, fields: f),
+    };
+  }
+
+  // The alpha SDK's startSpan has no parent argument: the parent only reaches the recorder.
+  @override
+  Future<Object?> startSpan(String name, Object? parent, Map<String, String> fields) =>
+      Bd.startSpan(name, fields: fields.isEmpty ? null : fields, parent: parent as SpanHandle?);
+
+  @override
+  Future<void> endSpan(Object handle, String result, Map<String, String> fields) =>
+      (handle as SpanHandle).end(result: result, fields: fields.isEmpty ? null : fields);
+
+  @override
+  Future<void> addField(String key, String value) => Bd.field(key, value);
+
+  @override
+  Future<void> injectFault(String id) async {} // no fault toggles are ever passed
+
+  @override
+  Future<void> fireCrash() async {
+    await Crash.injectRandom(); // the engine already set crash_journey_point
   }
 
   // ── small helpers ───────────────────────────────────────────────────────
-  Future<void> _go(String name, {Object? args}) async {
-    final nav = _navKey.currentState;
-    if (nav == null) return;
-    try {
-      nav.pushNamed(name, arguments: args);
-    } catch (e) {
-      // Debug-only navigation failure; no telemetry (spec D-EVT-F13).
-      debugPrint('sim navigation to $name failed: $e');
-    }
-    await Future.delayed(const Duration(milliseconds: 900));
-  }
-
   Future<void> _resetStack() async {
     final nav = _navKey.currentState;
     if (nav == null) return;
-    while (nav.canPop()) {
-      nav.pop();
-      await Future.delayed(const Duration(milliseconds: 120));
-    }
-    await Future.delayed(const Duration(milliseconds: 300));
+    nav.popUntil((r) => r.isFirst);
+    await Future.delayed(const Duration(milliseconds: 300)); // let the pop transitions finish
   }
-
-  Future<Map<String, dynamic>> _safe(
-      Future<Map<String, dynamic>> Function() fn) async {
-    try {
-      return await fn();
-    } catch (_) {
-      return const {};
-    }
-  }
-
-  String _pickId(List<Product> products) =>
-      products[_rng.nextInt(products.length)].id;
-
-  String _pickPayment(SimProfile p) {
-    final r = _rng.nextDouble();
-    var acc = 0.0;
-    acc += p.paymentCard;
-    if (r < acc) return 'card';
-    acc += p.paymentApplePay;
-    if (r < acc) return 'applePay';
-    acc += p.paymentPayPal;
-    if (r < acc) return 'paypal';
-    return 'androidPay';
-  }
-
-  Future<Map<String, dynamic>> _pay(String method, String session) =>
-      switch (method) {
-        'card' => Api.payCard(session),
-        'applePay' => Api.payApplePay(session),
-        'paypal' => Api.payPayPal(session),
-        _ => Api.payAndroidPay(session),
-      };
 }
+
+/// Internal payment-method key for a telemetry value (inverse of [paymentMethodLabel]).
+String _methodKey(String label) => switch (label) {
+      'apple_pay' => 'applePay',
+      'android_pay' => 'androidPay',
+      _ => label,
+    };
 
 /// Telemetry value for a Flutter payment-method key (spec: card, apple_pay, paypal, android_pay).
 String paymentMethodLabel(String method) => switch (method) {

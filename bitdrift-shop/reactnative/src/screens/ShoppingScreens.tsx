@@ -854,10 +854,6 @@ export const PaymentAndroidPayScreen: React.FC<ScreenProps<'PaymentAndroidPay'>>
 export const PaymentFailedScreen: React.FC<ScreenProps<'PaymentFailed'>> = ({navigation, route}) => {
   const method = route.params?.paymentMethod ?? 'card';
 
-  React.useEffect(() => {
-    ScreenLogger.logError(SpecEvents.paymentFailed, {[SpecFields.paymentMethod]: method});
-  }, [method]);
-
   return (
     <ScreenContainer
       screenName={SpecScreens.paymentFailed.screenName}

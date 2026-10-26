@@ -180,7 +180,7 @@ global_fields:
     missing_on: [reactnative, flutter]
   - key: supportlog
     set_when: "Advanced screen 'Support Log' toggle"
-    source: {android: "A:Screens.kt:542", ios: "I:Screens.swift:256", reactnative: "R:src/context/SimulationContext.tsx:181"}
+    source: {android: "A:Screens.kt:542", ios: "I:Screens.swift:256", reactnative: "R:src/context/SimulationContext.tsx:165"}
     optional_on: [flutter]
   - key: support
     set_when: "SupportMode toggle; removed when off (matched by bd-shop-30)"
@@ -188,10 +188,10 @@ global_fields:
     source: {android: "A:SupportMode.kt:24"}
   - key: crash_kind
     set_when: "immediately before a crash or watchdog hang fires"
-    source: {android: "A:SimulationManager.kt:535", ios: "I:SimulationManager.swift:600", reactnative: "R:src/sim/crashes.ts:198"}
+    source: {android: "A:SimulationManager.kt:535", ios: "I:SimulationManager.swift:477", reactnative: "R:src/sim/crashes.ts:198"}
     missing_on: [flutter]   # Flutter logs crash_injection{crash} instead (D-EVT-F12)
   - key: crash_context
-    source: {android: "A:SimulationManager.kt:585", ios: "I:SimulationManager.swift:599"}
+    source: {android: "A:SimulationManager.kt:585", ios: "I:SimulationManager.swift:575"}
     missing_on: [reactnative, flutter]
   - key: crash_journey_point
     set_when: "crash loop: the journey point where the crash fires (spec/journey.yaml crash_point, OPEN-3 resolved)"
@@ -229,7 +229,7 @@ global_fields:
   - {key: ff_free_shipping_banner, from_flag: free_shipping_banner}
   - key: ff_variant
     desc: "persona label; field only, not a flag exposure"
-    source: {android: "A:SimulationManager.kt:110", ios: "I:SimulationManager.swift:133", reactnative: "R:src/sim/variants.ts:165", flutter: "F:sim/simulator.dart:188"}
+    source: {android: "A:SimulationManager.kt:110", ios: "I:SimulationManager.swift:133", reactnative: "R:src/sim/variants.ts:90", flutter: "F:sim/simulator.dart:14"}
     source_token: {flutter: "'variant'"}   # Bd.setFlag prefixes ff_ (F:bd/capture.dart:58)
 
 # SDK-emitted events referenced by workflows (not emitted by app code; listed so the
@@ -248,20 +248,20 @@ events:
     trigger: sim
     required: [total_runs]
     drift_fields: {flutter: "adds variant (D-EVT-F9)"}
-    source: {android: "A:ScreenLogger.kt:34", ios: "I:ScreenLogger.swift:158", reactnative: "R:src/utils/logger.ts:203", flutter: "F:sim/simulator.dart:144"}
+    source: {android: "A:ScreenLogger.kt:34", ios: "I:ScreenLogger.swift:158", reactnative: "R:src/utils/logger.ts:203", flutter: "F:sim/simulator.dart:72"}
   - name: simulation_end
     level: info
     trigger: sim
     required: [total_runs]
     drift_fields: {flutter: "adds completed_runs (D-EVT-F9)"}
-    source: {android: "A:ScreenLogger.kt:38", ios: "I:ScreenLogger.swift:162", reactnative: "R:src/utils/logger.ts:207", flutter: "F:sim/simulator.dart:170"}
+    source: {android: "A:ScreenLogger.kt:38", ios: "I:ScreenLogger.swift:162", reactnative: "R:src/utils/logger.ts:207", flutter: "F:sim/simulator.dart:97"}
   - name: simulation_cancelled
     level: info
     trigger: sim
     required: [completed_runs, total_runs]
     was: {flutter: journey_stopped}  # conformed in Phase 2b
     drift_level: {reactnative: warning}   # D-EVT-3
-    source: {android: "A:SimulationManager.kt:166", ios: "I:SimulationManager.swift:186", reactnative: "R:src/context/SimulationContext.tsx:731", flutter: "F:sim/simulator.dart:164"}
+    source: {android: "A:SimulationManager.kt:166", ios: "I:SimulationManager.swift:186", reactnative: "R:src/context/SimulationContext.tsx:396", flutter: "F:sim/simulator.dart:91"}
   - name: sim_autorun_complete
     level: info
     trigger: harness
@@ -273,39 +273,39 @@ events:
     trigger: sim
     required: [runs_each]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:277", ios: "I:SimulationManager.swift:270", reactnative: "R:src/context/SimulationContext.tsx:682"}
+    source: {android: "A:SimulationManager.kt:277", ios: "I:SimulationManager.swift:270", reactnative: "R:src/context/SimulationContext.tsx:365"}
   - name: ab_simulation_end
     level: info
     trigger: sim
     required: [total_runs]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:287", ios: "I:SimulationManager.swift:281", reactnative: "R:src/context/SimulationContext.tsx:699"}
+    source: {android: "A:SimulationManager.kt:287", ios: "I:SimulationManager.swift:281", reactnative: "R:src/context/SimulationContext.tsx:367"}
   - name: infinite_simulation_start
     level: info
     trigger: sim
     was: {flutter: simulation_start_infinite}  # conformed in Phase 2b
-    source: {android: "A:SimulationManager.kt:321", ios: "I:SimulationManager.swift:304", reactnative: "R:src/context/SimulationContext.tsx:633", flutter: "F:sim/simulator.dart:144"}
+    source: {android: "A:SimulationManager.kt:321", ios: "I:SimulationManager.swift:304", reactnative: "R:src/context/SimulationContext.tsx:349", flutter: "F:sim/simulator.dart:72"}
   - name: infinite_simulation_end
     level: info
     trigger: sim
     required: [total_runs]
     missing_on: [flutter]
-    source: {android: "A:SimulationManager.kt:331", ios: "I:SimulationManager.swift:312", reactnative: "R:src/context/SimulationContext.tsx:648"}
+    source: {android: "A:SimulationManager.kt:331", ios: "I:SimulationManager.swift:312", reactnative: "R:src/context/SimulationContext.tsx:351"}
   - name: cardinality_simulation_start
     level: info
     trigger: sim
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:357", ios: "I:SimulationManager.swift:329", reactnative: "R:src/context/SimulationContext.tsx:712"}
+    source: {android: "A:SimulationManager.kt:357", ios: "I:SimulationManager.swift:329", reactnative: "R:src/context/SimulationContext.tsx:378"}
   - name: cardinality_simulation_end
     level: info
     trigger: sim
     required: [total_runs]
     optional_on: [flutter]
-    source: {android: "A:SimulationManager.kt:367", ios: "I:SimulationManager.swift:337", reactnative: "R:src/context/SimulationContext.tsx:723"}
+    source: {android: "A:SimulationManager.kt:367", ios: "I:SimulationManager.swift:337", reactnative: "R:src/context/SimulationContext.tsx:388"}
   - name: feature_flag_exposure_set
     level: info
     trigger: sim
-    source: {android: "A:SimulationManager.kt:132", ios: "I:SimulationManager.swift:155", reactnative: "R:src/sim/variants.ts:172", flutter: "F:sim/simulator.dart:189"}
+    source: {android: "A:SimulationManager.kt:132", ios: "I:SimulationManager.swift:155", reactnative: "R:src/sim/variants.ts:97", flutter: "F:sim/simulator.dart:144"}
 
   # --- journey ---------------------------------------------------------------
   - name: journey_started
@@ -407,7 +407,7 @@ events:
     level: info
     trigger: ui
     optional_on: [flutter]   # Flutter crash loop is script-driven (F:crash.dart:74)
-    source: {android: "A:Screens.kt:168", ios: "I:Screens.swift:79", reactnative: "R:src/context/SimulationContext.tsx:188"}
+    source: {android: "A:Screens.kt:168", ios: "I:Screens.swift:79", reactnative: "R:src/context/SimulationContext.tsx:172"}
   - name: support_mode_on
     level: info
     trigger: ui
@@ -518,14 +518,14 @@ events:
     optional: [crash_kind]
     was: {flutter: crash_injection}  # conformed in Phase 2b
     drift_fields: {reactnative: "sim message is 'about_to_crash: {name} (idx={idx})' (D-EVT-5)", flutter: "field 'crash' instead of crash_kind global field"}
-    source: {android: "A:SimulationManager.kt:600", ios: "I:SimulationManager.swift:602", reactnative: "R:src/context/SimulationContext.tsx:304", flutter: "F:crash.dart:48"}
+    source: {android: "A:SimulationManager.kt:600", ios: "I:SimulationManager.swift:578", reactnative: "R:src/context/SimulationContext.tsx:216", flutter: "F:crash.dart:48"}
     used_by: [ios/workflows/bd-shop-15-crashes-by-final-screen.json]
   - name: background_crash_armed
     level: info
     trigger: fault
     required: [hint]
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:544"}
+    source: {ios: "I:SimulationManager.swift:535"}
   - name: watchdog_hang_armed
     level: warning
     trigger: fault
@@ -544,13 +544,13 @@ events:
     trigger: fault
     message_format: "simplified_journey_crash_point (step 5 of 7): CheckoutGuest"
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:1294"}
+    source: {ios: "I:SimulationManager.swift:952"}
   - name: simplified_journey_completed
     level: info
     trigger: sim
     required: [steps_completed, variant]
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:1315"}
+    source: {ios: "I:SimulationManager.swift:973"}
 
   # --- demos -------------------------------------------------------------------
   - name: metric_values

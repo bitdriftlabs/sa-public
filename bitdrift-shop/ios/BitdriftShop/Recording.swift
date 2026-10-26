@@ -117,11 +117,13 @@ final class RecordedSpan {
 /// Launch arguments for the automated test harness (`xcrun simctl launch ... -sim_runs 5 ...`):
 ///   -sim_runs N  -sim_seed S  -persona control|variant_a|variant_b  -record_file name.jsonl
 /// `sim_runs` > 0 turns on autorun: skip the config countdown, run N journeys, log
-/// `sim_autorun_complete`. Until Phase 4 the simulator is not seeded; `sim_seed` is reported only.
+/// `sim_autorun_complete`. `sim_seed` seeds the journey engine (masked to 0..<2^31, see `simSeed`).
 enum Autorun {
     static let defaults = UserDefaults.standard
     static let runs = defaults.integer(forKey: "sim_runs")
     static let seed = defaults.integer(forKey: "sim_seed")
+    /// `seed` masked to the engine's 0..<2^31 range; this is the value reported as `sim_seed`.
+    static let simSeed = Int64(seed) & 0x7FFF_FFFF
     static let persona = defaults.string(forKey: "persona") ?? "control"
     static let recordFile = defaults.string(forKey: "record_file")
     static var started = false
