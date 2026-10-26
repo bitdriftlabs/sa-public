@@ -30,7 +30,7 @@ val bitdriftUseLocalAar = bitdriftLocalAarPath.isNotBlank()
 
 println(
     "bitdrift capture dependency: " +
-        if (bitdriftUseLocalAar) "LOCAL AAR ($bitdriftLocalAarPath)" else "Maven Central (io.bitdrift:capture:0.24.2)"
+        if (bitdriftUseLocalAar) "LOCAL AAR ($bitdriftLocalAarPath)" else "Maven Central (io.bitdrift:capture:0.26.0)"
 )
 
 // OtelExportConfiguration (and the otelExportConfiguration param on Configuration) only exist in
@@ -105,7 +105,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 on, so release crash stacks are obfuscated and need the mapping to read: this is what
+            // makes symbolication demonstrable. scripts/release-build.sh builds this variant and uploads
+            // build/outputs/mapping/release/mapping.txt with `bd debug-files upload-proguard`.
+            isMinifyEnabled = true
+            // Debug-signed so the release variant installs locally; not for distribution.
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -196,7 +201,7 @@ dependencies {
         implementation(files(bitdriftLocalCommonAarPath))
 
         // capture.aar is a bare local file with no POM, so its runtime dependencies
-        // (mirrored from the published capture:0.24.2 POM) must be declared explicitly.
+        // (mirrored from the published capture:0.26.0 POM) must be declared explicitly.
         implementation("androidx.appcompat:appcompat:1.7.0")
         implementation("androidx.core:core:1.13.1")
         implementation("androidx.lifecycle:lifecycle-common:2.8.7")
@@ -216,7 +221,7 @@ dependencies {
         // that 2.2.10-compiled suspend functions call into (NoClassDefFoundError).
         implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
     } else {
-        implementation("io.bitdrift:capture:0.24.2")
+        implementation("io.bitdrift:capture:0.26.0")
     }
 
     // OkHttp for backend API calls
@@ -244,6 +249,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303") // android.jar stubs org.json in JVM unit tests
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))

@@ -1,0 +1,139 @@
+# Personas (SimVariant) and their journey probabilities, plus shared sim data.
+#
+# Probabilities are P(event) in [0,1]. `weights` blocks are relative weights, normalized
+# by the consumer (so Control's uniform 1/3 discovery split needs no rounding).
+# Ranges are inclusive [min, max].
+# Since Phase 4 the apps do not hold these numbers: tools/journey/compile.py inlines them
+# into the journey bundle (spec/journey.yaml) that every app's engine interprets, so a
+# change here changes all four apps. Each `source` cites the journey step that uses it.
+
+version: 1
+
+source_roots:
+  A: android/app/src/main/java/ai/bitdrift/shop
+  I: ios/BitdriftShop
+  R: reactnative
+  F: flutter/lib
+  J: spec
+
+personas:
+  - id: control
+    label: Control
+    persisted_name: {android: CONTROL, ios: control}   # restart_variant value, platform-internal (D-FLT-3)
+    description: "baseline: fully random, no variant bias"
+  - id: variant_a
+    label: Variant A
+    persisted_name: {android: VARIANT_A, ios: variantA}
+    description: "digital native: snap decisions, skips research, guest + digital pay"
+  - id: variant_b
+    label: Variant B
+    persisted_name: {android: VARIANT_B, ios: variantB}
+    description: "deliberate shopper: reads everything, huge cart churn, signin + card"
+
+source:
+  android: "A:SimulationManager.kt:22"
+  ios: "I:SimulationManager.swift:8"
+  reactnative: "R:src/sim/variants.ts:8"
+  flutter: "F:sim/simulator.dart:11"
+
+# Per-persona probabilities. Keys are the decision points of the journey.
+probabilities:
+  discovery_weights:        # which discovery screen first
+    control:   {browse: 1, search: 1, categories: 1}
+    variant_a: {browse: 0.40, search: 0.45, categories: 0.15}
+    variant_b: {browse: 0.25, search: 0.25, categories: 0.50}
+    source: {journey: "J:journey.yaml:154"}
+  featured:                 # visit Featured after discovery
+    control: 0.5
+    variant_a: 0.15
+    variant_b: 0.75
+    source: {journey: "J:journey.yaml:180"}
+  reviews:
+    control: 0.5
+    variant_a: 0.10
+    variant_b: 0.90
+    source: {journey: "J:journey.yaml:202"}
+  wishlist:
+    control: 0.4
+    variant_a: 0.05
+    variant_b: 0.75
+    source: {journey: "J:journey.yaml:209"}
+  extra_cart_items:         # extra items added after the first (inclusive range)
+    control: [1, 3]
+    variant_a: [0, 1]
+    variant_b: [2, 4]
+    source: {journey: "J:journey.yaml:237"}
+  remove_item:              # remove one item (only if cart has > 1)
+    control: 0.6
+    variant_a: 0.10
+    variant_b: 0.90
+    source: {journey: "J:journey.yaml:252"}
+  empty_and_readd:          # empty cart, then re-add one product
+    control: 0.2
+    variant_a: 0.05
+    variant_b: 0.60
+    source: {journey: "J:journey.yaml:261"}
+  quantity_flip:            # remove and re-add the same item with a new quantity
+    control: 0.3
+    variant_a: 0.05
+    variant_b: 0.70
+    source: {journey: "J:journey.yaml:281"}
+  cart_abandon:             # journey ends before checkout (cart_abandoned)
+    control: 0.05
+    variant_a: 0.15
+    variant_b: 0.0
+    source: {journey: "J:journey.yaml:298"}
+  guest_checkout:           # P(guest) vs signin; forced true when anr toggle is on and persona is variant_a
+    control: 0.5
+    variant_a: 0.95
+    variant_b: 0.05
+    source: {journey: "J:journey.yaml:317"}
+  checkout_dropout:         # journey ends at checkout (checkout_abandoned)
+    control: 0.0
+    variant_a: 0.35
+    variant_b: 0.05
+    source: {journey: "J:journey.yaml:348"}
+  payment_weights:
+    control:   {card: 0.25, apple_pay: 0.25, paypal: 0.25, android_pay: 0.25}
+    variant_a: {card: 0.05, apple_pay: 0.40, paypal: 0.35, android_pay: 0.20}
+    variant_b: {card: 0.95, apple_pay: 0.03, paypal: 0.02, android_pay: 0.0}
+    source: {journey: "J:journey.yaml:362"}
+  payment_failure:          # injected failure for card / apple_pay / paypal
+    control: 0.15
+    variant_a: 0.35
+    variant_b: 0.05
+    source: {journey: "J:journey.yaml:364"}
+  payment_failure_android_pay:
+    control: 0.30
+    variant_a: 0.20
+    variant_b: 0.0
+    source: {journey: "J:journey.yaml:364"}
+
+# Persona-independent journey constants.
+journey_constants:
+  payment_retry: 0.50                 # after a failure; retry picks uniformly among the OTHER three methods (D-JRN-2)
+  retry_methods: [card, apple_pay, paypal, android_pay]
+  extra_item_quantity: [1, 3]
+  flip_quantity: [1, 5]
+  step_delay_ms: 50                   # after every nav (D-JRN-4: Flutter's 900ms nav / 1500ms run gap conform)
+  between_runs_delay_ms: 50           # run loop (platform code)
+  session_settle_ms: 200              # after startNewSession and again after exposures
+  pre_confirmation_settle_ms: 100
+  post_outcome_settle_ms: 200         # after abandon / confirmation
+  ab_rotation: interleaved            # persona = i % 3 per run, in each app's A/B run loop (D-PER-3)
+  source: {journey: "J:journey.yaml:387"}
+
+# Shared simulation data.
+sim_data:
+  search_terms:
+    values: [headphones, jacket, running shoes, laptop, watch, camera, speaker, backpack, tablet, sneakers]
+    drift: {flutter: [headphones, running shoes, coffee maker, yoga mat, backpack]}   # D-PER-4
+    source: {android: "A:SimulationManager.kt:377", ios: "I:SimulationManager.swift:344", reactnative: "R:src/context/SimulationContext.tsx:87", flutter: "F:sim/simulator.dart:97"}
+  entities:
+    values: [Groucho, Harpo, Chico, Gummo, Zeppo, Moe, Larry, Curly, Abbott, Costello]
+    selection: "entities[(run - 1) % len] per journey"   # D-PER-2 (Flutter: random + timestamp suffix, cleared for guests)
+    startup_entity: demo                                # A:ShoppingDemoApp.kt:46, I:CaptureBridge.swift:80
+    source: {journey: "J:journey.yaml:134"}
+  fallback_product_id: prod_a1b2c3
+  fallback_category: Electronics
+  fallback_source: {journey: "J:journey.yaml:160"}

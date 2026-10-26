@@ -1,9 +1,8 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
 import android.os.SystemClock
-import io.bitdrift.capture.Capture.Logger
 import io.bitdrift.capture.LogLevel
-import io.bitdrift.capture.events.span.Span
 import io.bitdrift.capture.events.span.SpanResult
 import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
@@ -58,7 +57,7 @@ object CaptureBridge {
         parentSpanId: UUID? = null,
         block: suspend (Span?) -> T,
     ): T {
-        val span = Logger.startSpan(name, LogLevel.INFO, fields, null, parentSpanId)
+        val span = RecordingLogger.startSpan(name, LogLevel.INFO, fields, null, parentSpanId)
         try {
             val result = block(span)
             span?.end(SpanResult.SUCCESS)
@@ -107,7 +106,7 @@ object CaptureBridge {
         parentSpanId: UUID? = null,
         block: (Span?) -> T,
     ): T {
-        val span = Logger.startSpan(name, LogLevel.INFO, fields, null, parentSpanId)
+        val span = RecordingLogger.startSpan(name, LogLevel.INFO, fields, null, parentSpanId)
         try {
             val result = block(span)
             span?.end(SpanResult.SUCCESS)
@@ -157,17 +156,17 @@ object ColdStartSpans {
     fun beginRoot() {
         if (root != null) return
         val startedAt = CaptureBridge.processStartEpochMs
-        root = Logger.startSpan("app_cold_start", LogLevel.INFO, null, startedAt, null)
+        root = RecordingLogger.startSpan(SpecSpans.APP_COLD_START, LogLevel.INFO, null, startedAt, null)
 
         // Both endpoints are already known here (process start, and now), so this one
         // is opened and closed in a single call rather than left open.
         val now = System.currentTimeMillis()
-        Logger.startSpan("app_cold_start.sdk_init", LogLevel.INFO, null, startedAt, root?.id)
+        RecordingLogger.startSpan(SpecSpans.APP_COLD_START_SDK_INIT, LogLevel.INFO, null, startedAt, root?.id)
             ?.end(SpanResult.SUCCESS, null, now)
 
         // Opens for real, now — Compose standing up the activity and reaching the
         // startup LaunchedEffect needs no back-dating.
-        currentPhase = Logger.startSpan("app_cold_start.scene_render", LogLevel.INFO, null, null, root?.id)
+        currentPhase = RecordingLogger.startSpan(SpecSpans.APP_COLD_START_SCENE_RENDER, LogLevel.INFO, null, null, root?.id)
     }
 
     /**
@@ -179,7 +178,7 @@ object ColdStartSpans {
     fun advanceToStateRestore() {
         if (root == null) return
         currentPhase?.end(SpanResult.SUCCESS)
-        currentPhase = Logger.startSpan("app_cold_start.state_restore", LogLevel.INFO, null, null, root?.id)
+        currentPhase = RecordingLogger.startSpan(SpecSpans.APP_COLD_START_STATE_RESTORE, LogLevel.INFO, null, null, root?.id)
     }
 
     /**

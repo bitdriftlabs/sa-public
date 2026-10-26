@@ -2,9 +2,9 @@
 # Crash loop (like the Android demo's crash loop), driven from the CLI the
 # way android/scripts/watchdog.sh drives its modes: the script owns the loop
 # state. It sets the debug.bd_shop_crash loop flag and keeps relaunching the
-# app. On launch the app runs one shopping journey and, when it reaches
-# payment, crashes with a random crash shape (like the Android demo's
-# "crash on payment"). Each pass is a fresh journey ending in a fresh random
+# app. On launch the app runs one shopping journey (crash_loop toggle) and crashes
+# with a random crash shape at the journey point the engine chose (like the Android
+# demo's crash loop). Each pass is a fresh journey ending in a fresh random
 # crash in a live session.
 #
 # The app itself cannot write the property (SELinux denies untrusted_app the
@@ -32,11 +32,11 @@ adb -s "$EMU_ID" shell setprop "$PROP" 1
 cleanup() { adb -s "$EMU_ID" shell setprop "$PROP" 0; }
 trap cleanup EXIT INT TERM
 
-echo "Crash loop started on $EMU_ID (one journey per pass, random crash at payment). Ctrl-C to stop."
+echo "Crash loop started on $EMU_ID (one journey per pass, random crash at the chosen journey point). Ctrl-C to stop."
 while true; do
   adb -s "$EMU_ID" shell am force-stop "$PKG"
   sleep 2
   adb -s "$EMU_ID" shell am start -n "$PKG/.MainActivity" >/dev/null
-  # Give the journey time to run and crash at payment.
+  # Give the journey time to run and crash.
   sleep 20
 done

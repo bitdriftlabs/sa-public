@@ -148,7 +148,8 @@ flutter/
 │   ├── bd/capture.dart          # single-seam wrapper over the alpha SDK
 │   ├── api/client.dart          # typed endpoints + x-capture-path-template + logging
 │   ├── models/models.dart       # Product / Category views
-│   ├── sim/simulator.dart       # variant profiles + simplified journey driver
+│   ├── sim/journey_engine.dart  # interpreter for spec/journey.yaml (shared with every app)
+│   ├── sim/simulator.dart       # run loops + journey adapter (nav, API, logs/spans)
 │   └── ui/{welcome,screens,widgets}.dart
 ├── scripts/                          # per-platform, numbered by order-of-use
 │   ├── 0-install-flutter.sh          # one-time Flutter install (shared)
@@ -178,7 +179,7 @@ flutter/
 | `getSdkStatus` | ⚠️ exposed in alpha, not surfaced in the port |
 | `createTemporaryDeviceCode` | ✅ welcome screen (label becomes the code, like Android) |
 | `startNewSession` | ✅ Diagnostics screen ("New session") |
-| `setEntityId` / `clearEntityId`     | ✅ real API as of 0.0.3 (previously faked as an `entity_id` field on 0.0.1). `sim/simulator.dart`: signed-in journeys get a fresh, unique entity every run (`Name-<microsecond timestamp>`, never reused across batches — the per-batch run counter alone would repeat); guest journeys call `clearEntityId` — a real anonymous session, which 0.0.1 had no way to represent |
+| `setEntityId` / `clearEntityId`     | ✅ real API as of 0.0.3 (previously faked as an `entity_id` field on 0.0.1). The journey rotates the spec's entity pool (`entities[(run-1) % 10]`, like every app) |
 | Feature-flag exposure API           | ⚠️ not in alpha → recorded as `ff_*` fields |
 | App-launch TTI API                  | ⚠️ not in alpha → emitted as completed-span pair |
 | Network request/response capture    | ⚠️ not exposed → `x-capture-path-template` header + `api_*` structured logs |
@@ -213,16 +214,17 @@ libc, mirroring the Android demo's native entries:
   each kills the app with the matching signal in logcat) and `exit`
   (`exit(1)`, a hard exit with no signal).
 
-Crash loop (like the Android demo's "crash on payment"): the loop flag lives
+Crash loop: the loop flag lives
 in the `debug.bd_shop_crash` property, so it persists across crashes. The loop
 is script-driven (like `android/scripts/watchdog.sh`) because the app can read
 the property but cannot write it (SELinux denies `untrusted_app` the
 property-service socket on this device). While the loop is active, each launch
-runs one shopping journey and crashes with a random shape when it reaches
-payment:
+runs one shopping journey and crashes with a random shape at the journey's
+crash point (a random back-half step, recorded as `crash_journey_point`; a journey that
+abandons before that point does not crash):
 
 ```bash
-bash scripts/crash-loop.sh    # each pass: fresh journey ending in a random crash at payment
+bash scripts/crash-loop.sh    # each pass: fresh journey ending in a random crash
 # Ctrl-C to stop (clears the property)
 ```
 

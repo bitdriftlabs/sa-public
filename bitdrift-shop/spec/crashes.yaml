@@ -1,0 +1,195 @@
+# Crash catalog: logical crash ids -> per-platform implementation keys.
+#
+# id      logical id. Rule (D-CRS-1): Android's key where Android has the crash, else the
+#         iOS key, else the platform key.
+# impl    {platform: key}. The key is what the app logs as the crash_kind global field and
+#         in the about_to_crash message; it is NOT renamed (no workflow matches on it, and
+#         platform-idiomatic names are more truthful, e.g. force_unwrap_nil on iOS).
+# category: runtime_exception | background_thread | lock_contention | vendor_sdk |
+#           native_signal | memory_fault | oom | watchdog_hang | process_exit
+# expected_issue: bitdrift issue type expected for this crash ({platform: type} when it
+#           differs): crash | native_crash | oom_termination | app_hang | none
+# fg_bg:  foreground/background coverage in the crash sweep (see sweep below).
+#
+# Counts today: android 28, ios 36, reactnative 20, flutter 4; 16 keys identical on
+# android and ios; 25 android crashes have an iOS equivalent under some key.
+
+version: 1
+
+source_roots:
+  A: android/app/src/main/java/ai/bitdrift/shop
+  I: ios/BitdriftShop
+  R: reactnative
+  F: flutter/lib
+
+sweep:
+  # Deterministic sweep, persisted index next_combo_index (faults.yaml crash_loop).
+  android: {catalog: all, slots_per_crash: 2, order: "comboIdx/2 -> crash, comboIdx%2 -> 0 fg / 1 bg", source: "A:SimulationManager.kt:528"}
+  ios: {catalog: "all minus oom_* unless ENABLE_OOM_CRASHES", slots_per_crash: "2 if ENABLE_BACKGROUND_CRASHES else 1", source: "I:Crashes.swift:122"}
+  reactnative: {catalog: all, slots_per_crash: 1, persisted: false, source: "R:src/context/SimulationContext.tsx:300"}
+  flutter: {catalog: all, order: random, source: "F:crash.dart:62"}
+  oom_only_mode: "cycles only category=oom (android, ios)"
+  exclude_hangs_mode: "iOS simplified journey excludes watchdog_* and lock_contention (I:Crashes.swift:126)"
+
+crashes:
+  # ── main-thread runtime exceptions / traps ──────────────────────────────
+  - {id: null_pointer, category: runtime_exception, expected_issue: crash,
+     impl: {android: null_pointer, ios: force_unwrap_nil, reactnative: null_pointer},
+     source: {android: "A:Crashes.kt:36", ios: "I:Crashes.swift:42", reactnative: "R:src/sim/crashes.ts:161"}}
+  - {id: array_index, category: runtime_exception, expected_issue: crash,
+     impl: {android: array_index, ios: array_index, reactnative: array_index},
+     source: {android: "A:Crashes.kt:37", ios: "I:Crashes.swift:43", reactnative: "R:src/sim/crashes.ts:162"}}
+  - {id: class_cast, category: runtime_exception, expected_issue: crash,
+     impl: {android: class_cast, ios: force_cast, reactnative: class_cast},
+     source: {android: "A:Crashes.kt:38", ios: "I:Crashes.swift:44", reactnative: "R:src/sim/crashes.ts:163"}}
+  - {id: divide_by_zero, category: runtime_exception, expected_issue: crash,
+     impl: {android: divide_by_zero, ios: divide_by_zero, reactnative: divide_by_zero},
+     source: {android: "A:Crashes.kt:39", ios: "I:Crashes.swift:45", reactnative: "R:src/sim/crashes.ts:164"}}
+  - {id: number_format, category: runtime_exception, expected_issue: crash,
+     impl: {android: number_format, ios: number_format, reactnative: number_format},
+     source: {android: "A:Crashes.kt:40", ios: "I:Crashes.swift:46", reactnative: "R:src/sim/crashes.ts:165"}}
+  - {id: illegal_state, category: runtime_exception, expected_issue: crash,
+     impl: {android: illegal_state, ios: precondition_failure, reactnative: illegal_state},
+     notes: "same message 'object in invalid state' on android/ios",
+     source: {android: "A:Crashes.kt:41", ios: "I:Crashes.swift:48", reactnative: "R:src/sim/crashes.ts:166"}}
+  - {id: illegal_argument, category: runtime_exception, expected_issue: crash,
+     impl: {android: illegal_argument, reactnative: illegal_argument},
+     source: {android: "A:Crashes.kt:42", reactnative: "R:src/sim/crashes.ts:167"}}
+  - {id: concurrent_modification, category: runtime_exception, expected_issue: crash,
+     impl: {android: concurrent_modification, reactnative: concurrent_modification},
+     source: {android: "A:Crashes.kt:43", reactnative: "R:src/sim/crashes.ts:168"}}
+  - {id: stack_overflow, category: runtime_exception, expected_issue: crash,
+     impl: {android: stack_overflow, ios: stack_overflow, reactnative: stack_overflow},
+     source: {android: "A:Crashes.kt:44", ios: "I:Crashes.swift:54", reactnative: "R:src/sim/crashes.ts:169"}}
+  - {id: string_index, category: runtime_exception, expected_issue: crash,
+     impl: {android: string_index, ios: string_index, reactnative: string_index},
+     source: {android: "A:Crashes.kt:45", ios: "I:Crashes.swift:51", reactnative: "R:src/sim/crashes.ts:170"}}
+  - {id: negative_array_size, category: runtime_exception, expected_issue: crash,
+     impl: {android: negative_array_size, ios: negative_array_size, reactnative: negative_array_size},
+     source: {android: "A:Crashes.kt:46", ios: "I:Crashes.swift:52", reactnative: "R:src/sim/crashes.ts:171"}}
+  - {id: assertion_error, category: runtime_exception, expected_issue: crash,
+     impl: {android: assertion_error, ios: assertion_failure, reactnative: assertion_error},
+     notes: "same message 'assertion failed in payment validator' on android/ios",
+     source: {android: "A:Crashes.kt:47", ios: "I:Crashes.swift:49", reactnative: "R:src/sim/crashes.ts:172"}}
+  - {id: unsatisfied_link, category: runtime_exception, expected_issue: crash,
+     impl: {android: unsatisfied_link, reactnative: unsatisfied_link},
+     source: {android: "A:Crashes.kt:48", reactnative: "R:src/sim/crashes.ts:173"}}
+  - {id: arithmetic_overflow, category: runtime_exception, expected_issue: crash,
+     impl: {ios: arithmetic_overflow}, source: {ios: "I:Crashes.swift:47"}}
+  - {id: fatal_error, category: runtime_exception, expected_issue: crash,
+     impl: {ios: fatal_error}, source: {ios: "I:Crashes.swift:50"}}
+  - {id: unowned_deallocated, category: runtime_exception, expected_issue: crash,
+     impl: {ios: unowned_deallocated}, source: {ios: "I:Crashes.swift:53"}}
+  - {id: dictionary_missing_key, category: runtime_exception, expected_issue: crash,
+     impl: {ios: dictionary_missing_key}, source: {ios: "I:Crashes.swift:56"}}
+  - {id: invalid_range, category: runtime_exception, expected_issue: crash,
+     impl: {ios: invalid_range}, source: {ios: "I:Crashes.swift:57"}}
+  - {id: decode_force_try, category: runtime_exception, expected_issue: crash,
+     impl: {ios: decode_force_try}, source: {ios: "I:Crashes.swift:58"}}
+
+  # ── off-main-thread ─────────────────────────────────────────────────────
+  - {id: runtime_background_thread, category: background_thread, expected_issue: crash,
+     impl: {android: runtime_background_thread, ios: background_queue, reactnative: runtime_background_thread},
+     source: {android: "A:Crashes.kt:50", ios: "I:Crashes.swift:60", reactnative: "R:src/sim/crashes.ts:175"}}
+  - {id: coroutine_io, category: background_thread, expected_issue: crash,
+     impl: {android: coroutine_io, ios: detached_task, reactnative: coroutine_io},
+     source: {android: "A:Crashes.kt:51", ios: "I:Crashes.swift:61", reactnative: "R:src/sim/crashes.ts:176"}}
+
+  # ── lock contention (blocking thread attribution, bd-shop-08) ───────────
+  - {id: lock_contention, category: lock_contention, expected_issue: crash,
+     impl: {android: lock_contention, ios: lock_contention},
+     missing_on: [reactnative],
+     source: {android: "A:Crashes.kt:53", ios: "I:Crashes.swift:63"}}
+
+  # ── vendor SDK attribution (bd-shop-09/10); URLs in api.yaml vendor_sdks ──
+  - {id: vendor_sdk_interceptor, category: vendor_sdk, expected_issue: crash, vendor: ads,
+     impl: {android: vendor_sdk_interceptor, ios: vendor_sdk_ads},
+     missing_on: [reactnative],
+     source: {android: "A:Crashes.kt:55", ios: "I:Crashes.swift:65"}}
+  - {id: vendor_sdk_analytics, category: vendor_sdk, expected_issue: crash, vendor: analytics,
+     impl: {android: vendor_sdk_analytics, ios: vendor_sdk_analytics},
+     missing_on: [reactnative],
+     source: {android: "A:Crashes.kt:56", ios: "I:Crashes.swift:66"}}
+
+  # ── iOS watchdog terminations (0x8BADF00D, reported as App Hang) ────────
+  - {id: watchdog_scene_create, category: watchdog_hang, expected_issue: app_hang,
+     impl: {ios: watchdog_scene_create}, source: {ios: "I:Crashes.swift:70"}}
+  - {id: watchdog_scene_update, category: watchdog_hang, expected_issue: app_hang,
+     impl: {ios: watchdog_scene_update}, source: {ios: "I:Crashes.swift:71"}}
+  - {id: watchdog_process_exit, category: watchdog_hang, expected_issue: app_hang,
+     impl: {ios: watchdog_process_exit}, source: {ios: "I:Crashes.swift:72"}}
+
+  # ── memory access fault ─────────────────────────────────────────────────
+  - {id: exc_bad_access_null, category: memory_fault, expected_issue: native_crash,
+     impl: {ios: exc_bad_access_null}, source: {ios: "I:Crashes.swift:75"}}
+
+  # ── native signals ──────────────────────────────────────────────────────
+  - {id: native_sigsegv, category: native_signal, expected_issue: native_crash,
+     impl: {android: native_sigsegv, ios: native_sigsegv, reactnative: native_sigsegv, flutter: sigsegv},
+     source: {android: "A:Crashes.kt:58", ios: "I:Crashes.swift:77", reactnative: "R:src/sim/crashes.ts:179", flutter: "F:crash.dart:21"}}
+  - {id: native_sigbus, category: native_signal, expected_issue: native_crash,
+     impl: {android: native_sigbus, ios: native_sigbus, reactnative: native_sigbus, flutter: sigbus},
+     source: {android: "A:Crashes.kt:59", ios: "I:Crashes.swift:78", reactnative: "R:src/sim/crashes.ts:180", flutter: "F:crash.dart:21"}}
+  - {id: native_sigabrt, category: native_signal, expected_issue: native_crash,
+     impl: {android: native_sigabrt, ios: native_sigabrt, reactnative: native_sigabrt, flutter: sigabrt},
+     source: {android: "A:Crashes.kt:60", ios: "I:Crashes.swift:79", reactnative: "R:src/sim/crashes.ts:181", flutter: "F:crash.dart:21"}}
+  - {id: native_sigfpe, category: native_signal, expected_issue: native_crash,
+     impl: {android: native_sigfpe, ios: native_sigfpe, reactnative: native_sigfpe},
+     source: {android: "A:Crashes.kt:61", ios: "I:Crashes.swift:80", reactnative: "R:src/sim/crashes.ts:182"}}
+  - {id: native_sigill, category: native_signal, expected_issue: native_crash,
+     impl: {ios: native_sigill}, source: {ios: "I:Crashes.swift:81"}}
+
+  # ── Flutter-only hard exit ───────────────────────────────────────────────
+  - {id: process_exit, category: process_exit, expected_issue: none,
+     impl: {flutter: process_exit},
+     notes: "exit(1); no signal, no crash report. Not related to iOS watchdog_process_exit.",
+     source: {flutter: "F:crash.dart:21"}}
+
+  # ── out of memory (android: java OutOfMemoryError = crash; ios: jetsam) ──
+  - {id: oom_allocator_thread, category: oom, expected_issue: {android: crash, ios: oom_termination, reactnative: crash},
+     impl: {android: oom_allocator_thread, ios: oom_allocator_thread, reactnative: oom_allocator_thread},
+     source: {android: "A:Crashes.kt:26", ios: "I:Crashes.swift:32", reactnative: "R:src/sim/crashes.ts:177"}}
+  - {id: oom_main_thread, category: oom, expected_issue: {android: crash, ios: oom_termination},
+     impl: {android: oom_main_thread, ios: oom_main_thread},
+     missing_on: [reactnative],
+     source: {android: "A:Crashes.kt:27", ios: "I:Crashes.swift:33"}}
+  - {id: oom_single_allocation, category: oom, expected_issue: {android: crash, ios: oom_termination},
+     impl: {android: oom_single_allocation, ios: oom_single_allocation},
+     missing_on: [reactnative],
+     source: {android: "A:Crashes.kt:28", ios: "I:Crashes.swift:34"}}
+  - {id: oom_native_thread, category: oom, expected_issue: {android: crash, ios: oom_termination},
+     impl: {android: oom_native_thread, ios: oom_thread_exhaustion},
+     missing_on: [reactnative],
+     source: {android: "A:Crashes.kt:29", ios: "I:Crashes.swift:35"}}
+  - {id: oom_bitmap_decode, category: oom, expected_issue: {android: crash, ios: oom_termination},
+     impl: {android: oom_bitmap_decode, ios: oom_image_decode},
+     missing_on: [reactnative],
+     source: {android: "A:Crashes.kt:30", ios: "I:Crashes.swift:36"}}
+  - {id: oom_cache_growth, category: oom, expected_issue: {android: crash, ios: oom_termination},
+     impl: {android: oom_cache_growth, ios: oom_cache_growth},
+     missing_on: [reactnative],
+     source: {android: "A:Crashes.kt:31", ios: "I:Crashes.swift:37"}}
+
+  # ── Phase 6: realistic crashes in app-like code (no about_to_crash announcement) ──
+  # Each runs a precursor first (handled errors, retries) so the session explains *why* it crashed,
+  # then fails inside a real-looking class. Android/iOS only; the stack's top frame is the app class.
+  - {id: app_coupon_empty_cart, category: runtime_exception, expected_issue: crash, realistic: true,
+     impl: {android: app_coupon_empty_cart},
+     precursor: [coupon_apply_failed],
+     notes: "CartPricing.applyCoupon on an empty cart: maxBy / .max()! with no guard",
+     source: {android: "A:Crashes.kt:66"}}
+  - {id: app_promo_banner_payload, category: runtime_exception, expected_issue: crash, realistic: true,
+     impl: {android: app_promo_banner_payload},
+     precursor: [promo_banner_parse_failed, promo_banner_retry],
+     notes: "PromoBannerParser.parse on a payload whose discount_percent is not a number; the retry has no guard",
+     source: {android: "A:Crashes.kt:67"}}
+
+# Per-crash timing constants (platform implementation detail, informational).
+timings:
+  android: {signal_wait_ms: 500, watchdog_delay_ms: 300, lock_hold_ms: 2000, oom_gradual_wait_ms: 35000,
+            byte_array_step_ms: 400, thread_spawn_step_ms: 700, bitmap_step_ms: 2000,
+            cache_growth_batch: 5000, cache_growth_batch_delay_ms: 250, source: "A:Crashes.kt:340"}
+  ios: {signal_wait_ms: 500, watchdog_delay_ms: 300, lock_hold_ms: 2000, oom_gradual_wait_ms: 35000,
+        byte_buffer_step_ms: 400, thread_spawn_step_ms: 300, image_step_ms: 1000,
+        cache_growth_batch: 5000, cache_growth_batch_delay_ms: 250,
+        watchdog_block_s: {scene_create: 30, scene_update: 30, process_exit: 15}, source: "I:Crashes.swift:510"}

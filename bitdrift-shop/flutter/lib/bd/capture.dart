@@ -1,6 +1,7 @@
 import 'package:capture_flutter/capture_flutter.dart';
 
 import '../config.dart';
+import 'recorder.dart';
 
 /// Thin, single-seam wrapper over the alpha `capture_flutter` SDK.
 ///
@@ -32,20 +33,32 @@ class Bd {
   }
 
   // -- logging ------------------------------------------------------------
-  static Future<void> trace(String m, {Map<String, String>? fields}) =>
-      _run(() => Capture.logTrace(m, fields: fields));
-  static Future<void> debug(String m, {Map<String, String>? fields}) =>
-      _run(() => Capture.logDebug(m, fields: fields));
-  static Future<void> info(String m, {Map<String, String>? fields}) =>
-      _run(() => Capture.logInfo(m, fields: fields));
-  static Future<void> warning(String m, {Map<String, String>? fields}) =>
-      _run(() => Capture.logWarning(m, fields: fields));
-  static Future<void> error(String m, {Map<String, String>? fields}) =>
-      _run(() => Capture.logError(m, fields: fields));
+  static Future<void> trace(String m, {Map<String, String>? fields}) {
+    Recorder.log('trace', m, fields);
+    return _run(() => Capture.logTrace(m, fields: fields));
+  }
+  static Future<void> debug(String m, {Map<String, String>? fields}) {
+    Recorder.log('debug', m, fields);
+    return _run(() => Capture.logDebug(m, fields: fields));
+  }
+  static Future<void> info(String m, {Map<String, String>? fields}) {
+    Recorder.log('info', m, fields);
+    return _run(() => Capture.logInfo(m, fields: fields));
+  }
+  static Future<void> warning(String m, {Map<String, String>? fields}) {
+    Recorder.log('warning', m, fields);
+    return _run(() => Capture.logWarning(m, fields: fields));
+  }
+  static Future<void> error(String m, {Map<String, String>? fields}) {
+    Recorder.log('error', m, fields);
+    return _run(() => Capture.logError(m, fields: fields));
+  }
 
   /// Log a screen view.
-  static Future<void> screenView(String name) =>
-      _run(() => Capture.logScreenView(name));
+  static Future<void> screenView(String name) {
+    Recorder.screen(name);
+    return _run(() => Capture.logScreenView(name));
+  }
 
   // -- fields -------------------------------------------------------------
   static Future<void> field(String k, String v) =>
@@ -110,13 +123,18 @@ class Bd {
   }
 
   // -- spans --------------------------------------------------------------
+  /// The alpha SDK's startSpan has no parent argument; [parent] only reaches the recorder.
   static Future<SpanHandle?> startSpan(
     String name, {
     Map<String, String>? fields,
+    SpanHandle? parent,
   }) async {
     try {
       final s = await Capture.startSpan(name, fields: fields);
-      return s == null ? null : SpanHandle(s);
+      if (s == null) return null;
+      final h = SpanHandle(s, name);
+      Recorder.spanStart(h.localId, name, fields, parent: parent?.localId);
+      return h;
     } catch (_) {
       return null;
     }
@@ -132,6 +150,9 @@ class Bd {
   }) async {
     final id = 'span_${DateTime.now().microsecondsSinceEpoch}';
     final base = <String, String>{...?fields};
+    Recorder.log('info', name, {...base, '_span_id': id, '_span_type': 'start'});
+    Recorder.log('info', name,
+        {...base, '_span_id': id, '_span_type': 'end', '_result': 'success', '_duration_ms': '$durationMs'});
     await _run(() => Capture.logInfo(
           name,
           fields: {...base, '_span_id': id, '_span_type': 'start'},
@@ -152,10 +173,16 @@ class Bd {
 /// Ergonomic wrapper around the alpha `Span`.
 class SpanHandle {
   final Span span;
-  SpanHandle(this.span);
-  Future<void> end({bool success = true}) async {
+  final String name;
+  final String localId = 'span_${DateTime.now().microsecondsSinceEpoch}_${_counter++}';
+  static int _counter = 0;
+  SpanHandle(this.span, this.name);
+  /// [result] is the spec result (success / failure / canceled); the alpha SDK only knows
+  /// success vs not, and takes no end fields, so those reach the recorder alone.
+  Future<void> end({String result = 'success', Map<String, String>? fields}) async {
+    Recorder.spanEnd(localId, name, result, fields);
     try {
-      await Capture.endSpan(span, success: success);
+      await Capture.endSpan(span, success: result == 'success');
     } catch (_) {
       // best-effort
     }

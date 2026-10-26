@@ -51,11 +51,11 @@ final class AppLifecycleObserver {
     // AppLifecycleCallbacks.kt exactly (same name, same activity-count-style
     // boundary) - see workflows/foreground-session-metrics.md on the Android
     // side for why a span was chosen over matching on lifecycle logs directly.
-    private var foregroundSpan: Span?
+    private var foregroundSpan: RecordedSpan?
 
     private func startForegroundSpan() {
         guard foregroundSpan == nil else { return }
-        foregroundSpan = Logger.startSpan(name: "foreground_session", level: .info)
+        foregroundSpan = RecordedSpan.start(name: SpecSpans.foregroundSession, level: .info)
     }
 
     private func endForegroundSpan() {
@@ -74,7 +74,7 @@ final class AppLifecycleObserver {
             // queryable in the dashboard.
             // POC: alert triggers — create a Workflow that fires when the
             // memory_pressure rate exceeds a threshold.
-            ScreenLogger.logWarning("memory_pressure", ["level": "didReceiveMemoryWarning"])
+            ScreenLogger.logWarning(SpecEvents.memoryPressure, [SpecFields.level: "didReceiveMemoryWarning"])
         }
     }
 
@@ -89,7 +89,7 @@ final class AppLifecycleObserver {
             // block here if that hang is armed. Only on a real background ->
             // active edge; `.inactive -> .active` (control centre, notification
             // banner) is not a scene update and would fire at the wrong moment.
-            ScreenLogger.logInfo("app_open", ["trigger": "scenePhase.active"])
+            ScreenLogger.logInfo(SpecEvents.appOpen, [SpecFields.trigger: "scenePhase.active"])
             startForegroundSpan()
             WatchdogHangs.blockIfArmed(for: .sceneUpdate)
         case .active where lastPhase != .active:
@@ -97,12 +97,12 @@ final class AppLifecycleObserver {
             // and field map.
             // POC: Workflow matching, Timeline breadcrumbs, alert triggers —
             // stable event names are queryable.
-            ScreenLogger.logInfo("app_open", ["trigger": "scenePhase.active"])
+            ScreenLogger.logInfo(SpecEvents.appOpen, [SpecFields.trigger: "scenePhase.active"])
             startForegroundSpan()
         case .background where lastPhase != .background:
             // bitdrift SDK: logInfo() emits a structured event for
             // foreground/background transitions.
-            ScreenLogger.logInfo("app_close", ["trigger": "scenePhase.background"])
+            ScreenLogger.logInfo(SpecEvents.appClose, [SpecFields.trigger: "scenePhase.background"])
             endForegroundSpan()
         default:
             break

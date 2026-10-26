@@ -1,5 +1,6 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
@@ -29,13 +30,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import ai.bitdrift.shop.ui.theme.ShoppingdemoTheme
-import io.bitdrift.capture.Capture.Logger
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AutorunConfig.parse(intent)
         enableEdgeToEdge()
 
         setContent {
@@ -50,7 +51,7 @@ class MainActivity : ComponentActivity() {
         val contentView = findViewById<android.view.View>(android.R.id.content)
         contentView.post {
             val ttiMs = SystemClock.uptimeMillis() - ShoppingDemoApp.appStartUptimeMs
-            Logger.logAppLaunchTTI(ttiMs.milliseconds)
+            RecordingLogger.logAppLaunchTTI(ttiMs.milliseconds)
             reportFullyDrawn()
         }
     }
@@ -61,28 +62,8 @@ enum class StartupPhase { CONFIG, APP }
 // bitdrift SDK: log screen views centrally so they fire for both user navigation and
 // simulator navigation (SimulationManager.nav()), independent of Compose composition timing.
 // POC: User Journey Sankey diagram; per-screen crash analytics
-private fun destinationToScreenName(route: String): String = when (route) {
-    Screen.Welcome.route -> "Welcome"
-    Screen.Advanced.route -> "Advanced"
-    Screen.Browse.route -> "Browse"
-    Screen.Search.route -> "Search"
-    Screen.FeaturedProducts.route -> "Featured"
-    Screen.Categories.route -> "Categories"
-    Screen.CATEGORY_BROWSE_ROUTE -> "CategoryBrowse"
-    Screen.PRODUCT_DETAIL_ROUTE -> "ProductDetail"
-    Screen.REVIEWS_ROUTE -> "Reviews"
-    Screen.CART_ROUTE -> "Cart"
-    Screen.WISHLIST_ROUTE -> "Wishlist"
-    Screen.CHECKOUT_GUEST_ROUTE -> "CheckoutGuest"
-    Screen.CHECKOUT_SIGNIN_ROUTE -> "CheckoutSignIn"
-    Screen.PAYMENT_CARD_ROUTE -> "PaymentCard"
-    Screen.PAYMENT_APPLEPAY_ROUTE -> "PaymentApplePay"
-    Screen.PAYMENT_PAYPAL_ROUTE -> "PaymentPayPal"
-    Screen.PAYMENT_ANDROIDPAY_ROUTE -> "PaymentAndroidPay"
-    Screen.PAYMENT_FAILED_ROUTE -> "PaymentFailed"
-    Screen.CONFIRMATION_ROUTE -> "Confirmation"
-    else -> route
-}
+private fun destinationToScreenName(route: String): String =
+    SpecScreen.entries.firstOrNull { it.route == route }?.screenName ?: route
 
 @Composable
 fun ShoppingDemoContent() {
@@ -117,7 +98,8 @@ fun ShoppingDemoContent() {
     // mandatory 5s delay, defeating the point of "fast."
     var phase by remember {
         mutableStateOf(
-            if (anrPrefs.getBoolean("restart_pending", false) ||
+            if (AutorunConfig.active ||
+                anrPrefs.getBoolean("restart_pending", false) ||
                 forceQuitPrefs.getBoolean("restart_pending", false) ||
                 anrPrefs.getBoolean("resume_infinite", false) ||
                 forceQuitPrefs.getBoolean("resume_infinite", false) ||
@@ -201,7 +183,8 @@ fun ShoppingDemoContent() {
                             // belongs to state_restore rather than to render time.
                             ColdStartSpans.advanceToStateRestore()
 
-                            simulationManager.crashLoopEnabled = crashPrefs.getBoolean("active", false)
+                            // `crash=<name>` (test harness) forces the crash loop on for the run, without touching prefs.
+                            simulationManager.crashLoopEnabled = crashPrefs.getBoolean("active", false) || AutorunConfig.crash != null
                             simulationManager.fastCrashModeEnabled = crashPrefs.getBoolean(ShoppingDemoApp.KEY_FAST_MODE, false)
                             simulationManager.syncAnrAEnabledState()
                             simulationManager.syncForceQuitEnabledState()
@@ -232,8 +215,8 @@ fun ShoppingDemoContent() {
                                     .commit()
                                 simulationManager.restoreVariantFromPrefs()
                                 ScreenLogger.logInfo(
-                                    "crash_restart_resume",
-                                    mapOf("variant" to simulationManager.activeVariant.label)
+                                    SpecEvents.CRASH_RESTART_RESUME,
+                                    mapOf(SpecFields.VARIANT to simulationManager.activeVariant.label)
                                 )
                                 simulationManager.scheduleAutoStartInfinite()
                             } else if (anrRestartPending || anrResumeInfinite) {
@@ -243,10 +226,10 @@ fun ShoppingDemoContent() {
                                     .commit()
                                 simulationManager.restoreVariantFromPrefs()
                                 ScreenLogger.logInfo(
-                                    "anr_restart_resume",
+                                    SpecEvents.ANR_RESTART_RESUME,
                                     mapOf(
-                                        "mode" to if (anrResumeInfinite) "infinite" else "single",
-                                        "pending_flag" to anrRestartPending.toString()
+                                        SpecFields.MODE to if (anrResumeInfinite) "infinite" else "single",
+                                        SpecFields.PENDING_FLAG to anrRestartPending.toString()
                                     )
                                 )
                                 if (anrResumeInfinite) {
@@ -261,10 +244,10 @@ fun ShoppingDemoContent() {
                                     .commit()
                                 simulationManager.restoreVariantFromPrefs()
                                 ScreenLogger.logInfo(
-                                    "force_quit_restart_resume",
+                                    SpecEvents.FORCE_QUIT_RESTART_RESUME,
                                     mapOf(
-                                        "mode" to if (fqResumeInfinite) "infinite" else "single",
-                                        "pending_flag" to fqRestartPending.toString()
+                                        SpecFields.MODE to if (fqResumeInfinite) "infinite" else "single",
+                                        SpecFields.PENDING_FLAG to fqRestartPending.toString()
                                     )
                                 )
                                 if (fqResumeInfinite) {
@@ -281,6 +264,16 @@ fun ShoppingDemoContent() {
                             // is the app running rather than starting up.
                             ColdStartSpans.finish()
 
+                            // Test harness: launch arguments request an unattended run. Start
+                            // recording after the cold-start spans have closed so the record
+                            // holds only complete spans.
+                            if (AutorunConfig.active && !AutorunConfig.started) {
+                                AutorunConfig.started = true
+                                AutorunConfig.recordFile?.let { Recorder.start(context, it) }
+                                simulationManager.autorun(navController)
+                                return@LaunchedEffect
+                            }
+
                             // Relaunch timing can race with Compose/nav readiness.
                             // Retry auto-start a few times so infinite sim reliably resumes.
                             repeat(5) {
@@ -291,12 +284,12 @@ fun ShoppingDemoContent() {
 
                             if (hadResumeRequest && !simulationManager.isSimulating) {
                                 ScreenLogger.logError(
-                                    "restart_autostart_missed",
+                                    SpecEvents.RESTART_AUTOSTART_MISSED,
                                     mapOf(
-                                        "anr_restart_pending" to anrRestartPending.toString(),
-                                        "fq_restart_pending" to fqRestartPending.toString(),
-                                        "anr_resume_infinite" to anrResumeInfinite.toString(),
-                                        "fq_resume_infinite" to fqResumeInfinite.toString()
+                                        SpecFields.ANR_RESTART_PENDING to anrRestartPending.toString(),
+                                        SpecFields.FQ_RESTART_PENDING to fqRestartPending.toString(),
+                                        SpecFields.ANR_RESUME_INFINITE to anrResumeInfinite.toString(),
+                                        SpecFields.FQ_RESUME_INFINITE to fqResumeInfinite.toString()
                                     )
                                 )
                             }

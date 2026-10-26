@@ -1,4 +1,5 @@
 import {ScreenLogger} from '../utils/logger';
+import {SpecSpans} from '../generated/specConstants';
 
 // "Smart" product recommendation engine — ports Android's RecommendationEngine.kt /
 // iOS's RecommendationEngine.swift. Computes relevance scores from description
@@ -98,7 +99,7 @@ export const scoreProducts = (
   // Isolates decoding the catalog JSON and building comparable profile strings, separate
   // from the similarity pass below. Takes the raw JSON string (rather than parsed
   // objects) so this span measures real parsing cost, as Android's does.
-  const profiles = trackChild('score_products.parse_catalog', parentSpanId, () => {
+  const profiles = trackChild(SpecSpans.scoreProductsParseCatalog, parentSpanId, () => {
       let catalog: Array<Record<string, unknown>>;
       try {
         const parsed = JSON.parse(catalogJson);
@@ -124,7 +125,7 @@ export const scoreProducts = (
 
   // The O(n*m) Levenshtein pass — the actual cost centre, and the reason this engine
   // exists as a slow-rendering demo.
-  return trackChild('score_products.similarity_pass', parentSpanId, () =>
+  return trackChild(SpecSpans.scoreProductsSimilarityPass, parentSpanId, () =>
     profiles
         .filter(p => str(p.product, 'id') !== referenceProductId)
         .map(({product, profile}) => {

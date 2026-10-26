@@ -1,5 +1,7 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
+
 /**
  * Navigation Path - sealed class representing all screens in the app.
  *
@@ -14,16 +16,16 @@ package ai.bitdrift.shop
  */
 sealed class Screen(val route: String) {
     // Step 1
-    data object Welcome : Screen("welcome")
-    data object Advanced : Screen("advanced")
+    data object Welcome : Screen(SpecScreen.WELCOME.route)
+    data object Advanced : Screen(SpecScreen.ADVANCED.route)
 
     // Step 2 branches
-    data object Browse : Screen("browse")
-    data object Search : Screen("search")
+    data object Browse : Screen(SpecScreen.BROWSE.route)
+    data object Search : Screen(SpecScreen.SEARCH.route)
 
     // Step 3 branches
-    data object FeaturedProducts : Screen("featured")
-    data object Categories : Screen("categories")
+    data object FeaturedProducts : Screen(SpecScreen.FEATURED.route)
+    data object Categories : Screen(SpecScreen.CATEGORIES.route)
     data class CategoryBrowse(val category: String) : Screen("categoryBrowse/$category")
 
     // Step 4 branches (source = featured|categories, productId passed from browse list)
@@ -51,18 +53,18 @@ sealed class Screen(val route: String) {
     data class Confirmation(val orderId: String = "") : Screen("confirmation/$orderId")
 
     companion object {
-        const val PRODUCT_DETAIL_ROUTE = "productDetail/{source}/{productId}"
-        const val CATEGORY_BROWSE_ROUTE = "categoryBrowse/{category}"
-        const val REVIEWS_ROUTE = "reviews/{source}/{productId}"
-        const val CART_ROUTE = "cart/{productId}"
-        const val WISHLIST_ROUTE = "wishlist/{productId}"
-        const val CHECKOUT_GUEST_ROUTE = "checkoutGuest/{productId}"
-        const val CHECKOUT_SIGNIN_ROUTE = "checkoutSignIn/{productId}"
-        const val PAYMENT_CARD_ROUTE = "paymentCard/{checkoutSession}"
-        const val PAYMENT_APPLEPAY_ROUTE = "paymentApplePay/{checkoutSession}"
-        const val PAYMENT_PAYPAL_ROUTE = "paymentPayPal/{checkoutSession}"
-        const val PAYMENT_ANDROIDPAY_ROUTE = "paymentAndroidPay/{checkoutSession}"
-        const val PAYMENT_FAILED_ROUTE = "paymentFailed/{paymentMethod}/{checkoutSession}"
-        const val CONFIRMATION_ROUTE = "confirmation/{orderId}"
+        val PRODUCT_DETAIL_ROUTE = SpecScreen.PRODUCT_DETAIL.route
+        val CATEGORY_BROWSE_ROUTE = SpecScreen.CATEGORY_BROWSE.route
+        val REVIEWS_ROUTE = SpecScreen.REVIEWS.route
+        val CART_ROUTE = SpecScreen.CART.route
+        val WISHLIST_ROUTE = SpecScreen.WISHLIST.route
+        val CHECKOUT_GUEST_ROUTE = SpecScreen.CHECKOUT_GUEST.route
+        val CHECKOUT_SIGNIN_ROUTE = SpecScreen.CHECKOUT_SIGNIN.route
+        val PAYMENT_CARD_ROUTE = SpecScreen.PAYMENT_CARD.route
+        val PAYMENT_APPLEPAY_ROUTE = SpecScreen.PAYMENT_APPLE_PAY.route
+        val PAYMENT_PAYPAL_ROUTE = SpecScreen.PAYMENT_PAYPAL.route
+        val PAYMENT_ANDROIDPAY_ROUTE = SpecScreen.PAYMENT_ANDROID_PAY.route
+        val PAYMENT_FAILED_ROUTE = SpecScreen.PAYMENT_FAILED.route
+        val CONFIRMATION_ROUTE = SpecScreen.CONFIRMATION.route
     }
 }

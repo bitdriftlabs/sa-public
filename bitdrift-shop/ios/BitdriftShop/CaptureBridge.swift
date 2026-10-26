@@ -34,11 +34,20 @@ enum CaptureBridge {
 
     static var sdkVersion: String { Logger.sdkVersion }
 
+    /// Restores the signed-in `user_id` across process restarts. After startup,
+    /// the sign-in/out call sites keep it current with `addField`/`removeField`,
+    /// and global fields survive `startNewSession()`. `user_id` is a special
+    /// bitdrift field: when present it appears in the Timeline session header.
+    private static func persistedUserFields() -> Fields {
+        guard let id = Prefs.userSession.string(Prefs.keyUserID), !id.isEmpty else { return [:] }
+        return [SpecFields.userId: id]
+    }
+
     /// Starts the Capture SDK. Must run before any logging.
     ///
-    /// bitdrift SDK: `Logger.start(withAPIKey:sessionStrategy:configuration:fieldProviders:)`
-    /// initialises the SDK with the API key, endpoint, session strategy, and field
-    /// providers. The returned `LoggerIntegrator` is what turns on automatic
+    /// bitdrift SDK: `Logger.start(withAPIKey:sessionConfiguration:configuration:initialFields:)`
+    /// initialises the SDK with the API key, endpoint, session configuration, and
+    /// startup fields. The returned `LoggerIntegrator` is what turns on automatic
     /// URLSession capture.
     /// POC: crash detection, memory monitoring, visual performance (OOTB — no
     /// extra calls); session management.
@@ -48,10 +57,11 @@ enum CaptureBridge {
         // per-call code. Equivalent to the Android app's automatic OkHttp
         // instrumentation via the Gradle plugin.
         // POC: network monitoring — unsampled latency, error rates, throughput per endpoint.
-        // `.fixed()` mints a fresh session ID on every process start, matching
-        // the Android app's `SessionStrategy.Fixed()` (ShoppingDemoApp.kt).
+        // A default `SessionConfiguration()` (no inactivityTimeout) mints a fresh
+        // session ID on every process start, matching the Android app's
+        // `SessionStrategy.Fixed()` (ShoppingDemoApp.kt).
         //
-        // Tradeoff vs. the `.activityBased()` this replaced: a crash the OS
+        // Tradeoff vs. the activity-based session this replaced: a crash the OS
         // reports on the *next* launch is emitted into whatever session is
         // current at that moment. Under `.fixed()` that's always a brand-new
         // session, so the crash is permanently divorced from the screen views
@@ -62,23 +72,23 @@ enum CaptureBridge {
         // the in-progress flow can never see.
         Logger.start(
             withAPIKey: AppConfig.apiKey,
-            sessionStrategy: .fixed(),
+            sessionConfiguration: SessionConfiguration(),
             configuration: .init(apiURL: AppConfig.apiURL),
-            fieldProviders: [UserIDFieldProvider()]
+            initialFields: Self.persistedUserFields()
         )?.enableIntegrations([.urlSession()])
 
         Logger.setEntityID("demo")
 
         // bitdrift SDK: logInfo() emits a structured event at app launch.
-        Logger.logInfo("app_launched")
+        Logger.logInfo(SpecEvents.appLaunched)
 
         // bitdrift SDK: addField() sets a global field attached to every log, span,
         // and network request for the lifetime of this process. Not persisted — it
         // is re-added on each start.
         // POC: insights & visualization — slice any dashboard, Workflow, or alert
         // by global field value.
-        Logger.addField(withKey: "app_variant", value: "ios-sdk-demo")
-        Logger.addField(withKey: "platform", value: "ios")
+        Logger.addField(withKey: SpecFields.appVariant, value: "sdk-demo")
+        Logger.addField(withKey: SpecFields.platform, value: "ios")
 
         reportPreviousRun()
 
@@ -131,30 +141,30 @@ enum CaptureBridge {
 
         guard let info = Logger.previousRunInfo else { return }
         let fields = [
-            "termination_reason": info.terminationReason.rawValue,
-            "fatal": String(info.hasFatallyTerminated),
-            "clean": String(info.wasCleanTermination),
+            SpecFields.terminationReason: info.terminationReason.rawValue,
+            SpecFields.fatal: String(info.hasFatallyTerminated),
+            SpecFields.clean: String(info.wasCleanTermination),
             // Named distinctly from the live `last_screen` global field so a query
             // can tell "where the user is now" from "where the previous run died".
-            "crashed_on_screen": lastScreen,
+            SpecFields.crashedOnScreen: lastScreen,
             // Same value again under the key `screen_visit` logs use, so a
             // workflow can compute crashes-per-visit as a grouped `rate`. A
             // grouped rate requires both sides bucketed by an identical field
             // key; `crashed_on_screen` is kept for existing charts that already
             // group by it.
-            "screen": lastScreen,
+            SpecFields.screen: lastScreen,
             // The path the dead run took, newest first, joined by `>`. An
             // in-process crash carries this on the report itself via the
             // `screen_prev_N` global fields; a hang or jetsam kill leaves no
             // report at all, so this persisted copy is the only way those
             // terminations get a journey rather than just a final screen.
-            "crashed_on_trail": screenTrail,
+            SpecFields.crashedOnTrail: screenTrail,
         ]
 
         if info.hasFatallyTerminated {
-            ScreenLogger.logError("previous_run_terminated", fields)
+            ScreenLogger.logError(SpecEvents.previousRunTerminated, fields)
         } else {
-            ScreenLogger.logInfo("previous_run_terminated", fields)
+            ScreenLogger.logInfo(SpecEvents.previousRunTerminated, fields)
         }
     }
 
@@ -177,9 +187,9 @@ enum CaptureBridge {
         level: LogLevel = .info,
         fields: [String: String] = [:],
         parentSpanID: UUID? = nil,
-        _ body: (Span?) throws -> T
+        _ body: (RecordedSpan?) throws -> T
     ) rethrows -> T {
-        let span = Logger.startSpan(
+        let span = RecordedSpan.start(
             name: name, level: level, fields: ScreenLogger.encode(fields), parentSpanID: parentSpanID
         )
         do {
@@ -202,9 +212,9 @@ enum CaptureBridge {
         level: LogLevel = .info,
         fields: [String: String] = [:],
         parentSpanID: UUID? = nil,
-        _ body: (Span?) async throws -> T
+        _ body: (RecordedSpan?) async throws -> T
     ) async rethrows -> T {
-        let span = Logger.startSpan(
+        let span = RecordedSpan.start(
             name: name, level: level, fields: ScreenLogger.encode(fields), parentSpanID: parentSpanID
         )
         do {
@@ -251,16 +261,16 @@ enum CaptureBridge {
 /// side-by-side comparison) instead of a single TTI number, and a Timeline waterfall showing
 /// where a given cold start's time actually went. See `bd-shop-20` in `workflows/`.
 enum ColdStartSpans {
-    private static var root: Span?
-    private static var currentPhase: Span?
+    private static var root: RecordedSpan?
+    private static var currentPhase: RecordedSpan?
 
     /// Opens `root` and its `sdk_init` child. Must run as the very last line of
     /// `CaptureBridge.start()` — everything that method did (the `Logger.start()` call
     /// itself, `setEntityID`, `addField`, `reportPreviousRun`) is what `sdk_init` measures,
     /// and a span cannot be created before the SDK it will be measuring has started.
     static func beginRoot() {
-        root = Logger.startSpan(
-            name: "app_cold_start",
+        root = RecordedSpan.start(
+            name: SpecSpans.appColdStart,
             level: .info,
             fields: [:],
             startTimeInterval: CaptureBridge.processStart.timeIntervalSince1970
@@ -270,8 +280,8 @@ enum ColdStartSpans {
         // "now"), so it is created and ended in the same call rather than left open like the
         // phases below.
         let now = Date().timeIntervalSince1970
-        Logger.startSpan(
-            name: "app_cold_start.sdk_init",
+        RecordedSpan.start(
+            name: SpecSpans.appColdStartSdkInit,
             level: .info,
             fields: [:],
             startTimeInterval: CaptureBridge.processStart.timeIntervalSince1970,
@@ -281,8 +291,8 @@ enum ColdStartSpans {
         // Opens for real, right now — everything from here (SwiftUI standing up the
         // WindowGroup, laying out the first frame, dispatching the `.task` that runs
         // `ContentView.runStartupSequence()`) needs no back-dating.
-        currentPhase = Logger.startSpan(
-            name: "app_cold_start.scene_render",
+        currentPhase = RecordedSpan.start(
+            name: SpecSpans.appColdStartSceneRender,
             level: .info,
             parentSpanID: root?.id
         )
@@ -296,8 +306,8 @@ enum ColdStartSpans {
     /// `state_restore`. Calling this any later charges that cost to `scene_render` instead.
     static func advanceToStateRestore() {
         currentPhase?.end(.success)
-        currentPhase = Logger.startSpan(
-            name: "app_cold_start.state_restore",
+        currentPhase = RecordedSpan.start(
+            name: SpecSpans.appColdStartStateRestore,
             level: .info,
             parentSpanID: root?.id
         )
@@ -317,18 +327,5 @@ enum ColdStartSpans {
         // the type doc above).
         root?.end(.success, endTimeInterval: Date().timeIntervalSince1970)
         root = nil
-    }
-}
-
-/// Exposes the currently signed-in `user_id` on every log.
-///
-/// Reading from `UserDefaults` on each call — rather than capturing the value
-/// once — means the field survives `startNewSession()` and process restarts.
-/// `user_id` is a special bitdrift field: when present it appears in the
-/// Timeline session header.
-struct UserIDFieldProvider: FieldProvider {
-    func getFields() -> Fields {
-        guard let id = Prefs.userSession.string(Prefs.keyUserID), !id.isEmpty else { return [:] }
-        return ["user_id": id]
     }
 }

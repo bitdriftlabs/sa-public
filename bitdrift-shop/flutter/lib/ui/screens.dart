@@ -2,44 +2,71 @@ import 'package:flutter/material.dart';
 
 import '../api/client.dart';
 import '../bd/capture.dart';
+import '../config.dart';
 import '../models/models.dart';
-import '../sim/simulator.dart' show paymentRoute;
+import '../generated/spec.dart';
+import '../crash.dart';
+import '../sim/simulator.dart';
+import 'container.dart';
+import 'welcome.dart' show kVariantColors;
 import 'widgets.dart';
 
 String _payLabel(String m) => switch (m) {
-      'card' => 'Card',
-      'applePay' => 'Apple Pay',
-      'paypal' => 'PayPal',
-      _ => 'Android Pay',
+      'card' => SpecScreen.paymentCard.screenName,
+      'applePay' => SpecScreen.paymentApplePay.screenName,
+      'paypal' => SpecScreen.paymentPaypal.screenName,
+      _ => SpecScreen.paymentAndroidPay.screenName,
     };
 
-Widget _productListView(BuildContext context, Map<String, dynamic> data,
-    {String key = 'products'}) {
-  final products = Product.list(data[key]);
-  if (products.isEmpty) {
-    return const Center(
-        child: Text('No products', style: TextStyle(color: Colors.grey)));
-  }
-  return ListView.builder(
-    itemCount: products.length,
-    itemBuilder: (context, i) => ProductTile(
-      product: products[i],
-      onTap: () =>
-          Navigator.of(context).pushNamed('product', arguments: products[i].id),
-    ),
-  );
-}
-
 // ── Discovery ─────────────────────────────────────────────────────────────
+
+void _openProduct(BuildContext context, Product p) =>
+    Navigator.of(context).pushNamed('product', arguments: p.id);
+
+VoidCallback _onCart(BuildContext context) =>
+    () => Navigator.of(context).pushNamed('cart');
+
+VoidCallback _onBack(BuildContext context) =>
+    () => Navigator.of(context).maybePop();
+
+/// "View Featured" / "Shop by Category" pair shown on the discovery screens.
+List<Widget> _discoveryButtons(BuildContext context) => [
+      PrimaryButton(
+        title: 'View Featured',
+        icon: Icons.star,
+        onPressed: () => Navigator.of(context).pushNamed('featured'),
+      ),
+      SecondaryButton(
+        title: 'Shop by Category',
+        icon: Icons.list,
+        onPressed: () => Navigator.of(context).pushNamed('categories'),
+      ),
+    ];
 
 class BrowseScreen extends StatelessWidget {
   const BrowseScreen({super.key});
   @override
   Widget build(BuildContext context) => LoadScreen(
         title: 'Browse',
-        screenView: 'Browse',
+        screenView: SpecScreen.browse.screenName,
         fetch: Api.browse,
-        builder: (context, d) => _productListView(context, d),
+        builder: (context, d) {
+          final products = Product.list(d['products']);
+          final total = d['total'] ?? d['total_products'] ?? products.length;
+          return ScreenContainer(
+            title: 'Browse',
+            subtitle: 'Showing ${products.length} of $total products',
+            step: 2,
+            icon: Icons.menu,
+            color: const Color(0xFF9C27B0),
+            onBack: _onBack(context),
+            onCart: _onCart(context),
+            children: [
+              ProductRows(products: products, onTap: (p) => _openProduct(context, p)),
+              ..._discoveryButtons(context),
+            ],
+          );
+        },
       );
 }
 
@@ -47,25 +74,40 @@ class FeaturedScreen extends StatelessWidget {
   const FeaturedScreen({super.key});
   @override
   Widget build(BuildContext context) => LoadScreen(
-        title: 'Featured',
-        screenView: 'Featured',
+        title: 'Featured Products',
+        screenView: SpecScreen.featured.screenName,
+        step: 3,
+        icon: Icons.star,
+        color: const Color(0xFFFFEB3B),
         fetch: Api.featured,
         builder: (context, d) {
           final banner = (d['banner'] is Map)
               ? (d['banner'] as Map)['text']?.toString() ?? ''
               : '';
-          return Column(
+          final products = Product.list(d['featured_products']);
+          final first = products.isEmpty ? null : products.first;
+          return ScreenContainer(
+            title: 'Featured Products',
+            subtitle: banner.isEmpty ? 'Hand-picked for you' : banner,
+            step: 3,
+            icon: Icons.star,
+            color: const Color(0xFFFFB300),
+            onBack: _onBack(context),
+            onCart: _onCart(context),
             children: [
-              if (banner.isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  color: const Color(0x332196F3),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Text(banner,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              Expanded(child: _productListView(context, d, key: 'featured_products')),
+              ProductRows(products: products, onTap: (p) => _openProduct(context, p)),
+              PrimaryButton(
+                title: 'View Product Details',
+                icon: Icons.info_outline,
+                onPressed: first == null ? null : () => _openProduct(context, first),
+              ),
+              SecondaryButton(
+                title: 'Read Reviews First',
+                icon: Icons.star_outline,
+                onPressed: first == null
+                    ? null
+                    : () => Navigator.of(context).pushNamed('reviews', arguments: first.id),
+              ),
             ],
           );
         },
@@ -77,30 +119,32 @@ class CategoriesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LoadScreen(
         title: 'Categories',
-        screenView: 'Categories',
+        screenView: SpecScreen.categories.screenName,
+        step: 3,
+        icon: Icons.list,
+        color: const Color(0xFF4CAF50),
         fetch: Api.categories,
         builder: (context, d) {
           final cats = Category.list(d['categories']);
-          if (cats.isEmpty) {
-            return const Center(
-                child:
-                    Text('No categories', style: TextStyle(color: Colors.grey)));
-          }
-          return ListView.builder(
-            itemCount: cats.length,
-            itemBuilder: (context, i) {
-              final c = cats[i];
-              final cColor = categoryColor(c.name);
-              return ListTile(
-                tileColor: cColor.withValues(alpha: 0.15),
-                leading: Icon(categoryIcon(c.name), color: cColor),
-                title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('${c.productCount} products'),
-                trailing: Icon(Icons.chevron_right, color: cColor),
-                onTap: () =>
-                    Navigator.of(context).pushNamed('category', arguments: c.name),
-              );
-            },
+          return ScreenContainer(
+            title: 'Categories',
+            subtitle: '${cats.length} categories',
+            step: 3,
+            icon: Icons.list,
+            color: const Color(0xFF4CAF50),
+            onBack: _onBack(context),
+            onCart: _onCart(context),
+            children: [
+              if (cats.isEmpty)
+                const Text('No categories', style: TextStyle(color: Colors.grey))
+              else
+                CategoryRows(
+                  categories: cats,
+                  colorOf: categoryColor,
+                  iconOf: categoryIcon,
+                  onTap: (c) => Navigator.of(context).pushNamed('category', arguments: c.name),
+                ),
+            ],
           );
         },
       );
@@ -114,9 +158,39 @@ class CategoryScreen extends StatelessWidget {
         (ModalRoute.of(context)?.settings.arguments as String?) ?? 'Electronics';
     return LoadScreen(
       title: name,
-      screenView: 'CategoryBrowse',
+      screenView: SpecScreen.categoryBrowse.screenName,
+      step: 3,
+      icon: Icons.list,
+      color: const Color(0xFF4CAF50),
       fetch: () => Api.categoryProducts(name),
-      builder: (context, d) => _productListView(context, d),
+      builder: (context, d) {
+        final products = Product.list(d['products']);
+        final first = products.isEmpty ? null : products.first;
+        return ScreenContainer(
+          title: name,
+          subtitle: '${products.length} products',
+          step: 3,
+          icon: categoryIcon(name),
+          color: categoryColor(name),
+          onBack: _onBack(context),
+          onCart: _onCart(context),
+          children: [
+            ProductRows(products: products, onTap: (p) => _openProduct(context, p)),
+            PrimaryButton(
+              title: 'View Product Details',
+              icon: Icons.info_outline,
+              onPressed: first == null ? null : () => _openProduct(context, first),
+            ),
+            SecondaryButton(
+              title: 'Read Reviews First',
+              icon: Icons.star_outline,
+              onPressed: first == null
+                  ? null
+                  : () => Navigator.of(context).pushNamed('reviews', arguments: first.id),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -137,7 +211,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    Bd.screenView('Search');
+    Bd.screenView(SpecScreen.search.screenName);
   }
 
   @override
@@ -167,46 +241,35 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ScreenShell(
+    return ScreenContainer(
       title: 'Search',
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: _ctrl,
-              onSubmitted: _search,
-              decoration: InputDecoration(
-                hintText: 'Search products',
-                prefixIcon: const Icon(Icons.search),
-                border: const OutlineInputBorder(),
-                suffixIcon:
-                    IconButton(icon: const Icon(Icons.arrow_forward), onPressed: _search),
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (_loading) const LinearProgressIndicator()
-            else if (_error.isNotEmpty)
-              Text(_error, style: const TextStyle(color: Colors.redAccent))
-            else if (_results.isEmpty)
-              Text(_searched
-                  ? 'No results found.'
-                  : 'Type a query and search, or pick a product from Browse.',
-                  style: const TextStyle(color: Colors.grey))
-            else
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _results.length,
-                  itemBuilder: (context, i) => ProductTile(
-                    product: _results[i],
-                    onTap: () => Navigator.of(context)
-                        .pushNamed('product', arguments: _results[i].id),
-                  ),
-                ),
-              ),
-          ],
+      subtitle: _searched ? '${_results.length} results' : 'Find the products you are looking for',
+      step: 2,
+      icon: Icons.search,
+      color: const Color(0xFFFF9800),
+      onBack: _onBack(context),
+      onCart: _onCart(context),
+      children: [
+        TextField(
+          controller: _ctrl,
+          onSubmitted: _search,
+          decoration: InputDecoration(
+            hintText: 'Search products',
+            prefixIcon: const Icon(Icons.search),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            suffixIcon: IconButton(icon: const Icon(Icons.arrow_forward), onPressed: _search),
+          ),
         ),
-      ),
+        if (_loading)
+          const LinearProgressIndicator()
+        else if (_error.isNotEmpty)
+          Text(_error, style: const TextStyle(color: Colors.redAccent))
+        else if (_results.isNotEmpty)
+          ProductRows(products: _results, onTap: (p) => _openProduct(context, p))
+        else if (_searched)
+          const Text('No results found.', style: TextStyle(color: Colors.grey)),
+        ..._discoveryButtons(context),
+      ],
     );
   }
 }
@@ -220,64 +283,44 @@ class ProductScreen extends StatelessWidget {
     final id = (ModalRoute.of(context)?.settings.arguments as String?) ?? '';
     return LoadScreen(
       title: 'Product',
-      screenView: 'ProductDetail',
+      screenView: SpecScreen.productDetail.screenName,
+      step: 4,
+      icon: Icons.notifications,
+      color: const Color(0xFF00BCD4),
       fetch: () => Api.product(id),
       builder: (context, d) {
         dynamic imgs = d['images'];
         final img = (imgs is List && imgs.isNotEmpty)
             ? imgs[0]?.toString() ?? ''
             : (d['image_url']?.toString() ?? '');
-        final desc = (d['description'] ?? '').toString();
         final meta = [
           (d['brand'] ?? '').toString(),
           (d['category'] ?? '').toString(),
+          money(d['price']),
         ].where((s) => s.isNotEmpty).join(' · ');
-        return ListView(
-          padding: const EdgeInsets.all(16),
+        return ScreenContainer(
+          title: (d['name'] ?? 'Product').toString(),
+          subtitle: meta,
+          step: 4,
+          icon: Icons.notifications,
+          color: const Color(0xFF00BCD4),
+          imageUrl: img.isEmpty ? null : Config.resolveImageUrl(img),
+          onBack: _onBack(context),
+          onCart: _onCart(context),
           children: [
-            if (img.isNotEmpty)
-              Center(child: ProductImage(url: img, size: 160)),
-            const SizedBox(height: 16),
-            Text((d['name'] ?? '').toString(),
-                style: Theme.of(context).textTheme.headlineSmall),
-            if (meta.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(meta, style: const TextStyle(color: Colors.grey)),
-            ],
-            const SizedBox(height: 8),
-            Text(money(d['price']),
-                style: Theme.of(context).textTheme.headlineMedium),
-            if (d['stock_count'] != null) ...[
-              const SizedBox(height: 4),
-              Text('In stock: ${d['stock_count']}'),
-            ],
-            if (desc.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(desc),
-            ],
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    icon: const Icon(Icons.add_shopping_cart),
-                    label: const Text('Add to cart'),
-                    onPressed: () => _addToCart(context, id),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.star_outline),
-                  label: const Text('Reviews'),
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed('reviews', arguments: id),
-                ),
-              ],
+            PrimaryButton(
+              title: 'Add to Cart',
+              icon: Icons.add_shopping_cart,
+              onPressed: () => _addToCart(context, id),
             ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.favorite_outline),
-              label: const Text('Add to wishlist'),
+            SecondaryButton(
+              title: 'Customer Reviews',
+              icon: Icons.star_outline,
+              onPressed: () => Navigator.of(context).pushNamed('reviews', arguments: id),
+            ),
+            SecondaryButton(
+              title: 'Save to Wishlist',
+              icon: Icons.favorite_outline,
               onPressed: () => _wishlist(context, id),
             ),
           ],
@@ -287,26 +330,28 @@ class ProductScreen extends StatelessWidget {
   }
 
   Future<void> _addToCart(BuildContext context, String id) async {
-    await Bd.info('add_to_cart_tapped', fields: {'product_id': id});
+    await Bd.info(SpecEvents.addToCart,
+        fields: {SpecFields.productId: id, SpecFields.sourceScreen: 'unknown'});
     try {
       await Api.addToCart(id);
       if (context.mounted) Navigator.of(context).pushNamed('cart');
     } catch (e) {
-      await Bd.warning('add_to_cart_failed',
-          fields: {'product_id': id, 'reason': '$e'});
+      await Bd.error(SpecEvents.cartFailed,
+          fields: {SpecFields.productId: id, SpecFields.reason: '$e'});
     }
   }
 
   Future<void> _wishlist(BuildContext context, String id) async {
-    await Bd.info('wishlist_add_tapped', fields: {'product_id': id});
+    await Bd.info(SpecEvents.addToWishlist,
+        fields: {SpecFields.productId: id, SpecFields.sourceScreen: 'unknown'});
     try {
       await Api.wishlist(id);
       if (context.mounted) {
         Navigator.of(context).pushNamed('wishlist', arguments: id);
       }
     } catch (e) {
-      await Bd.warning('wishlist_add_failed',
-          fields: {'product_id': id, 'reason': '$e'});
+      // No Android equivalent event; the failure is visible as the API error (spec D-EVT-F13).
+      debugPrint('wishlist add failed for $id: $e');
     }
   }
 }
@@ -317,42 +362,55 @@ class ReviewsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final id = (ModalRoute.of(context)?.settings.arguments as String?) ?? '';
     return LoadScreen(
-      title: 'Reviews',
-      screenView: 'Reviews',
+      title: 'Customer Reviews',
+      screenView: SpecScreen.reviews.screenName,
+      step: 4,
+      icon: Icons.email,
+      color: const Color(0xFF00E5BD),
       fetch: () => Api.reviews(id),
       builder: (context, d) {
         final list = d['reviews'];
-        return ListView(
+        final rows = <({String title, String subtitle, String trailing})>[
+          if (list is List)
+            for (final r in list.whereType<Map<String, dynamic>>())
+              (
+                title: (r['title'] ?? '').toString(),
+                subtitle: (r['body'] ?? '').toString(),
+                trailing: '${r['rating'] ?? ''}★',
+              ),
+        ];
+        return ScreenContainer(
+          title: 'Customer Reviews',
+          subtitle: '${d['average_rating'] ?? '—'} ★ · ${d['total_reviews'] ?? 0} reviews',
+          step: 4,
+          icon: Icons.email,
+          color: const Color(0xFF00BFA5),
+          onBack: _onBack(context),
+          onCart: _onCart(context),
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                '${d['average_rating'] ?? '—'} ★ · ${d['total_reviews'] ?? 0} reviews',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            if (list is List)
-              ...list.whereType<Map<String, dynamic>>().map((r) {
-                final author = (r['author'] ?? '?').toString();
-                final initial =
-                    author.isEmpty ? '?' : author.substring(0, 1).toUpperCase();
-                return Card(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: ListTile(
-                    leading: CircleAvatar(child: Text(initial)),
-                    title: Text((r['title'] ?? '').toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text((r['body'] ?? '').toString(), maxLines: 3, overflow: TextOverflow.ellipsis),
-                    isThreeLine: true,
-                    trailing: Text('${r['rating'] ?? ''}★'),
-                  ),
-                );
-              })
+            if (rows.isEmpty)
+              const Text('No reviews', style: TextStyle(color: Colors.grey))
             else
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('No reviews', style: TextStyle(color: Colors.grey)),
-              ),
+              InfoRows(rows: rows),
+            PrimaryButton(
+              title: 'Add to Cart',
+              icon: Icons.add_shopping_cart,
+              onPressed: id.isEmpty
+                  ? null
+                  : () async {
+                      await Bd.info(SpecEvents.addToCart, fields: {
+                        SpecFields.productId: id,
+                        SpecFields.sourceScreen: 'unknown'
+                      });
+                      try {
+                        await Api.addToCart(id);
+                        if (context.mounted) Navigator.of(context).pushNamed('cart');
+                      } catch (e) {
+                        await Bd.error(SpecEvents.cartFailed,
+                            fields: {SpecFields.productId: id, SpecFields.reason: '$e'});
+                      }
+                    },
+            ),
           ],
         );
       },
@@ -366,67 +424,60 @@ class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
   @override
   Widget build(BuildContext context) => LoadScreen(
-        title: 'Cart',
-        screenView: 'Cart',
+        title: 'Shopping Cart',
+        screenView: SpecScreen.cart.screenName,
+        step: 5,
+        icon: Icons.shopping_cart,
+        color: const Color(0xFF2196F3),
         fetch: Api.cart,
         builder: (context, d) {
           final items = d['items'];
           final empty = items is! List || items.isEmpty;
-          return Column(
-            children: [
-              Expanded(
-                child: empty
-                    ? const Center(
-                        child: Text('Your cart is empty',
-                            style: TextStyle(color: Colors.grey)))
-                    : ListView.builder(
-                        itemCount: items.length,
-                        itemBuilder: (context, i) {
-                          final m = (items as List)[i] as Map<String, dynamic>;
-                          return ListTile(
-                            title: Text((m['name'] ?? '').toString()),
-                            subtitle:
-                                Text('${m['quantity']} × ${money(m['unit_price'])}'),
-                            trailing: Text(money(m['line_total']),
-                                style: const TextStyle(fontWeight: FontWeight.bold)),
-                          );
-                        },
-                      ),
-              ),
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text('Total',
-                            style: Theme.of(context).textTheme.titleMedium),
-                      ),
-                      Text(money(d['total']),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 18)),
-                      const SizedBox(width: 16),
-                      FilledButton(
-                        onPressed: () => _checkout(context, empty),
-                        child: const Text('Checkout'),
-                      ),
-                    ],
-                  ),
+          final rows = <({String title, String subtitle, String trailing})>[
+            if (!empty)
+              for (final m in items.whereType<Map<String, dynamic>>())
+                (
+                  title: (m['name'] ?? '').toString(),
+                  subtitle: '${m['quantity']} × ${money(m['unit_price'])}',
+                  trailing: money(m['line_total']),
                 ),
+          ];
+          return ScreenContainer(
+            title: 'Shopping Cart',
+            subtitle: empty ? 'Your cart is empty' : '${rows.length} ${rows.length == 1 ? 'item' : 'items'} · Total ${money(d['total'])}',
+            step: 5,
+            icon: Icons.shopping_cart,
+            color: const Color(0xFF2196F3),
+            onBack: _onBack(context),
+            children: [
+              if (!empty) InfoRows(rows: rows),
+              PrimaryButton(
+                title: 'Checkout as Guest',
+                icon: Icons.person,
+                onPressed: () => _checkout(context, empty, 'checkout_guest'),
+              ),
+              SecondaryButton(
+                title: 'Sign In to Checkout',
+                icon: Icons.lock,
+                onPressed: () => _checkout(context, empty, 'checkout_signin'),
+              ),
+              SecondaryButton(
+                title: 'Keep Shopping',
+                icon: Icons.menu,
+                onPressed: () => Navigator.of(context).pushNamed('browse'),
               ),
             ],
           );
         },
       );
 
-  void _checkout(BuildContext context, bool empty) {
+  void _checkout(BuildContext context, bool empty, String route) {
     if (empty) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Add something to the cart first')));
       return;
     }
-    Navigator.of(context).pushNamed('checkout_guest');
+    Navigator.of(context).pushNamed(route);
   }
 }
 
@@ -440,34 +491,37 @@ class _WishlistScreenState extends State<WishlistScreen> {
   @override
   void initState() {
     super.initState();
-    Bd.screenView('Wishlist');
+    Bd.screenView(SpecScreen.wishlist.screenName);
   }
 
   @override
   Widget build(BuildContext context) {
     final id = (ModalRoute.of(context)?.settings.arguments as String?) ?? '';
-    return ScreenShell(
+    return ScreenContainer(
       title: 'Wishlist',
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.favorite, size: 56, color: Colors.redAccent),
-              const SizedBox(height: 16),
-              Text(id.isEmpty ? 'Your wishlist' : 'Saved to wishlist',
-                  style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 24),
-              FilledButton.tonal(
-                onPressed: () =>
-                    Navigator.of(context).popUntil((r) => r.settings.name == '/'),
-                child: const Text('Back to shop'),
-              ),
-            ],
-          ),
+      subtitle: id.isEmpty ? 'Your wishlist' : 'Saved to wishlist',
+      step: 5,
+      icon: Icons.favorite,
+      color: const Color(0xFFE91E63),
+      onBack: _onBack(context),
+      onCart: _onCart(context),
+      children: [
+        PrimaryButton(
+          title: 'Checkout as Guest',
+          icon: Icons.person,
+          onPressed: () => Navigator.of(context).pushNamed('checkout_guest'),
         ),
-      ),
+        SecondaryButton(
+          title: 'Sign In to Checkout',
+          icon: Icons.lock,
+          onPressed: () => Navigator.of(context).pushNamed('checkout_signin'),
+        ),
+        SecondaryButton(
+          title: 'Back to shop',
+          icon: Icons.home,
+          onPressed: () => Navigator.of(context).popUntil((r) => r.settings.name == '/'),
+        ),
+      ],
     );
   }
 }
@@ -490,7 +544,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
-    Bd.screenView(widget.guest ? 'CheckoutGuest' : 'CheckoutSignIn');
+    Bd.screenView(widget.guest
+        ? SpecScreen.checkoutGuest.screenName
+        : SpecScreen.checkoutSignin.screenName);
     _loadTotal();
   }
 
@@ -519,61 +575,54 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ? await Api.checkoutGuest(_email.text)
           : await Api.checkoutSignIn(_email.text);
       final session = (resp['checkout_session'] ?? '').toString();
-      await Bd.info('checkout_created',
-          fields: {'checkout_type': type, 'amount': _total.toString()});
+      await Bd.info(SpecEvents.checkoutStarted,
+          fields: {SpecFields.checkoutType: type});
       if (!mounted) return;
       Navigator.of(context)
           .pushNamed('payment_card', arguments: {'session': session, 'amount': _total});
     } catch (e) {
-      await Bd.error('checkout_failed', fields: {'checkout_type': type, 'reason': '$e'});
-      if (mounted) setState(() {
-        _error = '$e';
-        _busy = false;
-      });
+      await Bd.error(SpecEvents.checkoutFailed,
+          fields: {SpecFields.checkoutType: type, SpecFields.reason: '$e'});
+      if (mounted) {
+        setState(() {
+          _error = '$e';
+          _busy = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ScreenShell(
-      title: widget.guest ? 'Guest checkout' : 'Sign in & checkout',
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Order total: ${money(_total)}',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                  labelText: 'Email', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.of(context)
-                  .pushNamed(widget.guest ? 'checkout_signin' : 'checkout_guest'),
-              child: Text(widget.guest
-                  ? 'Have an account? Sign in'
-                  : 'Checking out as guest instead'),
-            ),
-            if (_error.isNotEmpty)
-              Text(_error, style: const TextStyle(color: Colors.redAccent)),
-            const Spacer(),
-            FilledButton(
-              onPressed: _busy ? null : _place,
-              child: _busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Place order'),
-            ),
-          ],
+    return ScreenContainer(
+      title: widget.guest ? 'Guest Checkout' : 'Member Checkout',
+      subtitle: 'Order total: ${money(_total)}',
+      step: 6,
+      icon: widget.guest ? Icons.person : Icons.lock,
+      color: widget.guest ? const Color(0xFF3F51B5) : const Color(0xFF009688),
+      onBack: _onBack(context),
+      children: [
+        TextField(
+          controller: _email,
+          keyboardType: TextInputType.emailAddress,
+          decoration: InputDecoration(
+            labelText: 'Email',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         ),
-      ),
+        if (_error.isNotEmpty) Text(_error, style: const TextStyle(color: Colors.redAccent)),
+        PrimaryButton(
+          title: _busy ? 'Placing order…' : 'Place order',
+          icon: Icons.credit_card,
+          onPressed: _busy ? null : _place,
+        ),
+        SecondaryButton(
+          title: widget.guest ? 'Have an account? Sign in' : 'Checking out as guest instead',
+          icon: widget.guest ? Icons.lock : Icons.person,
+          onPressed: () => Navigator.of(context)
+              .pushNamed(widget.guest ? 'checkout_signin' : 'checkout_guest'),
+        ),
+      ],
     );
   }
 }
@@ -615,7 +664,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
       _busy = true;
       _error = '';
     });
-    await Bd.info('payment_attempted', fields: {'payment_method': widget.method});
     try {
       final resp = switch (widget.method) {
         'card' => await Api.payCard(_session),
@@ -624,12 +672,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
         _ => await Api.payAndroidPay(_session),
       };
       final orderId = (resp['order_id'] ?? '').toString();
-      await Bd.info('payment_succeeded',
-          fields: {'payment_method': widget.method, 'order_id': orderId});
+      await Bd.info(SpecEvents.paymentCompleted, fields: {
+        SpecFields.paymentMethod: paymentMethodLabel(widget.method),
+        SpecFields.orderId: orderId,
+      });
       if (mounted) Navigator.of(context).pushNamed('confirmation', arguments: orderId);
     } catch (e) {
-      await Bd.error('payment_failed',
-          fields: {'payment_method': widget.method, 'reason': '$e'});
+      await Bd.error(SpecEvents.paymentFailed, fields: {
+        SpecFields.paymentMethod: paymentMethodLabel(widget.method),
+        SpecFields.reason: '$e',
+      });
       if (mounted) {
         Navigator.of(context).pushNamed('payment_failed',
             arguments: {'method': widget.method, 'reason': '$e'});
@@ -639,47 +691,34 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ScreenShell(
-      title: 'Payment',
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(_payLabel(widget.method),
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text('Charging ${money(_args['amount'])}',
-                style: const TextStyle(color: Colors.grey)),
-            const SizedBox(height: 24),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final m in const ['card', 'applePay', 'paypal', 'androidPay'])
-                  ActionChip(
-                    label: Text(_payLabel(m)),
-                    onPressed: () => _switchTo(m),
-                  ),
-              ],
-            ),
-            if (_error.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(_error, style: const TextStyle(color: Colors.redAccent)),
-            ],
-            const Spacer(),
-            FilledButton(
-              onPressed: _busy ? null : _pay,
-              child: _busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text('Pay with ${_payLabel(widget.method)}'),
-            ),
-          ],
+    final (title, icon, color) = switch (widget.method) {
+      'card' => ('Card Payment', Icons.credit_card, const Color(0xFF2196F3)),
+      'applePay' => ('Apple Pay', Icons.phone_iphone, Colors.black),
+      'paypal' => ('PayPal', Icons.send, const Color(0xFF2196F3)),
+      _ => ('Android Pay', Icons.phone_android, const Color(0xFF4CAF50)),
+    };
+    return ScreenContainer(
+      title: title,
+      subtitle: 'Charging ${money(_args['amount'])}',
+      step: 6,
+      icon: icon,
+      color: color,
+      onBack: _onBack(context),
+      children: [
+        if (_error.isNotEmpty) Text(_error, style: const TextStyle(color: Colors.redAccent)),
+        PrimaryButton(
+          title: _busy ? 'Processing…' : 'Pay with ${_payLabel(widget.method)}',
+          icon: Icons.check,
+          onPressed: _busy ? null : _pay,
         ),
-      ),
+        for (final m in const ['card', 'applePay', 'paypal', 'androidPay'])
+          if (m != widget.method)
+            SecondaryButton(
+              title: _payLabel(m),
+              icon: Icons.swap_horiz,
+              onPressed: () => _switchTo(m),
+            ),
+      ],
     );
   }
 }
@@ -703,33 +742,28 @@ class _PaymentFailedScreenState extends State<PaymentFailedScreen> {
     _initialized = true;
     final a = ModalRoute.of(context)?.settings.arguments;
     if (a is Map) _args = a.map((k, v) => MapEntry(k.toString(), v));
-    Bd.screenView('PaymentFailed');
+    Bd.screenView(SpecScreen.paymentFailed.screenName);
   }
 
   @override
   Widget build(BuildContext context) {
-    return ScreenShell(
-      title: 'Payment failed',
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.payment, size: 56, color: Colors.redAccent),
-              const SizedBox(height: 16),
-              Text('Payment failed', style: Theme.of(context).textTheme.titleLarge),
-              if ((_args['method'] ?? '').toString().isNotEmpty)
-                Text(_payLabel(_args['method'].toString()),
-                    style: const TextStyle(color: Colors.grey)),
-              const SizedBox(height: 24),
-              FilledButton.tonal(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Back')),
-            ],
-          ),
+    final method = (_args['method'] ?? '').toString();
+    return ScreenContainer(
+      title: 'Payment Failed',
+      subtitle: method.isEmpty
+          ? 'Your payment could not be processed.'
+          : 'Your ${_payLabel(method)} payment could not be processed.',
+      step: 6,
+      icon: Icons.warning,
+      color: const Color(0xFFE53935),
+      onBack: _onBack(context),
+      children: [
+        PrimaryButton(
+          title: 'Try Again',
+          icon: Icons.refresh,
+          onPressed: () => Navigator.of(context).pop(),
         ),
-      ),
+      ],
     );
   }
 }
@@ -740,33 +774,25 @@ class ConfirmationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final orderId = (ModalRoute.of(context)?.settings.arguments as String?) ?? '';
     return LoadScreen(
-      title: 'Confirmation',
-      screenView: 'Confirmation',
-      fetch: () =>
-          Api.confirmation(orderId.isEmpty ? 'unknown' : orderId),
-      builder: (context, d) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle, size: 64, color: Colors.green),
-              const SizedBox(height: 16),
-              Text('Order confirmed', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              Text('Order ${d['order_id'] ?? orderId}',
-                  style: const TextStyle(color: Colors.grey)),
-              Text(money(d['total']),
-                  style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: 24),
-              FilledButton.tonal(
-                onPressed: () =>
-                    Navigator.of(context).popUntil((r) => r.settings.name == '/'),
-                child: const Text('Back to shop'),
-              ),
-            ],
+      title: 'Order Confirmed!',
+      screenView: SpecScreen.confirmation.screenName,
+      step: 7,
+      icon: Icons.check_circle,
+      color: const Color(0xFF4CAF50),
+      fetch: () => Api.confirmation(orderId.isEmpty ? 'unknown' : orderId),
+      builder: (context, d) => ScreenContainer(
+        title: 'Order Confirmed!',
+        subtitle: 'Order ${d['order_id'] ?? orderId} · ${money(d['total'])}',
+        step: 7,
+        icon: Icons.check_circle,
+        color: const Color(0xFF4CAF50),
+        children: [
+          PrimaryButton(
+            title: 'Back to shop',
+            icon: Icons.home,
+            onPressed: () => Navigator.of(context).popUntil((r) => r.settings.name == '/'),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -787,7 +813,7 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
   @override
   void initState() {
     super.initState();
-    Bd.screenView('Diagnostics');
+    Bd.screenView(SpecScreen.advanced.screenName);
     _load();
   }
 
@@ -814,30 +840,66 @@ class _DiagnosticsScreenState extends State<DiagnosticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ScreenShell(
-      title: 'Diagnostics',
-      actions: [
-        IconButton(
-          icon: _busy
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.refresh),
-          onPressed: _busy ? null : _load,
-        )
-      ],
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+    final sim = SimulatorScope.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    return ListenableBuilder(
+      listenable: sim,
+      builder: (context, _) => ScreenContainer(
+        title: 'Advanced',
+        subtitle: 'Personas, simulation modes, and fault injection',
+        step: 1,
+        icon: Icons.settings,
+        color: const Color(0xFF2196F3),
+        onBack: () => Navigator.of(context).pop(),
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Simulation Variant',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          ),
+          Row(
+            children: [
+              for (final v in SimVariant.values) ...[
+                if (v != SimVariant.control) const SizedBox(width: 8),
+                Expanded(
+                  child: ColorButton(
+                    title: simVariantLabel(v),
+                    color: sim.variant == v ? kVariantColors[v]! : scheme.surfaceContainerHighest,
+                    foreground: sim.variant == v ? Colors.white : scheme.onSurfaceVariant,
+                    onPressed: () => sim.setVariant(v),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Active: ${simVariantLabel(sim.variant)}',
+                style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.6))),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Fault Injection',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          ),
+          ColorButton(
+            title: 'Crash: random',
+            color: const Color(0xFFE53935),
+            onPressed: () => Crash.injectRandom(),
+          ),
+          Text(
+            'Crash loop: bash scripts/crash-loop.sh (Ctrl-C to stop)',
+            style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.6), fontSize: 12),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Debug Tools',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          ),
           _InfoRow(label: 'Session ID', value: _info['session_id']?.toString() ?? '—'),
           _InfoRow(label: 'Session URL', value: _info['session_url']?.toString() ?? '—'),
           _InfoRow(label: 'Device ID', value: _info['device_id']?.toString() ?? '—'),
-          const SizedBox(height: 16),
-          OutlinedButton(
-            onPressed: _busy ? null : _newSession,
-            child: const Text('New session'),
-          ),
+          TonalButton(title: 'New session', onPressed: _busy ? null : _newSession),
         ],
       ),
     );

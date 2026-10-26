@@ -43,7 +43,7 @@ enum RecommendationEngine {
         // back into JSON values, separate from the similarity pass below.
         // POC: event tracking — sub-phase duration within an already-spanned call.
         let products = CaptureBridge.trackSpan(
-            "score_products.parse_catalog", parentSpanID: parentSpanID
+            SpecSpans.scoreProductsParseCatalog, parentSpanID: parentSpanID
         ) { _ in
             JSON.parse(string: catalogJSON).array
         }
@@ -66,7 +66,7 @@ enum RecommendationEngine {
         // the type doc's "slow-rendering trap"), separate from parsing above.
         // POC: event tracking — sub-phase duration within an already-spanned call.
         return CaptureBridge.trackSpan(
-            "score_products.similarity_pass", parentSpanID: parentSpanID
+            SpecSpans.scoreProductsSimilarityPass, parentSpanID: parentSpanID
         ) { _ in
             products
                 .filter { $0.str("id") != referenceProductID }

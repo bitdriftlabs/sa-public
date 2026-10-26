@@ -1,5 +1,4 @@
 import {NativeModules} from 'react-native';
-import {ScreenLogger} from '../utils/logger';
 
 // ─── Crash catalog ──────────────────────────────────────────────────────────────
 // A 1:1 port of the Android Crashes.kt catalog (same 20 names) so crash issue groups
@@ -25,8 +24,6 @@ type BdCrashNative = {
 };
 
 const BdCrash: BdCrashNative | undefined = NativeModules.BdCrash as BdCrashNative | undefined;
-
-export const hasNativeCrashModule = (): boolean => BdCrash != null;
 
 // ── Main-thread JVM equivalents ─────────────────────────────────────────────────
 function crashNullPointer(): void {
@@ -181,26 +178,6 @@ export const CRASHES: ReadonlyArray<{name: string; fn: () => void}> = [
   {name: 'native_sigabrt', fn: crashNativeSigabrt},
   {name: 'native_sigfpe', fn: crashNativeSigfpe},
 ];
-
-export const CRASH_NAMES: ReadonlyArray<string> = CRASHES.map(c => c.name);
-
-export const crashByName = (name: string): (() => void) | undefined =>
-  CRASHES.find(c => c.name === name)?.fn;
-
-// Fire a crash by name. Logs the `about_to_crash` breadcrumb + `crash_kind` field first
-// (matches Android), then triggers. Synchronous JS crashes are dispatched on the next
-// tick so they escape React's render/event try-catch and become fatal/global.
-export const triggerCrash = (name: string): void => {
-  const fn = crashByName(name);
-  if (!fn) {
-    return;
-  }
-  ScreenLogger.addField('crash_kind', name);
-  ScreenLogger.logWarning(`about_to_crash: ${name}`, {crash_kind: name});
-  setTimeout(() => {
-    fn();
-  }, 300); // ~300ms flush window mirrors Android's CRASH_FLUSH_MS
-};
 
 // ── ANR (best-effort) ────────────────────────────────────────────────────────────
 // A true ANR requires blocking the native UI thread, which only the native module can

@@ -75,7 +75,7 @@ struct SpannedAsyncImage<Content: View, Placeholder: View>: View {
             // catch here keeps the placeholder showing exactly as before.
             do {
                 uiImage = try await CaptureBridge.trackSpan(
-                    "product_image_load", fields: ["url": url.absoluteString]
+                    SpecSpans.productImageLoad, fields: [SpecFields.url: url.absoluteString]
                 ) { _ -> UIImage? in
                     let (data, _) = try await URLSession.shared.data(from: url)
                     return UIImage(data: data)

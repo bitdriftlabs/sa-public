@@ -1,0 +1,29 @@
+{
+  "description": "Records sessions for devices holding a non-default persistent feature flag (see PersistentFeatureFlags.kt). Each flag is matched on its feature flag exposure state (FEATURE_FLAG_EXPOSURE), not a log field; the first log evaluated with the target value flushes the session buffer, and a count chart tracks matching logs per flag. Edit string_value to target other values.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "express-checkout-log-count",
+      "title": "Logs with express_checkout=enabled"
+    },
+    {
+      "rule_id": "capture-express-checkout",
+      "title": "Session capture: express_checkout=enabled"
+    },
+    {
+      "rule_id": "card-layout-list-log-count",
+      "title": "Logs with product_card_layout=list"
+    },
+    {
+      "rule_id": "capture-card-layout-list",
+      "title": "Session capture: product_card_layout=list"
+    },
+    {
+      "rule_id": "free-shipping-treatment-log-count",
+      "title": "Logs with free_shipping_banner=treatment"
+    },
+    {
+      "rule_id": "capture-free-shipping-treatment",
+      "title": "Session capture: free_shipping_banner=treatment"
+    }
+  ]
+}

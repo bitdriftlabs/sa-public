@@ -1,5 +1,7 @@
 package ai.bitdrift.shop
 
+import kotlin.time.Duration.Companion.minutes
+import ai.bitdrift.shop.generated.*
 import android.app.AlarmManager
 import android.app.Application
 import android.app.PendingIntent
@@ -28,7 +30,7 @@ class ShoppingDemoApp : Application() {
         //
         // user_id is seeded here from SharedPreferences rather than via a FieldProvider (deprecated
         // in favor of initialFields + addField/removeField) -- the sign-in/sign-out call sites in
-        // Screens.kt already call Logger.addField("user_id", ...)/removeField("user_id") directly,
+        // Screens.kt already call Logger.addField(SpecFields.USER_ID, ...)/removeField(SpecFields.USER_ID) directly,
         // so this seed only matters for a process restart while already signed in, where addField's
         // in-memory state from the prior process is gone but the persisted value isn't.
         //
@@ -36,30 +38,64 @@ class ShoppingDemoApp : Application() {
         // BITDRIFT_ENABLE_OTEL_EXPORT (see app/build.gradle.kts) -- app/src/otelExportEnabled
         // wires up OTel span export, app/src/otelExportDisabled is a no-op Configuration(), for
         // building against the published SDK (which lacks OtelExportConfiguration entirely).
+        //
+        // `realistic` session mode (Advanced screen, applied on the next launch) sets an inactivity
+        // timeout so one session spans several journeys and background/foreground transitions, as a
+        // real user's does; the default `per_journey` keeps the fixed-per-launch behaviour.
+        val sessionMode = DemoSettings.sessionMode(applicationContext)
+        DemoSettings.activeSessionMode = sessionMode
         Logger.start(
             apiKey = BuildConfig.BITDRIFT_SDK_KEY,
             apiUrl = HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST).build(),
-            sessionConfiguration = SessionConfiguration(),
+            sessionConfiguration = if (sessionMode == SessionMode.REALISTIC) {
+                SessionConfiguration(inactivityTimeout = DemoSettings.REALISTIC_INACTIVITY_MINUTES.minutes)
+            } else {
+                SessionConfiguration()
+            },
             initialFields = readPersistedUserIdField(applicationContext),
             configuration = buildBitdriftConfiguration(),
         )
         Logger.setEntityId("demo")
+        Logger.addField(SpecFields.SESSION_MODE, sessionMode.id)
+
+        // bitdrift SDK: getPreviousRunInfo() says how the last process ended (crash, ANR, low
+        // memory, user swipe...). Logging it at launch puts the answer in the session that follows
+        // a crash. iOS logs the same event with the screen the run died on.
+        // POC: crash triage — "what happened last time" without opening the crash report.
+        Logger.getPreviousRunInfo()?.let { info ->
+            val fields = mapOf(
+                SpecFields.TERMINATION_REASON to (info.terminationReason?.value ?: "UNKNOWN"),
+                SpecFields.FATAL to info.hasFatallyTerminated.toString(),
+            )
+            if (info.hasFatallyTerminated) {
+                Logger.logError(fields) { SpecEvents.PREVIOUS_RUN_TERMINATED }
+            } else {
+                Logger.logInfo(fields) { SpecEvents.PREVIOUS_RUN_TERMINATED }
+            }
+        }
+
+        // bitdrift SDK: registerCommand() exposes handlers an SE or agent can run on this live
+        // device with `bd command send` (cart dump, flag flip).
+        AppCommands.register()
         // Register lifecycle callbacks
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())
 
         // Log app launch
         // bitdrift SDK: logInfo() emits a structured event at app launch.
-        Logger.logInfo { "app_launched" }
+        Logger.logInfo { SpecEvents.APP_LAUNCHED }
 
         // bitdrift SDK: addField() sets a global field attached to every log, span, and network
         // request for the lifetime of this process. Not persisted — re-added on each start.
         // POC: insights & visualization — slice any dashboard, Workflow, or alert by global field value
-        Logger.addField("app_variant", "sdk-demo")
+        Logger.addField(SpecFields.APP_VARIANT, "sdk-demo")
         // Matches the iOS app's `platform` field so a single chart can group or filter
         // across both apps. The span names are already identical between platforms, so
         // this field is the missing piece for cross-platform comparison — without it the
         // only discriminator is `app_id`, which works but reads as an opaque bundle id.
-        Logger.addField("platform", "android")
+        Logger.addField(SpecFields.PLATFORM, "android")
+
+        // Three install-persistent feature flags (exposure + ff_* fields); see PersistentFeatureFlags.
+        PersistentFeatureFlags.apply(applicationContext)
 
         installCrashLoopHandler()
 
@@ -144,5 +180,5 @@ private fun readPersistedUserIdField(context: Context): Fields {
     val id = context
         .getSharedPreferences("user_session", Context.MODE_PRIVATE)
         .getString("user_id", null)
-    return if (id.isNullOrEmpty()) emptyMap() else mapOf("user_id" to id)
+    return if (id.isNullOrEmpty()) emptyMap() else mapOf(SpecFields.USER_ID to id)
 }

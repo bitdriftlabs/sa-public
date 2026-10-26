@@ -15,6 +15,7 @@ import type {
 } from '../types/models';
 import {ScreenLogger} from '../utils/logger';
 import {BACKEND_BASE_URL as BASE_URL} from '../config';
+import {SpecEvents, SpecFields} from '../generated/specConstants';
 
 // HTTP Instrumentation
 // Every API call is timed and logged with path, method, status, and duration so the
@@ -59,18 +60,18 @@ async function request<T>(
     const data = text ? (JSON.parse(text) as T) : ({} as T);
 
     if (response.ok) {
-      ScreenLogger.logDebug('api_response', {
+      ScreenLogger.logDebug(SpecEvents.apiResponse, {
         method,
-        path: loggedPath,
-        status: String(status),
-        duration_ms: String(durationMs),
+        [SpecFields.path]: loggedPath,
+        [SpecFields.status]: String(status),
+        [SpecFields.durationMs]: String(durationMs),
       });
     } else {
-      ScreenLogger.logWarning('api_response_error', {
+      ScreenLogger.logWarning(SpecEvents.apiResponseError, {
         method,
-        path: loggedPath,
-        status: String(status),
-        duration_ms: String(durationMs),
+        [SpecFields.path]: loggedPath,
+        [SpecFields.status]: String(status),
+        [SpecFields.durationMs]: String(durationMs),
       });
     }
 
@@ -78,11 +79,11 @@ async function request<T>(
   } catch (err) {
     const durationMs = Date.now() - startMs;
     ScreenLogger.logError(
-      'api_request_failed',
+      SpecEvents.apiRequestFailed,
       {
         method,
-        path: loggedPath,
-        duration_ms: String(durationMs),
+        [SpecFields.path]: loggedPath,
+        [SpecFields.durationMs]: String(durationMs),
       },
       err,
     );

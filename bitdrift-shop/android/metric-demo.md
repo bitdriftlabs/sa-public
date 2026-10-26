@@ -16,15 +16,15 @@ values on its own — no manual control needed.
 
 ## Setup
 
-1. App running — see main [README.md](README.md) Quick Start: Step 0 (bitdrift credentials) and
+1. App running — see [README.md](README.md) Quick Start: Step 0 (bitdrift credentials) and
    Step 2 (run the app). **Step 1 (start the backend) is not required for this demo** —
    `MetricsDemoManager` only calls the bitdrift `Logger` directly and never touches
    `ApiClient`/the local FastAPI server, so Metrics works standalone even with the backend never
    started.
 2. Deploy the workflow:
    ```bash
-   WORKFLOW_ID=$(bd workflow create workflows/bd-shop-12-metric-grouping.json \
-     --chart-metadata-file workflows/chart-metadata/bd-shop-12-metric-grouping.chart.json \
+   WORKFLOW_ID=$(bd workflow create ../workflows/metric-grouping.json \
+     --chart-metadata-file ../workflows/chart-metadata/metric-grouping.chart.json \
      -ojson --jq '.id' -r)
    bd workflow deploy "$WORKFLOW_ID"
    ```
@@ -68,7 +68,7 @@ values on its own — no manual control needed.
 | Simulated dimension | `sim_app_version` field, set via `Logger.addField()` automatically every 30s in the tick loop (same pattern as `app_variant`/`ff_*`) — no manual control, purely automatic |
 | Session rotation | `Logger.startNewSession()` on start, then every 60s while running |
 | Version auto-rotation | Random pick (shuffled bag, even coverage) every 30s while running — see [Auto-rotation](#auto-rotation) |
-| Workflow | [`workflows/bd-shop-12-metric-grouping.json`](workflows/bd-shop-12-metric-grouping.json) |
+| Workflow | [`../workflows/metric-grouping.json`](../workflows/metric-grouping.json) |
 
 ## Auto-rotation
 
@@ -146,11 +146,11 @@ tick loop separately auto-rotates to a random one of the five every 30 seconds (
 ## Dashboard
 
 All five charts above are also composed into a two-tab dashboard —
-[`dashboards/bd-shop-01-metric-grouping.json`](dashboards/bd-shop-01-metric-grouping.json) — so a
+[`../dashboards/metric-grouping.dashboard.json`](../dashboards/metric-grouping.dashboard.json) — so a
 viewer gets the grouping story and the CloudWatch-comparison story as one curated view instead of
 five separate workflow charts. `sim_app_version` is promoted to the dashboard header as a
 **Collected Dimension**, so anyone can filter the whole dashboard to a single simulated version
-without editing a chart. See [`dashboards/README.md`](dashboards/README.md) for deploy instructions
+without editing a chart. See [`../workflows/docs/ios-workflows.md`](../workflows/docs/ios-workflows.md) for deploy instructions
 (one extra step versus a workflow: the dashboard JSON references `bd-shop-12`'s workflow ID, which
 has to be resolved before it can be created).
 

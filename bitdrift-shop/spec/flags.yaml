@@ -1,0 +1,115 @@
+# Feature flags. Each flag is recorded as a feature-flag exposure
+# (setFeatureFlagExposure(name, value)) AND mirrored as the global field ff_<name>.
+# Flutter's alpha SDK has no exposure API, so on Flutter only the ff_* field is set
+# (exposure optional_on: [flutter], see F:bd/capture.dart:57).
+#
+# kind:
+#   persona     value is a function of the active persona (personas.yaml ids)
+#   toggle      value is a function of a fault/demo toggle (faults.yaml ids)
+#   persistent  assigned once per install at random, persisted, re-applied every launch
+#
+# Exposures are re-applied after every startNewSession() (exposure is per-session),
+# before Confirmation, and after any toggle change (android A:SimulationManager.kt:628,1082).
+
+version: 1
+
+source_roots:
+  A: android/app/src/main/java/ai/bitdrift/shop
+  I: ios/BitdriftShop
+  R: reactnative
+  F: flutter/lib
+
+exposure_optional_on: [flutter]
+
+flags:
+  - name: checkout_flow
+    kind: persona
+    values: {control: random, variant_a: guest, variant_b: signin}
+    mirror_field: ff_checkout_flow
+    source: {android: "A:SimulationManager.kt:103", ios: "I:SimulationManager.swift:126", reactnative: "R:src/sim/variants.ts:30", flutter: "F:sim/simulator.dart:122"}
+    used_by: [workflows/user-journey-sankey.json, workflows/span-durations.json]
+
+  - name: payment_ui
+    kind: persona
+    values: {control: random, variant_a: digital, variant_b: card}
+    mirror_field: ff_payment_ui
+    source: {android: "A:SimulationManager.kt:104", ios: "I:SimulationManager.swift:127", reactnative: "R:src/sim/variants.ts:31", flutter: "F:sim/simulator.dart:123"}
+    used_by: [workflows/payment-errors.json]
+
+  - name: cart_abandon_rate
+    kind: persona
+    values: {control: medium, variant_a: high, variant_b: low}
+    mirror_field: ff_cart_abandon_rate
+    source: {android: "A:SimulationManager.kt:105", ios: "I:SimulationManager.swift:128", reactnative: "R:src/sim/variants.ts:32", flutter: "F:sim/simulator.dart:124"}
+
+  - name: payment_android_pay
+    kind: persona
+    values: {control: enabled, variant_a: enabled, variant_b: disabled}
+    mirror_field: ff_payment_android_pay
+    source: {android: "A:SimulationManager.kt:117", ios: "I:SimulationManager.swift:135", reactnative: "R:src/sim/variants.ts:33", flutter: "F:sim/simulator.dart:125"}
+
+  - name: order_summary
+    kind: toggle
+    toggle: crash_loop
+    values: {"on": v2, "off": v1}
+    mirror_field: ff_order_summary
+    missing_on: [flutter]
+    source: {android: "A:SimulationManager.kt:120", ios: "I:SimulationManager.swift:139", reactnative: "R:src/sim/variants.ts:71"}
+
+  - name: anr_a
+    kind: toggle
+    toggle: anr
+    values: {"on": enabled, "off": disabled}
+    mirror_field: ff_anr_a
+    notes: "Name kept as anr_a on iOS too (main-thread hang), for parity with bd-shop-05. Toggle is only selectable while Variant A is active and auto-clears otherwise (A:Screens.kt:258, R:src/context/SimulationContext.tsx:134)."
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:123", ios: "I:SimulationManager.swift:143", reactnative: "R:src/sim/variants.ts:60"}
+    used_by: [workflows/anr-force-quit.json]
+
+  - name: force_quit
+    kind: toggle
+    toggle: force_quit
+    values: {"on": enabled, "off": disabled}
+    mirror_field: ff_force_quit
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:126", ios: "I:SimulationManager.swift:147", reactnative: "R:src/sim/variants.ts:61"}
+    used_by: [workflows/anr-force-quit.json]
+
+  - name: recommendations_v2
+    kind: toggle
+    toggle: slow_mode
+    values: {"on": enabled, "off": disabled}
+    mirror_field: ff_recommendations_v2
+    optional_on: [flutter]
+    source: {android: "A:SimulationManager.kt:129", ios: "I:SimulationManager.swift:151", reactnative: "R:src/sim/variants.ts:62"}
+    used_by: [workflows/slow-rendering.json, workflows/slow-rendering-manual-span.json]
+
+  # Install-persistent flags (hard cap 3, A:PersistentFeatureFlags.kt:30). Android only today.
+  - name: express_checkout
+    kind: persistent
+    values: [enabled, disabled]
+    mirror_field: ff_express_checkout
+    platforms: [android]
+    persisted: {android: "SharedPreferences persistent_flags/express_checkout"}
+    source: {android: "A:PersistentFeatureFlags.kt:24"}
+    used_by: [workflows/feature-flag-sessions.json]
+  - name: product_card_layout
+    kind: persistent
+    values: [grid, list]
+    mirror_field: ff_product_card_layout
+    platforms: [android]
+    persisted: {android: "SharedPreferences persistent_flags/product_card_layout"}
+    source: {android: "A:PersistentFeatureFlags.kt:25"}
+    used_by: [workflows/feature-flag-sessions.json]
+  - name: free_shipping_banner
+    kind: persistent
+    values: [control, treatment]
+    mirror_field: ff_free_shipping_banner
+    platforms: [android]
+    persisted: {android: "SharedPreferences persistent_flags/free_shipping_banner"}
+    source: {android: "A:PersistentFeatureFlags.kt:26"}
+    used_by: [workflows/feature-flag-sessions.json]
+
+# KMP (best effort, not validated): sets flag values to the variant name and
+# anr_a/force_quit to "injected" (wip-kotlin-multiplatform/shared/.../SimVariants.kt:81,
+# SimulationEngine.kt:273,387). Not used for any decision; see DECISIONS.md D-KMP-1.

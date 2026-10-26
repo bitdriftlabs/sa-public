@@ -73,6 +73,11 @@ if [[ -z "$SERIAL" ]]; then
 fi
 ADB+=(-s "$SERIAL")
 
+# Persisted fault store names come from spec/faults.yaml (generated).
+LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../scripts/lib" && pwd)"
+# shellcheck source=../../scripts/lib/generated/faults.sh
+source "$LIB/generated/faults.sh"
+
 read_prefs() {
   "${ADB[@]}" shell run-as "$PKG" cat "/data/data/$PKG/shared_prefs/$1" 2>/dev/null | tr -d '\r'
 }
@@ -81,9 +86,9 @@ is_active() { echo "$1" | grep -q 'name="active" value="true"'; }
 is_fast_mode() { echo "$1" | grep -q 'name="fast_mode" value="true"'; }
 is_oom_only() { echo "$1" | grep -q 'name="oom_only" value="true"'; }
 
-CRASH_XML=$(read_prefs crash_loop.xml)
-ANR_XML=$(read_prefs anr_a.xml)
-FQ_XML=$(read_prefs force_quit.xml)
+CRASH_XML=$(read_prefs "${FAULT_STORE_CRASH_LOOP_ANDROID}.xml")
+ANR_XML=$(read_prefs "${FAULT_STORE_ANR_ANDROID}.xml")
+FQ_XML=$(read_prefs "${FAULT_STORE_FORCE_QUIT_ANDROID}.xml")
 
 CRASH_ACTIVE=0
 FAST_MODE=0
@@ -123,14 +128,14 @@ echo "Resetting..."
 "${ADB[@]}" shell am force-stop "$PKG"
 
 if [[ "$CRASH_ACTIVE" -eq 1 || "$FAST_MODE" -eq 1 || "$OOM_ONLY" -eq 1 ]]; then
-  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"fast_mode\" value=\"true\"/name=\"fast_mode\" value=\"false\"/' -e 's/name=\"oom_only\" value=\"true\"/name=\"oom_only\" value=\"false\"/' /data/data/$PKG/shared_prefs/crash_loop.xml"
+  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' -e 's/name=\"fast_mode\" value=\"true\"/name=\"fast_mode\" value=\"false\"/' -e 's/name=\"oom_only\" value=\"true\"/name=\"oom_only\" value=\"false\"/' /data/data/$PKG/shared_prefs/${FAULT_STORE_CRASH_LOOP_ANDROID}.xml"
 fi
 if [[ "$ANR_ACTIVE" -eq 1 ]]; then
-  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' /data/data/$PKG/shared_prefs/anr_a.xml"
+  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' /data/data/$PKG/shared_prefs/${FAULT_STORE_ANR_ANDROID}.xml"
 fi
 if [[ "$FQ_ACTIVE" -eq 1 ]]; then
-  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' /data/data/$PKG/shared_prefs/force_quit.xml"
+  "${ADB[@]}" shell "run-as $PKG sed -i -e 's/name=\"active\" value=\"true\"/name=\"active\" value=\"false\"/' /data/data/$PKG/shared_prefs/${FAULT_STORE_FORCE_QUIT_ANDROID}.xml"
 fi
 
 echo "Done. Verify:"
-echo "  adb -s $SERIAL shell run-as $PKG cat /data/data/$PKG/shared_prefs/crash_loop.xml /data/data/$PKG/shared_prefs/anr_a.xml /data/data/$PKG/shared_prefs/force_quit.xml"
+echo "  adb -s $SERIAL shell run-as $PKG cat /data/data/$PKG/shared_prefs/${FAULT_STORE_CRASH_LOOP_ANDROID}.xml /data/data/$PKG/shared_prefs/${FAULT_STORE_ANR_ANDROID}.xml /data/data/$PKG/shared_prefs/${FAULT_STORE_FORCE_QUIT_ANDROID}.xml"

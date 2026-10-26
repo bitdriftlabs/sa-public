@@ -2,11 +2,7 @@
 
 **Version 5.0**
 
-Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.24.2` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
-
-For the no-SDK comparison target, see [`android-clean/`](../android-clean/). It
-keeps the shopping flow and fault scenarios without Capture SDK configuration or
-generated observability artifacts.
+Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.25.1` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
 
 This is community-contributed content provided for educational purposes only.
 
@@ -33,7 +29,7 @@ For bitdrift-internal testing against a non-production environment, point `BITDR
 
 ### Optional: test a local build of the SDK
 
-By default the app builds against the published `io.bitdrift:capture:0.24.2` Maven Central artifact. To validate an unreleased SDK build instead, set `BITDRIFT_USE_LOCAL_AAR` to the **full path** of the AAR to test, resolved in this order:
+By default the app builds against the published `io.bitdrift:capture:0.25.1` Maven Central artifact. To validate an unreleased SDK build instead, set `BITDRIFT_USE_LOCAL_AAR` to the **full path** of the AAR to test, resolved in this order:
 
 1. Command-line property: `./gradlew assembleDebug -PBITDRIFT_USE_LOCAL_AAR=/full/path/to/capture.aar`
 2. `BITDRIFT_USE_LOCAL_AAR` in `.local.properties` or `local.properties`
@@ -84,23 +80,35 @@ Every Capture SDK feature below is wired up in this app, mapped to the call used
 
 | Feature | SDK surface | Where it lives |
 |---------|-------------|----------------|
-| **SDK + build plugin** | `io.bitdrift:capture:0.24.2` (or a local AAR under test — see [Optional: test a local build](#optional-test-a-local-build-of-the-sdk)), `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts) |
+| **SDK + build plugin** | `io.bitdrift:capture:0.25.1` (or a local AAR under test — see [Optional: test a local build](#optional-test-a-local-build-of-the-sdk)), `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts) |
 | **Logger startup** | `Logger.start(...)` in `Application.onCreate()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
 | **Session strategy** | `SessionConfiguration()` with no `inactivityTimeout` — a fresh session on every process start, never persisted/reused. Matches the iOS app's `.fixed()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
 | **Screen views** | `Logger.logScreenView()` via `NavController.OnDestinationChangedListener` | [MainActivity.kt](app/src/main/java/ai/bitdrift/shop/MainActivity.kt), [ScreenLogger.kt](app/src/main/java/ai/bitdrift/shop/ScreenLogger.kt) |
-| **User identity** | `Logger.setEntityId("demo")` on launch, then rotated per simulated user | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt), [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt) |
+| **User identity** | `Logger.setEntityId("demo")` on launch, then rotated per simulated user | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt), [JourneyEngine.kt](app/src/main/java/ai/bitdrift/shop/JourneyEngine.kt) + [spec/journey.yaml](../spec/journey.yaml) |
 | **Network capture** | `CaptureOkHttpEventListenerFactory` on OkHttp | [ApiClient.kt](app/src/main/java/ai/bitdrift/shop/ApiClient.kt) |
-| **Structured logs** | `Logger.logInfo/logWarning/logError` (`add_to_cart`, `checkout_started`, `payment_completed`, …) | [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt), [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt) |
+| **Structured logs** | `Logger.logInfo/logWarning/logError` (`add_to_cart`, `checkout_started`, `payment_completed`, …) | [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt), [JourneyEngine.kt](app/src/main/java/ai/bitdrift/shop/JourneyEngine.kt) + [spec/journey.yaml](../spec/journey.yaml) |
 | **Global fields** | `Logger.addField()` + `FieldProvider` — `user_id`, `app_variant`, `ff_*`, `supportlog`, `sim_app_version` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt), [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) |
 | **Custom metrics** | `Logger.logInfo()` ticking once/sec (`metric_values`) — ported from misc-demos/metricdemo | [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) — see [metric-demo.md](metric-demo.md) |
 | **App launch TTI** | `Logger.logAppLaunchTTI()` after first frame | [MainActivity.kt](app/src/main/java/ai/bitdrift/shop/MainActivity.kt) |
-| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`, `foreground_session`), `Logger.trackSpan("score_products")` | [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt), [AppLifecycleCallbacks.kt](app/src/main/java/ai/bitdrift/shop/AppLifecycleCallbacks.kt) |
+| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`, `foreground_session`), `Logger.trackSpan("score_products")` | [JourneyEngine.kt](app/src/main/java/ai/bitdrift/shop/JourneyEngine.kt) + [spec/journey.yaml](../spec/journey.yaml), [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt), [AppLifecycleCallbacks.kt](app/src/main/java/ai/bitdrift/shop/AppLifecycleCallbacks.kt) |
 | **Granular latency spans** | ~18 more spans: cold-start phases, per-screen loads, journey sub-phases, recommendation-engine internals — via `CaptureBridge.trackSpanSuspend`/`trackSpanNested` (the SDK's own `trackSpan` can't nest, suspend, or distinguish cancellation) | [CaptureBridge.kt](app/src/main/java/ai/bitdrift/shop/CaptureBridge.kt), and see [Span-timing workflows and dashboards](#span-timing-workflows-and-dashboards) |
-| **Support tooling** | `Logger.createTemporaryDeviceCode()`, Support-Mode toggle | [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt) |
+| **Support tooling** | `Logger.createTemporaryDeviceCode()`, Support-Mode toggle, **Customer Support** button (`support=true` global field, captured by `bd-shop-30`) | [Screens.kt](app/src/main/java/ai/bitdrift/shop/Screens.kt), [SupportMode.kt](app/src/main/java/ai/bitdrift/shop/SupportMode.kt) — see [Customer Support sessions](../workflows/docs/ios-workflows.md#customer-support-sessions-bd-shop-30) |
 | **Crash symbolication** | ProGuard mapping upload via `bdUpload*` tasks | [build.gradle.kts](build.gradle.kts) |
-| **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [SimulationManager.kt](app/src/main/java/ai/bitdrift/shop/SimulationManager.kt), [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) |
+| **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [JourneyEngine.kt](app/src/main/java/ai/bitdrift/shop/JourneyEngine.kt) + [spec/journey.yaml](../spec/journey.yaml), [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) |
 
-Fault scenarios built on top of this instrumentation: ANR, force-quit, crash loop (see [Crash Loop](README-refs.md#crash-loop), [foreground-background-crashes.md](workflows/foreground-background-crashes.md)) and a feature-flag-gated slow-rendering demo (see [demo-slow-rendering.md](demo-slow-rendering.md)).
+Fault scenarios built on top of this instrumentation: ANR, force-quit, crash loop (see [Crash Loop](README-refs.md#crash-loop), [foreground-background-crashes.md](../workflows/docs/foreground-background-crashes.md)) and a feature-flag-gated slow-rendering demo (see [demo-slow-rendering.md](demo-slow-rendering.md)).
+
+### Persistent feature flags
+
+Three feature flags are assigned **once per install** and persisted in SharedPreferences (`persistent_flags`), so a device keeps the same values across restarts, crashes, and new sessions. They are applied at startup in [PersistentFeatureFlags.kt](app/src/main/java/ai/bitdrift/shop/PersistentFeatureFlags.kt) and recorded two ways: `Logger.setFeatureFlagExposure(key, value)` and a global field `ff_<key>`, so they show on every log in a session and can group or filter charts and workflows. The set is capped at three.
+
+| Flag (field) | Values | Meaning |
+|--------------|--------|---------|
+| `express_checkout` (`ff_express_checkout`) | `enabled` / `disabled` | Express checkout path on or off |
+| `product_card_layout` (`ff_product_card_layout`) | `grid` / `list` | Product card layout |
+| `free_shipping_banner` (`ff_free_shipping_banner`) | `control` / `treatment` | Free-shipping banner A/B cohort |
+
+Values are picked randomly on first launch. They are labels only and don't change app behavior. To re-roll, clear app data (`adb shell pm clear ai.bitdrift.shop`). To force a value, edit `shared_prefs/persistent_flags.xml` via `adb shell run-as ai.bitdrift.shop` and relaunch. These are separate from the per-run `ff_*` flags set by the Advanced-screen variants, and `check-demo-state.sh --reset` does not touch them.
 
 ## What this lights up in the dashboard
 
@@ -121,26 +129,26 @@ With the instrumentation above, the app feeds these bitdrift features — most w
 
 ## Deploy workflows for evaluation
 
-Once the app is generating data, use the **bd-cli** skill to deploy the sample workflows in [`workflows/`](workflows/) — each turns the signals above into metrics, alerts, or funnels:
+Once the app is generating data, deploy the sample workflows in [`workflows/`](../workflows/) with `tools/bd-deploy.sh ai.bitdrift.shop --apply` (a dry run without `--apply` shows what would be created; anything already in the account is left alone) — each turns the signals above into metrics, alerts, or funnels:
 
 | Workflow | Uses | Focus |
 |----------|------|-------|
-| `bd-shop-01-checkout-funnel.json` | screen views, spans | User-journey Sankey, funnel metrics, A/B variant comparison |
-| `bd-shop-02-payment-errors.json` | custom logs, entity ID | Log matching, error categorization, real-time alerts |
-| `bd-shop-03-crash-analytics.json` | logger, symbols | Crash issue matching, readable stacks |
-| `bd-shop-04-span-durations.json` | spans, global fields | Span histograms, SLO tracking, perf by variant |
-| `bd-shop-05-anr-force-quit.json` | logger, fields | Android fault tracking (ANR, force-quit), variant rates |
-| `bd-shop-06-crash-foreground.json` | issue-match BDRL, `app_metrics.running_state` | Crash count while the app is in the foreground |
-| `bd-shop-07-crash-background.json` | issue-match BDRL, `app_metrics.running_state` | Crash count while the app is backgrounded — see [foreground-background-crashes.md](workflows/foreground-background-crashes.md) |
-| `bd-shop-08-blocking-thread.json` | issue-match BDRL, `thread_details` | Lock-contention crash count grouped by blocking thread — see [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md) |
-| `bd-shop-09-vendor-sdk-attribution.json` | issue-match BDRL, cross-error stack frames | Crash count grouped by vendor SDK namespace — see [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md) |
-| `bd-shop-10-attribution-rate.json` | issue-match BDRL, `rate` chart | % of crashes attributable to a known cause — see [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md) |
-| `bd-shop-11-slow-rendering.json` | on-device frame detection, feature flag exposure | Zero-instrumentation dropped-frame count/histogram split by `recommendations_v2` exposure and by screen; alert on frame-drop spikes — see [demo-slow-rendering.md](demo-slow-rendering.md) |
-| `bd-shop-11b-slow-rendering-manual-span.json` | custom span, feature flag exposure | Same shape as bd-shop-11, matched on a manually-instrumented span instead — illustrative comparison, no alert — see [demo-slow-rendering.md](demo-slow-rendering.md) |
-| `bd-shop-12-metric-grouping.json` | custom metric log, custom field | Waveform + counter metrics ported from misc-demos/metricdemo; work-latency average/histogram/table grouped by simulated `sim_app_version` — see [metric-demo.md](metric-demo.md) |
-| `bd-shop-13-foreground-session-count.json` **(WIP)** | SDK-automatic `AppStart` log | Count of foreground episodes — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
-| `bd-shop-14-foreground-session-duration.json` **(WIP)** | `foreground_session` span end, `_duration_ms` | Foreground-episode duration — a P50/P90/P99 histogram plus a single-value average-duration line chart — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
-| `bd-shop-15-crash-rate-per-foreground.json` **(WIP)** | issue-match BDRL, `rate` chart, SDK-automatic `AppStart` log | Crashes ÷ foreground sessions — see [foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
+| `user-journey-sankey.json` | screen views, spans | User-journey Sankey, funnel metrics, A/B variant comparison |
+| `payment-errors.json` | custom logs, entity ID | Log matching, error categorization, real-time alerts |
+| `crash-analytics.json` | logger, symbols | Crash issue matching, readable stacks |
+| `span-durations.json` | spans, global fields | Span histograms, SLO tracking, perf by variant |
+| `anr-force-quit.json` | logger, fields | Android fault tracking (ANR, force-quit), variant rates |
+| `crash-foreground.json` | issue-match BDRL, `app_metrics.running_state` | Crash count while the app is in the foreground |
+| `crash-background.json` | issue-match BDRL, `app_metrics.running_state` | Crash count while the app is backgrounded — see [foreground-background-crashes.md](../workflows/docs/foreground-background-crashes.md) |
+| `blocking-thread.json` | issue-match BDRL, `thread_details` | Lock-contention crash count grouped by blocking thread — see [advanced-crash-attribution.md](../workflows/docs/advanced-crash-attribution.md) |
+| `vendor-sdk-attribution.json` | issue-match BDRL, cross-error stack frames | Crash count grouped by vendor SDK namespace — see [advanced-crash-attribution.md](../workflows/docs/advanced-crash-attribution.md) |
+| `attribution-rate.json` | issue-match BDRL, `rate` chart | % of crashes attributable to a known cause — see [advanced-crash-attribution.md](../workflows/docs/advanced-crash-attribution.md) |
+| `slow-rendering.json` | on-device frame detection, feature flag exposure | Zero-instrumentation dropped-frame count/histogram split by `recommendations_v2` exposure and by screen; alert on frame-drop spikes — see [demo-slow-rendering.md](demo-slow-rendering.md) |
+| `slow-rendering-manual-span.json` | custom span, feature flag exposure | Same shape as bd-shop-11, matched on a manually-instrumented span instead — illustrative comparison, no alert — see [demo-slow-rendering.md](demo-slow-rendering.md) |
+| `metric-grouping.json` | custom metric log, custom field | Waveform + counter metrics ported from misc-demos/metricdemo; work-latency average/histogram/table grouped by simulated `sim_app_version` — see [metric-demo.md](metric-demo.md) |
+| `foreground-session-count.json` **(WIP)** | SDK-automatic `AppStart` log | Count of foreground episodes — see [foreground-session-metrics.md](../workflows/docs/foreground-session-metrics.md) |
+| `foreground-session-duration.json` **(WIP)** | `foreground_session` span end, `_duration_ms` | Foreground-episode duration — a P50/P90/P99 histogram plus a single-value average-duration line chart — see [foreground-session-metrics.md](../workflows/docs/foreground-session-metrics.md) |
+| `crash-rate-per-foreground.json` **(WIP)** | issue-match BDRL, `rate` chart, SDK-automatic `AppStart` log | Crashes ÷ foreground sessions — see [foreground-session-metrics.md](../workflows/docs/foreground-session-metrics.md) |
 
 ### Span-timing workflows and dashboards
 
@@ -160,15 +168,13 @@ ungrouped chart over both is a bimodal blob describing neither.
 
 | Workflow | Live id | Dashboard | Covers |
 |---|---|---|---|
-| `bd-shop-20-android-cold-start-span-timings.json` | `RLXS` | [Cold-Start](https://explorations.bitdrift.io/dashboards/cQJTUdHJ3NQsm_H1NVsgf) | `app_cold_start` root + `sdk_init` / `scene_render` / `state_restore` |
-| `bd-shop-21-android-screen-load-timings.json` | `vokX` | [Screen Load](https://explorations.bitdrift.io/dashboards/XpcvEcjfYuZU9GdgvYvtG) | 7 screen loads + per-thumbnail `product_image_load` |
-| `bd-shop-22-android-journey-subphase-timings.json` | `GfJa` | [Journey Sub-Phase](https://explorations.bitdrift.io/dashboards/TdQHRtJe305Xjz4lEVV4h) | `discovery_fetch`, `product_view`, `wishlist_add`, `cart_assembly`, `checkout.payment`, `checkout.confirmation` |
-| `bd-shop-23-android-recommendation-engine-timings.json` | `joJr` | [Recommendation Engine](https://explorations.bitdrift.io/dashboards/b8_b4FFF8xzstrR0b9Psg) | `score_products.parse_catalog` vs `.similarity_pass` |
+| `android-cold-start-span-timings.json` | `RLXS` | [Cold-Start](https://explorations.bitdrift.io/dashboards/cQJTUdHJ3NQsm_H1NVsgf) | `app_cold_start` root + `sdk_init` / `scene_render` / `state_restore` |
+| `android-screen-load-timings.json` | `vokX` | [Screen Load](https://explorations.bitdrift.io/dashboards/XpcvEcjfYuZU9GdgvYvtG) | 7 screen loads + per-thumbnail `product_image_load` |
+| `journey-subphase-timings.template.json` | `GfJa` | [Journey Sub-Phase](https://explorations.bitdrift.io/dashboards/TdQHRtJe305Xjz4lEVV4h) | `discovery_fetch`, `product_view`, `wishlist_add`, `cart_assembly`, `checkout.payment`, `checkout.confirmation` |
+| `recommendation-engine-timings.template.json` | `joJr` | [Recommendation Engine](https://explorations.bitdrift.io/dashboards/b8_b4FFF8xzstrR0b9Psg) | `score_products.parse_catalog` vs `.similarity_pass` |
 
-Deploy them the same way as everything else in [`workflows/`](workflows/); the dashboards
-live in [`dashboards/`](dashboards/) and each references its backing workflow ID above, so
-**edit that ID before running `bd dashboard create`, not after** — otherwise the new
-dashboard's charts point at this account's workflows.
+Deploy them like the rest: `tools/bd-deploy.sh ai.bitdrift.shop --apply` creates the missing workflows and then these
+dashboards, filling in your account's workflow IDs (see [`../workflows/README.md`](../workflows/README.md)).
 
 Two things worth doing before demoing these:
 
@@ -185,7 +191,7 @@ Two things worth doing before demoing these:
 Full per-workflow caveats, the Android-vs-iOS differences (no `catalog_serialize`, no
 `bd-shop-24`, `wishlist_add` behaviour, the `uptimeMillis`→epoch clock conversion) and why
 these don't use the SDK's own `Logger.trackSpan` are in
-[`workflows/README.md`](workflows/README.md#span-timing-workflows-bd-shop-20-through-bd-shop-23).
+[`../workflows/docs/ios-workflows.md`](../workflows/docs/ios-workflows.md#span-timing-workflows-bd-shop-20-through-bd-shop-23).
 
 ## Issue (Crash) Analytics
 
@@ -198,26 +204,26 @@ crash automatically, instead of a human reading one report at a time:
 - **Vendor SDK attribution** (09) — charts crash share by third-party namespace
 - **Attribution rate** (10) — ties 08/09 together into a single "% of crashes explained" chart
 
-Business/engineering framing for each: [foreground-background-crashes.md](workflows/foreground-background-crashes.md), [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md).
+Business/engineering framing for each: [foreground-background-crashes.md](../workflows/docs/foreground-background-crashes.md), [advanced-crash-attribution.md](../workflows/docs/advanced-crash-attribution.md).
 
-> **Prompt:** *"Deploy the bd-shop-*.json workflows to bitdrift using bd CLI and verify they transition to LIVE status."* See [`workflows/README.md`](workflows/README.md) for deploy instructions.
+> **Prompt:** *"Deploy the bd-shop-*.json workflows to bitdrift using bd CLI and verify they transition to LIVE status."* See [`../workflows/docs/ios-workflows.md`](../workflows/docs/ios-workflows.md) for deploy instructions.
 
 ## Deploy dashboards
 
 Once the relevant workflows are deployed, compose their charts into curated dashboard views from
-[`dashboards/`](dashboards/) — see [`dashboards/README.md`](dashboards/README.md) for why these
+[`dashboards/`](../dashboards/) — see [`../workflows/docs/ios-workflows.md`](../workflows/docs/ios-workflows.md) for why these
 need one extra step versus workflows (a dashboard chart references an already-deployed workflow's
 ID, so the placeholder in each file needs resolving first) and the exact deploy commands.
 
 | Dashboard | Composes | Focus |
 |-----------|----------|-------|
-| `bd-shop-01-metric-grouping.json` | `bd-shop-12-metric-grouping.json` | Two tabs: work-latency average/histogram/table grouped by `sim_app_version`, and the ported waveform + CloudWatch consistency charts — see [metric-demo.md](metric-demo.md) |
+| `metric-grouping.dashboard.json` | `metric-grouping.json` | Two tabs: work-latency average/histogram/table grouped by `sim_app_version`, and the ported waveform + CloudWatch consistency charts — see [metric-demo.md](metric-demo.md) |
 | `android-cold-start-span-timings.dashboard.json` | `bd-shop-20` | Cold-start waterfall: total plus `sdk_init` / `scene_render` / `state_restore` |
 | `android-screen-load-timings.dashboard.json` | `bd-shop-21` | Per-screen "time to data ready", plus per-thumbnail image load |
 | `android-journey-subphase-timings.dashboard.json` | `bd-shop-22` | The six journey sub-phases, individually and compared |
 | `android-recommendation-engine-timings.dashboard.json` | `bd-shop-23` | `score_products`: JSON parse vs the O(n*m) similarity pass |
 
-> **Prompt:** *"Deploy the bd-shop-*.json dashboards to bitdrift using bd CLI, resolving each workflow ID placeholder first."* See [`dashboards/README.md`](dashboards/README.md) for deploy instructions.
+> **Prompt:** *"Deploy the bd-shop-*.json dashboards to bitdrift using bd CLI, resolving each workflow ID placeholder first."* See [`../workflows/docs/ios-workflows.md`](../workflows/docs/ios-workflows.md) for deploy instructions.
 
 ---
 
@@ -225,11 +231,11 @@ ID, so the placeholder in each file needs resolving first) and the exact deploy 
 
 - **[README-refs.md](README-refs.md)** — screens (18), emulator setup, local config, simulation modes, entity list, project structure
 - **[../../instrumentation-guide/](../../instrumentation-guide/)** — how to instrument **any** app (prompt-driven), plus a cleanup guide
-- **[workflows/README.md](workflows/README.md)** — deploy and monitor workflows via bd CLI
-- **[dashboards/README.md](dashboards/README.md)** — deploy dashboards that compose workflow charts via bd CLI
-- **[workflows/foreground-background-crashes.md](workflows/foreground-background-crashes.md)** — foreground vs. background crash workflows: why they're separate, the BDRL behind each, and how to cross-check the split against real data
-- **[workflows/foreground-session-metrics.md](workflows/foreground-session-metrics.md)** *(work in process)* — session count/duration/crash-rate workflows built on a `foreground_session` span; includes `scripts/foreground-cycle.sh` for generating foreground/background cycles from the command line
-- **[workflows/advanced-crash-attribution.md](workflows/advanced-crash-attribution.md)** — blocking-thread and vendor-SDK crash attribution workflows, plus the attribution-rate chart that ties them together
+- **[../workflows/docs/ios-workflows.md](../workflows/docs/ios-workflows.md)** — deploy and monitor workflows via bd CLI
+- **[../workflows/docs/ios-workflows.md](../workflows/docs/ios-workflows.md)** — deploy dashboards that compose workflow charts via bd CLI
+- **[../workflows/docs/foreground-background-crashes.md](../workflows/docs/foreground-background-crashes.md)** — foreground vs. background crash workflows: why they're separate, the BDRL behind each, and how to cross-check the split against real data
+- **[../workflows/docs/foreground-session-metrics.md](../workflows/docs/foreground-session-metrics.md)** *(work in process)* — session count/duration/crash-rate workflows built on a `foreground_session` span; includes `scripts/foreground-cycle.sh` for generating foreground/background cycles from the command line
+- **[../workflows/docs/advanced-crash-attribution.md](../workflows/docs/advanced-crash-attribution.md)** — blocking-thread and vendor-SDK crash attribution workflows, plus the attribution-rate chart that ties them together
 - **[demo-slow-rendering.md](demo-slow-rendering.md)** — feature-flag-gated slow-rendering bug: setup, live trigger, dashboard/alert walkthrough, and how to diagnose + fix the offending code using bitdrift's output
 - **[metric-demo.md](metric-demo.md)** — synthetic waveform metrics ported from misc-demos/metricdemo, plus a work-latency-by-app-version demo showing how to group/break down a custom metric by a dimension
 

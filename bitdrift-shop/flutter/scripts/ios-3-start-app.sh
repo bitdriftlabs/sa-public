@@ -65,6 +65,8 @@ fi
 DART_DEFINES=()
 [[ -n "${BITDRIFT_API_HOST:-}" ]] && DART_DEFINES+=(--dart-define="BITDRIFT_API_HOST=$BITDRIFT_API_HOST")
 [[ -n "${BACKEND_PORT:-}" ]] && DART_DEFINES+=(--dart-define="BACKEND_PORT=$BACKEND_PORT")
+# Test harness (test.sh sets this): enable the autorun/record hook in non-debug builds too.
+[[ -n "${BDSHOP_HARNESS:-}" ]] && DART_DEFINES+=(--dart-define="BDSHOP_HARNESS=true")
 
 # 5. Build for the simulator (debug — iOS release builds normally require a
 #    codesigning identity even when the destination is a simulator).

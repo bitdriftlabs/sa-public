@@ -5,7 +5,7 @@
 # Run automatically as a post-build phase (see the "Upload bitdrift Symbols"
 # phase in the Xcode project), or by hand:
 #
-#   BITDRIFT_API_KEY=<key> ./scripts/upload-symbols.sh <path-to-dSYMs>
+#   BITDRIFT_SDK_KEY=<key> ./scripts/upload-symbols.sh <path-to-dSYMs>
 #
 # Skips quietly (exit 0) when there is nothing to do — no API key, no dSYM, or a
 # Debug build without dSYM generation. A missing symbol upload must never fail
@@ -17,11 +17,11 @@ warn() { echo "warning: [bitdrift] $*"; }
 
 # ── API key ──────────────────────────────────────────────────────────────
 # The same bitdrift API key the app starts the SDK with. Xcode exports build
-# settings into script phases, so defining BITDRIFT_API_KEY in .local.xcconfig is
+# settings into script phases, so defining BITDRIFT_SDK_KEY in .local.xcconfig is
 # enough; the environment also works for CI.
-API_KEY="${BITDRIFT_API_KEY:-}"
+API_KEY="${BITDRIFT_SDK_KEY:-${BITDRIFT_API_KEY:-}}"
 if [[ -z "$API_KEY" ]]; then
-  log "BITDRIFT_API_KEY not set — skipping symbol upload."
+  log "BITDRIFT_SDK_KEY not set — skipping symbol upload."
   log "      Set it in .local.xcconfig or the environment to enable symbolication."
   exit 0
 fi
@@ -75,7 +75,7 @@ for dsym in "${DSYMS[@]}"; do
   if echo "$out" | grep -qiE "file uploaded"; then
     uploaded=$((uploaded + 1))
   else
-    warn "no upload confirmation for $(basename "$dsym") — check BITDRIFT_API_KEY."
+    warn "no upload confirmation for $(basename "$dsym") — check BITDRIFT_SDK_KEY."
   fi
 done
 

@@ -10,6 +10,8 @@ import {
   setEntityId as bdSetEntityId,
   setFeatureFlagExposure as bdSetFeatureFlagExposure,
 } from '@bitdrift/react-native';
+import {SpecEvents, SpecFields} from '../generated/specConstants';
+import {recordLog, recordScreen} from './recorder';
 
 // Centralised logger that writes to both console (local) and bitdrift (remote).
 // Fields are always Record<string, string> so they serialise cleanly as bitdrift
@@ -53,27 +55,32 @@ export const ScreenLogger = {
   // ── Screen Views ────────────────────────────────────────────────────────────
   logScreenView: (screenName: string) => {
     console.log(`_screen_name: ${screenName}`);
+    recordScreen(screenName);
     bdLogScreenView(screenName);
   },
 
   // ── Custom logs ───────────────────────────────────────────────────────────────
   logTrace: (message: string, fields?: Fields) => {
     console.log(formatConsole('TRACE', message, fields));
+    recordLog('trace', message, fields);
     bdTrace(message, fields);
   },
 
   logDebug: (message: string, fields?: Fields) => {
     console.log(formatConsole('DEBUG', message, fields));
+    recordLog('debug', message, fields);
     bdDebug(message, fields);
   },
 
   logInfo: (message: string, fields?: Fields) => {
     console.log(formatConsole('INFO', message, fields));
+    recordLog('info', message, fields);
     bdInfo(message, fields);
   },
 
   logWarning: (message: string, fields?: Fields) => {
     console.warn(formatConsole('WARNING', message, fields));
+    recordLog('warning', message, fields);
     bdWarn(message, fields);
   },
 
@@ -82,6 +89,7 @@ export const ScreenLogger = {
   // attached in the dashboard (matches Android's logError(..., throwable = e)).
   logError: (message: string, fields?: Fields, err?: unknown) => {
     console.error(formatConsole('ERROR', message, fields));
+    recordLog('error', message, fields);
     const errorObj = err instanceof Error ? err : err != null ? new Error(String(err)) : null;
     bdError(message, errorObj, fields);
   },
@@ -114,9 +122,9 @@ export const ScreenLogger = {
     const startedAt = nowMs();
     ScreenLogger.logInfo(name, {
       ...(fields ?? {}),
-      _span_id: id,
-      _span_type: 'start',
-      ...(parentSpanId ? {parent_span_id: parentSpanId} : {}),
+      [SpecFields.sdkSpanId]: id,
+      [SpecFields.sdkSpanType]: 'start',
+      ...(parentSpanId ? {[SpecFields.parentSpanId]: parentSpanId} : {}),
     });
     return {
       id,
@@ -124,11 +132,11 @@ export const ScreenLogger = {
         const durationMs = nowMs() - startedAt;
         ScreenLogger.logInfo(name, {
           ...(endFields ?? {}),
-          _span_id: id,
-          _span_type: 'end',
-          _result: result,
-          _duration_ms: String(durationMs),
-          ...(parentSpanId ? {parent_span_id: parentSpanId} : {}),
+          [SpecFields.sdkSpanId]: id,
+          [SpecFields.sdkSpanType]: 'end',
+          [SpecFields.sdkResult]: result,
+          [SpecFields.sdkDurationMs]: String(durationMs),
+          ...(parentSpanId ? {[SpecFields.parentSpanId]: parentSpanId} : {}),
         });
       },
     };
@@ -180,22 +188,22 @@ export const ScreenLogger = {
       _span_id: id,
       ...(parentSpanId ? {parent_span_id: parentSpanId} : {}),
     };
-    ScreenLogger.logInfo(name, {...common, _span_type: 'start'});
+    ScreenLogger.logInfo(name, {...common, [SpecFields.sdkSpanType]: 'start'});
     ScreenLogger.logInfo(name, {
       ...common,
-      _span_type: 'end',
-      _result: 'success',
-      _duration_ms: String(Math.max(0, Math.round(durationMs))),
+      [SpecFields.sdkSpanType]: 'end',
+      [SpecFields.sdkResult]: 'success',
+      [SpecFields.sdkDurationMs]: String(Math.max(0, Math.round(durationMs))),
     });
     return id;
   },
 
   // ── Simulation lifecycle helpers (kept from the original logger) ─────────────────
   logSimulationStart: (totalRuns: number) => {
-    ScreenLogger.logInfo('simulation_start', {total_runs: String(totalRuns)});
+    ScreenLogger.logInfo(SpecEvents.simulationStart, {[SpecFields.totalRuns]: String(totalRuns)});
   },
 
   logSimulationEnd: (completedRuns: number) => {
-    ScreenLogger.logInfo('simulation_end', {total_runs: String(completedRuns)});
+    ScreenLogger.logInfo(SpecEvents.simulationEnd, {[SpecFields.totalRuns]: String(completedRuns)});
   },
 };

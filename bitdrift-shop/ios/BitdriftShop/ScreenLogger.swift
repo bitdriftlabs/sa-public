@@ -37,6 +37,7 @@ enum ScreenLogger {
     /// POC: User Journey Sankey diagram; per-screen crash analytics.
     static func logScreenView(_ screenName: String) {
         printLog("SCREEN", "_screen_name: \(screenName)", [:])
+        Recorder.write("screen", ["name": screenName])
         Logger.logScreenView(screenName: screenName)
 
         // Also carry the screen as a *global field*, not just a breadcrumb.
@@ -48,7 +49,7 @@ enum ScreenLogger {
         // the screen views preceding it. A global field rides along on every
         // subsequent log *and on the crash report itself*, so crashes can simply
         // be grouped by `last_screen`.
-        Logger.addField(withKey: "last_screen", value: screenName)
+        Logger.addField(withKey: SpecFields.lastScreen, value: screenName)
 
         // Shift register of the last `screenTrailDepth` screens, newest first.
         //
@@ -82,7 +83,7 @@ enum ScreenLogger {
                 recentScreens.removeLast()
             }
         }
-        Logger.addField(withKey: "screen_current", value: screenName)
+        Logger.addField(withKey: SpecFields.screenCurrent, value: screenName)
         for offset in 1 ..< screenTrailDepth {
             // "none" rather than omitting the key: a stable field set makes a
             // report from early in a session (genuinely fewer screens) legible
@@ -104,7 +105,7 @@ enum ScreenLogger {
         // Without it the crash *rate* per screen cannot be charted natively and
         // a reader has to divide two charts by hand — which buries the one
         // number that distinguishes a risky screen from a merely popular one.
-        logInfo("screen_visit", ["screen": screenName])
+        logInfo(SpecEvents.screenVisit, [SpecFields.screen: screenName])
 
         // Persisted for the next launch: an out-of-session termination (watchdog
         // hang, jetsam kill) carries no field at all, so the only way to attribute
@@ -122,7 +123,7 @@ enum ScreenLogger {
         // catches that nothing else here would.
         // POC: event tracking — a high-frequency, main-thread-relevant hotspot,
         // not just journey/checkout-shaped operations.
-        CaptureBridge.trackSpan("screen_view_persist") { _ in
+        CaptureBridge.trackSpan(SpecSpans.screenViewPersist) { _ in
             Prefs.screen.set(Prefs.keyLastScreen, screenName)
             // Same reasoning for the trail: in-memory global fields die with the
             // process, so a watchdog hang or jetsam kill would otherwise arrive on
@@ -134,16 +135,19 @@ enum ScreenLogger {
 
     static func logInfo(_ message: String, _ fields: [String: String] = [:]) {
         printLog("INFO", message, fields)
+        Recorder.write("log", ["level": "info", "message": message], fields: fields.isEmpty ? nil : fields)
         Logger.logInfo(message, fields: encode(fields))
     }
 
     static func logWarning(_ message: String, _ fields: [String: String] = [:]) {
         printLog("WARNING", message, fields)
+        Recorder.write("log", ["level": "warning", "message": message], fields: fields.isEmpty ? nil : fields)
         Logger.logWarning(message, fields: encode(fields))
     }
 
     static func logError(_ message: String, _ fields: [String: String] = [:]) {
         printLog("ERROR", message, fields)
+        Recorder.write("log", ["level": "error", "message": message], fields: fields.isEmpty ? nil : fields)
         Logger.logError(message, fields: encode(fields))
     }
 
@@ -151,15 +155,16 @@ enum ScreenLogger {
     /// timeline alongside its fields.
     static func logError(_ message: String, error: Error, _ fields: [String: String] = [:]) {
         printLog("ERROR", message, fields)
+        Recorder.write("log", ["level": "error", "message": message], fields: fields.isEmpty ? nil : fields)
         Logger.logError(message, fields: encode(fields), error: error)
     }
 
     static func logSimulationStart(_ runs: Int) {
-        logInfo("simulation_start", ["total_runs": String(runs)])
+        logInfo(SpecEvents.simulationStart, [SpecFields.totalRuns: String(runs)])
     }
 
     static func logSimulationEnd(_ runs: Int) {
-        logInfo("simulation_end", ["total_runs": String(runs)])
+        logInfo(SpecEvents.simulationEnd, [SpecFields.totalRuns: String(runs)])
     }
 
     // MARK: - Field helpers

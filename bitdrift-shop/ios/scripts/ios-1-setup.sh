@@ -53,12 +53,12 @@ fi
 echo
 echo "== Credentials (.local.xcconfig) =="
 if [[ -f "$(dirname "${BASH_SOURCE[0]}")/../.local.xcconfig" ]] \
-   && grep -q "BITDRIFT_API_KEY" "$(dirname "${BASH_SOURCE[0]}")/../.local.xcconfig" 2>/dev/null; then
-  echo "✓ .local.xcconfig exists and sets BITDRIFT_API_KEY."
+   && grep -qE "BITDRIFT_(SDK|API)_KEY" "$(dirname "${BASH_SOURCE[0]}")/../.local.xcconfig" 2>/dev/null; then
+  echo "✓ .local.xcconfig exists and sets BITDRIFT_SDK_KEY."
 else
-  echo "✗ .local.xcconfig missing or has no BITDRIFT_API_KEY."
+  echo "✗ .local.xcconfig missing or has no BITDRIFT_SDK_KEY."
   echo "  Create ios/.local.xcconfig (gitignored) with at least:"
-  echo "    BITDRIFT_API_KEY = <your-sdk-key>"
+  echo "    BITDRIFT_SDK_KEY = <your-sdk-key>"
   echo "    BITDRIFT_API_HOST = api.bitdrift.io"
   ok=0
 fi

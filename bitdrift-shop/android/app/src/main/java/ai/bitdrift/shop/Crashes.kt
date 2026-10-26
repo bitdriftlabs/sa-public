@@ -1,5 +1,7 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
+
 import android.system.Os
 import android.system.OsConstants
 import kotlinx.coroutines.CoroutineScope
@@ -59,11 +61,54 @@ object Crashes {
         "native_sigbus"             to ::crashNativeSigbus,
         "native_sigabrt"            to ::crashNativeSigabrt,
         "native_sigfpe"             to ::crashNativeSigfpe,
+        // Realistic crashes (Phase 6): the failing frame is app code, and a precursor (below)
+        // logs what a real app would have logged first, instead of `about_to_crash`.
+        "app_coupon_empty_cart"     to ::crashCouponEmptyCart,
+        "app_promo_banner_payload"  to ::crashPromoBannerPayload,
     ) + oomCrashes
+
+    /**
+     * Precursors for the realistic crashes, run in place of the `about_to_crash` announcement
+     * (and without the `crash_kind`/`crash_context` fields) so the session shows a plausible
+     * lead-up: a handled error, a retry. Keyed by crash name; runs well before the crash fires,
+     * inside the SDK's flush window.
+     */
+    val precursors: Map<String, () -> Unit> = mapOf(
+        "app_coupon_empty_cart" to {
+            // The checkout code tries the coupon, the cart turns out empty, and the error is handled
+            // (logged) -- but a second path applies the same coupon without checking.
+            try {
+                CartPricing.applyCoupon(emptyList(), COUPON_CODE)
+            } catch (e: NoSuchElementException) {
+                RecordingLogger.logError(mapOf(SpecFields.COUPON_CODE to COUPON_CODE), e) { SpecEvents.COUPON_APPLY_FAILED }
+            }
+        },
+        "app_promo_banner_payload" to {
+            // First parse fails and is handled; the app retries, and the retry is the one that crashes.
+            try {
+                PromoBannerParser.parse(PromoBannerParser.MALFORMED_PAYLOAD)
+            } catch (e: IllegalStateException) {
+                RecordingLogger.logError(mapOf(SpecFields.ATTEMPT to "1"), e) { SpecEvents.PROMO_BANNER_PARSE_FAILED }
+                RecordingLogger.logInfo(mapOf(SpecFields.ATTEMPT to "2")) { SpecEvents.PROMO_BANNER_RETRY }
+            }
+        },
+    )
+
+    private const val COUPON_CODE = "SUMMER20"
 
     // Subset used by the "OOMs" crash-loop mode (Advanced screen) to cycle through
     // only out-of-memory variants.
     val oomOnly: List<Pair<String, () -> Unit>> = oomCrashes
+
+    // ── Realistic: crashes inside app classes ─────────────────────────────
+
+    private fun crashCouponEmptyCart() {
+        CartPricing.applyCoupon(emptyList(), COUPON_CODE)
+    }
+
+    private fun crashPromoBannerPayload() {
+        PromoBannerParser.parse(PromoBannerParser.MALFORMED_PAYLOAD)
+    }
 
     // ── Main-thread JVM ────────────────────────────────────────────────────
 

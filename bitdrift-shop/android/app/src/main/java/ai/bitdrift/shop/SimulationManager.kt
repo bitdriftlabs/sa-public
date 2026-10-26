@@ -1,5 +1,7 @@
 package ai.bitdrift.shop
 
+import ai.bitdrift.shop.generated.*
+import ai.bitdrift.shop.generated.SpecJourney
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -8,7 +10,6 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import io.bitdrift.capture.Capture.Logger
 import kotlin.coroutines.cancellation.CancellationException
 import io.bitdrift.capture.LogLevel
 import io.bitdrift.capture.events.span.SpanResult
@@ -19,10 +20,11 @@ import kotlinx.coroutines.launch
 // bitdrift SDK: SimVariant drives setFeatureFlagExposure() calls so every log in a run is
 // tagged with the active cohort, enabling dashboard slicing by checkout_flow, payment_ui,
 // and cart_abandon_rate.
-enum class SimVariant(val label: String) {
-    CONTROL("Control"),    // baseline: fully random, no variant bias
-    VARIANT_A("Variant A"), // digital native: snap decisions, skips research, guest + digital pay
-    VARIANT_B("Variant B")  // deliberate shopper: reads everything, huge cart churn, signin + card
+// `id` is the spec persona id (personas.yaml), which selects the journey's probability table.
+enum class SimVariant(val id: String, val label: String) {
+    CONTROL("control", SpecPersonas.CONTROL),        // baseline: fully random, no variant bias
+    VARIANT_A("variant_a", SpecPersonas.VARIANT_A),  // digital native: snap decisions, skips research, guest + digital pay
+    VARIANT_B("variant_b", SpecPersonas.VARIANT_B)   // deliberate shopper: reads everything, huge cart churn, signin + card
 }
 
 /**
@@ -62,15 +64,8 @@ class SimulationManager : ViewModel() {
 
     var forceQuitEnabled by mutableStateOf(false)
 
-    private var eligibleForceQuitJourneysSinceInject = 0
-
-    private var eligibleAnrGuestJourneysSinceInject = 0
-
     // Flag to signal cancellation
     private var isCancelled = false
-
-    // Delay between navigation steps (in milliseconds)
-    private val stepDelay = 50L
 
     /**
      * Cancels the current simulation
@@ -100,36 +95,36 @@ class SimulationManager : ViewModel() {
             SimVariant.VARIANT_B -> "low"
         }
         // Record feature flag exposures (per-session, triggers workflow transitions)
-        Logger.setFeatureFlagExposure("checkout_flow", checkoutFlow)
-        Logger.setFeatureFlagExposure("payment_ui", paymentUi)
-        Logger.setFeatureFlagExposure("cart_abandon_rate", cartAbandon)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.CHECKOUT_FLOW, checkoutFlow)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.PAYMENT_UI, paymentUi)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.CART_ABANDON_RATE, cartAbandon)
         // Also set as global fields so every log carries the active flag values for debugging
-        Logger.addField("ff_checkout_flow", checkoutFlow)
-        Logger.addField("ff_payment_ui", paymentUi)
-        Logger.addField("ff_cart_abandon_rate", cartAbandon)
-        Logger.addField("ff_variant", variant.label)
+        RecordingLogger.addField(SpecFields.FF_CHECKOUT_FLOW, checkoutFlow)
+        RecordingLogger.addField(SpecFields.FF_PAYMENT_UI, paymentUi)
+        RecordingLogger.addField(SpecFields.FF_CART_ABANDON_RATE, cartAbandon)
+        RecordingLogger.addField(SpecFields.FF_VARIANT, variant.label)
         // Android Pay flag: enabled for Control + Variant A, disabled for Variant B
         val androidPay = when (variant) {
             SimVariant.CONTROL   -> "enabled"
             SimVariant.VARIANT_A -> "enabled"
             SimVariant.VARIANT_B -> "disabled"
         }
-        Logger.setFeatureFlagExposure("payment_android_pay", androidPay)
-        Logger.addField("ff_payment_android_pay", androidPay)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.PAYMENT_ANDROID_PAY, androidPay)
+        RecordingLogger.addField(SpecFields.FF_PAYMENT_ANDROID_PAY, androidPay)
         val orderSummary = if (crashLoopEnabled) "v2" else "v1"
-        Logger.setFeatureFlagExposure("order_summary", orderSummary)
-        Logger.addField("ff_order_summary", orderSummary)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.ORDER_SUMMARY, orderSummary)
+        RecordingLogger.addField(SpecFields.FF_ORDER_SUMMARY, orderSummary)
         val anrAState = if (anrAEnabled) "enabled" else "disabled"
-        Logger.setFeatureFlagExposure("anr_a", anrAState)
-        Logger.addField("ff_anr_a", anrAState)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.ANR_A, anrAState)
+        RecordingLogger.addField(SpecFields.FF_ANR_A, anrAState)
         val forceQuitState = if (forceQuitEnabled) "enabled" else "disabled"
-        Logger.setFeatureFlagExposure("force_quit", forceQuitState)
-        Logger.addField("ff_force_quit", forceQuitState)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.FORCE_QUIT, forceQuitState)
+        RecordingLogger.addField(SpecFields.FF_FORCE_QUIT, forceQuitState)
         val recommendationsV2State = if (recommendationsV2Enabled) "enabled" else "disabled"
-        Logger.setFeatureFlagExposure("recommendations_v2", recommendationsV2State)
-        Logger.addField("ff_recommendations_v2", recommendationsV2State)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.RECOMMENDATIONS_V2, recommendationsV2State)
+        RecordingLogger.addField(SpecFields.FF_RECOMMENDATIONS_V2, recommendationsV2State)
         // Emit an explicit log so we can verify flag exposure in the log stream
-        Logger.logInfo { "feature_flag_exposure_set" }
+        RecordingLogger.logInfo { SpecEvents.FEATURE_FLAG_EXPOSURE_SET }
     }
 
     fun syncAnrAEnabledState() {
@@ -163,10 +158,10 @@ class SimulationManager : ViewModel() {
     fun cancel() {
         isCancelled = true
         ScreenLogger.logInfo(
-            "simulation_cancelled",
+            SpecEvents.SIMULATION_CANCELLED,
             mapOf(
-                "completed_runs" to currentRun.toString(),
-                "total_runs" to totalRuns.toString()
+                SpecFields.COMPLETED_RUNS to currentRun.toString(),
+                SpecFields.TOTAL_RUNS to totalRuns.toString()
             )
         )
     }
@@ -210,12 +205,13 @@ class SimulationManager : ViewModel() {
     /**
      * Runs the simulation for a specified number of journeys
      */
-    fun simulate(runs: Int, navController: NavController) {
-        viewModelScope.launch {
+    fun simulate(runs: Int, navController: NavController, seed: Long? = null): kotlinx.coroutines.Job {
+        return viewModelScope.launch {
             isSimulating = true
             isCancelled = false
             totalRuns = runs
             currentRun = 0
+            simSeed = seed ?: newSimSeed()
             ScreenLogger.logSimulationStart(runs)
 
             for (i in 1..runs) {
@@ -241,6 +237,28 @@ class SimulationManager : ViewModel() {
     }
 
     /**
+     * Test-harness autorun (launch arguments, see [AutorunConfig]): runs [AutorunConfig.runs]
+     * journeys as the requested persona, then logs [SpecEvents.SIM_AUTORUN_COMPLETE] so
+     * the script driving the app knows to stop waiting. Lives in the view model's scope so
+     * it survives the Welcome screen being recomposed when the sim navigates home.
+     */
+    fun autorun(navController: NavController) {
+        viewModelScope.launch {
+            val runs = AutorunConfig.runs
+            setVariant(AutorunConfig.variant())
+            simulate(runs, navController, AutorunConfig.seed and 0x7FFFFFFFL).join()
+            ScreenLogger.logInfo(
+                SpecEvents.SIM_AUTORUN_COMPLETE,
+                mapOf(
+                    SpecFields.TOTAL_RUNS to runs.toString(),
+                    SpecFields.SIM_SEED to (AutorunConfig.seed and 0x7FFFFFFFL).toString(),
+                    SpecFields.PERSONA to AutorunConfig.persona,
+                )
+            )
+        }
+    }
+
+    /**
      * A/B split sim: runs runsEach journeys as each variant in sequence.
      * Each run is a flag transition, maximizing workflow matches in the dashboard.
      */
@@ -250,9 +268,10 @@ class SimulationManager : ViewModel() {
             isCancelled = false
             totalRuns = runsEach * 3
             currentRun = 0
+            simSeed = newSimSeed()
             val variants = SimVariant.entries  // [CONTROL, VARIANT_A, VARIANT_B]
 
-            ScreenLogger.logInfo("ab_simulation_start", mapOf("runs_each" to runsEach.toString()))
+            ScreenLogger.logInfo(SpecEvents.AB_SIMULATION_START, mapOf(SpecFields.RUNS_EACH to runsEach.toString()))
 
             for (i in 0 until totalRuns) {
                 if (isCancelled) break
@@ -262,7 +281,7 @@ class SimulationManager : ViewModel() {
                 delay(50L)
             }
 
-            ScreenLogger.logInfo("ab_simulation_end", mapOf("total_runs" to currentRun.toString()))
+            ScreenLogger.logInfo(SpecEvents.AB_SIMULATION_END, mapOf(SpecFields.TOTAL_RUNS to currentRun.toString()))
 
             navController.navigate(Screen.Welcome.route) {
                 popUpTo(Screen.Welcome.route) { inclusive = true }
@@ -284,6 +303,7 @@ class SimulationManager : ViewModel() {
             isCancelled = false
             totalRuns = -1  // -1 indicates infinite mode
             currentRun = 0
+            simSeed = newSimSeed()
 
             // If crash loop is enabled, save a resume flag so the app can restart the
             // infinite loop after each crash (via AlarmManager restart)
@@ -296,7 +316,7 @@ class SimulationManager : ViewModel() {
                     .commit()
             }
 
-            ScreenLogger.logInfo("infinite_simulation_start", emptyMap())
+            ScreenLogger.logInfo(SpecEvents.INFINITE_SIMULATION_START, emptyMap())
 
             while (!isCancelled) {
                 currentRun++
@@ -306,7 +326,7 @@ class SimulationManager : ViewModel() {
                 delay(50L)
             }
 
-            ScreenLogger.logInfo("infinite_simulation_end", mapOf("total_runs" to currentRun.toString()))
+            ScreenLogger.logInfo(SpecEvents.INFINITE_SIMULATION_END, mapOf(SpecFields.TOTAL_RUNS to currentRun.toString()))
 
             // Reset navigation to welcome screen
             navController.navigate(Screen.Welcome.route) {
@@ -332,18 +352,18 @@ class SimulationManager : ViewModel() {
             totalRuns = -1
             currentRun = 0
 
-            ScreenLogger.logInfo("cardinality_simulation_start", emptyMap())
+            ScreenLogger.logInfo(SpecEvents.CARDINALITY_SIMULATION_START, emptyMap())
 
             while (!isCancelled) {
                 currentRun++
                 val item = searchQueries.random()
                 try { ApiClient.inventoryLookup(item) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-                delay(stepDelay)
+                delay(50L)
             }
 
             ScreenLogger.logInfo(
-                "cardinality_simulation_end",
-                mapOf("total_runs" to currentRun.toString())
+                SpecEvents.CARDINALITY_SIMULATION_END,
+                mapOf(SpecFields.TOTAL_RUNS to currentRun.toString())
             )
 
             navController.navigate(Screen.Welcome.route) {
@@ -357,155 +377,175 @@ class SimulationManager : ViewModel() {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Fully random journey simulator — each journey walks through every
-    // major step of the shopping funnel, randomly choosing a branch at
-    // each decision point. Every journey always completes to Confirmation.
-    //
-    //  Welcome
-    //    → discovery: Browse | Search | Categories→CategoryBrowse (random)
-    //    → maybe Featured (coin flip)
-    //    → ProductDetail
-    //    → maybe Reviews (coin flip)
-    //    → maybe Wishlist (coin flip)
-    //    → Cart
-    //    → checkout: CheckoutGuest | CheckoutSignIn (random)
-    //    → payment: PaymentCard | PaymentApplePay | PaymentPayPal (random)
-    //    → Confirmation
-    // ═══════════════════════════════════════════════════════════════════════
+    // The journey itself is data: spec/journey.yaml, interpreted by JourneyEngine
+    // (identically on iOS, React Native and Flutter). This class keeps only what is
+    // Android-specific: navigation, the API client, the SDK calls, and how each fault
+    // physically happens (journeyAdapter below).
 
+    // Cardinality demo search terms (personas.yaml sim_data.search_terms).
     private val searchQueries = listOf(
         "headphones", "jacket", "running shoes", "laptop", "watch",
         "camera", "speaker", "backpack", "tablet", "sneakers"
     )
 
-    private suspend fun nav(nc: NavController, route: String) {
-        try {
-            android.util.Log.d("SimNav", "→ navigating to: $route")
-            nc.navigate(route)
-        } catch (e: Exception) {
-            android.util.Log.e("SimNav", "✗ nav FAILED for route: $route", e)
-            throw e
+    /** Seed for the current simulation: the autorun seed, else random. Logged as sim_seed. */
+    private var simSeed = 0L
+
+    private fun newSimSeed(): Long = (Math.random() * 2147483647.0).toLong()
+
+    private var navController: NavController? = null
+
+    private val journeyAdapter = object : JourneyAdapter {
+        override fun isCancelled() = isCancelled
+        // In `realistic` session mode the SDK's inactivity timeout owns session boundaries, so one
+        // session spans several journeys; only `per_journey` (the default) starts one per journey.
+        override fun startNewSession() {
+            if (DemoSettings.activeSessionMode == SessionMode.PER_JOURNEY) RecordingLogger.startNewSession()
         }
-        delay(stepDelay)
+        override fun applyExposures(persona: String) = setVariant(activeVariant)
+        override fun setEntity(entity: String) {
+            // bitdrift SDK: setEntityId() associates all subsequent logs with this user identity.
+            // POC: ad-hoc debugging — search any entity in the dashboard to retrieve all their sessions on demand
+            RecordingLogger.setEntityId(entity)
+        }
+        override suspend fun delay(ms: Long) = kotlinx.coroutines.delay(ms)
+
+        override suspend fun navigate(screen: String, args: Map<String, String>) {
+            val nc = navController ?: return
+            val spec = SpecScreen.entries.first { it.id == screen }
+            // `step` is a global field, so every log, span and crash report carries where the journey is.
+            RecordingLogger.addField(SpecFields.STEP, screen)
+            val route = args.entries.fold(spec.route) { r, (k, v) -> r.replace("{$k}", v) }
+            android.util.Log.d("SimNav", "→ navigating to: $route")
+            if (spec == SpecScreen.WELCOME) {
+                nc.navigate(route) { popUpTo(Screen.Welcome.route) { inclusive = true } }
+            } else {
+                nc.navigate(route)
+            }
+        }
+
+        // Latest cart response, so checkout_started can carry it as cart_json.
+        private var lastCart: org.json.JSONObject? = null
+
+        override suspend fun callApi(endpoint: String, args: Map<String, String>): org.json.JSONObject? {
+            val result = callApiRaw(endpoint, args)
+            when (endpoint) {
+                "browse", "search", "featured", "category_products", "product" -> ProductCatalog.learn(result)
+                "cart_get", "cart_add", "cart_delete" -> lastCart = result
+                "confirmation" -> if (result == null) {
+                    // Payment succeeded but the order cannot be shown: a business-critical failure.
+                    RecordingLogger.logCritical(
+                        mapOf(SpecFields.ORDER_ID to (args["id"] ?: ""), SpecFields.REASON to "confirmation_unavailable")
+                    ) { SpecEvents.ORDER_LOST }
+                }
+            }
+            return result
+        }
+
+        private suspend fun callApiRaw(endpoint: String, args: Map<String, String>): org.json.JSONObject? = try {
+            fun a(k: String) = args[k] ?: ""
+            if (endpoint == "confirmation" && DemoSettings.loseOrders(ShoppingDemoApp.appContext)) {
+                throw java.io.IOException("order lookup disabled (demo: lose orders)")
+            }
+            when (endpoint) {
+                "welcome" -> ApiClient.getWelcome()
+                "browse" -> ApiClient.getBrowse()
+                "search" -> ApiClient.search(a("q"))
+                "featured" -> ApiClient.getFeatured()
+                "categories" -> ApiClient.getCategories()
+                "category_products" -> ApiClient.getCategoryProducts(a("category"))
+                "product" -> ApiClient.getProduct(a("id"))
+                "reviews" -> ApiClient.getReviews(a("id"))
+                "cart_get" -> ApiClient.getCart()
+                "cart_add" -> ApiClient.addToCart(a("product_id"), a("quantity").toIntOrNull() ?: 1)
+                "cart_delete" -> ApiClient.deleteCartItem(a("id"))
+                "wishlist_add" -> ApiClient.addToWishlist(a("product_id"))
+                "checkout_guest" -> ApiClient.checkoutGuest()
+                "checkout_signin" -> ApiClient.checkoutSignIn()
+                "pay_card" -> ApiClient.payCard(a("checkout_session"), args["card_last4"] ?: "4242")
+                "pay_apple_pay" -> ApiClient.payApplePay(a("checkout_session"))
+                "pay_paypal" -> ApiClient.payPayPal(a("checkout_session"))
+                "pay_android_pay" -> ApiClient.payAndroidPay(a("checkout_session"))
+                "confirmation" -> ApiClient.getConfirmation(a("id"))
+                else -> error("unknown endpoint $endpoint")
+            }
+        } catch (ce: CancellationException) { throw ce } catch (_: Exception) { null }
+
+        override fun log(level: String, event: String, fields: Map<String, String>) {
+            // checkout_started carries the cart as one JSON field (JSON-path workflow metrics).
+            val f = if (event == SpecEvents.CHECKOUT_STARTED) fields + (SpecFields.CART_JSON to CartJson.from(lastCart)) else fields
+            when (level) {
+                "critical" -> RecordingLogger.logCritical(f) { event }
+                "error" -> RecordingLogger.logError(f) { event }
+                "warning" -> RecordingLogger.logWarning(f) { event }
+                else -> RecordingLogger.logInfo(f) { event }
+            }
+        }
+
+        // bitdrift SDK: startSpan() with parentSpanId builds the journey waterfall
+        // (journey → product_discovery/cart_assembly/checkout → sub-phases); all logs are
+        // correlated via _span_id. POC: spans waterfall in Timeline; _duration_ms p50/p95.
+        override fun startSpan(name: String, parent: Any?, fields: Map<String, String>): Any? =
+            RecordingLogger.startSpan(name, LogLevel.INFO, fields.ifEmpty { null }, parentSpanId = (parent as? Span)?.id)
+
+        override fun endSpan(handle: Any, result: String, fields: Map<String, String>) {
+            val r = when (result) {
+                "failure" -> SpanResult.FAILURE
+                "canceled" -> SpanResult.CANCELED
+                else -> SpanResult.SUCCESS
+            }
+            (handle as Span).end(r, fields.ifEmpty { null })
+        }
+
+        override fun addField(key: String, value: String) = RecordingLogger.addField(key, value)
+
+        override fun injectFault(id: String) {
+            when (id) {
+                "force_quit" -> performForceQuit()
+                "anr" -> performGuestAnr()
+            }
+        }
+
+        override fun fireCrash() {
+            navController?.let { fireCrashNow(it) }
+        }
     }
 
-    // ─── API helpers ─────────────────────────────────────────────────────
-
-    private suspend fun fetchBrowseIds(): List<String> = try {
-        val arr = ApiClient.getBrowse().optJSONArray("products")
-        if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
-        else listOf("prod_a1b2c3")
-    } catch (ce: CancellationException) { throw ce } catch (_: Exception) { listOf("prod_a1b2c3") }
-
-    private suspend fun fetchSearchIds(): List<String> = try {
-        val arr = ApiClient.search(searchQueries.random()).optJSONArray("products")
-        if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
-        else listOf("prod_a1b2c3")
-    } catch (ce: CancellationException) { throw ce } catch (_: Exception) { listOf("prod_a1b2c3") }
-
-    private suspend fun fetchFeaturedIds(): List<String> = try {
-        val arr = ApiClient.getFeatured().optJSONArray("featured_products")
-        if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
-        else listOf("prod_a1b2c3")
-    } catch (ce: CancellationException) { throw ce } catch (_: Exception) { listOf("prod_a1b2c3") }
-
-    private suspend fun fetchCategoryNames(): List<String> = try {
-        val arr = ApiClient.getCategories().optJSONArray("categories")
-        if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("name", "Electronics") }.ifEmpty { listOf("Electronics") }
-        else listOf("Electronics")
-    } catch (ce: CancellationException) { throw ce } catch (_: Exception) { listOf("Electronics") }
-
-    private suspend fun fetchCategoryProductIds(cat: String): List<String> = try {
-        val arr = ApiClient.getCategoryProducts(cat).optJSONArray("products")
-        if (arr != null) (0 until arr.length()).map { arr.getJSONObject(it).optString("id", "prod_a1b2c3") }.ifEmpty { listOf("prod_a1b2c3") }
-        else listOf("prod_a1b2c3")
-    } catch (ce: CancellationException) { throw ce } catch (_: Exception) { listOf("prod_a1b2c3") }
+    private val journeyEngine = JourneyEngine(SpecJourney.JSON, journeyAdapter)
 
     /**
-     * Simulates a force-quit (swipe-up from recents) on the ProductDetail screen.
-        * Requests a host-side recents swipe-dismiss so Android classifies exit as
-        * user-requested app removal (rather than an in-process self-termination).
-     * The Sankey shows ProductDetail → (dropout) since no subsequent screens are reached.
+     * Simulates a force-quit (swipe-up from recents) on the ProductDetail screen. The
+     * engine decided to inject it and logged force_quit_injected; this persists the
+     * restart intent and stops the sim so the host watchdog can recents swipe-dismiss
+     * (Android then classifies the exit as user-requested app removal rather than an
+     * in-process self-termination). The Sankey shows ProductDetail → (dropout).
      */
-    private fun maybeInjectForceQuit(): Boolean {
-        if (!forceQuitEnabled) return false
-
-        eligibleForceQuitJourneysSinceInject += 1
-        val randomHit = Math.random() < FORCE_QUIT_PROBABILITY
-        val forcedHit = isInfiniteMode && eligibleForceQuitJourneysSinceInject >= FORCE_QUIT_FORCE_AFTER_JOURNEYS
-        if (!randomHit && !forcedHit) return false
-        eligibleForceQuitJourneysSinceInject = 0
-
-        val context = ShoppingDemoApp.appContext
-        val prefs = context.getSharedPreferences(FORCE_QUIT_PREFS_NAME, Context.MODE_PRIVATE)
+    private fun performForceQuit() {
+        val prefs = ShoppingDemoApp.appContext.getSharedPreferences(FORCE_QUIT_PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit()
             .putBoolean(KEY_RESTART_PENDING, true)
             .putBoolean(KEY_RESUME_INFINITE, isInfiniteMode)
             .putString(KEY_RESTART_VARIANT, activeVariant.name)
             .commit()
-
-        ScreenLogger.logError(
-            "force_quit_injected",
-            mapOf(
-                "force_quit_enabled" to "true",
-                "force_quit_screen" to FORCE_QUIT_TARGET_SCREEN,
-                "variant" to activeVariant.label,
-                "trigger_mode" to if (forcedHit) "forced_infinite" else "random"
-            )
-        )
-
         // Stop scheduling new journeys and let the watchdog perform a recents dismiss.
         isCancelled = true
-
-        return true
     }
 
     /**
-     * Simulates an ANR on the CheckoutGuest screen — as if a synchronous
-     * post-checkout validation call blocks the main thread.  Called after
-     * nav() + API complete so the screen is rendered and focused; Android's
-     * input dispatcher will detect the blocked thread and show the ANR dialog.
-     * The Sankey shows CheckoutGuest → (dropout) since Payment is never reached.
+     * Simulates an ANR on the CheckoutGuest screen — as if a synchronous post-checkout
+     * validation call blocks the main thread. The engine calls this after the screen
+     * rendered and the checkout API returned, so Android's input dispatcher detects the
+     * blocked thread and shows the ANR dialog. The Sankey shows CheckoutGuest → (dropout).
      */
-    private fun maybeInjectGuestAnr(isGuest: Boolean): Boolean {
-        if (!anrAEnabled || activeVariant != SimVariant.VARIANT_A || !isGuest) {
-            return false
-        }
-
-        eligibleAnrGuestJourneysSinceInject += 1
-        val randomHit = Math.random() < ANR_PROBABILITY
-        val forcedHit = isInfiniteMode && eligibleAnrGuestJourneysSinceInject >= ANR_FORCE_AFTER_ELIGIBLE_GUEST_JOURNEYS
-        if (!randomHit && !forcedHit) {
-            return false
-        }
-        eligibleAnrGuestJourneysSinceInject = 0
-
-        val context = ShoppingDemoApp.appContext
-        val prefs = context.getSharedPreferences(ANR_PREFS_NAME, Context.MODE_PRIVATE)
+    private fun performGuestAnr() {
+        val prefs = ShoppingDemoApp.appContext.getSharedPreferences(ANR_PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit()
             .putBoolean(KEY_RESTART_PENDING, true)
             .putBoolean(KEY_RESUME_INFINITE, isInfiniteMode)
             .putString(KEY_RESTART_VARIANT, activeVariant.name)
             .commit()
-
-        ScreenLogger.logError(
-            "guest_anr_injected",
-            mapOf(
-                "anr_a_enabled" to "true",
-                "journey_type" to "guest",
-                "anr_screen_name" to ANR_TARGET_SCREEN_NAME,
-                "variant" to activeVariant.label,
-                "trigger_mode" to if (forcedHit) "forced_infinite" else "random"
-            )
-        )
-
-        // Block the main thread so Android classifies this as a real ANR.
-        // Simulates a synchronous guest-session validation call that hangs.
-        // The external watchdog script detects the ANR dialog, force-stops,
-        // and relaunches the app.
+        // The external watchdog script detects the ANR dialog, force-stops, and relaunches.
         Thread.sleep(ANR_BLOCK_DURATION_MS)
-
         while (true) {
             Thread.sleep(ANR_HARD_FREEZE_SLEEP_MS)
         }
@@ -526,6 +566,10 @@ class SimulationManager : ViewModel() {
         if (crashKind.startsWith("oom_")) OOM_CRASH_RESTART_DELAY_MS else CRASH_RESTART_DELAY_MS
 
     private fun pickNextCrashCombo(prefs: android.content.SharedPreferences): Triple<String, () -> Unit, Boolean> {
+        // Test harness (`crash=<name>` launch argument): that crash, in the foreground, not the sweep.
+        AutorunConfig.crash?.let { wanted ->
+            Crashes.all.firstOrNull { it.first == wanted }?.let { return Triple(it.first, it.second, false) }
+        }
         val crashes = if (prefs.getBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false)) Crashes.oomOnly else Crashes.all
         val totalCombos = crashes.size * 2
         val comboIdx = prefs.getInt(ShoppingDemoApp.KEY_NEXT_COMBO_INDEX, 0) % totalCombos
@@ -563,19 +607,27 @@ class SimulationManager : ViewModel() {
     }
 
     /**
-     * If crash loop is enabled, picks the next crash combo, logs it, pre-schedules an
+     * Fires the next crash-loop crash at the journey point the engine chose (spec OPEN-3:
+     * crash_journey_point is already set): picks the next combo, logs it, pre-schedules an
      * AlarmManager restart (survives native signals), then dispatches the crash.
-     * Called once per completed shopping journey from runSingleJourney().
      */
-    private fun maybeFireCrash(nc: NavController) {
+    private fun fireCrashNow(nc: NavController) {
+        android.util.Log.d("SimNav", "fireCrashNow: crashLoopEnabled=$crashLoopEnabled")
         if (!crashLoopEnabled) return
         val ctx = ShoppingDemoApp.appContext
         val prefs = ctx.getSharedPreferences(ShoppingDemoApp.PREFS, Context.MODE_PRIVATE)
         val (name, fn, fireInBackground) = pickNextCrashCombo(prefs)
         val crashContext = if (fireInBackground) "background" else "foreground"
-        Logger.addField("crash_kind", name)
-        Logger.addField("crash_context", crashContext)
-        Logger.logWarning { "about_to_crash: $name (context=$crashContext)" }
+        android.util.Log.d("SimNav", "firing crash $name ($crashContext), realistic=${Crashes.precursors.containsKey(name)}")
+        val precursor = Crashes.precursors[name]
+        if (precursor != null) {
+            // Realistic crash: no announcement and no crash_kind fields, just the lead-up a real app would log.
+            precursor()
+        } else {
+            RecordingLogger.addField(SpecFields.CRASH_KIND, name)
+            RecordingLogger.addField(SpecFields.CRASH_CONTEXT, crashContext)
+            RecordingLogger.logWarning { "about_to_crash: $name (context=$crashContext)" }
+        }
         // Pre-schedule the restart BEFORE the crash — AlarmManager survives even
         // SIGSEGV/SIGBUS where the JVM uncaught-exception handler cannot run.
         ShoppingDemoApp.scheduleRestart(ctx, restartDelayFor(name))
@@ -602,10 +654,10 @@ class SimulationManager : ViewModel() {
         val (name, fn, fireInBackground) = pickNextCrashCombo(prefs)
         val crashContext = if (fireInBackground) "background" else "foreground"
         fastCrashStatus = FastCrashStatus(name, crashContext, prefs.getBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false))
-        Logger.startNewSession()
-        Logger.addField("crash_kind", name)
-        Logger.addField("crash_context", crashContext)
-        Logger.logWarning { "about_to_crash (fast): $name (context=$crashContext)" }
+        RecordingLogger.startNewSession()
+        RecordingLogger.addField(SpecFields.CRASH_KIND, name)
+        RecordingLogger.addField(SpecFields.CRASH_CONTEXT, crashContext)
+        RecordingLogger.logWarning { "about_to_crash (fast): $name (context=$crashContext)" }
         ShoppingDemoApp.scheduleRestart(ctx, restartDelayFor(name))
         dispatchCrash(fn, fireInBackground, activity)
     }
@@ -613,492 +665,17 @@ class SimulationManager : ViewModel() {
     // ─── The single journey ──────────────────────────────────────────────
 
     private suspend fun runSingleJourney(nc: NavController) {
-        // Keep force-quit runs in the startup session so workflows that begin with
-        // SDK configuration and end with app termination can match in a single session.
-        if (!forceQuitEnabled) {
-            Logger.startNewSession()
-            ScreenLogger.logInfo(
-                "journey_started",
-                mapOf("run" to currentRun.toString(), "variant" to activeVariant.label)
-            )
-            // Give the SDK time to fully initialise the new session before recording exposures
-            delay(200L)
-            // Re-apply flag exposures after startNewSession() — exposure is per-session,
-            // so it must be recorded again on the new session for the dashboard to detect it.
-            setVariant(activeVariant)
-            // Small settle time so the exposure is fully registered before the first journey log
-            delay(200L)
+        navController = nc
+        val toggles = buildSet {
+            if (crashLoopEnabled) add("crash_loop")
+            if (anrAEnabled) add("anr")
+            if (forceQuitEnabled) add("force_quit")
         }
-
-        // Rotate through the fixed entity list so each journey appears as a different user
-        // in the bitdrift Entities view. currentRun is 1-indexed, so subtract 1 before mod.
-        val entity = DEMO_ENTITIES[(currentRun - 1) % DEMO_ENTITIES.size]
-        // bitdrift SDK: setEntityId() associates all subsequent logs with this user identity.
-        // POC: ad-hoc debugging — search any entity in the dashboard to retrieve all their sessions on demand
-        Logger.setEntityId(entity)
-
-        // bitdrift SDK: startSpan() opens a root span for the journey. All logs are
-        // correlated via _span_id; child spans form a two-level hierarchy in the timeline.
-        // POC: spans waterfall visualization in Timeline; query _duration_ms for p50/p95 of any flow
-        val journeySpan = Logger.startSpan(
-            name = "journey",
-            level = LogLevel.INFO,
-            fields = mapOf("variant" to activeVariant.label, "entity" to entity),
-        )
-        // Tracks the discovery phase: Welcome → Browse/Search/Categories → ProductDetail → Cart.
-        // Ends with SUCCESS when the first item is added to cart.
-        val discoverySpan = Logger.startSpan(
-            name = "product_discovery",
-            level = LogLevel.INFO,
-            fields = mapOf("variant" to activeVariant.label),
-            parentSpanId = journeySpan?.id,
-        )
-
-        // ── Step 1: Welcome ──────────────────────────────────────────────
-        nc.navigate(Screen.Welcome.route) { popUpTo(Screen.Welcome.route) { inclusive = true } }
-        try { ApiClient.getWelcome() } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-        delay(stepDelay)
-
-        // ── Step 2: Discovery — randomly pick Browse, Search, or Categories
-        var productIds: List<String>
-        var source: String
-        // Discovery is variant-biased but still random:
-        //   A (digital native)  — 45% Search, 40% Browse, 15% Categories (knows what they want)
-        //   B (deliberate)      — 50% Categories, 25% Browse, 25% Search (systematic exploration)
-        //   Control             — equal 33 / 33 / 33
-        val discoveryRoll = Math.random()
-        val discoveryChoice = when (activeVariant) {
-            SimVariant.VARIANT_A -> if (discoveryRoll < 0.40) 0 else if (discoveryRoll < 0.85) 1 else 2
-            SimVariant.VARIANT_B -> if (discoveryRoll < 0.25) 0 else if (discoveryRoll < 0.50) 1 else 2
-            SimVariant.CONTROL   -> (0..2).random()
-        }
-        // bitdrift SDK: isolates the discovery-method fetch (whichever of
-        // browse/search/categories this run rolled) as its own sub-phase of
-        // product_discovery, rather than lumping it in with the ProductDetail and
-        // Reviews steps that follow.
-        // POC: event tracking — sub-phase waterfall within an existing span. Demo-only
-        // caveat: the branch is a randomized per-variant roll, so this reflects
-        // whichever endpoint got hit that run, not one stable operation.
-        val discovered = CaptureBridge.trackSpanSuspend(
-            "discovery_fetch", parentSpanId = discoverySpan?.id
-        ) {
-            when (discoveryChoice) {
-                0 -> {
-                    // Browse
-                    nav(nc, Screen.Browse.route)
-                    fetchBrowseIds() to "browse"
-                }
-                1 -> {
-                    // Search
-                    nav(nc, Screen.Search.route)
-                    fetchSearchIds() to "search"
-                }
-                else -> {
-                    // Categories → CategoryBrowse
-                    nav(nc, Screen.Categories.route)
-                    val cats = fetchCategoryNames()
-                    val cat = cats.random()
-                    nav(nc, Screen.CategoryBrowse(cat).route)
-                    fetchCategoryProductIds(cat) to "categories"
-                }
-            }
-        }
-        productIds = discovered.first
-        source = discovered.second
-
-        // ── Maybe visit Featured — A skips it (15%), B always browses (75%)
-        val featuredProb = when (activeVariant) {
-            SimVariant.CONTROL   -> 0.5
-            SimVariant.VARIANT_A -> 0.15  // decisive, goes straight to product
-            SimVariant.VARIANT_B -> 0.75  // comparison shopper, checks everything
-        }
-        if (Math.random() < featuredProb) {
-            nav(nc, Screen.FeaturedProducts.route)
-            val featIds = fetchFeaturedIds()
-            productIds = featIds
-            source = "featured"
-        }
-
-        val pid = productIds.random()
-
-        // ── Step 3: ProductDetail ────────────────────────────────────────
-        // bitdrift SDK: wraps ProductDetail + the maybe-Reviews visit as one
-        // product_discovery sub-phase. maybeInjectForceQuit() aborts the *whole
-        // journey*, not just this span — a bare `return` inside the lambda would only
-        // exit the lambda, so the abort is signalled out via the return value and the
-        // real return happens after the span has closed normally.
-        // POC: event tracking — sub-phase waterfall within product_discovery.
-        val forceQuitInjected = CaptureBridge.trackSpanSuspend(
-            "product_view", parentSpanId = discoverySpan?.id
-        ) {
-            nav(nc, Screen.ProductDetail(source, pid).route)
-            try { ApiClient.getProduct(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-
-            // Force-quit injection: fires after ProductDetail renders + API completes.
-            // Simulates the user swiping up from recents on an uninteresting product page.
-            if (maybeInjectForceQuit()) {
-                true
-            } else {
-                // ── Maybe visit Reviews — A rarely does (10%), B almost always does (90%)
-                val reviewsProb = when (activeVariant) {
-                    SimVariant.CONTROL   -> 0.5
-                    SimVariant.VARIANT_A -> 0.10  // trusts the product, skips reviews
-                    SimVariant.VARIANT_B -> 0.90  // reads every review before deciding
-                }
-                if (Math.random() < reviewsProb) {
-                    nav(nc, Screen.Reviews(source, pid).route)
-                    try { ApiClient.getReviews(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-                }
-                false
-            }
-        }
-        if (forceQuitInjected) return
-
-        // ── Maybe visit Wishlist — A almost never (5%), B very often (75%)
-        val wishlistProb = when (activeVariant) {
-            SimVariant.CONTROL   -> 0.4
-            SimVariant.VARIANT_A -> 0.05  // immediate buyer, doesn't save for later
-            SimVariant.VARIANT_B -> 0.75  // saves many items before committing
-        }
-        if (Math.random() < wishlistProb) {
-            // bitdrift SDK: only opens when the roll actually adds to wishlist, so it
-            // doesn't inflate the discovery-phase span count on runs that skip it.
-            // POC: event tracking — sub-phase waterfall within product_discovery.
-            CaptureBridge.trackSpanSuspend("wishlist_add", parentSpanId = discoverySpan?.id) {
-                nav(nc, Screen.Wishlist(pid).route)
-                try { ApiClient.addToWishlist(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-            }
-        }
-
-        // ── Step 4: Cart — add items; A adds just 1, B loads up with 3-5
-        val cartItems = mutableListOf(pid)
-        nav(nc, Screen.Cart(pid).route)
-        try { ApiClient.addToCart(pid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-        // Discovery phase complete — first item is in the cart.
-        discoverySpan?.end(SpanResult.SUCCESS, mapOf("source" to source, "product_id" to pid))
-
-        // bitdrift SDK: wraps the whole cart-assembly block — extra items, view,
-        // maybe-remove, maybe-empty-and-rebuild, maybe-flip, final view — as one
-        // sibling span alongside product_discovery and checkout, parented on the
-        // journey span. Previously this ran inside no span at all.
-        // POC: event tracking — multi-step cart operations as one measurable
-        // sub-phase. Demo-only caveat: the branch counts are variant-driven random
-        // walks and the interspersed delay(stepDelay) calls are artificial demo
-        // pacing, so raw duration mixes both with real API time.
-        CaptureBridge.trackSpanSuspend("cart_assembly", parentSpanId = journeySpan?.id) {
-        val extraCount = when (activeVariant) {
-            SimVariant.CONTROL   -> (1..3).random()   // 1-3 extra
-            SimVariant.VARIANT_A -> (0..1).random()   // usually 1 item, occasionally grabs a second
-            SimVariant.VARIANT_B -> (2..4).random()   // loads up the cart
-        }
-        for (i in 0 until extraCount) {
-            val extraPid = productIds.random()
-            cartItems.add(extraPid)
-            try { ApiClient.addToCart(extraPid, quantity = (1..3).random()) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-            delay(stepDelay)
-        }
-
-        // View the cart
-        try { ApiClient.getCart() } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-        delay(stepDelay)
-
-        // Maybe remove an item — A almost never (10%), B almost always (90%)
-        val removeProb = when (activeVariant) {
-            SimVariant.CONTROL   -> 0.6
-            SimVariant.VARIANT_A -> 0.10  // keeps what they add
-            SimVariant.VARIANT_B -> 0.90  // constant second-guessing
-        }
-        if (Math.random() < removeProb && cartItems.size > 1) {
-            val removeIdx = cartItems.indices.random()
-            val removePid = cartItems.removeAt(removeIdx)
-            try { ApiClient.deleteCartItem(removePid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-            delay(stepDelay)
-        }
-
-        // Maybe empty cart and re-add — A almost never (5%), B very often (60%)
-        val emptyCartProb = when (activeVariant) {
-            SimVariant.CONTROL   -> 0.2
-            SimVariant.VARIANT_A -> 0.05  // commits to their choice
-            SimVariant.VARIANT_B -> 0.60  // starts over frequently
-        }
-        if (Math.random() < emptyCartProb) {
-            for (item in cartItems.toList()) {
-                try { ApiClient.deleteCartItem(item) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-                delay(stepDelay)
-            }
-            cartItems.clear()
-            // Re-add one product so checkout works
-            val rePid = productIds.random()
-            cartItems.add(rePid)
-            try { ApiClient.addToCart(rePid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-            delay(stepDelay)
-        }
-
-        // Maybe remove and re-add same item — A almost never (5%), B very often (70%)
-        val flipProb = when (activeVariant) {
-            SimVariant.CONTROL   -> 0.3
-            SimVariant.VARIANT_A -> 0.05  // no quantity dithering
-            SimVariant.VARIANT_B -> 0.70  // changes quantity repeatedly
-        }
-        if (Math.random() < flipProb && cartItems.isNotEmpty()) {
-            val flippedPid = cartItems.random()
-            try { ApiClient.deleteCartItem(flippedPid) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-            delay(stepDelay)
-            try { ApiClient.addToCart(flippedPid, quantity = (1..5).random()) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-            delay(stepDelay)
-        }
-
-        // View cart one more time before checkout
-        try { ApiClient.getCart() } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-        delay(stepDelay)
-        }
-
-        // ── Cart abandonment — A (impulsive): 15%, Control: 5%, B (deliberate): 0%
-        val cartAbandonProb = when (activeVariant) {
-            SimVariant.CONTROL   -> 0.05
-            SimVariant.VARIANT_A -> 0.15
-            SimVariant.VARIANT_B -> 0.0
-        }
-        if (Math.random() < cartAbandonProb) {
-            ScreenLogger.logInfo(
-                "cart_abandoned",
-                mapOf(
-                    "items_in_cart" to cartItems.size.toString(),
-                    "variant" to activeVariant.label
-                )
-            )
-            android.util.Log.d("SimNav", "✗ cart_abandoned, items=${cartItems.size}, variant=${activeVariant.label}")
-            delay(200L)
-            journeySpan?.end(SpanResult.CANCELED, mapOf("reason" to "cart_abandoned"))
-            return
-        }
-
-        val checkoutPid = cartItems.lastOrNull() ?: pid
-
-        // ── Step 5: Checkout — A almost always guest (95%), B almost always signin (95%)
-        val guestProb = when (activeVariant) {
-            SimVariant.CONTROL   -> 0.5    // 50/50 baseline
-            SimVariant.VARIANT_A -> 0.95   // never bothers with an account
-            SimVariant.VARIANT_B -> 0.05   // always signs in for loyalty points
-        }
-        // Keep ANR-A behavior deterministic across environments: when ANR-A is enabled
-        // and Variant A is selected, always take the guest checkout branch.
-        val isGuest = if (anrAEnabled && activeVariant == SimVariant.VARIANT_A) {
-            true
-        } else {
-            Math.random() < guestProb
-        }
-        // Checkout span: child of the journey span, covers Checkout → Payment → Confirmation.
-        // parentSpanId links it to the root journey span so both appear together in the timeline.
-        val checkoutSpan = Logger.startSpan(
-            name = "checkout",
-            level = LogLevel.INFO,
-            fields = mapOf("checkout_type" to if (isGuest) "guest" else "signin"),
-            parentSpanId = journeySpan?.id,
-        )
-        val session: String
-        if (isGuest) {
-            nav(nc, Screen.CheckoutGuest(checkoutPid).route)
-            session = try { ApiClient.checkoutGuest().optString("checkout_session", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
-            // ANR injection: fires after the checkout API call completes, which
-            // gives Compose time to render the screen and establish window focus.
-            // The Sankey shows CheckoutGuest → (dropout) since Payment is never reached.
-            if (maybeInjectGuestAnr(isGuest)) return
-        } else {
-            nav(nc, Screen.CheckoutSignIn(checkoutPid).route)
-            session = try { ApiClient.checkoutSignIn().optString("checkout_session", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
-        }
-
-        // ── Checkout dropout — Guest (Variant A): 35%, SignIn (Variant B): 5%, Control: 0%
-        val checkoutDropoutProb = when (activeVariant) {
-            SimVariant.CONTROL   -> 0.0
-            SimVariant.VARIANT_A -> 0.35
-            SimVariant.VARIANT_B -> 0.05
-        }
-        if (Math.random() < checkoutDropoutProb) {
-            val checkoutType = if (isGuest) "guest" else "signin"
-            ScreenLogger.logInfo(
-                "checkout_abandoned",
-                mapOf(
-                    "checkout_type" to checkoutType,
-                    "variant" to activeVariant.label
-                )
-            )
-            android.util.Log.d("SimNav", "✗ checkout_abandoned, type=$checkoutType, variant=${activeVariant.label}")
-            delay(200L)
-            checkoutSpan?.end(SpanResult.CANCELED, mapOf("reason" to "checkout_abandoned"))
-            journeySpan?.end(SpanResult.CANCELED, mapOf("reason" to "checkout_abandoned"))
-            return
-        }
-
-        // ── Step 6: Payment — A uses digital (Apple Pay / PayPal / Android Pay), B uses card only
-        // 0=card, 1=apple_pay, 2=paypal, 3=android_pay
-        val paymentChoice = when (activeVariant) {
-            SimVariant.CONTROL -> (0..3).random()   // equal 25/25/25/25
-            SimVariant.VARIANT_A -> {               // 5% card, 40% Apple Pay, 35% PayPal, 20% Android Pay
-                val r = Math.random()
-                if (r < 0.05) 0 else if (r < 0.45) 1 else if (r < 0.80) 2 else 3
-            }
-            SimVariant.VARIANT_B -> {               // 95% card, 3% Apple Pay, 2% PayPal, 0% Android Pay
-                val r = Math.random()
-                if (r < 0.95) 0 else if (r < 0.98) 1 else 2
-            }
-        }
-        val paymentMethod = when (paymentChoice) {
-            0 -> "card"
-            1 -> "apple_pay"
-            2 -> "paypal"
-            else -> "android_pay"
-        }
-
-        // ── Payment failure simulation ────────────────────────────────────
-        // Android Pay has its own elevated failure rates; other methods use variant-level rates.
-        // Control: 15% (30% for Android Pay), Guest (A): 35% (20% for Android Pay), SignIn (B): 5% (never uses Android Pay)
-        val failureProb = if (paymentMethod == "android_pay") {
-            when (activeVariant) {
-                SimVariant.CONTROL   -> 0.30
-                SimVariant.VARIANT_A -> 0.20
-                SimVariant.VARIANT_B -> 0.0   // never reaches here — signin doesn't use Android Pay
-            }
-        } else {
-            when (activeVariant) {
-                SimVariant.CONTROL   -> 0.15
-                SimVariant.VARIANT_A -> 0.35
-                SimVariant.VARIANT_B -> 0.05
-            }
-        }
-        val willPaymentFail = Math.random() < failureProb
-
-        // bitdrift SDK: the actual payment-processing sub-phase of checkout —
-        // previously bundled into `checkout`'s own duration along with checkout-entry
-        // and confirmation. `retried` distinguishes this first attempt from the retry
-        // below on the span itself; note the bd-shop-22 charts aggregate both
-        // regardless, the field is for ad-hoc filtering.
-        // POC: event tracking — sub-phase waterfall within checkout.
-        val orderId: String = CaptureBridge.trackSpanSuspend(
-            "checkout.payment", mapOf("retried" to "false"), checkoutSpan?.id
-        ) {
-            when (paymentChoice) {
-                0 -> {
-                    nav(nc, Screen.PaymentCard(session).route)
-                    try { ApiClient.payCard(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
-                }
-                1 -> {
-                    nav(nc, Screen.PaymentApplePay(session).route)
-                    try { ApiClient.payApplePay(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
-                }
-                2 -> {
-                    nav(nc, Screen.PaymentPayPal(session).route)
-                    try { ApiClient.payPayPal(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
-                }
-                else -> {
-                    nav(nc, Screen.PaymentAndroidPay(session).route)
-                    try { ApiClient.payAndroidPay(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }
-                }
-            }
-        }
-
-        if (willPaymentFail) {
-            ScreenLogger.logError(
-                "payment_failed",
-                mapOf(
-                    "payment_method" to paymentMethod,
-                    "checkout_session" to session,
-                    "variant" to activeVariant.label
-                )
-            )
-            android.util.Log.d("SimNav", "✗ payment_failed, method=$paymentMethod, variant=${activeVariant.label}")
-
-            // Navigate to the PaymentFailed screen so it appears in the Sankey
-            nav(nc, Screen.PaymentFailed(paymentMethod, session).route)
-            delay(200L)
-
-            // ── Payment retry: 50% chance to retry with a different method
-            val retryProb = 0.50
-            if (Math.random() < retryProb) {
-                // Pick a different payment method for retry
-                val retryMethods = listOf(0, 1, 2, 3).filter { it != paymentChoice }
-                val retryChoice = retryMethods.random()
-                // Retry gets its own checkout.payment span instance, tagged
-                // retried=true, so a retried attempt's latency isn't silently merged
-                // into the first attempt's.
-                val retried = CaptureBridge.trackSpanSuspend(
-                    "checkout.payment", mapOf("retried" to "true"), checkoutSpan?.id
-                ) {
-                    when (retryChoice) {
-                        0 -> {
-                            nav(nc, Screen.PaymentCard(session).route)
-                            (try { ApiClient.payCard(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }) to "card"
-                        }
-                        1 -> {
-                            nav(nc, Screen.PaymentApplePay(session).route)
-                            (try { ApiClient.payApplePay(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }) to "apple_pay"
-                        }
-                        2 -> {
-                            nav(nc, Screen.PaymentPayPal(session).route)
-                            (try { ApiClient.payPayPal(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }) to "paypal"
-                        }
-                        else -> {
-                            nav(nc, Screen.PaymentAndroidPay(session).route)
-                            (try { ApiClient.payAndroidPay(session).optString("order_id", "") } catch (ce: CancellationException) { throw ce } catch (_: Exception) { "" }) to "android_pay"
-                        }
-                    }
-                }
-                val retryOrderId: String = retried.first
-                val retryMethod: String = retried.second
-                ScreenLogger.logInfo(
-                    "payment_retry",
-                    mapOf(
-                        "original_method" to paymentMethod,
-                        "retry_method" to retryMethod,
-                        "variant" to activeVariant.label
-                    )
-                )
-                android.util.Log.d("SimNav", "↻ payment_retry, $paymentMethod → $retryMethod")
-
-                // Retry succeeds — proceed to confirmation with retried order ID
-                setVariant(activeVariant)
-                delay(100L)
-                nav(nc, Screen.Confirmation(retryOrderId).route)
-                Logger.logInfo(
-                    mapOf("_screen_name" to "Confirmation", "payment_retried" to "true", "retry_method" to retryMethod)
-                ) { "confirmation_reached" }
-                // bitdrift SDK: closes the checkout waterfall (entry -> payment ->
-                // confirmation) as its own sub-phase.
-                CaptureBridge.trackSpanSuspend("checkout.confirmation", parentSpanId = checkoutSpan?.id) {
-                    try { ApiClient.getConfirmation(retryOrderId) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-                }
-                delay(200L)
-                checkoutSpan?.end(SpanResult.SUCCESS, mapOf("payment_method" to retryMethod, "retried" to "true"))
-                journeySpan?.end(SpanResult.SUCCESS)
-                maybeFireCrash(nc)
-            return
-        }
-
-        // ── Step 7: Confirmation ─────────────────────────────────────────
-        android.util.Log.d("SimNav", "★ REACHED Confirmation step, orderId=$orderId, variant=${activeVariant.label}")
-        // Re-assert flag exposure right before Confirmation to guarantee it's on this session
-        setVariant(activeVariant)
-        delay(100L)
-        nav(nc, Screen.Confirmation(orderId).route)
-        // Emit an explicit tagged log so we can verify fields in the raw stream
-        Logger.logInfo(
-            mapOf("_screen_name" to "Confirmation", "checkout_flow" to when (activeVariant) {
-                SimVariant.CONTROL -> "random"; SimVariant.VARIANT_A -> "guest"; SimVariant.VARIANT_B -> "signin"
-            })
-        ) { "confirmation_reached" }
-        // bitdrift SDK: closes the checkout waterfall — see the retry path above.
-        CaptureBridge.trackSpanSuspend("checkout.confirmation", parentSpanId = checkoutSpan?.id) {
-            try { ApiClient.getConfirmation(orderId) } catch (ce: CancellationException) { throw ce } catch (_: Exception) {}
-        }
-        // Extra settle time so Compose's DisposableEffect fires logScreenView("Confirmation")
-        // before the next journey's startNewSession() clears session-level flag state.
-        delay(200L)
-        android.util.Log.d("SimNav", "★ Confirmation DONE, variant=${activeVariant.label}")
-        checkoutSpan?.end(SpanResult.SUCCESS, mapOf("payment_method" to paymentMethod))
-        journeySpan?.end(SpanResult.SUCCESS)
-        maybeFireCrash(nc)
-    }
+        // journey_id is a global field for the whole journey: every log, span, network request and
+        // (if it comes to that) crash report inside it carries the id.
+        RecordingLogger.addField(SpecFields.JOURNEY_ID, "j" + java.util.UUID.randomUUID().toString().take(8))
+        val outcome = journeyEngine.run(activeVariant.id, currentRun, simSeed, toggles, isInfiniteMode)
+        android.util.Log.d("SimNav", "journey $currentRun (${activeVariant.label}, seed=$simSeed): $outcome")
     }
 
     companion object {
@@ -1126,25 +703,14 @@ class SimulationManager : ViewModel() {
         private const val BACKGROUND_SETTLE_MS = 2000L
         const val KEY_RESTART_VARIANT = "restart_variant"
 
-        val DEMO_ENTITIES = listOf(
-            "Groucho", "Harpo", "Chico", "Gummo", "Zeppo",
-            "Moe", "Larry", "Curly", "Abbott", "Costello"
-        )
-
         const val ANR_PREFS_NAME = "anr_a"
         const val KEY_ANR_A_ACTIVE = "active"
         const val KEY_RESTART_PENDING = "restart_pending"
         const val KEY_RESUME_INFINITE = "resume_infinite"
-        private const val ANR_TARGET_SCREEN_NAME = "CheckoutGuest"
-        private const val ANR_PROBABILITY = 0.25
-        private const val ANR_FORCE_AFTER_ELIGIBLE_GUEST_JOURNEYS = 6
         private const val ANR_BLOCK_DURATION_MS = 15000L
         private const val ANR_HARD_FREEZE_SLEEP_MS = 60000L
 
         const val FORCE_QUIT_PREFS_NAME = "force_quit"
         const val KEY_FORCE_QUIT_ACTIVE = "active"
-        private const val FORCE_QUIT_TARGET_SCREEN = "ProductDetail"
-        private const val FORCE_QUIT_PROBABILITY = 0.60
-        private const val FORCE_QUIT_FORCE_AFTER_JOURNEYS = 3
     }
 }

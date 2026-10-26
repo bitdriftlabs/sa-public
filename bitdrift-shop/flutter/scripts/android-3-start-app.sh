@@ -61,6 +61,8 @@ fi
 DART_DEFINES=()
 [[ -n "${BITDRIFT_API_HOST:-}" ]] && DART_DEFINES+=(--dart-define="BITDRIFT_API_HOST=$BITDRIFT_API_HOST")
 [[ -n "${BACKEND_PORT:-}" ]] && DART_DEFINES+=(--dart-define="BACKEND_PORT=$BACKEND_PORT")
+# Test harness (test.sh sets this): enable the autorun/record hook in non-debug builds too.
+[[ -n "${BDSHOP_HARNESS:-}" ]] && DART_DEFINES+=(--dart-define="BDSHOP_HARNESS=true")
 
 # 5. Build the release APK with the compile-time defines.
 #    GRADLE_OPTS silences the JDK's "restricted method" warning that Gradle's

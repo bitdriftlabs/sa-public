@@ -36,6 +36,8 @@ import {SimulationOverlay} from './src/components';
 import {Colors} from './src/utils/colors';
 import {ScreenLogger} from './src/utils/logger';
 import {startLifecycleLogging} from './src/utils/appLifecycle';
+import {fetchAutorunConfig, flushRecording, startRecording, type AutorunConfig} from './src/utils/recorder';
+import {SimVariant} from './src/sim/variants';
 import {BITDRIFT_SDK_KEY, BITDRIFT_API_HOST, APP_VARIANT} from './src/config';
 import type {RootStackParamList} from './src/navigation/types';
 
@@ -60,6 +62,7 @@ import {
   ConfirmationScreen,
   AdvancedScreen,
 } from './src/screens';
+import {SpecEvents, SpecFields, SpecSpans} from './src/generated/specConstants';
 
 // Capture wall-clock time at module evaluation for TTI measurement.
 const APP_START_TIME = Date.now();
@@ -93,14 +96,15 @@ const SDK_INIT_DURATION_MS = Date.now() - SDK_INIT_STARTED_AT;
 // These fields are automatically attached to every log, span, and network
 // event so dashboards can slice data by variant or platform. app_variant matches
 // the Android app's value ("sdk-demo") so both platforms slice identically.
-addField('app_variant', APP_VARIANT);
-addField('platform', Platform.OS);
+addField(SpecFields.appVariant, APP_VARIANT);
+addField(SpecFields.platform, Platform.OS);
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const AppNavigator: React.FC = () => {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
-  const {setNavigationRef} = useSimulation();
+  const {setNavigationRef, isSimulating, startSimulation, setVariant} = useSimulation();
+  const autorun = useRef<{cfg: AutorunConfig; sawRunning: boolean} | null>(null);
 
   useEffect(() => {
     if (navigationRef.current) {
@@ -108,14 +112,61 @@ const AppNavigator: React.FC = () => {
     }
   }, [setNavigationRef]);
 
+  // Test harness (debug builds): if the local collector (tools/conformance/collector.py, started by
+  // test.sh) answers /config, run that many journeys as the requested persona and record the
+  // telemetry back to it. With no collector the request fails fast and nothing changes.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const cfg = await fetchAutorunConfig();
+      if (!cfg || cancelled) {
+        return;
+      }
+      startRecording();
+      autorun.current = {cfg, sawRunning: false};
+      setVariant(
+        cfg.persona === 'variant_a'
+          ? SimVariant.VariantA
+          : cfg.persona === 'variant_b'
+          ? SimVariant.VariantB
+          : SimVariant.Control,
+      );
+      await new Promise(resolve => setTimeout(resolve, 500)); // let navigation settle
+      startSimulation(cfg.runs, cfg.seed & 0x7fffffff);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Exit marker: the autorun is over once the simulation it started stops.
+  useEffect(() => {
+    const a = autorun.current;
+    if (!a) {
+      return;
+    }
+    if (isSimulating) {
+      a.sawRunning = true;
+    } else if (a.sawRunning) {
+      autorun.current = null;
+      ScreenLogger.logInfo(SpecEvents.simAutorunComplete, {
+        [SpecFields.totalRuns]: String(a.cfg.runs),
+        [SpecFields.simSeed]: String(a.cfg.seed & 0x7fffffff),
+        [SpecFields.persona]: a.cfg.persona,
+      });
+      void flushRecording();
+    }
+  }, [isSimulating]);
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       <NavigationContainer ref={navigationRef}>
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
-            contentStyle: {backgroundColor: Colors.background},
+            contentStyle: {backgroundColor: Colors.screen},
             animation: 'slide_from_right',
           }}>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />
@@ -160,15 +211,15 @@ const App: React.FC = () => {
     // emit `app_cold_start.sdk_init`, and the cold-start workflows filter on that full
     // name. (Native also emits `.scene_render` and `.state_restore` children, which have
     // no RN equivalent — see README § Platform parity notes.)
-    const coldStartId = ScreenLogger.logCompletedSpan('app_cold_start', ttiMs);
+    const coldStartId = ScreenLogger.logCompletedSpan(SpecSpans.appColdStart, ttiMs);
     ScreenLogger.logCompletedSpan(
-      'app_cold_start.sdk_init',
+      SpecSpans.appColdStartSdkInit,
       SDK_INIT_DURATION_MS,
       undefined,
       coldStartId,
     );
 
-    ScreenLogger.logInfo('app_launched');
+    ScreenLogger.logInfo(SpecEvents.appLaunched);
     // Foreground/background lifecycle events (app_open / app_close).
     startLifecycleLogging();
   }, []);

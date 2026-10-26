@@ -1,5 +1,6 @@
 import {AppState, type AppStateStatus} from 'react-native';
 import {ScreenLogger} from './logger';
+import {SpecEvents, SpecFields} from '../generated/specConstants';
 
 // Foreground/background lifecycle events, mirroring the Android app's
 // AppLifecycleCallbacks (app_open / app_close). React Native's AppState is the
@@ -15,7 +16,7 @@ import {ScreenLogger} from './logger';
 //            (AppStateEvent = 'change' | 'memoryWarning' | 'blur' | 'focus'). Reaching parity
 //            with the iOS app is one listener:
 //              AppState.addEventListener('memoryWarning', () =>
-//                ScreenLogger.logWarning('memory_pressure', {level: 'didReceiveMemoryWarning'}));
+//                ScreenLogger.logWarning(SpecEvents.memoryPressure, {[SpecFields.level]: 'didReceiveMemoryWarning'}));
 //
 //   Android — STILL UNWIRED; needs a native module. AppStateModule.kt emits only
 //            `appStateDidChange` and
@@ -34,15 +35,15 @@ export const startLifecycleLogging = (): void => {
   // event, so no native module is needed. Matches the iOS app's single `memory_pressure`
   // warning (BitdriftShopApp.swift). Android never fires this — see the note above.
   AppState.addEventListener('memoryWarning', () => {
-    ScreenLogger.logWarning('memory_pressure', {level: 'didReceiveMemoryWarning'});
+    ScreenLogger.logWarning(SpecEvents.memoryPressure, {[SpecFields.level]: 'didReceiveMemoryWarning'});
   });
 
   AppState.addEventListener('change', (next: AppStateStatus) => {
     const wasBackground = current === 'background' || current === 'inactive';
     if (wasBackground && next === 'active') {
-      ScreenLogger.logInfo('app_open', {trigger: 'appstate_active'});
+      ScreenLogger.logInfo(SpecEvents.appOpen, {[SpecFields.trigger]: 'appstate_active'});
     } else if (current === 'active' && next === 'background') {
-      ScreenLogger.logInfo('app_close', {trigger: 'appstate_background'});
+      ScreenLogger.logInfo(SpecEvents.appClose, {[SpecFields.trigger]: 'appstate_background'});
     }
     current = next;
   });

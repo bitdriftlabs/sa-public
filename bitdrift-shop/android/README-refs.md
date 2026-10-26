@@ -175,12 +175,12 @@ Welcome → Browse/Search/Categories → ProductDetail → (Force Quit)
 
 ### Crash Loop
 
-**What:** 28 typed crashes cycling one per journey, each firing after the Confirmation screen so a complete session is captured first.
+**What:** 28 typed crashes cycling one per journey. Each fires at a journey point the shared journey engine draws at random from the back half (cart, checkout, payment, payment_failed, confirmation; recorded as `crash_journey_point`, with confirmation as the fallback), so crash data shows *where* in the funnel users are lost.
 
 **How it works:**
 
 1. Enabling Crash mode sets `crash_loop.active = true`. The `order_summary` flag switches to `"v2"`.
-2. After Confirmation, `maybeFireCrash()` in `SimulationManager.kt`:
+2. At the journey's crash point, the engine calls the adapter's `fireCrash()`, which runs `fireCrashNow()` in `SimulationManager.kt`:
    - Reads `next_combo_index` from SharedPreferences via `pickNextCrashCombo()` — a single
      index cycling 0 until `crashes.size * 2` (56 for the full catalog, 12 in OOM-only mode —
      see **OOM-Only Mode** below), so every crash type is guaranteed to occur in **both**
@@ -312,11 +312,11 @@ adb shell run-as ai.bitdrift.shop cat /data/data/ai.bitdrift.shop/shared_prefs/c
 ANR-A/Force-Quit) — run it before starting any other demo to catch fault-injection state left
 active from a previous session, since all three flags persist across restarts by design.
 
-**Why foreground vs. background matters:** every crash type can now be observed in either app state, which is what the [`bd-shop-06-crash-foreground.json` / `bd-shop-07-crash-background.json`](workflows/foreground-background-crashes.md) workflows chart. Crash *type* grouping is unaffected — foreground/background is an orthogonal dimension read from `app_metrics.running_state`, not a new set of issue groups. Android has no dedicated `"background"` value for that field (only `foreground`/`foreground_service`/`perceptible`), so the background workflow defines it as "anything that isn't exactly foreground" — see the linked doc for why that's unavoidable, not a workaround.
+**Why foreground vs. background matters:** every crash type can now be observed in either app state, which is what the [`bd-shop-06-crash-foreground.json` / `bd-shop-07-crash-background.json`](../workflows/docs/foreground-background-crashes.md) workflows chart. Crash *type* grouping is unaffected — foreground/background is an orthogonal dimension read from `app_metrics.running_state`, not a new set of issue groups. Android has no dedicated `"background"` value for that field (only `foreground`/`foreground_service`/`perceptible`), so the background workflow defines it as "anything that isn't exactly foreground" — see the linked doc for why that's unavoidable, not a workaround.
 
 Both workflows' BDRL only defines what to *reject* (`abort`) — `IssueMatch` counts whatever
 survives, so "counts background" really means "rejects everything that isn't background."
-See [foreground-background-crashes.md](workflows/foreground-background-crashes.md) for why
+See [foreground-background-crashes.md](../workflows/docs/foreground-background-crashes.md) for why
 that inversion matters when reading the actual scripts.
 
 **Why AlarmManager?** Native signal crashes (SIGSEGV/SIGBUS/SIGABRT/SIGFPE) kill the process instantly — the JVM uncaught-exception handler never runs. The AlarmManager is armed before `fn()`, so even a hard kill still triggers restart.
@@ -376,7 +376,7 @@ rather than just repeating the same allocation pattern with a different name.
   `.thread_details.threads` and stack frames across all errors, and `abort`s for anything it
   can't attribute to a known thread or vendor SDK — and the `rate` action divides the two.
 
-See [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md) for the full
+See [advanced-crash-attribution.md](../workflows/docs/advanced-crash-attribution.md) for the full
 BDRL scripts, the compiler gotchas that shaped them, and the presentation notes for demoing
 these three workflows.
 
@@ -404,14 +404,14 @@ these three workflows.
 **Dashboard:**
 - **Issues**: 23 distinct crash groups accumulating as the loop runs; each tagged with `crash_kind` and `crash_context` (`foreground`/`background` — the app's own intent, independent of the BDRL-observed `app_metrics.running_state`)
 - **Session timeline**: every session ends with `about_to_crash` (Warning) + the crash event; full journey visible
-- **Workflow**: trigger on `APP_CRASH` to upload logs from every crashed session; `bd-shop-06-crash-foreground.json`/`bd-shop-07-crash-background.json` chart the foreground/background split, `bd-shop-08-blocking-thread.json`/`bd-shop-09-vendor-sdk-attribution.json`/`bd-shop-10-attribution-rate.json` chart thread- and vendor-SDK-based attribution — see [advanced-crash-attribution.md](workflows/advanced-crash-attribution.md)
+- **Workflow**: trigger on `APP_CRASH` to upload logs from every crashed session; `bd-shop-06-crash-foreground.json`/`bd-shop-07-crash-background.json` chart the foreground/background split, `bd-shop-08-blocking-thread.json`/`bd-shop-09-vendor-sdk-attribution.json`/`bd-shop-10-attribution-rate.json` chart thread- and vendor-SDK-based attribution — see [advanced-crash-attribution.md](../workflows/docs/advanced-crash-attribution.md)
 
 **Files:**
 
 | File | Role |
 |------|------|
 | `Crashes.kt` | 28 crash types with unique top-level methods, incl. `oomOnly` (6-variant OOM subset) |
-| `SimulationManager.kt` | `pickNextCrashCombo()`/`dispatchCrash()` (shared), `maybeFireCrash()` (journey-based), `fireFastCrash()` (fast mode) |
+| `SimulationManager.kt` | `pickNextCrashCombo()`/`dispatchCrash()` (shared), `fireCrashNow()` (journey-based, called at the engine's crash point), `fireFastCrash()` (fast mode) |
 | `ShoppingDemoApp.kt` | `scheduleRestart()` (AlarmManager), `installCrashLoopHandler()`, `KEY_FAST_MODE`/`KEY_NEXT_COMBO_INDEX`/`KEY_OOM_ONLY` |
 | `MainActivity.kt` | Fast crash mode + OOM-only toggles (startup splash), phase-skip on fast-mode restarts, Welcome-screen resume/fire wiring |
 | `Screens.kt` | Crash toggle (Advanced), "Stop crash loop" button + status chip (Welcome) |
@@ -461,7 +461,7 @@ Log events emitted by this app (match on `message ==`):
 | Source | Events |
 |--------|--------|
 | Lifecycle | `app_launched`, `app_open`, `app_close`, `memory_pressure`, `low_memory` |
-| Lifecycle (SDK-emitted) | `AppStart`, `AppStop` — logged automatically by the Capture SDK itself on every foreground/background transition (`LogType.LIFECYCLE`, default-on), not app code — see [workflows/foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
+| Lifecycle (SDK-emitted) | `AppStart`, `AppStop` — logged automatically by the Capture SDK itself on every foreground/background transition (`LogType.LIFECYCLE`, default-on), not app code — see [../workflows/docs/foreground-session-metrics.md](../workflows/docs/foreground-session-metrics.md) |
 | Product | `add_to_cart`, `add_to_wishlist` |
 | Cart | `cart_item_removed`, `cart_failed` |
 | Checkout | `checkout_started`, `checkout_failed` |
@@ -479,7 +479,7 @@ Query with `name == <span>` and `_span_type == "end"` for `_duration_ms`:
 | `product_discovery` | Welcome → Browse/Search → ProductDetail → first cart add |
 | `checkout` | CheckoutGuest/SignIn → Payment → Confirmation |
 | `score_products` | Recommendation engine scoring (`recommendations_v2` flag only) |
-| `foreground_session` | App's time in the foreground — `onActivityStarted` (0→1) to `onActivityStopped` (1→0) — see [workflows/foreground-session-metrics.md](workflows/foreground-session-metrics.md) |
+| `foreground_session` | App's time in the foreground — `onActivityStarted` (0→1) to `onActivityStopped` (1→0) — see [../workflows/docs/foreground-session-metrics.md](../workflows/docs/foreground-session-metrics.md) |
 
 ## Fields
 
@@ -507,7 +507,8 @@ app/src/main/java/ai/bitdrift/shop/
 ├── Screens.kt                 # All screen composables
 ├── Components.kt              # Reusable UI components (ScreenContainer, SimulationOverlay, etc.)
 ├── MainActivity.kt            # Main activity — NavHost, screen view listener, TTI
-├── SimulationManager.kt       # Probabilistic state machine simulator + crash cycling
+├── JourneyEngine.kt          # Interpreter for spec/journey.yaml (the simulated journey)
+├── SimulationManager.kt       # Run loops, journey adapter (nav/API/SDK), faults + crash cycling
 ├── ApiClient.kt               # OkHttp API client (singleton)
 ├── RecommendationEngine.kt    # Product recommendation scoring engine
 ├── OrderSummaryHelper.kt      # Order summary formatter

@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'app.dart';
 import 'bd/capture.dart';
+import 'bd/recorder.dart';
 import 'config.dart';
 import 'crash.dart';
+import 'generated/spec.dart';
 import 'sim/simulator.dart';
 
 Future<void> main() async {
@@ -17,34 +21,58 @@ Future<void> main() async {
   final initMs = DateTime.now().difference(initStart).inMilliseconds;
 
   // Global fields — attached to every log/span, matching the other demos.
-  await Bd.field('app_variant', Config.appVariant);
-  await Bd.field('platform', Config.platform);
-  await Bd.field('app_version', Config.appVersion);
+  await Bd.field(SpecFields.appVariant, Config.appVariant);
+  await Bd.field(SpecFields.platform, Config.platform);
+  await Bd.field(SpecFields.appVersion, Config.appVersion);
 
   // The alpha SDK has no TTI API; emit it as a completed-span pair (the same
   // signal the other demos emit via paired logs).
-  await Bd.logCompletedSpan('app_cold_start.sdk_init', initMs);
-  await Bd.info('app_launched', fields: {'sdk_started': '$started'});
+  await Bd.logCompletedSpan(SpecSpans.appColdStartSdkInit, initMs);
+  await Bd.info(SpecEvents.appLaunched, fields: {SpecFields.sdkStarted: '$started'});
 
   final navKey = GlobalKey<NavigatorState>();
   final sim = Simulator(navKey);
   runApp(ShopApp(navKey: navKey, sim: sim));
+  unawaited(_autorun(sim));
 
   // App-launch TTI: from process start until the first frame is on screen —
   // measured in a post-frame callback so widget build + first frame are
   // included (like the other demos' TTI).
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    Bd.logCompletedSpan('app_cold_start',
+    Bd.logCompletedSpan(SpecSpans.appColdStart,
         DateTime.now().difference(t0).inMilliseconds,
-        fields: {'sdk_started': '$started'});
+        fields: {SpecFields.sdkStarted: '$started'});
   });
 
-  // Crash loop (like the Android demo's "crash on payment"): when the loop is
-  // active (scripts/crash-loop.sh set the property), run one journey right
-  // after launch; the journey crashes at payment with a random crash shape.
+  // Crash loop (like the Android demo's crash loop): when the loop is active
+  // (scripts/crash-loop.sh set the property), run one journey right after launch;
+  // the journey crashes at its chosen point with a random crash shape.
   // The script relaunches the app — each pass is a fresh journey ending in a
   // fresh random crash in a live session.
   if (await Crash.loopActive()) {
     WidgetsBinding.instance.addPostFrameCallback((_) => sim.start(runs: 1));
   }
+}
+
+/// Test harness (debug builds): if the local collector (tools/conformance/collector.py, started by
+/// test.sh) answers /config, run that many journeys as the requested persona, record the telemetry
+/// back to it, and log `sim_autorun_complete` as the exit marker. With no collector it does nothing.
+Future<void> _autorun(Simulator sim) async {
+  final cfg = await Recorder.fetchConfig();
+  if (cfg == null) return;
+  Recorder.start();
+  sim.setVariant(switch (cfg.persona) {
+    'variant_a' => SimVariant.variantA,
+    'variant_b' => SimVariant.variantB,
+    _ => SimVariant.control,
+  });
+  await Future<void>.delayed(const Duration(seconds: 1)); // let the first frame and navigator settle
+  final seed = cfg.seed & 0x7FFFFFFF;
+  await sim.start(runs: cfg.runs, seed: seed);
+  await Bd.info(SpecEvents.simAutorunComplete, fields: {
+    SpecFields.totalRuns: '${cfg.runs}',
+    SpecFields.simSeed: '$seed',
+    SpecFields.persona: cfg.persona,
+  });
+  await Recorder.flush();
 }

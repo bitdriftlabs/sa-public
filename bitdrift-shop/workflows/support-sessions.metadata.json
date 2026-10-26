@@ -1,0 +1,13 @@
+{
+  "description": "Records customer-support sessions. The app's 'Customer Support' button on the Welcome screen (SupportMode.kt) adds the global field support=true to every log; any log carrying it flushes the session buffer so support can inspect the full timeline of the shopping flow. Created to give support a one-tap way to get a session recorded.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "support-log-count",
+      "title": "Logs with support=true"
+    },
+    {
+      "rule_id": "capture-support-session",
+      "title": "Support session capture"
+    }
+  ]
+}
