@@ -11,6 +11,7 @@ import {
   setFeatureFlagExposure as bdSetFeatureFlagExposure,
 } from '@bitdrift/react-native';
 import {SpecEvents, SpecFields} from '../generated/specConstants';
+import {recordLog, recordScreen} from './recorder';
 
 // Centralised logger that writes to both console (local) and bitdrift (remote).
 // Fields are always Record<string, string> so they serialise cleanly as bitdrift
@@ -54,27 +55,32 @@ export const ScreenLogger = {
   // ── Screen Views ────────────────────────────────────────────────────────────
   logScreenView: (screenName: string) => {
     console.log(`_screen_name: ${screenName}`);
+    recordScreen(screenName);
     bdLogScreenView(screenName);
   },
 
   // ── Custom logs ───────────────────────────────────────────────────────────────
   logTrace: (message: string, fields?: Fields) => {
     console.log(formatConsole('TRACE', message, fields));
+    recordLog('trace', message, fields);
     bdTrace(message, fields);
   },
 
   logDebug: (message: string, fields?: Fields) => {
     console.log(formatConsole('DEBUG', message, fields));
+    recordLog('debug', message, fields);
     bdDebug(message, fields);
   },
 
   logInfo: (message: string, fields?: Fields) => {
     console.log(formatConsole('INFO', message, fields));
+    recordLog('info', message, fields);
     bdInfo(message, fields);
   },
 
   logWarning: (message: string, fields?: Fields) => {
     console.warn(formatConsole('WARNING', message, fields));
+    recordLog('warning', message, fields);
     bdWarn(message, fields);
   },
 
@@ -83,6 +89,7 @@ export const ScreenLogger = {
   // attached in the dashboard (matches Android's logError(..., throwable = e)).
   logError: (message: string, fields?: Fields, err?: unknown) => {
     console.error(formatConsole('ERROR', message, fields));
+    recordLog('error', message, fields);
     const errorObj = err instanceof Error ? err : err != null ? new Error(String(err)) : null;
     bdError(message, errorObj, fields);
   },

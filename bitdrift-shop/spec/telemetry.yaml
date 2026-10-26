@@ -248,13 +248,13 @@ events:
     trigger: sim
     required: [total_runs]
     drift_fields: {flutter: "adds variant (D-EVT-F9)"}
-    source: {android: "A:ScreenLogger.kt:34", ios: "I:ScreenLogger.swift:158", reactnative: "R:src/utils/logger.ts:195", flutter: "F:sim/simulator.dart:144"}
+    source: {android: "A:ScreenLogger.kt:34", ios: "I:ScreenLogger.swift:158", reactnative: "R:src/utils/logger.ts:203", flutter: "F:sim/simulator.dart:144"}
   - name: simulation_end
     level: info
     trigger: sim
     required: [total_runs]
     drift_fields: {flutter: "adds completed_runs (D-EVT-F9)"}
-    source: {android: "A:ScreenLogger.kt:38", ios: "I:ScreenLogger.swift:162", reactnative: "R:src/utils/logger.ts:199", flutter: "F:sim/simulator.dart:170"}
+    source: {android: "A:ScreenLogger.kt:38", ios: "I:ScreenLogger.swift:162", reactnative: "R:src/utils/logger.ts:207", flutter: "F:sim/simulator.dart:170"}
   - name: simulation_cancelled
     level: info
     trigger: sim
@@ -267,8 +267,8 @@ events:
     trigger: harness
     required: [total_runs, sim_seed, persona]
     notes: "Test-harness exit marker: logged once when a launch-argument autorun (sim_runs/sim_seed/persona/record_file) finishes."
-    missing_on: [reactnative, flutter]
-    source: {ios: "I:SimulationManager.swift:251", android: "A:SimulationManager.kt:241"}
+    missing_on: [flutter]
+    source: {reactnative: "R:App.tsx:153", ios: "I:SimulationManager.swift:251", android: "A:SimulationManager.kt:241"}
   - name: ab_simulation_start
     level: info
     trigger: sim
@@ -432,7 +432,7 @@ events:
     level: info
     trigger: startup
     optional: [sdk_started]
-    source: {android: "A:ShoppingDemoApp.kt:52", ios: "I:CaptureBridge.swift:83", reactnative: "R:App.tsx:171", flutter: "F:main.dart:27"}
+    source: {android: "A:ShoppingDemoApp.kt:52", ios: "I:CaptureBridge.swift:83", reactnative: "R:App.tsx:222", flutter: "F:main.dart:27"}
   - name: app_open
     level: info
     trigger: lifecycle
@@ -669,12 +669,12 @@ spans:
   - name: app_cold_start
     parent: null
     optional_fields: [sdk_started]
-    source: {android: "A:CaptureBridge.kt:160", ios: "I:CaptureBridge.swift:273", reactnative: "R:App.tsx:163", flutter: "F:main.dart:37"}
+    source: {android: "A:CaptureBridge.kt:160", ios: "I:CaptureBridge.swift:273", reactnative: "R:App.tsx:206", flutter: "F:main.dart:37"}
     notes: "RN/Flutter emit it as a back-dated paired-log span (logCompletedSpan)."
     used_by: [android/workflows/bd-shop-20-android-cold-start-span-timings.json, ios/workflows/bd-shop-20-ios-cold-start-span-timings.json]
   - name: app_cold_start.sdk_init
     parent: app_cold_start
-    source: {android: "A:CaptureBridge.kt:165", ios: "I:CaptureBridge.swift:284", reactnative: "R:App.tsx:165", flutter: "F:main.dart:26"}
+    source: {android: "A:CaptureBridge.kt:165", ios: "I:CaptureBridge.swift:284", reactnative: "R:App.tsx:211", flutter: "F:main.dart:26"}
     drift_fields: {flutter: "not parented to app_cold_start; emitted before the root"}
     used_by: [android/workflows/bd-shop-20-android-cold-start-span-timings.json, ios/workflows/bd-shop-20-ios-cold-start-span-timings.json]
   - name: app_cold_start.scene_render

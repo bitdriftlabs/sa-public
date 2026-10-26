@@ -118,6 +118,79 @@ smoke_ios() {
   "$PY" "$ROOT/tools/conformance/conformance.py" --platform ios --runs "$SIM_RUNS" "$OUT/ios-$file"
 }
 
+# ── collector-driven apps (RN, Flutter) ──────────────────────────────────────
+# These apps can't take launch arguments without native code, so in debug builds they ask a local
+# collector (tools/conformance/collector.py) for an autorun config and POST their records back.
+ensure_android() {
+  local serial; serial="$(android_serial)"
+  if [[ -z "$serial" ]]; then
+    echo "starting headless emulator ..." >&2
+    (cd "$ROOT/android" && EMULATOR_WINDOW=0 bash scripts/android-2-start-emulator.sh >"$OUT/android-emulator.log" 2>&1) || return 1
+    serial="$(android_serial)"
+  fi
+  [[ -n "$serial" ]] && echo "$serial"
+}
+
+ensure_ios() {
+  local udid; udid="$(ios_udid)"
+  if [[ -z "$udid" ]]; then
+    (cd "$ROOT/ios" && bash scripts/ios-2-start-simulator.sh >"$OUT/ios-sim.log" 2>&1) || return 1
+    udid="$(ios_udid)"
+  fi
+  [[ -n "$udid" ]] && echo "$udid"
+}
+
+COLLECTOR_PID=""
+start_collector() {
+  "$PY" "$ROOT/tools/conformance/collector.py" --out "$1" --runs "$SIM_RUNS" --seed "$SIM_SEED" \
+    --persona "$PERSONA" --timeout "$SMOKE_TIMEOUT" >"$OUT/collector.log" 2>&1 &
+  COLLECTOR_PID=$!
+  sleep 1
+}
+
+# Waits for the collector to finish; if the app never asked for its config (it was already running),
+# `relaunch` is called once to restart it.
+await_collector() {
+  local relaunch="$1" waited=0 relaunched=0 served
+  while kill -0 "$COLLECTOR_PID" 2>/dev/null; do
+    sleep 3; waited=$((waited + 3))
+    if (( ! relaunched && waited >= 45 )); then
+      served="$(curl -s -m 2 localhost:5599/status | "$PY" -c 'import json,sys;print(json.load(sys.stdin).get("served",0))' 2>/dev/null)"
+      if [[ "${served:-0}" == "0" ]]; then echo "app never asked for its config; relaunching" >&2; $relaunch; fi
+      relaunched=1
+    fi
+  done
+  wait "$COLLECTOR_PID"
+}
+
+unit_rn() {
+  unit_common || return 1
+  (cd "$ROOT/reactnative" && npx tsc --noEmit >"$OUT/rn-tsc.log" 2>&1) || { echo "tsc failed: see $OUT/rn-tsc.log"; return 1; }
+}
+unit_rn_android() { unit_rn; }
+unit_rn_ios() { unit_rn; }
+
+smoke_rn_android() {
+  local serial; serial="$(ensure_android)" || { echo "no emulator"; return 1; }
+  local pkg=ai.bitdrift.rn.shop out="$OUT/rn-android-smoke.jsonl" act
+  start_collector "$out"
+  (cd "$ROOT/reactnative" && bash scripts/android-3-start-app.sh >"$OUT/rn-android-start.log" 2>&1) \
+    || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/rn-android-start.log"; return 1; }
+  act="$(adb -s "$serial" shell cmd package resolve-activity --brief "$pkg" | tail -1 | tr -d '\r')"
+  await_collector "adb -s $serial shell am start -S -n $act" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform reactnative --runs "$SIM_RUNS" "$out"
+}
+
+smoke_rn_ios() {
+  local udid; udid="$(ensure_ios)" || { echo "no simulator"; return 1; }
+  local bundle=ai.bitdrift.rn.shop out="$OUT/rn-ios-smoke.jsonl"
+  start_collector "$out"
+  (cd "$ROOT/reactnative" && bash scripts/ios-3-start-app.sh >"$OUT/rn-ios-start.log" 2>&1) \
+    || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/rn-ios-start.log"; return 1; }
+  await_collector "xcrun simctl launch --terminate-running-process $udid $bundle" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
+  "$PY" "$ROOT/tools/conformance/conformance.py" --platform reactnative --runs "$SIM_RUNS" "$out"
+}
+
 # ── dispatch ─────────────────────────────────────────────────────────────────
 run_app() {
   local app="$1" tier="$2" fn="${2}_${1//-/_}"

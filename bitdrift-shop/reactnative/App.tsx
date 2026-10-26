@@ -36,6 +36,8 @@ import {SimulationOverlay} from './src/components';
 import {Colors} from './src/utils/colors';
 import {ScreenLogger} from './src/utils/logger';
 import {startLifecycleLogging} from './src/utils/appLifecycle';
+import {fetchAutorunConfig, flushRecording, startRecording, type AutorunConfig} from './src/utils/recorder';
+import {SimVariant} from './src/sim/variants';
 import {BITDRIFT_SDK_KEY, BITDRIFT_API_HOST, APP_VARIANT} from './src/config';
 import type {RootStackParamList} from './src/navigation/types';
 
@@ -101,13 +103,61 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const AppNavigator: React.FC = () => {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
-  const {setNavigationRef} = useSimulation();
+  const {setNavigationRef, isSimulating, startSimulation, setVariant} = useSimulation();
+  const autorun = useRef<{cfg: AutorunConfig; sawRunning: boolean} | null>(null);
 
   useEffect(() => {
     if (navigationRef.current) {
       setNavigationRef(navigationRef.current);
     }
   }, [setNavigationRef]);
+
+  // Test harness (debug builds): if the local collector (tools/conformance/collector.py, started by
+  // test.sh) answers /config, run that many journeys as the requested persona and record the
+  // telemetry back to it. With no collector the request fails fast and nothing changes.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const cfg = await fetchAutorunConfig();
+      if (!cfg || cancelled) {
+        return;
+      }
+      startRecording();
+      autorun.current = {cfg, sawRunning: false};
+      setVariant(
+        cfg.persona === 'variant_a'
+          ? SimVariant.VariantA
+          : cfg.persona === 'variant_b'
+          ? SimVariant.VariantB
+          : SimVariant.Control,
+      );
+      await new Promise(resolve => setTimeout(resolve, 500)); // let navigation settle
+      startSimulation(cfg.runs);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Exit marker: the autorun is over once the simulation it started stops.
+  useEffect(() => {
+    const a = autorun.current;
+    if (!a) {
+      return;
+    }
+    if (isSimulating) {
+      a.sawRunning = true;
+    } else if (a.sawRunning) {
+      autorun.current = null;
+      ScreenLogger.logInfo(SpecEvents.simAutorunComplete, {
+        [SpecFields.totalRuns]: String(a.cfg.runs),
+        [SpecFields.simSeed]: String(a.cfg.seed),
+        [SpecFields.persona]: a.cfg.persona,
+      });
+      void flushRecording();
+    }
+  }, [isSimulating]);
 
   return (
     <View style={styles.container}>
