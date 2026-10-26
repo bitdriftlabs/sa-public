@@ -12,6 +12,13 @@ import {BITDRIFT_SDK_KEY as ENV_SDK_KEY, BITDRIFT_API_HOST as ENV_API_HOST, BACK
 // value shown in the UI matches the native demos' two-part "5.0".
 export const APP_VERSION = '5.0';
 
+// ─── SDK version ──────────────────────────────────────────────────────────────
+// The installed @bitdrift/react-native package version, shown on the Welcome screen
+// like the other platforms' "SDK v…" line. The JS package has no API for the native
+// Capture version it wraps (that is reported in the `_sdk_version` log field), so
+// this reads the package's own version and stays correct across dependency bumps.
+export const RN_SDK_VERSION: string = require('@bitdrift/react-native/package.json').version;
+
 // ─── Global field: app_variant ─────────────────────────────────────────────────
 // Attached to every log. Matches the Android app's value ("sdk-demo") so the two
 // platforms' sessions slice identically in the dashboard.

@@ -22,7 +22,7 @@ export const PrimaryButton: React.FC<ButtonProps> = ({title, icon, onPress, disa
     disabled={disabled}
     activeOpacity={0.85}>
     <View style={styles.leftContent}>
-      <Text style={styles.icon}>{icon}</Text>
+      <Text style={[styles.icon, styles.primaryIcon]}>{icon}</Text>
       <Text style={styles.primaryText}>{title}</Text>
     </View>
     <Text style={styles.arrow}>›</Text>
@@ -51,13 +51,12 @@ export const SimButton: React.FC<SimButtonProps> = ({title, color, onPress}) => 
 
 const styles = StyleSheet.create({
   primaryButton: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.text,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -68,8 +67,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: Colors.panelBorder,
+    backgroundColor: Colors.panel,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -86,26 +85,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginRight: 10,
   },
+  primaryIcon: {
+    color: Colors.white,
+  },
   primaryText: {
-    color: '#0F172A',
+    color: Colors.white,
     fontSize: 15,
     fontWeight: '700',
     flexShrink: 1,
   },
   secondaryText: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 15,
     fontWeight: '600',
     flexShrink: 1,
   },
   arrow: {
-    color: '#0F172A',
+    color: Colors.white,
     fontSize: 22,
     fontWeight: '300',
     marginLeft: 10,
   },
   secondaryArrow: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 22,
     fontWeight: '300',
     marginLeft: 10,

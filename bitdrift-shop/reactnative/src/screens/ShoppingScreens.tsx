@@ -884,10 +884,10 @@ const VariantButton: React.FC<{
   onPress: () => void;
 }> = ({label, active, color, onPress}) => (
   <TouchableOpacity
-    style={[styles.variantButton, {backgroundColor: active ? color : 'rgba(255,255,255,0.16)'}]}
+    style={[styles.variantButton, {backgroundColor: active ? color : Colors.panelStrong}]}
     onPress={onPress}
     activeOpacity={0.85}>
-    <Text style={styles.variantButtonText}>{label}</Text>
+    <Text style={[styles.variantButtonText, active && styles.onAccentText]}>{label}</Text>
   </TouchableOpacity>
 );
 
@@ -901,13 +901,13 @@ const ToggleButton: React.FC<{
   <TouchableOpacity
     style={[
       styles.toggleButton,
-      {backgroundColor: on ? onColor : 'rgba(255,255,255,0.16)'},
+      {backgroundColor: on ? onColor : Colors.panelStrong},
       disabled && styles.toggleDisabled,
     ]}
     onPress={onPress}
     disabled={disabled}
     activeOpacity={0.85}>
-    <Text style={styles.toggleButtonText}>{on ? `${label}: ON` : label}</Text>
+    <Text style={[styles.toggleButtonText, on && styles.onAccentText]}>{on ? `${label}: ON` : label}</Text>
   </TouchableOpacity>
 );
 
@@ -1059,7 +1059,7 @@ const styles = StyleSheet.create({
   divider: {
     width: '100%',
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.24)',
+    backgroundColor: Colors.panelBorder,
     marginVertical: 8,
   },
   simButtonsRow: {
@@ -1069,7 +1069,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   simHint: {
-    color: Colors.muted,
+    color: Colors.textMuted,
     textAlign: 'center',
     marginVertical: 8,
   },
@@ -1084,7 +1084,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   crashLoopText: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
@@ -1097,14 +1097,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   advancedLabel: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 14,
     fontWeight: '700',
     marginTop: 14,
     marginBottom: 6,
   },
   advancedHint: {
-    color: Colors.muted,
+    color: Colors.textMuted,
     fontSize: 12,
     marginTop: 4,
   },
@@ -1119,7 +1119,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   variantButtonText: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -1135,22 +1135,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonText: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 13,
     fontWeight: '700',
+  },
+  onAccentText: {
+    color: Colors.white,
   },
   toggleDisabled: {
     opacity: 0.4,
   },
   statusChip: {
     width: '100%',
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: Colors.panel,
     borderRadius: 10,
     padding: 10,
     marginTop: 10,
   },
   statusChipText: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 12,
     textAlign: 'center',
   },
@@ -1163,8 +1166,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cartRow: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderColor: Colors.border,
+    backgroundColor: 'rgba(17,24,39,0.05)',
+    borderColor: Colors.panelBorder,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
@@ -1176,29 +1179,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cartTitle: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 14,
     fontWeight: '700',
   },
   cartMeta: {
-    color: Colors.muted,
+    color: Colors.textMuted,
     fontSize: 12,
     marginTop: 3,
   },
   cartPrice: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 13,
     fontWeight: '700',
     marginHorizontal: 8,
   },
   deleteButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(17,24,39,0.10)',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   deleteText: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 11,
     fontWeight: '700',
   },

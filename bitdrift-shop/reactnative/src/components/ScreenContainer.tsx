@@ -12,7 +12,7 @@ import {
 import {StepIndicator} from './StepIndicator';
 import {Colors} from '../utils/colors';
 import {ScreenLogger} from '../utils/logger';
-import {APP_VERSION} from '../config';
+import {APP_VERSION, RN_SDK_VERSION} from '../config';
 import type {Category, ProductCard} from '../types/models';
 
 type ScreenContainerProps = {
@@ -47,13 +47,13 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   }, [screenName]);
 
   return (
-    <SafeAreaView style={[styles.container, {backgroundColor: color}]}>
+    <SafeAreaView style={[styles.container, {backgroundColor: Colors.screen}]}>
       <View style={styles.content}>
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.headerAction} onPress={onBack} disabled={!onBack}>
             <Text style={[styles.headerActionText, !onBack && styles.hidden]}>‹</Text>
           </TouchableOpacity>
-          <StepIndicator currentStep={step} />
+          <StepIndicator currentStep={step} activeColor={color} />
           <TouchableOpacity style={styles.headerAction} onPress={onCart} disabled={!onCart}>
             <Text style={[styles.headerActionText, !onCart && styles.hidden]}>🛒</Text>
           </TouchableOpacity>
@@ -66,13 +66,14 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
             <Image source={logoSource} style={styles.logoImage} resizeMode="contain" />
           </View>
         ) : (
-          <View style={styles.iconContainer}>
+          <View style={[styles.iconContainer, {backgroundColor: `${color}33`}]}>
             <Text style={styles.icon}>{icon}</Text>
           </View>
         )}
 
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
+        {logoSource ? <Text style={styles.version}>SDK v{RN_SDK_VERSION}</Text> : null}
         <Text style={styles.version}>App v{APP_VERSION}</Text>
 
         <View style={styles.buttonsContainer}>{children}</View>
@@ -172,10 +173,10 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: Colors.panelStrong,
   },
   headerActionText: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -186,7 +187,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 14,
@@ -215,21 +215,20 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: Colors.white,
+    color: Colors.text,
     textAlign: 'center',
     marginBottom: 6,
   },
   subtitle: {
     fontSize: 15,
-    color: Colors.muted,
+    color: Colors.textMuted,
     textAlign: 'center',
     marginBottom: 16,
     paddingHorizontal: 8,
   },
   version: {
     fontSize: 11,
-    color: Colors.muted,
-    opacity: 0.6,
+    color: Colors.textMuted,
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -246,9 +245,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   productRow: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(17,24,39,0.05)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.panelBorder,
     borderRadius: 12,
     padding: 8,
     flexDirection: 'row',
@@ -258,7 +257,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(17,24,39,0.10)',
   },
   rowTextWrap: {
     flex: 1,
@@ -266,16 +265,16 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     fontSize: 14,
-    color: Colors.white,
+    color: Colors.text,
     fontWeight: '700',
   },
   rowSubtitle: {
     fontSize: 12,
-    color: Colors.muted,
+    color: Colors.textMuted,
     marginTop: 4,
   },
   rowArrow: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 22,
     fontWeight: '300',
   },
@@ -285,10 +284,10 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(17,24,39,0.10)',
   },
   categoryInitial: {
-    color: Colors.white,
+    color: Colors.text,
     fontSize: 20,
     fontWeight: '700',
   },

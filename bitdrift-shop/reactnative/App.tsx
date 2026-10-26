@@ -110,12 +110,12 @@ const AppNavigator: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       <NavigationContainer ref={navigationRef}>
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
-            contentStyle: {backgroundColor: Colors.background},
+            contentStyle: {backgroundColor: Colors.screen},
             animation: 'slide_from_right',
           }}>
           <Stack.Screen name="Welcome" component={WelcomeScreen} />

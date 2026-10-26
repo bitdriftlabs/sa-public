@@ -19,6 +19,13 @@ export const Colors = {
   black: '#000000',
   muted: 'rgba(255, 255, 255, 0.75)',
   border: 'rgba(255, 255, 255, 0.2)',
+  // Light theme tokens (white screens, dark text, per-screen accent color).
+  screen: '#FFFFFF',
+  text: '#111827',
+  textMuted: 'rgba(17, 24, 39, 0.65)',
+  panel: 'rgba(17, 24, 39, 0.05)',
+  panelStrong: 'rgba(17, 24, 39, 0.10)',
+  panelBorder: 'rgba(17, 24, 39, 0.12)',
   gray: '#9E9E9E',
   lightGray: '#F5F5F5',
 };
