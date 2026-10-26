@@ -1,4 +1,5 @@
 import {ScreenLogger} from '../utils/logger';
+import {SpecEvents, SpecFields, SpecFlags} from '../generated/spec';
 
 // ─── Personas / Variants ───────────────────────────────────────────────────────
 // Mirrors the Android app's SimVariant. Each variant biases the simulation state
@@ -149,27 +150,27 @@ export const applyVariant = (variant: SimVariant, chaos: ChaosState): void => {
   const recommendationsV2 = chaos.slowModeEnabled ? 'enabled' : 'disabled';
 
   // Feature-flag exposures (queryable as flag exposures in the dashboard).
-  ScreenLogger.setFeatureFlagExposure('checkout_flow', flags.checkout_flow);
-  ScreenLogger.setFeatureFlagExposure('payment_ui', flags.payment_ui);
-  ScreenLogger.setFeatureFlagExposure('cart_abandon_rate', flags.cart_abandon_rate);
-  ScreenLogger.setFeatureFlagExposure('payment_android_pay', flags.payment_android_pay);
-  ScreenLogger.setFeatureFlagExposure('order_summary', orderSummary);
-  ScreenLogger.setFeatureFlagExposure('anr_a', anrA);
-  ScreenLogger.setFeatureFlagExposure('force_quit', forceQuit);
-  ScreenLogger.setFeatureFlagExposure('recommendations_v2', recommendationsV2);
+  ScreenLogger.setFeatureFlagExposure(SpecFlags.checkoutFlow, flags.checkout_flow);
+  ScreenLogger.setFeatureFlagExposure(SpecFlags.paymentUi, flags.payment_ui);
+  ScreenLogger.setFeatureFlagExposure(SpecFlags.cartAbandonRate, flags.cart_abandon_rate);
+  ScreenLogger.setFeatureFlagExposure(SpecFlags.paymentAndroidPay, flags.payment_android_pay);
+  ScreenLogger.setFeatureFlagExposure(SpecFlags.orderSummary, orderSummary);
+  ScreenLogger.setFeatureFlagExposure(SpecFlags.anrA, anrA);
+  ScreenLogger.setFeatureFlagExposure(SpecFlags.forceQuit, forceQuit);
+  ScreenLogger.setFeatureFlagExposure(SpecFlags.recommendationsV2, recommendationsV2);
 
   // Mirror fields (ff_*) so the same values are also filterable as global fields.
-  ScreenLogger.addField('ff_checkout_flow', flags.checkout_flow);
-  ScreenLogger.addField('ff_payment_ui', flags.payment_ui);
-  ScreenLogger.addField('ff_cart_abandon_rate', flags.cart_abandon_rate);
-  ScreenLogger.addField('ff_variant', VARIANT_LABELS[variant]);
-  ScreenLogger.addField('ff_payment_android_pay', flags.payment_android_pay);
-  ScreenLogger.addField('ff_order_summary', orderSummary);
-  ScreenLogger.addField('ff_anr_a', anrA);
-  ScreenLogger.addField('ff_force_quit', forceQuit);
-  ScreenLogger.addField('ff_recommendations_v2', recommendationsV2);
+  ScreenLogger.addField(SpecFields.ffCheckoutFlow, flags.checkout_flow);
+  ScreenLogger.addField(SpecFields.ffPaymentUi, flags.payment_ui);
+  ScreenLogger.addField(SpecFields.ffCartAbandonRate, flags.cart_abandon_rate);
+  ScreenLogger.addField(SpecFields.ffVariant, VARIANT_LABELS[variant]);
+  ScreenLogger.addField(SpecFields.ffPaymentAndroidPay, flags.payment_android_pay);
+  ScreenLogger.addField(SpecFields.ffOrderSummary, orderSummary);
+  ScreenLogger.addField(SpecFields.ffAnrA, anrA);
+  ScreenLogger.addField(SpecFields.ffForceQuit, forceQuit);
+  ScreenLogger.addField(SpecFields.ffRecommendationsV2, recommendationsV2);
 
-  ScreenLogger.logInfo('feature_flag_exposure_set');
+  ScreenLogger.logInfo(SpecEvents.featureFlagExposureSet);
 };
 
 // Fixed entity pool, rotated per journey (ports DEMO_ENTITIES).

@@ -32,6 +32,7 @@ import type {
   WelcomeResponse,
   WishlistResponse,
 } from '../types/models';
+import {SpecEvents, SpecFields, SpecScreens, SpecSpans} from '../generated/spec';
 
 const fallbackProduct = 'prod_a1b2c3';
 
@@ -91,7 +92,7 @@ export const WelcomeScreen: React.FC<ScreenProps<'Welcome'>> = ({navigation}) =>
 
   return (
     <ScreenContainer
-      screenName="Welcome"
+      screenName={SpecScreens.welcome.screenName}
       title={data?.store_name ?? 'bitdrift shop'}
       subtitle={subtitle}
       step={1}
@@ -175,8 +176,8 @@ export const BrowseScreen: React.FC<ScreenProps<'Browse'>> = ({navigation}) => {
     // demo backend randomises its catalog per request, so a separate fetch often would
     // not contain firstProductId, and the similarity pass would be skipped entirely.
     ScreenLogger.trackSpanNested(
-      'score_products',
-      {product_id: firstProductId, screen_name: 'Browse'},
+      SpecSpans.scoreProducts,
+      {[SpecFields.productId]: firstProductId, [SpecFields.screenName]: SpecScreens.browse.screenName},
       span => scoreProducts(JSON.stringify(products), firstProductId, span.id),
     );
   }, [slowModeEnabled, firstProductId, products]);
@@ -186,7 +187,7 @@ export const BrowseScreen: React.FC<ScreenProps<'Browse'>> = ({navigation}) => {
 
   return (
     <ScreenContainer
-      screenName="Browse"
+      screenName={SpecScreens.browse.screenName}
       title="Browse"
       subtitle={subtitle}
       step={2}
@@ -218,7 +219,7 @@ export const SearchScreen: React.FC<ScreenProps<'Search'>> = ({navigation}) => {
 
   return (
     <ScreenContainer
-      screenName="Search"
+      screenName={SpecScreens.search.screenName}
       title="Search"
       subtitle={subtitle}
       step={2}
@@ -251,7 +252,7 @@ export const FeaturedScreen: React.FC<ScreenProps<'Featured'>> = ({navigation}) 
 
   return (
     <ScreenContainer
-      screenName="Featured"
+      screenName={SpecScreens.featured.screenName}
       title="Featured Products"
       subtitle={subtitle}
       step={3}
@@ -291,7 +292,7 @@ export const CategoriesScreen: React.FC<ScreenProps<'Categories'>> = ({navigatio
 
   return (
     <ScreenContainer
-      screenName="Categories"
+      screenName={SpecScreens.categories.screenName}
       title="Categories"
       subtitle={subtitle}
       step={3}
@@ -330,7 +331,7 @@ export const CategoryBrowseScreen: React.FC<ScreenProps<'CategoryBrowse'>> = ({n
 
   return (
     <ScreenContainer
-      screenName="CategoryBrowse"
+      screenName={SpecScreens.categoryBrowse.screenName}
       title={category}
       subtitle={products.length > 0 ? `${products.length} products in ${category}` : `Loading ${category}...`}
       step={3}
@@ -397,8 +398,8 @@ export const ProductDetailScreen: React.FC<ScreenProps<'ProductDetail'>> = ({nav
       const withReference = hasReference ? catalog : [data, ...catalog];
 
       ScreenLogger.trackSpanNested(
-        'score_products',
-        {product_id: productId, screen_name: 'ProductDetail'},
+        SpecSpans.scoreProducts,
+        {[SpecFields.productId]: productId, [SpecFields.screenName]: SpecScreens.productDetail.screenName},
         span => scoreProducts(JSON.stringify(withReference), productId, span.id),
       );
     });
@@ -413,7 +414,7 @@ export const ProductDetailScreen: React.FC<ScreenProps<'ProductDetail'>> = ({nav
 
   return (
     <ScreenContainer
-      screenName="ProductDetail"
+      screenName={SpecScreens.productDetail.screenName}
       title={data?.name ?? 'Product Detail'}
       subtitle={subtitle}
       step={4}
@@ -426,7 +427,7 @@ export const ProductDetailScreen: React.FC<ScreenProps<'ProductDetail'>> = ({nav
         title="Add to Cart"
         icon="＋"
         onPress={() => {
-          ScreenLogger.logInfo('add_to_cart', {product_id: productId, source_screen: source});
+          ScreenLogger.logInfo(SpecEvents.addToCart, {[SpecFields.productId]: productId, [SpecFields.sourceScreen]: source});
           navigation.navigate('Cart', {productId});
         }}
       />
@@ -434,7 +435,7 @@ export const ProductDetailScreen: React.FC<ScreenProps<'ProductDetail'>> = ({nav
         title="Save to Wishlist"
         icon="♡"
         onPress={() => {
-          ScreenLogger.logInfo('add_to_wishlist', {product_id: productId, source_screen: source});
+          ScreenLogger.logInfo(SpecEvents.addToWishlist, {[SpecFields.productId]: productId, [SpecFields.sourceScreen]: source});
           navigation.navigate('Wishlist', {productId});
         }}
       />
@@ -457,7 +458,7 @@ export const ReviewsScreen: React.FC<ScreenProps<'Reviews'>> = ({navigation, rou
 
   return (
     <ScreenContainer
-      screenName="Reviews"
+      screenName={SpecScreens.reviews.screenName}
       title="Customer Reviews"
       subtitle={subtitle}
       step={4}
@@ -469,7 +470,7 @@ export const ReviewsScreen: React.FC<ScreenProps<'Reviews'>> = ({navigation, rou
         title="Add to Cart"
         icon="＋"
         onPress={() => {
-          ScreenLogger.logInfo('add_to_cart', {product_id: productId, source_screen: source});
+          ScreenLogger.logInfo(SpecEvents.addToCart, {[SpecFields.productId]: productId, [SpecFields.sourceScreen]: source});
           navigation.navigate('Cart', {productId});
         }}
       />
@@ -477,7 +478,7 @@ export const ReviewsScreen: React.FC<ScreenProps<'Reviews'>> = ({navigation, rou
         title="Save to Wishlist"
         icon="♡"
         onPress={() => {
-          ScreenLogger.logInfo('add_to_wishlist', {product_id: productId, source_screen: source});
+          ScreenLogger.logInfo(SpecEvents.addToWishlist, {[SpecFields.productId]: productId, [SpecFields.sourceScreen]: source});
           navigation.navigate('Wishlist', {productId});
         }}
       />
@@ -530,10 +531,10 @@ export const CartScreen: React.FC<ScreenProps<'Cart'>> = ({navigation, route}) =
   const removeItem = async (id: string) => {
     try {
       const response = await ApiClient.deleteCartItem(id);
-      ScreenLogger.logInfo('cart_item_removed', {product_id: id});
+      ScreenLogger.logInfo(SpecEvents.cartItemRemoved, {[SpecFields.productId]: id});
       setData(response);
     } catch (e) {
-      ScreenLogger.logError('cart_failed', {product_id: id}, e);
+      ScreenLogger.logError(SpecEvents.cartFailed, {[SpecFields.productId]: id}, e);
     }
   };
 
@@ -546,7 +547,7 @@ export const CartScreen: React.FC<ScreenProps<'Cart'>> = ({navigation, route}) =
 
   return (
     <ScreenContainer
-      screenName="Cart"
+      screenName={SpecScreens.cart.screenName}
       title="Shopping Cart"
       subtitle={subtitle}
       step={5}
@@ -558,7 +559,7 @@ export const CartScreen: React.FC<ScreenProps<'Cart'>> = ({navigation, route}) =
         title="Checkout as Guest"
         icon="👤"
         onPress={() => {
-          ScreenLogger.logInfo('checkout_started', {checkout_type: 'guest'});
+          ScreenLogger.logInfo(SpecEvents.checkoutStarted, {[SpecFields.checkoutType]: 'guest'});
           navigation.navigate('CheckoutGuest', {productId});
         }}
       />
@@ -566,7 +567,7 @@ export const CartScreen: React.FC<ScreenProps<'Cart'>> = ({navigation, route}) =
         title="Sign In to Checkout"
         icon="🔐"
         onPress={() => {
-          ScreenLogger.logInfo('checkout_started', {checkout_type: 'signin'});
+          ScreenLogger.logInfo(SpecEvents.checkoutStarted, {[SpecFields.checkoutType]: 'signin'});
           navigation.navigate('CheckoutSignIn', {productId});
         }}
       />
@@ -593,7 +594,7 @@ export const WishlistScreen: React.FC<ScreenProps<'Wishlist'>> = ({navigation, r
 
   return (
     <ScreenContainer
-      screenName="Wishlist"
+      screenName={SpecScreens.wishlist.screenName}
       title="Wishlist"
       subtitle={subtitle}
       step={5}
@@ -605,7 +606,7 @@ export const WishlistScreen: React.FC<ScreenProps<'Wishlist'>> = ({navigation, r
         title="Checkout as Guest"
         icon="👤"
         onPress={() => {
-          ScreenLogger.logInfo('checkout_started', {checkout_type: 'guest'});
+          ScreenLogger.logInfo(SpecEvents.checkoutStarted, {[SpecFields.checkoutType]: 'guest'});
           navigation.navigate('CheckoutGuest', {productId});
         }}
       />
@@ -613,7 +614,7 @@ export const WishlistScreen: React.FC<ScreenProps<'Wishlist'>> = ({navigation, r
         title="Sign In to Checkout"
         icon="🔐"
         onPress={() => {
-          ScreenLogger.logInfo('checkout_started', {checkout_type: 'signin'});
+          ScreenLogger.logInfo(SpecEvents.checkoutStarted, {[SpecFields.checkoutType]: 'signin'});
           navigation.navigate('CheckoutSignIn', {productId});
         }}
       />
@@ -630,7 +631,7 @@ export const CheckoutGuestScreen: React.FC<ScreenProps<'CheckoutGuest'>> = ({nav
     // timeline, matching Android/iOS. Previously this catch swallowed the error.
     ApiClient.checkoutGuest()
       .then(setData)
-      .catch(err => ScreenLogger.logError('checkout_failed', {checkout_type: 'guest'}, err));
+      .catch(err => ScreenLogger.logError(SpecEvents.checkoutFailed, {[SpecFields.checkoutType]: 'guest'}, err));
   }, []);
 
   const session = data?.checkout_session ?? '';
@@ -640,7 +641,7 @@ export const CheckoutGuestScreen: React.FC<ScreenProps<'CheckoutGuest'>> = ({nav
 
   return (
     <ScreenContainer
-      screenName="CheckoutGuest"
+      screenName={SpecScreens.checkoutGuest.screenName}
       title="Guest Checkout"
       subtitle={subtitle}
       step={6}
@@ -669,7 +670,7 @@ export const CheckoutSignInScreen: React.FC<ScreenProps<'CheckoutSignIn'>> = ({n
   React.useEffect(() => {
     ApiClient.checkoutSignIn()
       .then(setData)
-      .catch(err => ScreenLogger.logError('checkout_failed', {checkout_type: 'signin'}, err));
+      .catch(err => ScreenLogger.logError(SpecEvents.checkoutFailed, {[SpecFields.checkoutType]: 'signin'}, err));
   }, []);
 
   const session = data?.checkout_session ?? '';
@@ -679,7 +680,7 @@ export const CheckoutSignInScreen: React.FC<ScreenProps<'CheckoutSignIn'>> = ({n
 
   return (
     <ScreenContainer
-      screenName="CheckoutSignIn"
+      screenName={SpecScreens.checkoutSignin.screenName}
       title="Member Checkout"
       subtitle={subtitle}
       step={6}
@@ -714,7 +715,7 @@ export const PaymentCardScreen: React.FC<ScreenProps<'PaymentCard'>> = ({navigat
 
   return (
     <ScreenContainer
-      screenName="PaymentCard"
+      screenName={SpecScreens.paymentCard.screenName}
       title="Card Payment"
       subtitle={data ? `${data.payment_method}\n${money(data.amount_charged)} — ${txn}...` : 'Processing payment...'}
       step={6}
@@ -726,7 +727,7 @@ export const PaymentCardScreen: React.FC<ScreenProps<'PaymentCard'>> = ({navigat
         title="Visa ending 4242"
         icon="✓"
         onPress={() => {
-          ScreenLogger.logInfo('payment_completed', {payment_method: 'visa', card_last4: '4242', order_id: orderId});
+          ScreenLogger.logInfo(SpecEvents.paymentCompleted, {[SpecFields.paymentMethod]: 'visa', [SpecFields.cardLast4]: '4242', [SpecFields.orderId]: orderId});
           navigation.navigate('Confirmation', {orderId});
         }}
       />
@@ -734,7 +735,7 @@ export const PaymentCardScreen: React.FC<ScreenProps<'PaymentCard'>> = ({navigat
         title="Mastercard ending 8888"
         icon="✓"
         onPress={() => {
-          ScreenLogger.logInfo('payment_completed', {payment_method: 'mastercard', card_last4: '8888', order_id: orderId});
+          ScreenLogger.logInfo(SpecEvents.paymentCompleted, {[SpecFields.paymentMethod]: 'mastercard', [SpecFields.cardLast4]: '8888', [SpecFields.orderId]: orderId});
           navigation.navigate('Confirmation', {orderId});
         }}
       />
@@ -742,7 +743,7 @@ export const PaymentCardScreen: React.FC<ScreenProps<'PaymentCard'>> = ({navigat
         title="Amex ending 1001"
         icon="✓"
         onPress={() => {
-          ScreenLogger.logInfo('payment_completed', {payment_method: 'amex', card_last4: '1001', order_id: orderId});
+          ScreenLogger.logInfo(SpecEvents.paymentCompleted, {[SpecFields.paymentMethod]: 'amex', [SpecFields.cardLast4]: '1001', [SpecFields.orderId]: orderId});
           navigation.navigate('Confirmation', {orderId});
         }}
       />
@@ -763,7 +764,7 @@ export const PaymentApplePayScreen: React.FC<ScreenProps<'PaymentApplePay'>> = (
 
   return (
     <ScreenContainer
-      screenName="PaymentApplePay"
+      screenName={SpecScreens.paymentApplePay.screenName}
       title="Apple Pay"
       subtitle={data ? `Apple Pay — ${money(data.amount_charged)}\n${txn}...` : 'Authenticating...'}
       step={6}
@@ -775,7 +776,7 @@ export const PaymentApplePayScreen: React.FC<ScreenProps<'PaymentApplePay'>> = (
         title="Complete Purchase"
         icon="✓"
         onPress={() => {
-          ScreenLogger.logInfo('payment_completed', {payment_method: 'apple_pay', order_id: orderId});
+          ScreenLogger.logInfo(SpecEvents.paymentCompleted, {[SpecFields.paymentMethod]: 'apple_pay', [SpecFields.orderId]: orderId});
           navigation.navigate('Confirmation', {orderId});
         }}
       />
@@ -795,7 +796,7 @@ export const PaymentPayPalScreen: React.FC<ScreenProps<'PaymentPayPal'>> = ({nav
 
   return (
     <ScreenContainer
-      screenName="PaymentPayPal"
+      screenName={SpecScreens.paymentPaypal.screenName}
       title="PayPal"
       subtitle={data ? `PayPal — ${money(data.amount_charged)}\nRef: ${data.paypal_reference ?? ''}` : 'Connecting to PayPal...'}
       step={6}
@@ -807,7 +808,7 @@ export const PaymentPayPalScreen: React.FC<ScreenProps<'PaymentPayPal'>> = ({nav
         title="Complete Purchase"
         icon="✓"
         onPress={() => {
-          ScreenLogger.logInfo('payment_completed', {payment_method: 'paypal', order_id: orderId});
+          ScreenLogger.logInfo(SpecEvents.paymentCompleted, {[SpecFields.paymentMethod]: 'paypal', [SpecFields.orderId]: orderId});
           navigation.navigate('Confirmation', {orderId});
         }}
       />
@@ -827,7 +828,7 @@ export const PaymentAndroidPayScreen: React.FC<ScreenProps<'PaymentAndroidPay'>>
 
   return (
     <ScreenContainer
-      screenName="PaymentAndroidPay"
+      screenName={SpecScreens.paymentAndroidPay.screenName}
       title="Google Pay"
       subtitle={data ? `Google Pay — ${money(data.amount_charged)}` : 'Authenticating...'}
       step={6}
@@ -839,7 +840,7 @@ export const PaymentAndroidPayScreen: React.FC<ScreenProps<'PaymentAndroidPay'>>
         title="Complete Purchase"
         icon="✓"
         onPress={() => {
-          ScreenLogger.logInfo('payment_completed', {payment_method: 'android_pay', order_id: orderId});
+          ScreenLogger.logInfo(SpecEvents.paymentCompleted, {[SpecFields.paymentMethod]: 'android_pay', [SpecFields.orderId]: orderId});
           navigation.navigate('Confirmation', {orderId});
         }}
       />
@@ -851,12 +852,12 @@ export const PaymentFailedScreen: React.FC<ScreenProps<'PaymentFailed'>> = ({nav
   const method = route.params?.paymentMethod ?? 'card';
 
   React.useEffect(() => {
-    ScreenLogger.logError('payment_failed', {payment_method: method});
+    ScreenLogger.logError(SpecEvents.paymentFailed, {[SpecFields.paymentMethod]: method});
   }, [method]);
 
   return (
     <ScreenContainer
-      screenName="PaymentFailed"
+      screenName={SpecScreens.paymentFailed.screenName}
       title="Payment Failed"
       subtitle={`We couldn't process your ${method} payment.\nPlease try a different method.`}
       step={6}
@@ -941,7 +942,7 @@ export const AdvancedScreen: React.FC<ScreenProps<'Advanced'>> = ({navigation}) 
 
   return (
     <ScreenContainer
-      screenName="Advanced"
+      screenName={SpecScreens.advanced.screenName}
       title="Advanced"
       subtitle="Personas, simulation modes, and fault injection"
       step={1}
@@ -1038,7 +1039,7 @@ export const ConfirmationScreen: React.FC<ScreenProps<'Confirmation'>> = ({navig
 
   return (
     <ScreenContainer
-      screenName="Confirmation"
+      screenName={SpecScreens.confirmation.screenName}
       title="Order Confirmed!"
       subtitle={subtitle}
       step={7}

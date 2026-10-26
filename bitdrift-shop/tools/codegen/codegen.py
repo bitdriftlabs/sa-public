@@ -240,7 +240,73 @@ def swift_files(platform="ios"):
     return files
 
 
-LANGS = {"kotlin": kotlin_files, "swift": swift_files}
+# ── TypeScript ───────────────────────────────────────────────────────────────
+
+def ts_str(v):
+    return "'" + str(v).replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+def ts_files(platform="reactnative"):
+    events, fields, spans = (uniq(x) for x in telemetry_data(platform))
+    for k, n in (("events", events), ("fields", fields), ("spans", spans)):
+        check_unique_camel(k, n)
+
+    def obj(name, doc, names):
+        lines = [f"/** {doc} */", f"export const {name} = {{"]
+        for n in names:
+            lines.append(f"  {camel(n).strip('`')}: {ts_str(n)},")
+        lines.append("} as const;")
+        return "\n".join(lines)
+
+    screens = [s for s in load("screens")["screens"] if applies(s, platform)]
+    check_unique_camel("screens", [s["id"] for s in screens])
+    lines = ["/** Screens (spec/screens.yaml): logScreenView name, template route, step; `platformRoute` is this app's navigator key. */",
+             "export const SpecScreens = {"]
+    for s in screens:
+        pr = (s.get("platform_routes") or {}).get(platform, s["route"])
+        ls = ts_str(s["load_span"]) if s.get("load_span") else "null"
+        lines.append(
+            f"  {camel(s['id']).strip('`')}: {{id: {ts_str(s['id'])}, screenName: {ts_str(s['name'])}, "
+            f"route: {ts_str(s['route'])}, platformRoute: {ts_str(pr)}, step: {s['step']}, loadSpan: {ls}}},"
+        )
+    lines.append("} as const;")
+    screens_block = "\n".join(lines)
+
+    flags = [f for f in load("flags")["flags"] if applies(f, platform)]
+    check_unique_camel("flags", [f["name"] for f in flags])
+    lines = ["/** Feature flags (spec/flags.yaml): exposure names, mirror field keys, persona values. */", "export const SpecFlags = {"]
+    for f in flags:
+        c = camel(f["name"]).strip("`")
+        lines.append(f"  {c}: {ts_str(f['name'])},")
+        if f.get("mirror_field"):
+            lines.append(f"  {c}Field: {ts_str(f['mirror_field'])},")
+        if f["kind"] == "persona":
+            for persona, val in f["values"].items():
+                pc = camel(persona)
+                lines.append(f"  {c}{pc[:1].upper() + pc[1:]}: {ts_str(val)},")
+    lines.append("} as const;")
+    flags_block = "\n".join(lines)
+
+    lines = ["/** Personas (spec/personas.yaml): the `variant` field label per persona. */", "export const SpecPersonas = {"]
+    for p in load("personas")["personas"]:
+        lines.append(f"  {camel(p['id'])}: {ts_str(p['label'])},")
+    lines.append("} as const;")
+
+    body = "\n\n".join(
+        [
+            f"// {HEADER}",
+            obj("SpecEvents", "Log message names (spec/telemetry.yaml events + sdk_events).", events),
+            obj("SpecFields", "Field keys (spec/telemetry.yaml fields). Leading '_' keys are SDK-owned (sdk prefix).", fields),
+            obj("SpecSpans", "Span names (spec/telemetry.yaml spans).", spans),
+            screens_block,
+            flags_block,
+            "\n".join(lines),
+        ]
+    )
+    return {"spec.ts": body + "\n"}
+
+
+LANGS = {"kotlin": kotlin_files, "swift": swift_files, "ts": ts_files}
 
 
 def main():

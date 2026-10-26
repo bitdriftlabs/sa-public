@@ -60,6 +60,7 @@ import {
   ConfirmationScreen,
   AdvancedScreen,
 } from './src/screens';
+import {SpecEvents, SpecFields, SpecSpans} from './src/generated/spec';
 
 // Capture wall-clock time at module evaluation for TTI measurement.
 const APP_START_TIME = Date.now();
@@ -93,8 +94,8 @@ const SDK_INIT_DURATION_MS = Date.now() - SDK_INIT_STARTED_AT;
 // These fields are automatically attached to every log, span, and network
 // event so dashboards can slice data by variant or platform. app_variant matches
 // the Android app's value ("sdk-demo") so both platforms slice identically.
-addField('app_variant', APP_VARIANT);
-addField('platform', Platform.OS);
+addField(SpecFields.appVariant, APP_VARIANT);
+addField(SpecFields.platform, Platform.OS);
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -160,15 +161,15 @@ const App: React.FC = () => {
     // emit `app_cold_start.sdk_init`, and the cold-start workflows filter on that full
     // name. (Native also emits `.scene_render` and `.state_restore` children, which have
     // no RN equivalent — see README § Platform parity notes.)
-    const coldStartId = ScreenLogger.logCompletedSpan('app_cold_start', ttiMs);
+    const coldStartId = ScreenLogger.logCompletedSpan(SpecSpans.appColdStart, ttiMs);
     ScreenLogger.logCompletedSpan(
-      'app_cold_start.sdk_init',
+      SpecSpans.appColdStartSdkInit,
       SDK_INIT_DURATION_MS,
       undefined,
       coldStartId,
     );
 
-    ScreenLogger.logInfo('app_launched');
+    ScreenLogger.logInfo(SpecEvents.appLaunched);
     // Foreground/background lifecycle events (app_open / app_close).
     startLifecycleLogging();
   }, []);

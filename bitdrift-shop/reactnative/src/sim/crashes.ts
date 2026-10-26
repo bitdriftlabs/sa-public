@@ -1,5 +1,6 @@
 import {NativeModules} from 'react-native';
 import {ScreenLogger} from '../utils/logger';
+import {SpecFields} from '../generated/spec';
 
 // ─── Crash catalog ──────────────────────────────────────────────────────────────
 // A 1:1 port of the Android Crashes.kt catalog (same 20 names) so crash issue groups
@@ -195,8 +196,8 @@ export const triggerCrash = (name: string): void => {
   if (!fn) {
     return;
   }
-  ScreenLogger.addField('crash_kind', name);
-  ScreenLogger.logWarning(`about_to_crash: ${name}`, {crash_kind: name});
+  ScreenLogger.addField(SpecFields.crashKind, name);
+  ScreenLogger.logWarning(`about_to_crash: ${name}`, {[SpecFields.crashKind]: name});
   setTimeout(() => {
     fn();
   }, 300); // ~300ms flush window mirrors Android's CRASH_FLUSH_MS

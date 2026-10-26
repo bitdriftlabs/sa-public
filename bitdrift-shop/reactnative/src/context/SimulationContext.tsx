@@ -12,16 +12,17 @@ import {
   type ChaosState,
 } from '../sim/variants';
 import {CRASHES, triggerAnr, triggerForceQuit} from '../sim/crashes';
+import {SpecEvents, SpecFields, SpecScreens, SpecSpans} from '../generated/spec';
 
 // ─── Chaos / ANR / Force-quit constants (ported from SimulationManager.kt) ──────
 const ANR_PROBABILITY = 0.25;
 const ANR_FORCE_AFTER_ELIGIBLE_GUEST_JOURNEYS = 6;
 const ANR_BLOCK_DURATION_MS = 15000;
-const ANR_TARGET_SCREEN_NAME = 'CheckoutGuest';
+const ANR_TARGET_SCREEN_NAME = SpecScreens.checkoutGuest.screenName;
 
 const FORCE_QUIT_PROBABILITY = 0.6;
 const FORCE_QUIT_FORCE_AFTER_JOURNEYS = 3;
-const FORCE_QUIT_TARGET_SCREEN = 'ProductDetail';
+const FORCE_QUIT_TARGET_SCREEN = SpecScreens.productDetail.screenName;
 
 const PAYMENT_RETRY_PROBABILITY = 0.5;
 const STEP_DELAY_MS = 50;
@@ -30,7 +31,7 @@ type PaymentMethod = 'card' | 'applePay' | 'payPal' | 'androidPay';
 
 // payment_method values logged on success, matching the Android event values.
 const PAYMENT_METHOD_EVENT: Record<PaymentMethod, string> = {
-  card: 'visa',
+  card: 'card',
   applePay: 'apple_pay',
   payPal: 'paypal',
   androidPay: 'android_pay',
@@ -178,14 +179,14 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
 
   const setSupportLog = useCallback((enabled: boolean) => {
     setSupportLogState(enabled);
-    ScreenLogger.addField('supportlog', String(enabled));
+    ScreenLogger.addField(SpecFields.supportlog, String(enabled));
   }, []);
 
   const stopCrashLoop = useCallback(() => {
     chaosRef.current = {...chaosRef.current, crashLoopEnabled: false};
     setCrashLoopState(false);
     reapplyFlags();
-    ScreenLogger.logInfo('crash_loop_stopped');
+    ScreenLogger.logInfo(SpecEvents.crashLoopStopped);
   }, [reapplyFlags]);
 
   const nextCrashName = useCallback(
@@ -260,11 +261,11 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
       return false;
     }
     eligibleForceQuitRef.current = 0;
-    ScreenLogger.logError('force_quit_injected', {
-      force_quit_enabled: 'true',
-      force_quit_screen: FORCE_QUIT_TARGET_SCREEN,
-      variant: VARIANT_LABELS[variantRef.current],
-      trigger_mode: forcedHit ? 'forced_infinite' : 'random',
+    ScreenLogger.logError(SpecEvents.forceQuitInjected, {
+      [SpecFields.forceQuitEnabled]: 'true',
+      [SpecFields.forceQuitScreen]: FORCE_QUIT_TARGET_SCREEN,
+      [SpecFields.variant]: VARIANT_LABELS[variantRef.current],
+      [SpecFields.triggerMode]: forcedHit ? 'forced_infinite' : 'random',
     });
     triggerForceQuit();
     return true;
@@ -282,12 +283,12 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
       return false;
     }
     eligibleAnrGuestRef.current = 0;
-    ScreenLogger.logError('guest_anr_injected', {
-      anr_a_enabled: 'true',
-      journey_type: 'guest',
-      anr_screen_name: ANR_TARGET_SCREEN_NAME,
-      variant: VARIANT_LABELS[variantRef.current],
-      trigger_mode: forcedHit ? 'forced_infinite' : 'random',
+    ScreenLogger.logError(SpecEvents.guestAnrInjected, {
+      [SpecFields.anrAEnabled]: 'true',
+      [SpecFields.journeyType]: 'guest',
+      [SpecFields.anrScreenName]: ANR_TARGET_SCREEN_NAME,
+      [SpecFields.variant]: VARIANT_LABELS[variantRef.current],
+      [SpecFields.triggerMode]: forcedHit ? 'forced_infinite' : 'random',
     });
     triggerAnr(ANR_BLOCK_DURATION_MS);
     return true;
@@ -300,8 +301,8 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
     const idx = crashIndexRef.current % CRASHES.length;
     const {name, fn} = CRASHES[idx];
     crashIndexRef.current = (idx + 1) % CRASHES.length;
-    ScreenLogger.addField('crash_kind', name);
-    ScreenLogger.logWarning(`about_to_crash: ${name} (idx=${idx})`, {crash_kind: name});
+    ScreenLogger.addField(SpecFields.crashKind, name);
+    ScreenLogger.logWarning(`about_to_crash: ${name} (idx=${idx})`, {[SpecFields.crashKind]: name});
     cancelledRef.current = true;
     setTimeout(() => fn(), 300);
   };
@@ -363,15 +364,15 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
     // re-apply variant flags + entity on each journey instead, then mark the boundary.
     applyVariant(variant, chaosRef.current);
     ScreenLogger.setEntityId(entity);
-    ScreenLogger.logInfo('journey_started', {run: String(runNumber), variant: variantLabel});
+    ScreenLogger.logInfo(SpecEvents.journeyStarted, {[SpecFields.run]: String(runNumber), [SpecFields.variant]: variantLabel});
 
-    const journeySpan: Span = ScreenLogger.startSpan('journey', {
-      variant: variantLabel,
+    const journeySpan: Span = ScreenLogger.startSpan(SpecSpans.journey, {
+      [SpecFields.variant]: variantLabel,
       entity,
     });
     const discoverySpan: Span = ScreenLogger.startSpan(
-      'product_discovery',
-      {variant: variantLabel},
+      SpecSpans.productDiscovery,
+      {[SpecFields.variant]: variantLabel},
       journeySpan.id,
     );
 
@@ -418,7 +419,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
       await ApiClient.getProduct(pid);
     } catch {}
     if (maybeInjectForceQuit(isInfinite)) {
-      journeySpan.end('canceled', {reason: 'force_quit'});
+      journeySpan.end('canceled', {[SpecFields.reason]: 'force_quit'});
       return;
     }
 
@@ -434,7 +435,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
       try {
         await ApiClient.addToWishlist(pid);
       } catch {}
-      ScreenLogger.logInfo('add_to_wishlist', {product_id: pid, source_screen: source});
+      ScreenLogger.logInfo(SpecEvents.addToWishlist, {[SpecFields.productId]: pid, [SpecFields.sourceScreen]: source});
     }
 
     // Cart — first add, then variant-driven mutations
@@ -443,8 +444,8 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
     try {
       await ApiClient.addToCart(pid);
     } catch {}
-    ScreenLogger.logInfo('add_to_cart', {product_id: pid, source_screen: source});
-    discoverySpan.end('success', {source, product_id: pid});
+    ScreenLogger.logInfo(SpecEvents.addToCart, {[SpecFields.productId]: pid, [SpecFields.sourceScreen]: source});
+    discoverySpan.end('success', {source, [SpecFields.productId]: pid});
 
     const extra = randInt(profile.extraCartMin, profile.extraCartMax);
     for (let i = 0; i < extra; i++) {
@@ -453,7 +454,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
       try {
         await ApiClient.addToCart(epid, randInt(1, 3));
       } catch {}
-      ScreenLogger.logInfo('add_to_cart', {product_id: epid, source_screen: 'cart'});
+      ScreenLogger.logInfo(SpecEvents.addToCart, {[SpecFields.productId]: epid, [SpecFields.sourceScreen]: 'cart'});
       await delay(STEP_DELAY_MS);
     }
     try {
@@ -466,7 +467,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
       try {
         await ApiClient.deleteCartItem(rpid);
       } catch {}
-      ScreenLogger.logInfo('cart_item_removed', {product_id: rpid});
+      ScreenLogger.logInfo(SpecEvents.cartItemRemoved, {[SpecFields.productId]: rpid});
       await delay(STEP_DELAY_MS);
     }
 
@@ -475,7 +476,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
         try {
           await ApiClient.deleteCartItem(item);
         } catch {}
-        ScreenLogger.logInfo('cart_item_removed', {product_id: item});
+        ScreenLogger.logInfo(SpecEvents.cartItemRemoved, {[SpecFields.productId]: item});
         await delay(STEP_DELAY_MS);
       }
       cart.length = 0;
@@ -484,7 +485,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
       try {
         await ApiClient.addToCart(rpid);
       } catch {}
-      ScreenLogger.logInfo('add_to_cart', {product_id: rpid, source_screen: 'cart'});
+      ScreenLogger.logInfo(SpecEvents.addToCart, {[SpecFields.productId]: rpid, [SpecFields.sourceScreen]: 'cart'});
     }
 
     if (rand() < profile.quantityFlipProb && cart.length > 0) {
@@ -502,11 +503,11 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
 
     // Abandon before checkout?
     if (rand() < profile.cartAbandonProb) {
-      ScreenLogger.logInfo('cart_abandoned', {
-        items_in_cart: String(cart.length),
-        variant: variantLabel,
+      ScreenLogger.logInfo(SpecEvents.cartAbandoned, {
+        [SpecFields.itemsInCart]: String(cart.length),
+        [SpecFields.variant]: variantLabel,
       });
-      journeySpan.end('canceled', {reason: 'cart_abandoned'});
+      journeySpan.end('canceled', {[SpecFields.reason]: 'cart_abandoned'});
       return;
     }
 
@@ -519,8 +520,8 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
         : rand() < profile.guestProb;
     const checkoutType = isGuest ? 'guest' : 'signin';
     const checkoutSpan: Span = ScreenLogger.startSpan(
-      'checkout',
-      {checkout_type: checkoutType},
+      SpecSpans.checkout,
+      {[SpecFields.checkoutType]: checkoutType},
       journeySpan.id,
     );
 
@@ -536,7 +537,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
         session = (await ApiClient.checkoutSignIn()).checkout_session;
       } catch {}
     }
-    ScreenLogger.logInfo('checkout_started', {checkout_type: checkoutType});
+    ScreenLogger.logInfo(SpecEvents.checkoutStarted, {[SpecFields.checkoutType]: checkoutType});
 
     // ANR injection (guest only)
     if (maybeInjectGuestAnr(isGuest, isInfinite)) {
@@ -546,12 +547,12 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
 
     // Checkout dropout?
     if (rand() < profile.checkoutDropoutProb) {
-      ScreenLogger.logInfo('checkout_abandoned', {
-        checkout_type: checkoutType,
-        variant: variantLabel,
+      ScreenLogger.logInfo(SpecEvents.checkoutAbandoned, {
+        [SpecFields.checkoutType]: checkoutType,
+        [SpecFields.variant]: variantLabel,
       });
-      checkoutSpan.end('canceled', {reason: 'checkout_abandoned'});
-      journeySpan.end('canceled', {reason: 'checkout_abandoned'});
+      checkoutSpan.end('canceled', {[SpecFields.reason]: 'checkout_abandoned'});
+      journeySpan.end('canceled', {[SpecFields.reason]: 'checkout_abandoned'});
       return;
     }
 
@@ -565,7 +566,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
     await navigate(paymentScreenFor(method), {checkoutSession: session});
 
     if (rand() < failProb) {
-      ScreenLogger.logError('payment_failed', {payment_method: PAYMENT_METHOD_EVENT[method]});
+      ScreenLogger.logError(SpecEvents.paymentFailed, {[SpecFields.paymentMethod]: PAYMENT_METHOD_EVENT[method]});
       if (rand() < PAYMENT_RETRY_PROBABILITY) {
         // Retry with a different method.
         const originalMethod = method;
@@ -576,16 +577,16 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
         retried = true;
         await navigate(paymentScreenFor(method), {checkoutSession: session});
         orderId = await payApi(method, session);
-        ScreenLogger.logInfo('payment_retry', {
-          original_method: PAYMENT_METHOD_EVENT[originalMethod],
-          retry_method: PAYMENT_METHOD_EVENT[method],
-          variant: variantLabel,
+        ScreenLogger.logInfo(SpecEvents.paymentRetry, {
+          [SpecFields.originalMethod]: PAYMENT_METHOD_EVENT[originalMethod],
+          [SpecFields.retryMethod]: PAYMENT_METHOD_EVENT[method],
+          [SpecFields.variant]: variantLabel,
         });
       } else {
         // No retry — land on the failure screen and end the journey.
         await navigate('PaymentFailed', {paymentMethod: PAYMENT_METHOD_EVENT[method]});
-        checkoutSpan.end('failure', {payment_method: PAYMENT_METHOD_EVENT[method]});
-        journeySpan.end('failure', {reason: 'payment_failed'});
+        checkoutSpan.end('failure', {[SpecFields.paymentMethod]: PAYMENT_METHOD_EVENT[method]});
+        journeySpan.end('failure', {[SpecFields.reason]: 'payment_failed'});
         return;
       }
     } else {
@@ -593,16 +594,16 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
     }
 
     const completedFields: Record<string, string> = {
-      payment_method: PAYMENT_METHOD_EVENT[method],
-      order_id: orderId,
+      [SpecFields.paymentMethod]: PAYMENT_METHOD_EVENT[method],
+      [SpecFields.orderId]: orderId,
     };
     if (method === 'card') {
       completedFields.card_last4 = '4242';
     }
-    ScreenLogger.logInfo('payment_completed', completedFields);
+    ScreenLogger.logInfo(SpecEvents.paymentCompleted, completedFields);
     checkoutSpan.end('success', {
-      payment_method: PAYMENT_METHOD_EVENT[method],
-      retried: String(retried),
+      [SpecFields.paymentMethod]: PAYMENT_METHOD_EVENT[method],
+      [SpecFields.retried]: String(retried),
     });
 
     // Confirmation
@@ -610,10 +611,10 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
     try {
       await ApiClient.getConfirmation(orderId);
     } catch {}
-    ScreenLogger.logInfo('confirmation_reached', {
-      _screen_name: 'Confirmation',
-      payment_retried: String(retried),
-      ...(retried ? {retry_method: PAYMENT_METHOD_EVENT[method]} : {}),
+    ScreenLogger.logInfo(SpecEvents.confirmationReached, {
+      [SpecFields.sdkScreenName]: SpecScreens.confirmation.screenName,
+      [SpecFields.paymentRetried]: String(retried),
+      ...(retried ? {[SpecFields.retryMethod]: PAYMENT_METHOD_EVENT[method]} : {}),
     });
     journeySpan.end('success');
 
@@ -630,7 +631,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
     progressRef.current = {currentRun: 0, totalRuns: runs};
 
     if (infinite) {
-      ScreenLogger.logInfo('infinite_simulation_start');
+      ScreenLogger.logInfo(SpecEvents.infiniteSimulationStart);
     } else {
       ScreenLogger.logSimulationStart(runs);
     }
@@ -645,7 +646,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
     }
 
     if (infinite) {
-      ScreenLogger.logInfo('infinite_simulation_end', {total_runs: String(run)});
+      ScreenLogger.logInfo(SpecEvents.infiniteSimulationEnd, {[SpecFields.totalRuns]: String(run)});
     } else {
       ScreenLogger.logSimulationEnd(run);
     }
@@ -679,7 +680,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
       const total = runsEach * 3;
       setState({isSimulating: true, currentRun: 0, totalRuns: total, isInfinite: false});
       progressRef.current = {currentRun: 0, totalRuns: total};
-      ScreenLogger.logInfo('ab_simulation_start', {runs_each: String(runsEach)});
+      ScreenLogger.logInfo(SpecEvents.abSimulationStart, {[SpecFields.runsEach]: String(runsEach)});
 
       let count = 0;
       const order = [SimVariant.Control, SimVariant.VariantA, SimVariant.VariantB];
@@ -696,7 +697,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
           await delay(STEP_DELAY_MS);
         }
       }
-      ScreenLogger.logInfo('ab_simulation_end', {total_runs: String(count)});
+      ScreenLogger.logInfo(SpecEvents.abSimulationEnd, {[SpecFields.totalRuns]: String(count)});
       finishLoop();
     };
     loop();
@@ -709,7 +710,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
       cancelledRef.current = false;
       setState({isSimulating: true, currentRun: 0, totalRuns: Infinity, isInfinite: true});
       progressRef.current = {currentRun: 0, totalRuns: Infinity};
-      ScreenLogger.logInfo('cardinality_simulation_start');
+      ScreenLogger.logInfo(SpecEvents.cardinalitySimulationStart);
       let count = 0;
       while (!cancelledRef.current) {
         count++;
@@ -720,7 +721,7 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
         } catch {}
         await delay(STEP_DELAY_MS);
       }
-      ScreenLogger.logInfo('cardinality_simulation_end', {total_runs: String(count)});
+      ScreenLogger.logInfo(SpecEvents.cardinalitySimulationEnd, {[SpecFields.totalRuns]: String(count)});
       finishLoop();
     };
     loop();
@@ -728,9 +729,9 @@ export const SimulationProvider: React.FC<{children: React.ReactNode}> = ({child
 
   const cancelSimulation = useCallback(() => {
     cancelledRef.current = true;
-    ScreenLogger.logWarning('simulation_cancelled', {
-      completed_runs: String(progressRef.current.currentRun),
-      total_runs: String(progressRef.current.totalRuns),
+    ScreenLogger.logInfo(SpecEvents.simulationCancelled, {
+      [SpecFields.completedRuns]: String(progressRef.current.currentRun),
+      [SpecFields.totalRuns]: String(progressRef.current.totalRuns),
     });
   }, []);
 
