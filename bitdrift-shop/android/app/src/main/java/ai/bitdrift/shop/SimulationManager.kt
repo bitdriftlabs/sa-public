@@ -9,7 +9,6 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import io.bitdrift.capture.Capture.Logger
 import kotlin.coroutines.cancellation.CancellationException
 import io.bitdrift.capture.LogLevel
 import io.bitdrift.capture.events.span.SpanResult
@@ -101,36 +100,36 @@ class SimulationManager : ViewModel() {
             SimVariant.VARIANT_B -> "low"
         }
         // Record feature flag exposures (per-session, triggers workflow transitions)
-        Logger.setFeatureFlagExposure(SpecFlags.CHECKOUT_FLOW, checkoutFlow)
-        Logger.setFeatureFlagExposure(SpecFlags.PAYMENT_UI, paymentUi)
-        Logger.setFeatureFlagExposure(SpecFlags.CART_ABANDON_RATE, cartAbandon)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.CHECKOUT_FLOW, checkoutFlow)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.PAYMENT_UI, paymentUi)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.CART_ABANDON_RATE, cartAbandon)
         // Also set as global fields so every log carries the active flag values for debugging
-        Logger.addField(SpecFields.FF_CHECKOUT_FLOW, checkoutFlow)
-        Logger.addField(SpecFields.FF_PAYMENT_UI, paymentUi)
-        Logger.addField(SpecFields.FF_CART_ABANDON_RATE, cartAbandon)
-        Logger.addField(SpecFields.FF_VARIANT, variant.label)
+        RecordingLogger.addField(SpecFields.FF_CHECKOUT_FLOW, checkoutFlow)
+        RecordingLogger.addField(SpecFields.FF_PAYMENT_UI, paymentUi)
+        RecordingLogger.addField(SpecFields.FF_CART_ABANDON_RATE, cartAbandon)
+        RecordingLogger.addField(SpecFields.FF_VARIANT, variant.label)
         // Android Pay flag: enabled for Control + Variant A, disabled for Variant B
         val androidPay = when (variant) {
             SimVariant.CONTROL   -> "enabled"
             SimVariant.VARIANT_A -> "enabled"
             SimVariant.VARIANT_B -> "disabled"
         }
-        Logger.setFeatureFlagExposure(SpecFlags.PAYMENT_ANDROID_PAY, androidPay)
-        Logger.addField(SpecFields.FF_PAYMENT_ANDROID_PAY, androidPay)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.PAYMENT_ANDROID_PAY, androidPay)
+        RecordingLogger.addField(SpecFields.FF_PAYMENT_ANDROID_PAY, androidPay)
         val orderSummary = if (crashLoopEnabled) "v2" else "v1"
-        Logger.setFeatureFlagExposure(SpecFlags.ORDER_SUMMARY, orderSummary)
-        Logger.addField(SpecFields.FF_ORDER_SUMMARY, orderSummary)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.ORDER_SUMMARY, orderSummary)
+        RecordingLogger.addField(SpecFields.FF_ORDER_SUMMARY, orderSummary)
         val anrAState = if (anrAEnabled) "enabled" else "disabled"
-        Logger.setFeatureFlagExposure(SpecFlags.ANR_A, anrAState)
-        Logger.addField(SpecFields.FF_ANR_A, anrAState)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.ANR_A, anrAState)
+        RecordingLogger.addField(SpecFields.FF_ANR_A, anrAState)
         val forceQuitState = if (forceQuitEnabled) "enabled" else "disabled"
-        Logger.setFeatureFlagExposure(SpecFlags.FORCE_QUIT, forceQuitState)
-        Logger.addField(SpecFields.FF_FORCE_QUIT, forceQuitState)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.FORCE_QUIT, forceQuitState)
+        RecordingLogger.addField(SpecFields.FF_FORCE_QUIT, forceQuitState)
         val recommendationsV2State = if (recommendationsV2Enabled) "enabled" else "disabled"
-        Logger.setFeatureFlagExposure(SpecFlags.RECOMMENDATIONS_V2, recommendationsV2State)
-        Logger.addField(SpecFields.FF_RECOMMENDATIONS_V2, recommendationsV2State)
+        RecordingLogger.setFeatureFlagExposure(SpecFlags.RECOMMENDATIONS_V2, recommendationsV2State)
+        RecordingLogger.addField(SpecFields.FF_RECOMMENDATIONS_V2, recommendationsV2State)
         // Emit an explicit log so we can verify flag exposure in the log stream
-        Logger.logInfo { SpecEvents.FEATURE_FLAG_EXPOSURE_SET }
+        RecordingLogger.logInfo { SpecEvents.FEATURE_FLAG_EXPOSURE_SET }
     }
 
     fun syncAnrAEnabledState() {
@@ -211,8 +210,8 @@ class SimulationManager : ViewModel() {
     /**
      * Runs the simulation for a specified number of journeys
      */
-    fun simulate(runs: Int, navController: NavController) {
-        viewModelScope.launch {
+    fun simulate(runs: Int, navController: NavController): kotlinx.coroutines.Job {
+        return viewModelScope.launch {
             isSimulating = true
             isCancelled = false
             totalRuns = runs
@@ -238,6 +237,28 @@ class SimulationManager : ViewModel() {
             currentRun = 0
             totalRuns = 0
             isCancelled = false
+        }
+    }
+
+    /**
+     * Test-harness autorun (launch arguments, see [AutorunConfig]): runs [AutorunConfig.runs]
+     * journeys as the requested persona, then logs [SpecEvents.SIM_AUTORUN_COMPLETE] so
+     * the script driving the app knows to stop waiting. Lives in the view model's scope so
+     * it survives the Welcome screen being recomposed when the sim navigates home.
+     */
+    fun autorun(navController: NavController) {
+        viewModelScope.launch {
+            val runs = AutorunConfig.runs
+            setVariant(AutorunConfig.variant())
+            simulate(runs, navController).join()
+            ScreenLogger.logInfo(
+                SpecEvents.SIM_AUTORUN_COMPLETE,
+                mapOf(
+                    SpecFields.TOTAL_RUNS to runs.toString(),
+                    SpecFields.SIM_SEED to AutorunConfig.seed.toString(),
+                    SpecFields.PERSONA to AutorunConfig.persona,
+                )
+            )
         }
     }
 
@@ -574,9 +595,9 @@ class SimulationManager : ViewModel() {
         val prefs = ctx.getSharedPreferences(ShoppingDemoApp.PREFS, Context.MODE_PRIVATE)
         val (name, fn, fireInBackground) = pickNextCrashCombo(prefs)
         val crashContext = if (fireInBackground) "background" else "foreground"
-        Logger.addField(SpecFields.CRASH_KIND, name)
-        Logger.addField(SpecFields.CRASH_CONTEXT, crashContext)
-        Logger.logWarning { "about_to_crash: $name (context=$crashContext)" }
+        RecordingLogger.addField(SpecFields.CRASH_KIND, name)
+        RecordingLogger.addField(SpecFields.CRASH_CONTEXT, crashContext)
+        RecordingLogger.logWarning { "about_to_crash: $name (context=$crashContext)" }
         // Pre-schedule the restart BEFORE the crash — AlarmManager survives even
         // SIGSEGV/SIGBUS where the JVM uncaught-exception handler cannot run.
         ShoppingDemoApp.scheduleRestart(ctx, restartDelayFor(name))
@@ -603,10 +624,10 @@ class SimulationManager : ViewModel() {
         val (name, fn, fireInBackground) = pickNextCrashCombo(prefs)
         val crashContext = if (fireInBackground) "background" else "foreground"
         fastCrashStatus = FastCrashStatus(name, crashContext, prefs.getBoolean(ShoppingDemoApp.KEY_OOM_ONLY, false))
-        Logger.startNewSession()
-        Logger.addField(SpecFields.CRASH_KIND, name)
-        Logger.addField(SpecFields.CRASH_CONTEXT, crashContext)
-        Logger.logWarning { "about_to_crash (fast): $name (context=$crashContext)" }
+        RecordingLogger.startNewSession()
+        RecordingLogger.addField(SpecFields.CRASH_KIND, name)
+        RecordingLogger.addField(SpecFields.CRASH_CONTEXT, crashContext)
+        RecordingLogger.logWarning { "about_to_crash (fast): $name (context=$crashContext)" }
         ShoppingDemoApp.scheduleRestart(ctx, restartDelayFor(name))
         dispatchCrash(fn, fireInBackground, activity)
     }
@@ -617,7 +638,7 @@ class SimulationManager : ViewModel() {
         // Keep force-quit runs in the startup session so workflows that begin with
         // SDK configuration and end with app termination can match in a single session.
         if (!forceQuitEnabled) {
-            Logger.startNewSession()
+            RecordingLogger.startNewSession()
             ScreenLogger.logInfo(
                 SpecEvents.JOURNEY_STARTED,
                 mapOf(SpecFields.RUN to currentRun.toString(), SpecFields.VARIANT to activeVariant.label)
@@ -636,19 +657,19 @@ class SimulationManager : ViewModel() {
         val entity = DEMO_ENTITIES[(currentRun - 1) % DEMO_ENTITIES.size]
         // bitdrift SDK: setEntityId() associates all subsequent logs with this user identity.
         // POC: ad-hoc debugging — search any entity in the dashboard to retrieve all their sessions on demand
-        Logger.setEntityId(entity)
+        RecordingLogger.setEntityId(entity)
 
         // bitdrift SDK: startSpan() opens a root span for the journey. All logs are
         // correlated via _span_id; child spans form a two-level hierarchy in the timeline.
         // POC: spans waterfall visualization in Timeline; query _duration_ms for p50/p95 of any flow
-        val journeySpan = Logger.startSpan(
+        val journeySpan = RecordingLogger.startSpan(
             name = SpecSpans.JOURNEY,
             level = LogLevel.INFO,
             fields = mapOf(SpecFields.VARIANT to activeVariant.label, SpecFields.ENTITY to entity),
         )
         // Tracks the discovery phase: Welcome → Browse/Search/Categories → ProductDetail → Cart.
         // Ends with SUCCESS when the first item is added to cart.
-        val discoverySpan = Logger.startSpan(
+        val discoverySpan = RecordingLogger.startSpan(
             name = SpecSpans.PRODUCT_DISCOVERY,
             level = LogLevel.INFO,
             fields = mapOf(SpecFields.VARIANT to activeVariant.label),
@@ -891,7 +912,7 @@ class SimulationManager : ViewModel() {
         }
         // Checkout span: child of the journey span, covers Checkout → Payment → Confirmation.
         // parentSpanId links it to the root journey span so both appear together in the timeline.
-        val checkoutSpan = Logger.startSpan(
+        val checkoutSpan = RecordingLogger.startSpan(
             name = SpecSpans.CHECKOUT,
             level = LogLevel.INFO,
             fields = mapOf(SpecFields.CHECKOUT_TYPE to if (isGuest) "guest" else "signin"),
@@ -1061,7 +1082,7 @@ class SimulationManager : ViewModel() {
                 setVariant(activeVariant)
                 delay(100L)
                 nav(nc, Screen.Confirmation(retryOrderId).route)
-                Logger.logInfo(
+                RecordingLogger.logInfo(
                     mapOf(SpecFields.SDK_SCREEN_NAME to SpecScreen.CONFIRMATION.screenName, SpecFields.PAYMENT_RETRIED to "true", SpecFields.RETRY_METHOD to retryMethod)
                 ) { SpecEvents.CONFIRMATION_REACHED }
                 // bitdrift SDK: closes the checkout waterfall (entry -> payment ->
@@ -1089,7 +1110,7 @@ class SimulationManager : ViewModel() {
         delay(100L)
         nav(nc, Screen.Confirmation(orderId).route)
         // Emit an explicit tagged log so we can verify fields in the raw stream
-        Logger.logInfo(
+        RecordingLogger.logInfo(
             mapOf(SpecFields.SDK_SCREEN_NAME to SpecScreen.CONFIRMATION.screenName, SpecFields.CHECKOUT_FLOW to when (activeVariant) {
                 SimVariant.CONTROL -> "random"; SimVariant.VARIANT_A -> "guest"; SimVariant.VARIANT_B -> "signin"
             })

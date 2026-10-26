@@ -5,6 +5,7 @@ abstract final class SpecEvents {
   static const simulationStart = 'simulation_start';
   static const simulationEnd = 'simulation_end';
   static const simulationCancelled = 'simulation_cancelled';
+  static const simAutorunComplete = 'sim_autorun_complete';
   static const abSimulationStart = 'ab_simulation_start';
   static const abSimulationEnd = 'ab_simulation_end';
   static const infiniteSimulationStart = 'infinite_simulation_start';
@@ -52,6 +53,8 @@ abstract final class SpecFields {
   static const sdkAppExitReason = '_app_exit_reason';
   static const sdkFrameIssueType = '_frame_issue_type';
   static const totalRuns = 'total_runs';
+  static const simSeed = 'sim_seed';
+  static const persona = 'persona';
   static const completedRuns = 'completed_runs';
   static const runsEach = 'runs_each';
   static const run = 'run';

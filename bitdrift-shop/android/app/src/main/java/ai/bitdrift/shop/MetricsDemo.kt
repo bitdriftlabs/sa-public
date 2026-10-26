@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.bitdrift.capture.Capture.Logger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -78,20 +77,20 @@ class MetricsDemoManager : ViewModel() {
 
     private fun start() {
         isRunning = true
-        Logger.addField(SpecFields.SIM_APP_VERSION, simVersion.label)
+        RecordingLogger.addField(SpecFields.SIM_APP_VERSION, simVersion.label)
         // Fresh session boundary right away -- see the class doc for why. Whatever workflow is
         // deployed at this moment will see everything from here on, without a relaunch.
-        Logger.startNewSession()
+        RecordingLogger.startNewSession()
         tickJob = viewModelScope.launch {
             while (true) {
                 delay(1000L)
                 elapsedSeconds += 1f
                 if (elapsedSeconds.toInt() % SESSION_ROTATION_SECONDS == 0) {
-                    Logger.startNewSession()
+                    RecordingLogger.startNewSession()
                 }
                 if (elapsedSeconds.toInt() % VERSION_ROTATION_SECONDS == 0) {
                     simVersion = nextRandomVersion()
-                    Logger.addField(SpecFields.SIM_APP_VERSION, simVersion.label)
+                    RecordingLogger.addField(SpecFields.SIM_APP_VERSION, simVersion.label)
                 }
                 logTick(elapsedSeconds)
             }
@@ -129,7 +128,7 @@ class MetricsDemoManager : ViewModel() {
         val jitter = (Random.nextFloat() * 2f - 1f) * version.jitterMs
         val latency = (version.meanLatencyMs + jitter).coerceAtLeast(1f)
 
-        Logger.logInfo(
+        RecordingLogger.logInfo(
             mapOf(
                 SpecFields.METRIC_SINE to "%.4f".format(sine),
                 SpecFields.METRIC_SQUARE to "%.4f".format(square),

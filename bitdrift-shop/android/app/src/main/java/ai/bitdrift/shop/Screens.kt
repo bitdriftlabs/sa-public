@@ -29,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import ai.bitdrift.shop.BuildConfig
-import io.bitdrift.capture.Capture.Logger
 import kotlin.coroutines.cancellation.CancellationException
 import io.bitdrift.capture.CaptureResult
 import io.bitdrift.capture.LogLevel
@@ -166,7 +165,7 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
                         simulationManager.crashLoopEnabled = false
                         simulationManager.fastCrashModeEnabled = false
                         simulationManager.setVariant(simulationManager.activeVariant)
-                        Logger.logInfo { SpecEvents.CRASH_LOOP_STOPPED }
+                        RecordingLogger.logInfo { SpecEvents.CRASH_LOOP_STOPPED }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
@@ -187,7 +186,7 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
 
             Button(
                 onClick = {
-                    Logger.createTemporaryDeviceCode { result ->
+                    RecordingLogger.createTemporaryDeviceCode { result ->
                         when (result) {
                             is CaptureResult.Success -> {
                                 deviceCode = result.value
@@ -540,7 +539,7 @@ fun AdvancedScreen(
             Button(
                 onClick = {
                     supportLogEnabled = !supportLogEnabled
-                    Logger.addField(SpecFields.SUPPORTLOG, supportLogEnabled.toString())
+                    RecordingLogger.addField(SpecFields.SUPPORTLOG, supportLogEnabled.toString())
                 },
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -944,7 +943,7 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
             icon = Icons.Default.Add
         ) {
             // bitdrift SDK: logInfo() with a stable event name and field map enables aggregation in the dashboard.
-            Logger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_CART }
+            RecordingLogger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_CART }
             navController.navigate(Screen.Cart(pid).route)
         }
         SecondaryButton(
@@ -952,7 +951,7 @@ fun ProductDetailScreen(navController: NavController, source: String?, productId
             icon = Icons.Default.Favorite
         ) {
             // bitdrift SDK: logInfo() records wishlist events with product and source context.
-            Logger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_WISHLIST }
+            RecordingLogger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_WISHLIST }
             navController.navigate(Screen.Wishlist(pid).route)
         }
     }
@@ -990,7 +989,7 @@ fun ReviewsScreen(navController: NavController, source: String?, productId: Stri
             icon = Icons.Default.Add
         ) {
             // bitdrift SDK: logInfo() records cart-add events from the reviews screen.
-            Logger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_CART }
+            RecordingLogger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_CART }
             navController.navigate(Screen.Cart(pid).route)
         }
         SecondaryButton(
@@ -998,7 +997,7 @@ fun ReviewsScreen(navController: NavController, source: String?, productId: Stri
             icon = Icons.Default.Favorite
         ) {
             // bitdrift SDK: logInfo() records wishlist events with product and source context.
-            Logger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_WISHLIST }
+            RecordingLogger.logInfo(mapOf(SpecFields.PRODUCT_ID to pid, SpecFields.SOURCE_SCREEN to (source ?: "unknown"))) { SpecEvents.ADD_TO_WISHLIST }
             navController.navigate(Screen.Wishlist(pid).route)
         }
     }
@@ -1023,7 +1022,7 @@ fun CartScreen(navController: NavController, productId: String?) {
             }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable captures the exception in the session timeline.
-            Logger.logError(mapOf(SpecFields.PRODUCT_ID to pid), throwable = e) { SpecEvents.CART_FAILED }
+            RecordingLogger.logError(mapOf(SpecFields.PRODUCT_ID to pid), throwable = e) { SpecEvents.CART_FAILED }
         }
     }
 
@@ -1090,7 +1089,7 @@ fun CartScreen(navController: NavController, productId: String?) {
                             )
                             IconButton(onClick = {
                                 // bitdrift SDK: logInfo() records cart mutations for funnel analysis.
-                                Logger.logInfo(mapOf(SpecFields.PRODUCT_ID to itemProductId)) { SpecEvents.CART_ITEM_REMOVED }
+                                RecordingLogger.logInfo(mapOf(SpecFields.PRODUCT_ID to itemProductId)) { SpecEvents.CART_ITEM_REMOVED }
                                 scope.launch {
                                     try { apiData = ApiClient.deleteCartItem(itemProductId) } catch (_: Exception) {}
                                 }
@@ -1111,7 +1110,7 @@ fun CartScreen(navController: NavController, productId: String?) {
             icon = Icons.Default.Person
         ) {
             // bitdrift SDK: logInfo() records checkout funnel entry for conversion tracking.
-            Logger.logInfo(mapOf(SpecFields.CHECKOUT_TYPE to "guest")) { SpecEvents.CHECKOUT_STARTED }
+            RecordingLogger.logInfo(mapOf(SpecFields.CHECKOUT_TYPE to "guest")) { SpecEvents.CHECKOUT_STARTED }
             navController.navigate(Screen.CheckoutGuest(pid).route)
         }
         SecondaryButton(
@@ -1119,7 +1118,7 @@ fun CartScreen(navController: NavController, productId: String?) {
             icon = Icons.Default.Lock
         ) {
             // bitdrift SDK: logInfo() records checkout funnel entry for conversion tracking.
-            Logger.logInfo(mapOf(SpecFields.CHECKOUT_TYPE to "signin")) { SpecEvents.CHECKOUT_STARTED }
+            RecordingLogger.logInfo(mapOf(SpecFields.CHECKOUT_TYPE to "signin")) { SpecEvents.CHECKOUT_STARTED }
             navController.navigate(Screen.CheckoutSignIn(pid).route)
         }
         SecondaryButton(
@@ -1193,7 +1192,7 @@ fun CheckoutGuestScreen(navController: NavController, productId: String?) {
             }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records checkout failures in the session timeline.
-            Logger.logError(mapOf(SpecFields.CHECKOUT_TYPE to "guest"), throwable = e) { SpecEvents.CHECKOUT_FAILED }
+            RecordingLogger.logError(mapOf(SpecFields.CHECKOUT_TYPE to "guest"), throwable = e) { SpecEvents.CHECKOUT_FAILED }
         }
     }
 
@@ -1253,12 +1252,12 @@ fun CheckoutSignInScreen(navController: NavController, productId: String?) {
             if (userId.isNotEmpty()) {
                 context.getSharedPreferences("user_session", android.content.Context.MODE_PRIVATE)
                     .edit().putString("user_id", userId).apply()
-                Logger.addField(SpecFields.USER_ID, userId)
+                RecordingLogger.addField(SpecFields.USER_ID, userId)
             }
           }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records checkout failures in the session timeline.
-            Logger.logError(mapOf(SpecFields.CHECKOUT_TYPE to "signin"), throwable = e) { SpecEvents.CHECKOUT_FAILED }
+            RecordingLogger.logError(mapOf(SpecFields.CHECKOUT_TYPE to "signin"), throwable = e) { SpecEvents.CHECKOUT_FAILED }
         }
     }
 
@@ -1317,7 +1316,7 @@ fun PaymentCardScreen(navController: NavController, checkoutSession: String?) {
             }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records payment failures in the session timeline.
-            Logger.logError(mapOf(SpecFields.PAYMENT_METHOD to "card"), throwable = e) { SpecEvents.PAYMENT_FAILED }
+            RecordingLogger.logError(mapOf(SpecFields.PAYMENT_METHOD to "card"), throwable = e) { SpecEvents.PAYMENT_FAILED }
         }
     }
 
@@ -1343,7 +1342,7 @@ fun PaymentCardScreen(navController: NavController, checkoutSession: String?) {
             icon = Icons.Default.Done
         ) {
             // bitdrift SDK: logInfo() records payment completion with method and order ID for conversion tracking.
-            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "visa", SpecFields.CARD_LAST4 to "4242", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
+            RecordingLogger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "visa", SpecFields.CARD_LAST4 to "4242", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
         SecondaryButton(
@@ -1351,7 +1350,7 @@ fun PaymentCardScreen(navController: NavController, checkoutSession: String?) {
             icon = Icons.Default.Done
         ) {
             // bitdrift SDK: logInfo() records payment completion.
-            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "mastercard", SpecFields.CARD_LAST4 to "8888", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
+            RecordingLogger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "mastercard", SpecFields.CARD_LAST4 to "8888", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
         SecondaryButton(
@@ -1359,7 +1358,7 @@ fun PaymentCardScreen(navController: NavController, checkoutSession: String?) {
             icon = Icons.Default.Done
         ) {
             // bitdrift SDK: logInfo() records payment completion.
-            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "amex", SpecFields.CARD_LAST4 to "1001", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
+            RecordingLogger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "amex", SpecFields.CARD_LAST4 to "1001", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }
@@ -1383,7 +1382,7 @@ fun PaymentApplePayScreen(navController: NavController, checkoutSession: String?
             }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records payment failures.
-            Logger.logError(mapOf(SpecFields.PAYMENT_METHOD to "apple_pay"), throwable = e) { SpecEvents.PAYMENT_FAILED }
+            RecordingLogger.logError(mapOf(SpecFields.PAYMENT_METHOD to "apple_pay"), throwable = e) { SpecEvents.PAYMENT_FAILED }
         }
     }
 
@@ -1411,7 +1410,7 @@ fun PaymentApplePayScreen(navController: NavController, checkoutSession: String?
             // payment method, not just card -- the checkout-funnel workflow keys on
             // this event, so omitting it here silently excluded these completions
             // from the conversion numbers.
-            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "apple_pay", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
+            RecordingLogger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "apple_pay", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }
@@ -1435,7 +1434,7 @@ fun PaymentPayPalScreen(navController: NavController, checkoutSession: String?) 
             }
         } catch (e: Exception) {
             // bitdrift SDK: logError() with throwable records payment failures.
-            Logger.logError(mapOf(SpecFields.PAYMENT_METHOD to "paypal"), throwable = e) { SpecEvents.PAYMENT_FAILED }
+            RecordingLogger.logError(mapOf(SpecFields.PAYMENT_METHOD to "paypal"), throwable = e) { SpecEvents.PAYMENT_FAILED }
         }
     }
 
@@ -1464,7 +1463,7 @@ fun PaymentPayPalScreen(navController: NavController, checkoutSession: String?) 
             // payment method, not just card -- the checkout-funnel workflow keys on
             // this event, so omitting it here silently excluded these completions
             // from the conversion numbers.
-            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "paypal", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
+            RecordingLogger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "paypal", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }
@@ -1486,7 +1485,7 @@ fun PaymentAndroidPayScreen(navController: NavController, checkoutSession: Strin
                 orderId = apiData?.optString("order_id", "") ?: ""
             }
         } catch (e: Exception) {
-            Logger.logError(mapOf(SpecFields.PAYMENT_METHOD to "android_pay"), throwable = e) { SpecEvents.PAYMENT_FAILED }
+            RecordingLogger.logError(mapOf(SpecFields.PAYMENT_METHOD to "android_pay"), throwable = e) { SpecEvents.PAYMENT_FAILED }
         }
     }
 
@@ -1514,7 +1513,7 @@ fun PaymentAndroidPayScreen(navController: NavController, checkoutSession: Strin
             // payment method, not just card -- the checkout-funnel workflow keys on
             // this event, so omitting it here silently excluded these completions
             // from the conversion numbers.
-            Logger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "android_pay", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
+            RecordingLogger.logInfo(mapOf(SpecFields.PAYMENT_METHOD to "android_pay", SpecFields.ORDER_ID to orderId)) { SpecEvents.PAYMENT_COMPLETED }
             navController.navigate(Screen.Confirmation(orderId).route)
         }
     }
@@ -1608,12 +1607,12 @@ fun ConfirmationScreen(navController: NavController, orderId: String?) {
                 // bitdrift SDK: startNewSession() begins a new session for the next journey,
                 // keeping each purchase flow separate in the timeline.
                 // POC: session management — clean per-user Timeline entries; each journey is its own session
-                Logger.startNewSession()
+                RecordingLogger.startNewSession()
 
                 // bitdrift SDK: removeField() clears user_id when starting a new journey — session-level logout.
                 context.getSharedPreferences("user_session", android.content.Context.MODE_PRIVATE)
                     .edit().remove("user_id").apply()
-                Logger.removeField(SpecFields.USER_ID)
+                RecordingLogger.removeField(SpecFields.USER_ID)
 
                 navController.navigate(Screen.Welcome.route) {
                     popUpTo(Screen.Welcome.route) { inclusive = true }

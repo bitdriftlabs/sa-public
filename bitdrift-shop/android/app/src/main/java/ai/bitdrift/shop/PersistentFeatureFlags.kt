@@ -1,7 +1,6 @@
 package ai.bitdrift.shop
 
 import android.content.Context
-import io.bitdrift.capture.Capture.Logger
 import io.bitdrift.capture.experimental.ExperimentalBitdriftApi
 
 /**
@@ -37,8 +36,8 @@ object PersistentFeatureFlags {
         for (flag in flags) {
             val value = prefs.getString(flag.key, null)?.takeIf { it in flag.values }
                 ?: flag.values.random().also { prefs.edit().putString(flag.key, it).apply() }
-            Logger.setFeatureFlagExposure(flag.key, value)
-            Logger.addField("ff_${flag.key}", value)
+            RecordingLogger.setFeatureFlagExposure(flag.key, value)
+            RecordingLogger.addField("ff_${flag.key}", value)
         }
     }
 }

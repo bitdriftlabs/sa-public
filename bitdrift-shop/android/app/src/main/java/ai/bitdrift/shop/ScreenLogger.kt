@@ -3,7 +3,6 @@ package ai.bitdrift.shop
 import ai.bitdrift.shop.generated.*
 import ai.bitdrift.shop.BuildConfig
 import android.util.Log
-import io.bitdrift.capture.Capture.Logger
 
 /**
  * Centralized logging for screen views and user actions.
@@ -18,17 +17,17 @@ object ScreenLogger {
         // session timelines and powers Sankey diagrams in the dashboard. Called automatically for
         // every navigation via OnDestinationChangedListener in MainActivity.
         // POC: User Journey Sankey diagram; per-screen crash analytics
-        Logger.logScreenView(screenName)
+        RecordingLogger.logScreenView(screenName)
     }
 
     fun logInfo(message: String, fields: Map<String, String> = emptyMap()) {
         printLog("INFO", message, fields)
-        Logger.logInfo(fields) { message }
+        RecordingLogger.logInfo(fields) { message }
     }
 
     fun logError(message: String, fields: Map<String, String> = emptyMap()) {
         printLog("ERROR", message, fields)
-        Logger.logError(fields) { message }
+        RecordingLogger.logError(fields) { message }
     }
 
     fun logSimulationStart(runs: Int) {

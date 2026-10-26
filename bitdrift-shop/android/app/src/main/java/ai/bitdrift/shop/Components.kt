@@ -29,9 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
-import io.bitdrift.capture.Capture.Logger
 import io.bitdrift.capture.LogLevel
-import io.bitdrift.capture.events.span.Span
 import io.bitdrift.capture.events.span.SpanResult
 import org.json.JSONObject
 
@@ -130,7 +128,7 @@ fun ScreenContainer(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (logoResId != null) {
-                val isOutdated = latestSdkVersion != null && latestSdkVersion != Logger.sdkVersion
+                val isOutdated = latestSdkVersion != null && latestSdkVersion != RecordingLogger.sdkVersion
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -150,7 +148,7 @@ fun ScreenContainer(
                         )
                     }
                     Text(
-                        text = "SDK v${Logger.sdkVersion}${if (isOutdated) " ⚑" else ""}",
+                        text = "SDK v${RecordingLogger.sdkVersion}${if (isOutdated) " ⚑" else ""}",
                         style = MaterialTheme.typography.labelMedium,
                         color = if (isOutdated) Color(0xFFF57C00) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
                     )
@@ -673,7 +671,7 @@ fun SpannedAsyncImage(
             when (state) {
                 is AsyncImagePainter.State.Loading -> {
                     if (span.value == null && !settled.value) {
-                        span.value = Logger.startSpan(
+                        span.value = RecordingLogger.startSpan(
                             SpecSpans.PRODUCT_IMAGE_LOAD,
                             LogLevel.INFO,
                             mapOf(SpecFields.URL to (model?.toString() ?: "")),

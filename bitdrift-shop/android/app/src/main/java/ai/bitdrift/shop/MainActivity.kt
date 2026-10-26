@@ -30,13 +30,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import ai.bitdrift.shop.ui.theme.ShoppingdemoTheme
-import io.bitdrift.capture.Capture.Logger
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AutorunConfig.parse(intent)
         enableEdgeToEdge()
 
         setContent {
@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
         val contentView = findViewById<android.view.View>(android.R.id.content)
         contentView.post {
             val ttiMs = SystemClock.uptimeMillis() - ShoppingDemoApp.appStartUptimeMs
-            Logger.logAppLaunchTTI(ttiMs.milliseconds)
+            RecordingLogger.logAppLaunchTTI(ttiMs.milliseconds)
             reportFullyDrawn()
         }
     }
@@ -98,7 +98,8 @@ fun ShoppingDemoContent() {
     // mandatory 5s delay, defeating the point of "fast."
     var phase by remember {
         mutableStateOf(
-            if (anrPrefs.getBoolean("restart_pending", false) ||
+            if (AutorunConfig.active ||
+                anrPrefs.getBoolean("restart_pending", false) ||
                 forceQuitPrefs.getBoolean("restart_pending", false) ||
                 anrPrefs.getBoolean("resume_infinite", false) ||
                 forceQuitPrefs.getBoolean("resume_infinite", false) ||
@@ -261,6 +262,16 @@ fun ShoppingDemoContent() {
                             // still state restoration; before the retry loop below, which
                             // is the app running rather than starting up.
                             ColdStartSpans.finish()
+
+                            // Test harness: launch arguments request an unattended run. Start
+                            // recording after the cold-start spans have closed so the record
+                            // holds only complete spans.
+                            if (AutorunConfig.active && !AutorunConfig.started) {
+                                AutorunConfig.started = true
+                                AutorunConfig.recordFile?.let { Recorder.start(context, it) }
+                                simulationManager.autorun(navController)
+                                return@LaunchedEffect
+                            }
 
                             // Relaunch timing can race with Compose/nav readiness.
                             // Retry auto-start a few times so infinite sim reliably resumes.

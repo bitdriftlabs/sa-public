@@ -5,7 +5,6 @@ import ai.bitdrift.shop.generated.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import io.bitdrift.capture.Capture.Logger
 
 /**
  * Customer-support session marker. While enabled, the global field `support=true` is attached
@@ -23,9 +22,9 @@ object SupportMode {
         // bitdrift SDK: addField() sets a global field on every subsequent log/span; removeField()
         // stops tagging. POC: workflow that records sessions where support=true.
         if (enabled) {
-            Logger.addField(FIELD, "true")
+            RecordingLogger.addField(FIELD, "true")
         } else {
-            Logger.removeField(FIELD)
+            RecordingLogger.removeField(FIELD)
         }
         ScreenLogger.logInfo(if (enabled) SpecEvents.SUPPORT_MODE_ON else SpecEvents.SUPPORT_MODE_OFF)
     }
