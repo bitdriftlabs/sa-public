@@ -175,12 +175,12 @@ Welcome → Browse/Search/Categories → ProductDetail → (Force Quit)
 
 ### Crash Loop
 
-**What:** 28 typed crashes cycling one per journey, each firing after the Confirmation screen so a complete session is captured first.
+**What:** 28 typed crashes cycling one per journey. Each fires at a journey point the shared journey engine draws at random from the back half (cart, checkout, payment, payment_failed, confirmation; recorded as `crash_journey_point`, with confirmation as the fallback), so crash data shows *where* in the funnel users are lost.
 
 **How it works:**
 
 1. Enabling Crash mode sets `crash_loop.active = true`. The `order_summary` flag switches to `"v2"`.
-2. After Confirmation, `maybeFireCrash()` in `SimulationManager.kt`:
+2. At the journey's crash point, the engine calls the adapter's `fireCrash()`, which runs `fireCrashNow()` in `SimulationManager.kt`:
    - Reads `next_combo_index` from SharedPreferences via `pickNextCrashCombo()` — a single
      index cycling 0 until `crashes.size * 2` (56 for the full catalog, 12 in OOM-only mode —
      see **OOM-Only Mode** below), so every crash type is guaranteed to occur in **both**
@@ -411,7 +411,7 @@ these three workflows.
 | File | Role |
 |------|------|
 | `Crashes.kt` | 28 crash types with unique top-level methods, incl. `oomOnly` (6-variant OOM subset) |
-| `SimulationManager.kt` | `pickNextCrashCombo()`/`dispatchCrash()` (shared), `maybeFireCrash()` (journey-based), `fireFastCrash()` (fast mode) |
+| `SimulationManager.kt` | `pickNextCrashCombo()`/`dispatchCrash()` (shared), `fireCrashNow()` (journey-based, called at the engine's crash point), `fireFastCrash()` (fast mode) |
 | `ShoppingDemoApp.kt` | `scheduleRestart()` (AlarmManager), `installCrashLoopHandler()`, `KEY_FAST_MODE`/`KEY_NEXT_COMBO_INDEX`/`KEY_OOM_ONLY` |
 | `MainActivity.kt` | Fast crash mode + OOM-only toggles (startup splash), phase-skip on fast-mode restarts, Welcome-screen resume/fire wiring |
 | `Screens.kt` | Crash toggle (Advanced), "Stop crash loop" button + status chip (Welcome) |
@@ -507,7 +507,8 @@ app/src/main/java/ai/bitdrift/shop/
 ├── Screens.kt                 # All screen composables
 ├── Components.kt              # Reusable UI components (ScreenContainer, SimulationOverlay, etc.)
 ├── MainActivity.kt            # Main activity — NavHost, screen view listener, TTI
-├── SimulationManager.kt       # Probabilistic state machine simulator + crash cycling
+├── JourneyEngine.kt          # Interpreter for spec/journey.yaml (the simulated journey)
+├── SimulationManager.kt       # Run loops, journey adapter (nav/API/SDK), faults + crash cycling
 ├── ApiClient.kt               # OkHttp API client (singleton)
 ├── RecommendationEngine.kt    # Product recommendation scoring engine
 ├── OrderSummaryHelper.kt      # Order summary formatter

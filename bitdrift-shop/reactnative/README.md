@@ -174,7 +174,7 @@ Welcome has **Sim 10**, **Sim 100** and **∞ Sim** buttons driving fully automa
 
 `Welcome → Browse / Search / Categories → ProductDetail → Reviews / Wishlist → Cart → Checkout (Guest or Sign-in) → Payment (Card / Apple Pay / PayPal / Google Pay) → Confirmation`
 
-Each journey is a probabilistic state machine whose branch weights are biased by the active variant (Control baseline below; Variant A is a snap-decision digital native, Variant B a deliberate card payer):
+Each journey runs [`spec/journey.yaml`](../spec/journey.yaml) through `src/sim/journeyEngine.ts` (the same interpreter every app ports); branch weights come from `spec/personas.yaml` and are biased by the active variant (Control baseline below; Variant A is a snap-decision digital native, Variant B a deliberate card payer):
 
 | Step | Choices (Control) |
 |------|---------|
@@ -183,9 +183,9 @@ Each journey is a probabilistic state machine whose branch weights are biased by
 | Product | 50% read Reviews, 40% add to Wishlist |
 | Cart | add 1–3 extra items, 60% remove one, 20% empty+re-add, 30% flip one |
 | Checkout | 50% Guest / 50% Sign-in |
-| Payment | Card / Apple Pay / PayPal / Google Pay (equal weight) |
+| Payment | Card / Apple Pay / PayPal / Android Pay (equal weight) |
 
-Journeys may abandon at cart or checkout, or hit a payment failure (50% retry). Exact per-variant probabilities are in `src/sim/variants.ts`.
+Journeys may abandon at cart or checkout, or hit a payment failure (50% retry). Exact per-variant probabilities are in `spec/personas.yaml`.
 
 ---
 
@@ -197,8 +197,9 @@ src/config.ts                  SDK key + backend URL (reads .env)
 src/api/ApiClient.ts           HTTP client, path templates, cardinality demo
 src/utils/logger.ts            All bitdrift wrappers: logs, fields, entity, flags, spans
 src/utils/appLifecycle.ts      app_open / app_close / memory_pressure
-src/context/SimulationContext.tsx   Variant-biased state machine, spans, chaos
-src/sim/variants.ts            Personas, probabilities, feature-flag mapping
+src/context/SimulationContext.tsx   Run loops + journey adapter (nav, API, logs/spans, chaos)
+src/sim/journeyEngine.ts       Interpreter for spec/journey.yaml (shared with every app)
+src/sim/variants.ts            Personas and feature-flag mapping
 src/sim/crashes.ts             20-crash catalog + native-module bridge
 src/sim/recommendations.ts     Levenshtein scoring behind the Slow toggle
 src/screens/ShoppingScreens.tsx     All 19 screens incl. Advanced

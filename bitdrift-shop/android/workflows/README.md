@@ -122,10 +122,10 @@ These workflows match the following log events emitted by the app:
 | `payment_completed` | Screens.kt | `payment_method`, `order_id` |
 | `payment_failed` | Screens.kt | `payment_method` |
 | `checkout_failed` | Screens.kt | `checkout_type` |
-| `cart_abandoned` | SimulationManager.kt | — |
-| `checkout_abandoned` | SimulationManager.kt | `checkout_type` |
-| `guest_anr_injected` | SimulationManager.kt | `force_quit_enabled` |
-| `force_quit_injected` | SimulationManager.kt | `force_quit_screen` |
+| `cart_abandoned` | spec/journey.yaml | — |
+| `checkout_abandoned` | spec/journey.yaml | `checkout_type` |
+| `guest_anr_injected` | spec/journey.yaml | `force_quit_enabled` |
+| `force_quit_injected` | spec/journey.yaml | `force_quit_screen` |
 | `metric_values` | MetricsDemo.kt | `metric_sine`, `metric_square`, `metric_sawtooth`, `metric_triangle`, `metric_dc`, `metric_counter`, `metric_work_latency_ms` |
 
 Span names: `journey`, `checkout`, `product_discovery` — all emit `_duration_ms` and `_span_type: "end"`. `score_products` (recommendations_v2 flag only) also emits `_duration_ms`. See [Span-timing workflows](#span-timing-workflows-bd-shop-20-through-bd-shop-23) below for the ~18 finer-grained spans added on top of these.

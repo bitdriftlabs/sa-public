@@ -6,7 +6,7 @@ moment it crashed.
 
 ## Why
 
-The crash-loop simulator (`SimulationManager.maybeFireCrash()`) gives every crash an
+The crash-loop simulator (`SimulationManager.fireCrashNow()`) gives every crash an
 independent 50% chance of firing after sending the app to the background via
 `moveTaskToBack(true)`, rather than always crashing in the foreground like before. That
 makes "foreground vs. background" a real dimension in the crash data, not just a

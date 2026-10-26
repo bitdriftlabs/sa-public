@@ -188,7 +188,7 @@ global_fields:
     source: {android: "A:SupportMode.kt:24"}
   - key: crash_kind
     set_when: "immediately before a crash or watchdog hang fires"
-    source: {android: "A:SimulationManager.kt:535", ios: "I:SimulationManager.swift:477", reactnative: "R:src/sim/crashes.ts:198"}
+    source: {android: "A:SimulationManager.kt:535", ios: "I:SimulationManager.swift:477", reactnative: "R:src/context/SimulationContext.tsx:214"}
     missing_on: [flutter]   # Flutter logs crash_injection{crash} instead (D-EVT-F12)
   - key: crash_context
     source: {android: "A:SimulationManager.kt:585", ios: "I:SimulationManager.swift:575"}

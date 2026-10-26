@@ -46,7 +46,7 @@ The backend also supports a **chaos mode** that injects faults (latency, 4xx/5xx
 
 ## Simulation
 
-Each app's Welcome screen can drive automated user journeys via a probabilistic state machine, producing varied, lifelike sessions (browsing, cart add/remove, wishlist, guest vs. member checkout, multiple payment methods, and cart abandonment). The Android and iOS apps additionally offer persona presets (Variant A / Variant B / Control) that bias the simulator. Details live in each app's own README.
+Each app's Welcome screen can drive automated user journeys, producing varied, lifelike sessions (browsing, cart add/remove, wishlist, guest vs. member checkout, multiple payment methods, cart and checkout abandonment, payment failure and retry). The journey is defined once, in [`spec/journey.yaml`](spec/journey.yaml), and every app runs it through the same small interpreter ([tools/journey](tools/journey/README.md)). Persona presets (Control / Variant A / Variant B) bias the choices, and a seed makes a run reproducible: the same persona and seed give the same journey on every app. Details live in each app's own README.
 
 ## Instrumenting an app
 

@@ -183,15 +183,15 @@ the dashboard in real time.
 | **Network capture** | `.enableIntegrations([.urlSession()])` — automatic, no per-call code | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Path templates** | `x-capture-path-template` header on parameterised routes | [ApiClient.swift](BitdriftShop/ApiClient.swift) |
 | **Screen views** | `Logger.logScreenView(screenName:)`, centrally from `Navigator` | [Navigator.swift](BitdriftShop/Navigator.swift), [ScreenLogger.swift](BitdriftShop/ScreenLogger.swift) |
-| **User identity** | `Logger.setEntityID("demo")` on launch, then rotated per simulated user | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [SimulationManager.swift](BitdriftShop/SimulationManager.swift) |
-| **Structured logs** | `logInfo`/`logWarning`/`logError` (`add_to_cart`, `checkout_started`, `payment_completed`, …) | [Screens.swift](BitdriftShop/Screens.swift), [SimulationManager.swift](BitdriftShop/SimulationManager.swift) |
+| **User identity** | `Logger.setEntityID("demo")` on launch, then rotated per simulated user | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [JourneyEngine.swift](BitdriftShop/JourneyEngine.swift) + [spec/journey.yaml](../spec/journey.yaml) |
+| **Structured logs** | `logInfo`/`logWarning`/`logError` (`add_to_cart`, `checkout_started`, `payment_completed`, …) | [Screens.swift](BitdriftShop/Screens.swift), [JourneyEngine.swift](BitdriftShop/JourneyEngine.swift) + [spec/journey.yaml](../spec/journey.yaml) |
 | **Global fields** | `Logger.addField(withKey:value:)` + a `FieldProvider` — `user_id`, `app_variant`, `platform`, `ff_*`, `supportlog`, `sim_app_version` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
 | **Feature flags** | `Logger.setFeatureFlagExposure(withName:variant:)` for `checkout_flow`, `payment_ui`, `cart_abandon_rate`, `recommendations_v2`, … | [SimulationManager.swift](BitdriftShop/SimulationManager.swift) |
 | **Custom metrics** | `metric_values` ticking once/sec, with `metric_work_latency_ms` auto-rotating across `sim_app_version` — same event/field names as Android, so both feed `bd-shop-12`; walkthrough in [android/metric-demo.md](../android/metric-demo.md) | [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
 | **App launch TTI** | `Logger.logAppLaunchTTI()` after first frame | [ContentView.swift](BitdriftShop/ContentView.swift) |
-| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`, `foreground_session`) and a `trackSpan` helper wrapping `score_products` | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
+| **Custom spans** | `Logger.startSpan()` (`journey` → `product_discovery`, `checkout`, `foreground_session`) and a `trackSpan` helper wrapping `score_products` | [JourneyEngine.swift](BitdriftShop/JourneyEngine.swift) + [spec/journey.yaml](../spec/journey.yaml), [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
 | **Support tooling** | `Logger.createTemporaryDeviceCode()`, Support Log toggle | [Screens.swift](BitdriftShop/Screens.swift) |
-| **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [SimulationManager.swift](BitdriftShop/SimulationManager.swift), [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
+| **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [JourneyEngine.swift](BitdriftShop/JourneyEngine.swift) + [spec/journey.yaml](../spec/journey.yaml), [MetricsDemo.swift](BitdriftShop/MetricsDemo.swift) |
 | **Crash symbolication** | dSYM upload via `bd debug-files upload` in a post-build phase | [scripts/upload-symbols.sh](scripts/upload-symbols.sh) |
 | **Lifecycle events** | `app_open` / `app_close` from SwiftUI `scenePhase`; `memory_pressure` from the UIKit memory-warning notification; a `foreground_session` span bracketing the same foreground interval, for session-duration charting (`_duration_ms` on its end log) — matches the Android app's span exactly | [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
 
@@ -202,7 +202,10 @@ scoped form (SUCCESS on return, FAILURE on throw) over `startSpan`/`Span.end`.
 ## Simulation
 
 The simulator walks the full funnel, choosing branches probabilistically at each
-decision point. Three persona presets bias those choices, exactly as on Android:
+decision point. The journey is [`spec/journey.yaml`](../spec/journey.yaml), run by
+[`JourneyEngine.swift`](BitdriftShop/JourneyEngine.swift), the same interpreter every app
+ports, so with the same persona and seed it produces the same journey as Android, React
+Native and Flutter. Three persona presets bias the choices:
 
 | Variant | Behaviour |
 |---------|-----------|
@@ -210,8 +213,8 @@ decision point. Three persona presets bias those choices, exactly as on Android:
 | **Variant A** | Digital native: snap decisions, skips reviews, guest checkout, digital payment, high cart abandonment |
 | **Variant B** | Deliberate shopper: reads everything, heavy cart churn, signs in, pays by card, rarely abandons |
 
-Every probability, event name, field name, and span name matches the Android
-implementation, so cross-platform comparisons in a dashboard are apples to apples.
+Every probability, event name, field name, and span name comes from `spec/`, so
+cross-platform comparisons in a dashboard are apples to apples.
 
 ### Simplified journey
 
@@ -264,7 +267,7 @@ launches.
 
 | Mode | What it does |
 |------|--------------|
-| **Crash** | After each completed journey, fires the next crash in a deterministic sweep of 32 crash kinds × {foreground, background} |
+| **Crash** | At a random back-half journey point (`crash_journey_point`), fires the next crash in a deterministic sweep of 32 crash kinds × {foreground, background} |
 | **OOMs** | Same loop restricted to the 6 memory-exhaustion variants |
 | **Fast crash mode** *(startup screen)* | Skips the journey entirely and fires the next crash immediately on every launch |
 | **Hang-A** | Blocks the main thread on CheckoutGuest (Variant A only) — the iOS analogue of Android's ANR |
