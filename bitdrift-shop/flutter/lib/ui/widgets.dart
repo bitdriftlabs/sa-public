@@ -4,6 +4,7 @@ import '../bd/capture.dart';
 import '../config.dart';
 import '../models/models.dart';
 import '../sim/simulator.dart';
+import 'container.dart';
 
 /// Per-category accents, matching the Android app (Components.kt `categoryColors`).
 const Map<String, Color> kCategoryColors = {
@@ -166,10 +167,14 @@ class ProductTile extends StatelessWidget {
 enum _LoadState { loading, error, ready }
 
 /// Fetches a backend endpoint, handles loading/error/retry, and delegates the
-/// rendered body to [builder]. Logs a screen view once when first shown.
+/// rendered screen to [builder] (which returns a [ScreenContainer]). Logs a screen
+/// view once when first shown.
 class LoadScreen extends StatefulWidget {
   final String title;
   final String screenView;
+  final int step;
+  final IconData icon;
+  final Color color;
   final Future<Map<String, dynamic>> Function() fetch;
   final Widget Function(BuildContext context, Map<String, dynamic> data) builder;
 
@@ -179,6 +184,9 @@ class LoadScreen extends StatefulWidget {
     required this.screenView,
     required this.fetch,
     required this.builder,
+    this.step = 2,
+    this.icon = Icons.menu,
+    this.color = const Color(0xFF9C27B0),
   });
 
   @override
@@ -219,13 +227,18 @@ class _LoadScreenState extends State<LoadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ScreenShell(
+    if (_state == _LoadState.ready) return widget.builder(context, _data);
+    final error = _state == _LoadState.error;
+    return ScreenContainer(
       title: widget.title,
-      body: _state == _LoadState.loading
-          ? const LoadingView()
-          : _state == _LoadState.error
-              ? ErrorView(message: _error, onRetry: _load)
-              : widget.builder(context, _data),
+      subtitle: error ? _error : 'Loading…',
+      step: widget.step,
+      icon: widget.icon,
+      color: widget.color,
+      onBack: () => Navigator.of(context).maybePop(),
+      children: [
+        if (error) PrimaryButton(title: 'Retry', icon: Icons.refresh, onPressed: _load),
+      ],
     );
   }
 }

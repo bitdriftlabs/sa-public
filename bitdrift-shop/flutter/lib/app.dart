@@ -22,8 +22,15 @@ class ShopApp extends StatelessWidget {
         theme: ThemeData(
           useMaterial3: true,
           brightness: Brightness.light,
-          // The Android app's light mode is Material 3's default light scheme
-          // (Theme.kt `lightColorScheme()`), so the defaults match it.
+          // The Android app uses Material You dynamic color (a slate blue on the
+          // reference emulator); Flutter has no equivalent, so pin that primary.
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF4E5F8D),
+            brightness: Brightness.light,
+          ).copyWith(
+            primary: const Color(0xFF4E5F8D),
+            onPrimary: Colors.white,
+          ),
         ),
         darkTheme: ThemeData(
           useMaterial3: true,

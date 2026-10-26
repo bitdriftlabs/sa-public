@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:bitdrift_shop_flutter/sim/simulator.dart';
 import 'package:bitdrift_shop_flutter/ui/widgets.dart';
 
 void main() {
@@ -43,12 +44,16 @@ void main() {
         return {'n': 42};
       }
 
-      await tester.pumpWidget(MaterialApp(
-        home: LoadScreen(
-          title: 'T',
-          screenView: 't',
-          fetch: fetch,
-          builder: (context, data) => Text('got ${data['n']}'),
+      // Screens read the shared simulator from the widget tree.
+      await tester.pumpWidget(SimulatorScope(
+        sim: Simulator(GlobalKey<NavigatorState>()),
+        child: MaterialApp(
+          home: LoadScreen(
+            title: 'T',
+            screenView: 't',
+            fetch: fetch,
+            builder: (context, data) => Text('got ${data['n']}'),
+          ),
         ),
       ));
       // loading frame, then the error state after the failed fetch

@@ -356,14 +356,14 @@ events:
     required: [product_id, source_screen]
     was: {flutter: add_to_cart_tapped}  # conformed in Phase 2b
     sim_emits: {reactnative: true}   # OPEN-5
-    source: {android: "A:Screens.kt:946", ios: "I:Screens.swift:667", reactnative: "R:src/screens/ShoppingScreens.tsx:429", flutter: "F:ui/screens.dart:290"}
+    source: {android: "A:Screens.kt:946", ios: "I:Screens.swift:667", reactnative: "R:src/screens/ShoppingScreens.tsx:429", flutter: "F:ui/screens.dart:333"}
   - name: add_to_wishlist
     level: info
     trigger: ui
     required: [product_id, source_screen]
     was: {flutter: wishlist_add_tapped}  # conformed in Phase 2b
     sim_emits: {reactnative: true}
-    source: {android: "A:Screens.kt:954", ios: "I:Screens.swift:671", reactnative: "R:src/screens/ShoppingScreens.tsx:437", flutter: "F:ui/screens.dart:301"}
+    source: {android: "A:Screens.kt:954", ios: "I:Screens.swift:671", reactnative: "R:src/screens/ShoppingScreens.tsx:437", flutter: "F:ui/screens.dart:345"}
   - name: cart_item_removed
     level: info
     trigger: ui
@@ -378,21 +378,21 @@ events:
     optional: [reason]
     was: {flutter: add_to_cart_failed}  # conformed in Phase 2b
     drift_level: {flutter: warning}
-    source: {android: "A:Screens.kt:1025", ios: "I:Screens.swift:799", reactnative: "R:src/screens/ShoppingScreens.tsx:536", flutter: "F:ui/screens.dart:295"}
+    source: {android: "A:Screens.kt:1025", ios: "I:Screens.swift:799", reactnative: "R:src/screens/ShoppingScreens.tsx:536", flutter: "F:ui/screens.dart:339"}
   - name: checkout_started
     level: info
     trigger: ui
     required: [checkout_type]
     was: {flutter: checkout_created}  # conformed in Phase 2b
     sim_emits: {reactnative: true}
-    source: {android: "A:Screens.kt:1113", ios: "I:Screens.swift:772", reactnative: "R:src/screens/ShoppingScreens.tsx:561", flutter: "F:ui/screens.dart:522"}
+    source: {android: "A:Screens.kt:1113", ios: "I:Screens.swift:772", reactnative: "R:src/screens/ShoppingScreens.tsx:561", flutter: "F:ui/screens.dart:578"}
   - name: checkout_failed
     level: error
     trigger: ui
     required: [checkout_type]
     optional: [reason]
     drift_level: {flutter: "warning in sim path (F:sim/simulator.dart:326)"}
-    source: {android: "A:Screens.kt:1195", ios: "I:Screens.swift:912", reactnative: "R:src/screens/ShoppingScreens.tsx:633", flutter: "F:ui/screens.dart:528"}
+    source: {android: "A:Screens.kt:1195", ios: "I:Screens.swift:912", reactnative: "R:src/screens/ShoppingScreens.tsx:633", flutter: "F:ui/screens.dart:584"}
     used_by: [android/workflows/bd-shop-02-payment-errors.json]
   - name: payment_completed
     level: info
@@ -401,7 +401,7 @@ events:
     optional: [card_last4]
     was: {flutter: payment_succeeded}  # conformed in Phase 2b
     sim_emits: {reactnative: true}
-    source: {android: "A:Screens.kt:1345", ios: "I:Screens.swift:1137", reactnative: "R:src/screens/ShoppingScreens.tsx:729", flutter: "F:ui/screens.dart:627"}
+    source: {android: "A:Screens.kt:1345", ios: "I:Screens.swift:1137", reactnative: "R:src/screens/ShoppingScreens.tsx:729", flutter: "F:ui/screens.dart:675"}
   - name: crash_loop_stopped
     level: info
     trigger: ui
