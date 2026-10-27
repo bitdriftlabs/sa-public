@@ -125,9 +125,9 @@ case "$PLATFORM" in
     # isn't installed on every machine, and unconditionally opens
     # Simulator.app before building — which no longer exists as of Xcode 27
     # (folded into DeviceHub.app) and aborts the whole command. See
-    # scripts/ios-2-start-simulator.sh and scripts/ios-3-start-app.sh for the
+    # ../scripts/device/ios-simulator.sh start and scripts/ios-3-start-app.sh for the
     # fallback/workaround logic; both also start Metro themselves.
-    bash "$(dirname "${BASH_SOURCE[0]}")/scripts/ios-2-start-simulator.sh"
+    bash "$(dirname "${BASH_SOURCE[0]}")/../scripts/device/ios-simulator.sh" start
     bash "$(dirname "${BASH_SOURCE[0]}")/scripts/ios-3-start-app.sh"
     ;;
   android)

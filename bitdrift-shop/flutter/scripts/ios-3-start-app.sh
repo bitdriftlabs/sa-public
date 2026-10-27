@@ -8,7 +8,7 @@
 # the compiled app on this toolchain, and lib/generated/key.dart is shared,
 # platform-agnostic Dart code.)
 #
-# Requires a booted simulator (scripts/ios-2-start-simulator.sh). Config comes from
+# Requires a booted simulator (../scripts/device/ios-simulator.sh start). Config comes from
 # the project's .env file (BITDRIFT_SDK_KEY, BITDRIFT_API_HOST, BACKEND_PORT) or
 # the shell environment (which wins — export it to override).
 set -euo pipefail
@@ -23,7 +23,7 @@ BUNDLE_ID="io.bitdrift.bitdriftShopFlutter"
 # 1. A booted simulator.
 SIM_ID="$(xcrun simctl list devices booted | grep -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -n1 || true)"
 if [[ -z "$SIM_ID" ]]; then
-  echo "No simulator booted. Start one first: bash scripts/ios-2-start-simulator.sh"
+  echo "No simulator booted. Start one first: ../scripts/device/ios-simulator.sh start"
   exit 1
 fi
 echo "Targeting simulator: $SIM_ID"

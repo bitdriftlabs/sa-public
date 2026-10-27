@@ -98,15 +98,15 @@ cp env.example .env   # then edit .env and set BITDRIFT_SDK_KEY
 **Android:**
 ```bash
 # Windowed by default (software rendering on macOS, where the GPU backend
-# crashes). Headless: EMULATOR_WINDOW=0 bash scripts/android-2-start-emulator.sh
-bash scripts/android-2-start-emulator.sh
+# crashes). Headless: EMULATOR_WINDOW=0 ../scripts/device/android-emulator.sh start
+../scripts/device/android-emulator.sh start
 
 bash scripts/android-3-start-app.sh   # build + install + launch
 ```
 
 **iOS:**
 ```bash
-bash scripts/ios-2-start-simulator.sh   # override device: DEVICE_NAME="iPhone 16e" ...
+../scripts/device/ios-simulator.sh start   # override device: DEVICE_NAME="iPhone 16e" ...
 
 bash scripts/ios-3-start-app.sh   # build + install + launch
 ```
@@ -151,18 +151,13 @@ flutter/
 │   ├── sim/journey_engine.dart  # interpreter for spec/journey.yaml (shared with every app)
 │   ├── sim/simulator.dart       # run loops + journey adapter (nav, API, logs/spans)
 │   └── ui/{welcome,screens,widgets}.dart
-├── scripts/                          # per-platform, numbered by order-of-use
+├── scripts/                          # per-platform, numbered by order-of-use; emulator/simulator
+│                                     # start/stop and stop-app live in ../scripts/device/
 │   ├── 0-install-flutter.sh          # one-time Flutter install (shared)
 │   ├── android-1-setup.sh            # one-time Android SDK/AVD setup
-│   ├── android-2-start-emulator.sh   # start the emulator
 │   ├── android-3-start-app.sh        # build + install + launch
-│   ├── android-4-stop-app.sh         # stop the app (emulator keeps running)
-│   ├── android-5-stop-emulator.sh    # stop the emulator
 │   ├── ios-1-setup.sh                # one-time iOS toolchain check (Xcode/CocoaPods/runtime)
-│   ├── ios-2-start-simulator.sh      # boot the simulator
 │   ├── ios-3-start-app.sh            # build + install + launch
-│   ├── ios-4-stop-app.sh             # stop the app (simulator keeps running)
-│   ├── ios-5-stop-simulator.sh       # shut down the simulator
 │   └── crash-loop.sh                 # Android crash-on-payment loop
 └── test/models_test.dart
 ```
@@ -235,7 +230,7 @@ Whether bitdrift groups these as crash issues is best-effort in the alpha SDK
 
 - **Emulator window flashes and dies (CoreGraphics / `Failed to restore
   previous context` error)** — the windowed GPU backend is unstable on this
-  machine. `android-2-start-emulator.sh` already defaults to software rendering on
+  machine. `../scripts/device/android-emulator.sh` already defaults to software rendering on
   macOS (`swiftshader_indirect`); if you overrode it with `EMU_GPU=host`,
   drop the override to get the default back.
 - **`No application found for TargetPlatform.android_arm64`** — the `android/`
@@ -276,12 +271,12 @@ Whether bitdrift groups these as crash issues is best-effort in the alpha SDK
 
 **Android:**
 ```bash
-bash scripts/android-4-stop-app.sh        # stop the app
-bash scripts/android-5-stop-emulator.sh   # stop the emulator
+../scripts/device/stop-app.sh flutter android        # stop the app
+../scripts/device/android-emulator.sh stop   # stop the emulator
 ```
 
 **iOS:**
 ```bash
-bash scripts/ios-4-stop-app.sh        # stop the app
-bash scripts/ios-5-stop-simulator.sh  # stop the simulator
+../scripts/device/stop-app.sh flutter ios        # stop the app
+../scripts/device/ios-simulator.sh stop  # stop the simulator
 ```

@@ -288,7 +288,7 @@ Then clean (⌘⇧K) and rebuild.
 
 **First Android build takes 10+ minutes** — Gradle downloads NDK 27.1.12297006 (~2.4 GB) and CMake 3.22.1. One-time.
 
-**Android emulator opens to a black screen, pegs one CPU core, or crashes** — `-gpu host` is broken on some macOS/Xcode combos (confirmed on Xcode 27 / macOS 26.6: either hangs at ~100% CPU or crashes with a NULL-pointer dereference in the emulator's own hang-detector startup — not fixable via AVD config). `android-2-start-emulator.sh` defaults to `-gpu swiftshader_indirect` (software rendering, slower but reliable) for this reason; only pass `EMU_GPU=host` if you've confirmed it actually works on your machine.
+**Android emulator opens to a black screen, pegs one CPU core, or crashes** — `-gpu host` is broken on some macOS/Xcode combos (confirmed on Xcode 27 / macOS 26.6: either hangs at ~100% CPU or crashes with a NULL-pointer dereference in the emulator's own hang-detector startup — not fixable via AVD config). `scripts/device/android-emulator.sh` defaults to `-gpu swiftshader_indirect` (software rendering, slower but reliable) for this reason; only pass `EMU_GPU=host` if you've confirmed it actually works on your machine.
 
 **Android emulator `offline` / `authorizing`** — `adb kill-server && adb start-server`. If still offline, cold boot it: `adb emu kill`, wait for it to exit, then `emulator -avd <AVD_NAME> -no-snapshot-load &`.
 

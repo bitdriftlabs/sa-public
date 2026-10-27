@@ -76,4 +76,4 @@ else
 fi
 
 echo
-echo "Done. To boot it: bash scripts/android-2-start-emulator.sh"
+echo "Done. To boot it: ../scripts/device/android-emulator.sh start"

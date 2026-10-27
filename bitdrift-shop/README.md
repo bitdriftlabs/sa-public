@@ -38,6 +38,18 @@ against [`spec/`](spec/): known names, required fields, levels, closed spans, on
   (`tools/conformance/collector.py`, started by `test.sh`) for the autorun config and POST their records to it.
 - `tools/codegen/generate.sh` regenerates every app's constants from `spec/`; `tools/codegen/check.sh` fails if they drift.
 
+## Emulators and simulators (shared by every app)
+
+One set of scripts in `scripts/device/` boots and stops the devices, whichever app you are running:
+
+```bash
+scripts/device/android-emulator.sh start|stop     # AVD_NAME, EMULATOR_WINDOW=0 (headless), EMU_GPU
+scripts/device/ios-simulator.sh start|stop        # DEVICE_NAME, MIN_IOS_VERSION
+scripts/device/stop-app.sh <native|rn|flutter> <android|ios>   # stop the app, leave the device running
+```
+
+Each app's `scripts/*-3-start-app.sh` then builds, installs and launches on whatever device is booted.
+
 ## The backend (shared by every app)
 
 A single FastAPI server is the common element across all the apps. It serves a catalog of 18 products across categories (Electronics, Clothing, Home & Garden, Sports) and exposes the browse, search, cart, checkout, and payment endpoints each app calls. Every app points at the same locally-run server, so behavior and traffic stay consistent regardless of platform.

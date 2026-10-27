@@ -5,7 +5,7 @@
 # (--dart-define values have been observed to drop out of the release kernel in
 # this toolchain, so the key rides in as a generated string literal instead.)
 #
-# Requires a running emulator (scripts/android-2-start-emulator.sh). Config comes from
+# Requires a running emulator (../scripts/device/android-emulator.sh start). Config comes from
 # the project's .env file (BITDRIFT_SDK_KEY, BITDRIFT_API_HOST, BACKEND_PORT) or
 # the shell environment (which wins — export it to override).
 set -euo pipefail
@@ -18,7 +18,7 @@ export PATH="$FLUTTER_DIR/bin:$SDK_DIR/platform-tools:$PATH"
 # 1. A connected emulator.
 EMU_ID="$(adb devices | awk 'NR>1 && $2=="device"{print $1}' | grep -E '^emulator-' | head -n1 || true)"
 if [[ -z "$EMU_ID" ]]; then
-  echo "No emulator attached. Start one first: bash scripts/android-2-start-emulator.sh"
+  echo "No emulator attached. Start one first: ../scripts/device/android-emulator.sh start"
   exit 1
 fi
 echo "Targeting emulator: $EMU_ID"

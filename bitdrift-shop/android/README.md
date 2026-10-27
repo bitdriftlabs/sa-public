@@ -62,10 +62,10 @@ Open in Android Studio and run on an emulator (API 36, 1080×2400, 2GB+ RAM). Se
 
 ```bash
 ./scripts/android-1-setup.sh          # one-time: cmdline-tools, SDK packages, AVD
-./scripts/android-2-start-emulator.sh # boot and wait for it to come up
+../scripts/device/android-emulator.sh start # boot and wait for it to come up
 ./scripts/android-3-start-app.sh      # gradlew install<Variant> + launch
-./scripts/android-4-stop-app.sh       # force-stop, leaves the emulator running
-./scripts/android-5-stop-emulator.sh  # kill the emulator
+../scripts/device/stop-app.sh native android       # force-stop, leaves the emulator running
+../scripts/device/android-emulator.sh stop  # kill the emulator
 ```
 
 ### Step 3: Generate data

@@ -112,18 +112,19 @@ xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop \
   -destination 'platform=iOS Simulator,name=iPhone 16' build
 ```
 
-**No Xcode UI at all?** `scripts/ios-{1..5}-*.sh` verify the toolchain, boot a
-simulator, and build+install+launch from the command line — modeled on the
+**No Xcode UI at all?** `scripts/ios-1-setup.sh` and `ios-3-start-app.sh` verify the toolchain and
+build+install+launch from the command line (the simulator start/stop and stop-app
+scripts are shared by every app: `../scripts/device/`) — modeled on the
 Flutter app's own no-Xcode scripts (`../flutter/scripts/ios-*.sh`), reusing this
 project's `demo-lib.sh` helpers for consistency with `watchdog.sh`:
 
 ```bash
 ./scripts/ios-1-setup.sh          # one-time: Xcode CLT/license, simulator runtime, .local.xcconfig
-./scripts/ios-2-start-simulator.sh # boot a simulator (DEVICE_NAME, default "iPhone 16",
+../scripts/device/ios-simulator.sh start # boot a simulator (DEVICE_NAME, default "iPhone 16",
                                     #   falls back to whatever's installed if not found)
 ./scripts/ios-3-start-app.sh       # xcodebuild + simctl install + launch
-./scripts/ios-4-stop-app.sh        # stop the app, leaves the simulator running
-./scripts/ios-5-stop-simulator.sh  # shut down the simulator
+../scripts/device/stop-app.sh native ios        # stop the app, leaves the simulator running
+../scripts/device/ios-simulator.sh stop  # shut down the simulator
 ```
 
 The app opens on a 5-second **startup config** screen (crash mode, fast crash,
@@ -344,10 +345,10 @@ are all places where the platform left no choice:
 
 ```bash
 ./scripts/ios-1-setup.sh                  # verify Xcode CLT/license, simulator runtime, .local.xcconfig
-./scripts/ios-2-start-simulator.sh        # boot a simulator, no Xcode UI
+../scripts/device/ios-simulator.sh start        # boot a simulator, no Xcode UI
 ./scripts/ios-3-start-app.sh              # build + install + launch, no Xcode UI
-./scripts/ios-4-stop-app.sh               # stop the app
-./scripts/ios-5-stop-simulator.sh         # shut down the simulator
+../scripts/device/stop-app.sh native ios               # stop the app
+../scripts/device/ios-simulator.sh stop         # shut down the simulator
 ./scripts/foreground-cycle.sh             # cycle in/out of the foreground to exercise bd-shop-14 (session duration)
 ./scripts/release-build.sh                # Release build + dSYM upload (see below)
 ./scripts/watchdog.sh                     # relaunch on death; background the app when a background crash is armed
@@ -500,7 +501,7 @@ ios/
 ├── BitdriftShop.xcodeproj/     Xcode project (SPM: capture-ios 0.24.2)
 ├── Info.plist                  Bundle config; xcconfig values surface here
 ├── local.xcconfig              Blank template; includes .local.xcconfig
-├── scripts/                    ios-{1..5}-*.sh (no-Xcode build/run), foreground-cycle.sh, watchdog.sh, check-demo-state.sh, demo-lib.sh
+├── scripts/                    ios-{1,3}-*.sh (no-Xcode setup, build/run), foreground-cycle.sh, watchdog.sh, check-demo-state.sh, demo-lib.sh
 └── BitdriftShop/
     ├── BitdriftShopApp.swift   App entry, SDK start, scenePhase lifecycle logging + foreground_session span
     ├── CaptureBridge.swift     SDK lifecycle, trackSpan, FieldProvider

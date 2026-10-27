@@ -60,7 +60,7 @@ smoke_android() {
   local serial; serial="$(android_serial)"
   if [[ -z "$serial" ]]; then
     echo "starting headless emulator ..."
-    (cd "$ROOT/android" && EMULATOR_WINDOW=0 bash scripts/android-2-start-emulator.sh >"$OUT/android-emulator.log" 2>&1) || { echo "emulator failed: see $OUT/android-emulator.log"; return 1; }
+    (cd "$ROOT" && EMULATOR_WINDOW=0 bash scripts/device/android-emulator.sh start >"$OUT/android-emulator.log" 2>&1) || { echo "emulator failed: see $OUT/android-emulator.log"; return 1; }
     serial="$(android_serial)"
   fi
   [[ -n "$serial" ]] || { echo "no emulator"; return 1; }
@@ -103,7 +103,7 @@ unit_ios() {
 smoke_ios() {
   local udid; udid="$(ios_udid)"
   if [[ -z "$udid" ]]; then
-    (cd "$ROOT/ios" && bash scripts/ios-2-start-simulator.sh >"$OUT/ios-sim.log" 2>&1) || { echo "simulator failed: see $OUT/ios-sim.log"; return 1; }
+    (cd "$ROOT" && bash scripts/device/ios-simulator.sh start >"$OUT/ios-sim.log" 2>&1) || { echo "simulator failed: see $OUT/ios-sim.log"; return 1; }
     udid="$(ios_udid)"
   fi
   [[ -n "$udid" ]] || { echo "no booted simulator"; return 1; }
@@ -136,7 +136,7 @@ ensure_android() {
   local serial; serial="$(android_serial)"
   if [[ -z "$serial" ]]; then
     echo "starting headless emulator ..." >&2
-    (cd "$ROOT/android" && EMULATOR_WINDOW=0 bash scripts/android-2-start-emulator.sh >"$OUT/android-emulator.log" 2>&1) || return 1
+    (cd "$ROOT" && EMULATOR_WINDOW=0 bash scripts/device/android-emulator.sh start >"$OUT/android-emulator.log" 2>&1) || return 1
     serial="$(android_serial)"
   fi
   [[ -n "$serial" ]] && echo "$serial"
@@ -145,7 +145,7 @@ ensure_android() {
 ensure_ios() {
   local udid; udid="$(ios_udid)"
   if [[ -z "$udid" ]]; then
-    (cd "$ROOT/ios" && bash scripts/ios-2-start-simulator.sh >"$OUT/ios-sim.log" 2>&1) || return 1
+    (cd "$ROOT" && bash scripts/device/ios-simulator.sh start >"$OUT/ios-sim.log" 2>&1) || return 1
     udid="$(ios_udid)"
   fi
   [[ -n "$udid" ]] && echo "$udid"

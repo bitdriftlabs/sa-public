@@ -9,7 +9,7 @@
 # restarting Metro with --reset-cache (metro-lib.sh does this) is all that's
 # needed to pick up a changed .env.
 #
-# Requires a running emulator (scripts/android-2-start-emulator.sh).
+# Requires a running emulator (../scripts/device/android-emulator.sh start).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -23,7 +23,7 @@ source "$ROOT/scripts/metro-lib.sh"
 # 1. A connected emulator.
 EMU_ID="$(adb devices | awk 'NR>1 && $2=="device"{print $1}' | grep -E '^emulator-' | head -n1 || true)"
 if [[ -z "$EMU_ID" ]]; then
-  echo "No emulator attached. Start one first: bash scripts/android-2-start-emulator.sh"
+  echo "No emulator attached. Start one first: ../scripts/device/android-emulator.sh start"
   exit 1
 fi
 echo "Targeting emulator: $EMU_ID"
@@ -62,4 +62,4 @@ cd "$ROOT"
 npx react-native run-android --no-packager
 
 echo "Launched ai.bitdrift.rn.shop on $EMU_ID"
-echo "Stop it with: bash scripts/android-4-stop-app.sh"
+echo "Stop it with: ../scripts/device/stop-app.sh rn android"

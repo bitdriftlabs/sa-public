@@ -6,7 +6,7 @@
 # `react-native run-ios`: that CLI's runOnSimulator step unconditionally
 # shells out to `open .../Applications/Simulator.app` *before* it builds, to
 # bring the Simulator window forward. Xcode 27 folded Simulator.app into
-# DeviceHub.app (see ios-2-start-simulator.sh), so that path no longer
+# DeviceHub.app (see ../scripts/device/ios-simulator.sh), so that path no longer
 # exists and the `open` call throws — aborting the whole command before any
 # build/install/launch happens, even with a simulator already booted and
 # visible. simctl has no such dependency.
@@ -20,11 +20,11 @@
 #
 # Targets the booted simulator by UDID rather than by name (what
 # package.json's `npm run ios` hardcodes as "iPhone 16e"): that model isn't
-# installed on every machine, and this way whatever ios-2-start-simulator.sh
+# installed on every machine, and this way whatever scripts/device/ios-simulator.sh
 # actually booted — including its own fallback — is exactly what gets
 # targeted here, with no risk of the two disagreeing.
 #
-# Requires a booted simulator (scripts/ios-2-start-simulator.sh).
+# Requires a booted simulator (../scripts/device/ios-simulator.sh start).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -37,7 +37,7 @@ source "$ROOT/scripts/demo-lib.sh"
 # 1. A booted simulator.
 SIM_ID="$(xcrun simctl list devices booted | grep -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -n1 || true)"
 if [[ -z "$SIM_ID" ]]; then
-  echo "No simulator booted. Start one first: bash scripts/ios-2-start-simulator.sh"
+  echo "No simulator booted. Start one first: ../scripts/device/ios-simulator.sh start"
   exit 1
 fi
 echo "Targeting simulator: $SIM_ID"
@@ -72,10 +72,10 @@ if [[ ! -d "$APP_PATH" ]]; then
 fi
 
 # 5. Install + launch, via demo-lib.sh's helpers (retries + verifies, same as
-#    ios-foreground-cycle.sh/ios-4-stop-app.sh).
+#    ios-foreground-cycle.sh/scripts/device/stop-app.sh).
 xcrun simctl install "$SIM_ID" "$APP_PATH"
 resolve_target sim "$SIM_ID"
 launch_app
 
 echo "Launched $BUNDLE_ID on $SIM_ID"
-echo "Stop it with: bash scripts/ios-4-stop-app.sh"
+echo "Stop it with: ../scripts/device/stop-app.sh rn ios"
