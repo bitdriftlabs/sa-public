@@ -48,7 +48,19 @@ scripts/device/ios-simulator.sh start|stop        # DEVICE_NAME, MIN_IOS_VERSION
 scripts/device/stop-app.sh <native|rn|flutter> <android|ios>   # stop the app, leave the device running
 ```
 
-Each app's `scripts/*-3-start-app.sh` then builds, installs and launches on whatever device is booted.
+Each app's `scripts/*-3-start-app.sh` (React Native: `./start.sh ios|android`) then builds, installs and launches
+on whatever device is booted. A typical session, from an app directory such as `android/`:
+
+```bash
+../scripts/device/android-emulator.sh start     # or ios-simulator.sh start
+./scripts/android-3-start-app.sh                # build + install + launch
+../scripts/device/stop-app.sh native android    # stop the app, device keeps running
+../scripts/device/android-emulator.sh stop      # shut the device down
+```
+
+Defaults: Android AVD `Medium_Phone`, software rendering on macOS (the hardware GPU backend hangs or crashes);
+iOS device `iPhone 17 Pro`, falling back to any iPhone on iOS 26.0 or newer. `./test.sh <app> smoke` boots what
+it needs through these same scripts.
 
 ## The backend (shared by every app)
 

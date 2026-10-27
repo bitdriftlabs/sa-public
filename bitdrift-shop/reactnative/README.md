@@ -98,10 +98,16 @@ npm run ios                        # or: npm run android
 Two more things worth knowing:
 
 - **After changing `.env`,** restart Metro with `--reset-cache`. Values are inlined at transform time, so a warm cache keeps serving the old SDK key.
-- **On a headless shell,** boot the simulator/emulator yourself first — neither command does it for you:
+- **On a headless shell,** boot the simulator/emulator yourself first — neither command does it for you. Use the shared scripts (same ones every app uses; `EMULATOR_WINDOW=0` runs the emulator headless):
   ```bash
-  xcrun simctl boot "iPhone 16e"     # or: open -a Simulator
-  emulator -avd <AVD_NAME> &         # list with: emulator -list-avds
+  ../scripts/device/ios-simulator.sh start       # DEVICE_NAME, MIN_IOS_VERSION
+  ../scripts/device/android-emulator.sh start    # AVD_NAME, EMULATOR_WINDOW=0, EMU_GPU
+  ```
+  When you are done:
+  ```bash
+  ../scripts/device/stop-app.sh rn ios           # or: rn android — stops the app, leaves the device running
+  ../scripts/device/ios-simulator.sh stop
+  ../scripts/device/android-emulator.sh stop
   ```
 
 One Metro serves both platforms.
