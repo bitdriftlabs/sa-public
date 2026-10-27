@@ -82,8 +82,28 @@ smoke_android() {
     sleep 3; waited=$((waited + 3))
   done
   (( waited < SMOKE_TIMEOUT )) || { echo "timed out after ${SMOKE_TIMEOUT}s waiting for sim_autorun_complete"; return 1; }
-  adb -s "$serial" exec-out run-as "$pkg" cat "files/record/$file" >"$OUT/android-$file"
+  local settle
+  for settle in $(seq 1 10); do
+    adb -s "$serial" exec-out run-as "$pkg" cat "files/record/$file" >"$OUT/android-$file"
+    [[ "$(open_spans "$OUT/android-$file")" == 0 ]] && break
+    sleep 1
+  done
   "$PY" "$ROOT/tools/conformance/conformance.py" --platform android --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$OUT/android-$file"
+}
+
+# Number of spans in a record that started but have not ended. The app can still be mid-request on its last
+# screen (Welcome's version check hits the network) when it logs the completion marker, so smoke waits a few
+# seconds for this to reach zero before judging the record, instead of flaking on that race.
+open_spans() {
+  "$PY" -c '
+import json,sys
+o=set()
+for l in open(sys.argv[1]):
+    try: d=json.loads(l)
+    except ValueError: continue
+    if d.get("kind")=="span_start": o.add(d["id"])
+    elif d.get("kind")=="span_end": o.discard(d["id"])
+print(len(o))' "$1" 2>/dev/null || echo 0
 }
 
 # ── ios ──────────────────────────────────────────────────────────────────────
@@ -115,7 +135,10 @@ smoke_ios() {
     || { echo "build failed: see $OUT/ios-build.log"; return 1; }
   local app; app="$(find "$ROOT/ios/build/debug/Build/Products" -maxdepth 2 -name 'BitdriftShop.app' | head -1)"
   [[ -n "$app" ]] || { echo "BitdriftShop.app not found"; return 1; }
+  # Uninstall first: the app's UserDefaults (a crash loop armed by an earlier manual run, say) survive a plain
+  # reinstall and would make this run crash instead of finishing.
   xcrun simctl terminate "$udid" "$bundle" >/dev/null 2>&1
+  xcrun simctl uninstall "$udid" "$bundle" >/dev/null 2>&1
   xcrun simctl install "$udid" "$app" || return 1
   local data; data="$(xcrun simctl get_app_container "$udid" "$bundle" data)"
   local rec="$data/Documents/record/$file"
@@ -127,6 +150,11 @@ smoke_ios() {
     sleep 3; waited=$((waited + 3))
   done
   (( waited < SMOKE_TIMEOUT )) || { echo "timed out after ${SMOKE_TIMEOUT}s waiting for sim_autorun_complete"; return 1; }
+  local settle
+  for settle in $(seq 1 10); do
+    [[ "$(open_spans "$rec")" == 0 ]] && break
+    sleep 1
+  done
   cp "$rec" "$OUT/ios-$file"
   "$PY" "$ROOT/tools/conformance/conformance.py" --platform ios --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$OUT/ios-$file"
 }
