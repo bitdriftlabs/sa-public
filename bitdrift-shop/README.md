@@ -34,12 +34,12 @@ scripts/device/ios-simulator.sh start|stop        # DEVICE_NAME, MIN_IOS_VERSION
 scripts/device/stop-app.sh <native|rn|flutter> <android|ios>   # stop the app, leave the device running
 ```
 
-Each app's `scripts/*-3-start-app.sh` (React Native: `./start.sh ios|android`) then builds, installs and launches
+Each app's `scripts/*-2-start-app.sh` (React Native: `./start.sh ios|android`) then builds, installs and launches
 on whatever device is booted. A typical session, from an app directory such as `android/`:
 
 ```bash
 ../scripts/device/android-emulator.sh start     # or ios-simulator.sh start
-./scripts/android-3-start-app.sh                # build + install + launch
+./scripts/android-2-start-app.sh                # build + install + launch
 ../scripts/device/stop-app.sh native android    # stop the app, device keeps running
 ../scripts/device/android-emulator.sh stop      # shut the device down
 ```

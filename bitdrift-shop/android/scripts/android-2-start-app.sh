@@ -3,7 +3,7 @@
 #
 # Pipeline: gradlew install<Variant> -> adb launch.
 #
-# No key-baking step here, unlike ../../flutter/scripts/android-3-start-app.sh
+# No key-baking step here, unlike ../../flutter/scripts/android-2-start-app.sh
 # — this app's build.gradle.kts already reads BITDRIFT_SDK_KEY /
 # BITDRIFT_API_HOST straight from local.properties/.local.properties (or the
 # shell env as a fallback, which loses to local.properties if both are set)

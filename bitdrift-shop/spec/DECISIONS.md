@@ -273,7 +273,7 @@ KMP adopts the generated constants when it is next touched (plan §1).
 - **Evidence:**
   - Android uses `BITDRIFT_SDK_KEY` (`android/app/build.gradle.kts:75-81`).
   - RN uses it too (`R:src/config.ts:2,31`, `R:env.d.ts:2`), as do Flutter (`F:config.dart:31`) and KMP.
-  - iOS uses `BITDRIFT_API_KEY` (`I:AppConfig.swift:17`, `ios/Info.plist:52`, `ios/local.xcconfig:21`). The iOS scripts also use it: `ios-1-setup.sh`, `ios-3-start-app.sh`, `release-build.sh` and `upload-symbols.sh` (for the dSYM upload).
+  - iOS uses `BITDRIFT_API_KEY` (`I:AppConfig.swift:17`, `ios/Info.plist:52`, `ios/local.xcconfig:21`). The iOS scripts also use it: `ios-1-setup.sh`, `ios-2-start-app.sh`, `release-build.sh` and `upload-symbols.sh` (for the dSYM upload).
 - **Options:**
   - (a) Rename iOS to `BITDRIFT_SDK_KEY`.
   - (b) Rename the other three to `BITDRIFT_API_KEY`, which is the SDK's own parameter name (`apiKey`) and what the iOS comment argues for (`I:AppConfig.swift:11-13`).

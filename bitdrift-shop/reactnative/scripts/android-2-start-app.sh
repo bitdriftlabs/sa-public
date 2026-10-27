@@ -2,8 +2,8 @@
 # Start Metro (if not already running) and build/install/launch the app on
 # the connected emulator, via the React Native CLI — no Android Studio.
 #
-# Unlike ../../android/scripts/android-3-start-app.sh (native app, gradlew
-# directly) and ../../flutter/scripts/android-3-start-app.sh (flutter build
+# Unlike ../../android/scripts/android-2-start-app.sh (native app, gradlew
+# directly) and ../../flutter/scripts/android-2-start-app.sh (flutter build
 # apk), there's no key-baking step here: this app reads BITDRIFT_SDK_KEY from
 # .env via react-native-dotenv at Metro *bundle* time (src/config.ts), so
 # restarting Metro with --reset-cache (metro-lib.sh does this) is all that's
@@ -56,7 +56,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 start_metro_background
 
 # 5. Build + install + launch. Only one emulator is ever expected to be
-#    attached here (same precondition as every other *-3-start-app.sh in
+#    attached here (same precondition as every other *-2-start-app.sh in
 #    this repo), so no --device targeting is needed.
 cd "$ROOT"
 npx react-native run-android --no-packager

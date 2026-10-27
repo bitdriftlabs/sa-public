@@ -11,8 +11,8 @@
 # build/install/launch happens, even with a simulator already booted and
 # visible. simctl has no such dependency.
 #
-# Unlike ../../ios/scripts/ios-3-start-app.sh (native app, plain xcodebuild)
-# and ../../flutter/scripts/ios-3-start-app.sh (flutter build ios), there's
+# Unlike ../../ios/scripts/ios-2-start-app.sh (native app, plain xcodebuild)
+# and ../../flutter/scripts/ios-2-start-app.sh (flutter build ios), there's
 # no key-baking step here: this app reads BITDRIFT_SDK_KEY from .env via
 # react-native-dotenv at Metro *bundle* time (src/config.ts), so restarting
 # Metro with --reset-cache (metro-lib.sh does this) is all that's needed to

@@ -188,7 +188,7 @@ smoke_rn_android() {
   local serial; serial="$(ensure_android)" || { echo "no emulator"; return 1; }
   local pkg=ai.bitdrift.rn.shop out="$OUT/rn-android-smoke.jsonl" act
   start_collector "$out"
-  (cd "$ROOT/reactnative" && bash scripts/android-3-start-app.sh >"$OUT/rn-android-start.log" 2>&1) \
+  (cd "$ROOT/reactnative" && bash scripts/android-2-start-app.sh >"$OUT/rn-android-start.log" 2>&1) \
     || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/rn-android-start.log"; return 1; }
   act="$(adb -s "$serial" shell cmd package resolve-activity --brief "$pkg" | tail -1 | tr -d '\r')"
   await_collector "adb -s $serial shell am start -S -n $act" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
@@ -199,7 +199,7 @@ smoke_rn_ios() {
   local udid; udid="$(ensure_ios)" || { echo "no simulator"; return 1; }
   local bundle=ai.bitdrift.rn.shop out="$OUT/rn-ios-smoke.jsonl"
   start_collector "$out"
-  (cd "$ROOT/reactnative" && bash scripts/ios-3-start-app.sh >"$OUT/rn-ios-start.log" 2>&1) \
+  (cd "$ROOT/reactnative" && bash scripts/ios-2-start-app.sh >"$OUT/rn-ios-start.log" 2>&1) \
     || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/rn-ios-start.log"; return 1; }
   await_collector "xcrun simctl launch --terminate-running-process $udid $bundle" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
   "$PY" "$ROOT/tools/conformance/conformance.py" --platform reactnative --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$out"
@@ -218,7 +218,7 @@ smoke_flutter_android() {
   local serial; serial="$(ensure_android)" || { echo "no emulator"; return 1; }
   local out="$OUT/flutter-android-smoke.jsonl"
   start_collector "$out"
-  (cd "$ROOT/flutter" && BDSHOP_HARNESS=1 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bash scripts/android-3-start-app.sh >"$OUT/flutter-android-start.log" 2>&1) \
+  (cd "$ROOT/flutter" && BDSHOP_HARNESS=1 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bash scripts/android-2-start-app.sh >"$OUT/flutter-android-start.log" 2>&1) \
     || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/flutter-android-start.log"; return 1; }
   await_collector "adb -s $serial shell am start -S -n ai.bitdrift.shop.flutter/.MainActivity" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
   "$PY" "$ROOT/tools/conformance/conformance.py" --platform flutter --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$out"
@@ -228,7 +228,7 @@ smoke_flutter_ios() {
   local udid; udid="$(ensure_ios)" || { echo "no simulator"; return 1; }
   local out="$OUT/flutter-ios-smoke.jsonl"
   start_collector "$out"
-  (cd "$ROOT/flutter" && BDSHOP_HARNESS=1 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bash scripts/ios-3-start-app.sh >"$OUT/flutter-ios-start.log" 2>&1) \
+  (cd "$ROOT/flutter" && BDSHOP_HARNESS=1 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bash scripts/ios-2-start-app.sh >"$OUT/flutter-ios-start.log" 2>&1) \
     || { kill "$COLLECTOR_PID" 2>/dev/null; echo "build/launch failed: see $OUT/flutter-ios-start.log"; return 1; }
   await_collector "xcrun simctl launch --terminate-running-process $udid io.bitdrift.bitdriftShopFlutter" || { echo "collector: $(cat "$OUT/collector.log")"; return 1; }
   "$PY" "$ROOT/tools/conformance/conformance.py" --platform flutter --runs "$SIM_RUNS" --persona "$PERSONA" --seed "$SIM_SEED" "$out"

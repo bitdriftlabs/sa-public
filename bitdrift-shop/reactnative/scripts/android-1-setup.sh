@@ -39,7 +39,7 @@ export PATH="$SDK_DIR/cmdline-tools/latest/bin:$SDK_DIR/platform-tools:$PATH"
 # 2. JDK — sdkmanager needs one on PATH. The Gradle build itself needs
 #    exactly JDK 17 (Gradle 8.10.2 cannot run on Java 24+, and Android
 #    Studio's bundled JBR on this machine is newer) — that pin is handled in
-#    android-3-start-app.sh, not here.
+#    android-2-start-app.sh, not here.
 if ! command -v java >/dev/null 2>&1; then
   echo "ERROR: no JDK found on PATH. Install JDK 17 first, e.g.:" >&2
   echo "  brew install --cask temurin@17" >&2

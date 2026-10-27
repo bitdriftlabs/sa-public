@@ -1,4 +1,4 @@
-# Shared Metro bundler helpers for android-3-start-app.sh / ios-3-start-app.sh.
+# Shared Metro bundler helpers for android-2-start-app.sh / ios-2-start-app.sh.
 # Extracted from ../start.sh — keep the two in sync if Metro's behavior changes
 # there. Callers must set ROOT (the reactnative/ project root) before sourcing.
 

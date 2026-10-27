@@ -112,7 +112,7 @@ xcodebuild -project BitdriftShop.xcodeproj -scheme BitdriftShop \
   -destination 'platform=iOS Simulator,name=iPhone 16' build
 ```
 
-**No Xcode UI at all?** `scripts/ios-1-setup.sh` and `ios-3-start-app.sh` verify the toolchain and
+**No Xcode UI at all?** `scripts/ios-1-setup.sh` and `ios-2-start-app.sh` verify the toolchain and
 build+install+launch from the command line (the simulator start/stop and stop-app
 scripts are shared by every app: `../scripts/device/`) — modeled on the
 Flutter app's own no-Xcode scripts (`../flutter/scripts/ios-*.sh`), reusing this
@@ -122,7 +122,7 @@ project's `demo-lib.sh` helpers for consistency with `watchdog.sh`:
 ./scripts/ios-1-setup.sh          # one-time: Xcode CLT/license, simulator runtime, .local.xcconfig
 ../scripts/device/ios-simulator.sh start # boot a simulator (DEVICE_NAME, default "iPhone 17 Pro",
                                     #   falls back to any installed iPhone on iOS >= MIN_IOS_VERSION)
-./scripts/ios-3-start-app.sh       # xcodebuild + simctl install + launch
+./scripts/ios-2-start-app.sh       # xcodebuild + simctl install + launch
 ../scripts/device/stop-app.sh native ios        # stop the app, leaves the simulator running
 ../scripts/device/ios-simulator.sh stop  # shut down the simulator
 ```
@@ -346,7 +346,7 @@ are all places where the platform left no choice:
 ```bash
 ./scripts/ios-1-setup.sh                  # verify Xcode CLT/license, simulator runtime, .local.xcconfig
 ../scripts/device/ios-simulator.sh start        # boot a simulator, no Xcode UI
-./scripts/ios-3-start-app.sh              # build + install + launch, no Xcode UI
+./scripts/ios-2-start-app.sh              # build + install + launch, no Xcode UI
 ../scripts/device/stop-app.sh native ios               # stop the app
 ../scripts/device/ios-simulator.sh stop         # shut down the simulator
 ./scripts/foreground-cycle.sh             # cycle in/out of the foreground to exercise bd-shop-14 (session duration)
@@ -501,7 +501,7 @@ ios/
 ├── BitdriftShop.xcodeproj/     Xcode project (SPM: capture-ios 0.24.2)
 ├── Info.plist                  Bundle config; xcconfig values surface here
 ├── local.xcconfig              Blank template; includes .local.xcconfig
-├── scripts/                    ios-{1,3}-*.sh (no-Xcode setup, build/run), foreground-cycle.sh, watchdog.sh, check-demo-state.sh, demo-lib.sh
+├── scripts/                    ios-{1,2}-*.sh (no-Xcode setup, build/run), foreground-cycle.sh, watchdog.sh, check-demo-state.sh, demo-lib.sh
 └── BitdriftShop/
     ├── BitdriftShopApp.swift   App entry, SDK start, scenePhase lifecycle logging + foreground_session span
     ├── CaptureBridge.swift     SDK lifecycle, trackSpan, FieldProvider

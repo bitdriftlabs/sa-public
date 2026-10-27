@@ -58,12 +58,12 @@ Want to correlate this app's bitdrift sessions with server-side Datadog APM trac
 
 Open in Android Studio and run on an emulator (API 36, 1080×2400, 2GB+ RAM). See [local config](README-refs.md#emulator-requirements) for details.
 
-**No Android Studio?** `scripts/android-{1..5}-*.sh` set up the SDK/AVD, boot the emulator, and build+install+launch from the command line — modeled on the Flutter app's own no-Studio scripts (`../flutter/scripts/android-*.sh`):
+**No Android Studio?** `scripts/android-1-setup.sh` and `android-2-start-app.sh` set up the SDK/AVD and build+install+launch from the command line (the emulator start/stop and stop-app scripts are shared by every app: `../scripts/device/`) — modeled on the Flutter app's own no-Studio scripts (`../flutter/scripts/android-*.sh`):
 
 ```bash
 ./scripts/android-1-setup.sh          # one-time: cmdline-tools, SDK packages, AVD
 ../scripts/device/android-emulator.sh start # boot and wait for it to come up
-./scripts/android-3-start-app.sh      # gradlew install<Variant> + launch
+./scripts/android-2-start-app.sh      # gradlew install<Variant> + launch
 ../scripts/device/stop-app.sh native android       # force-stop, leaves the emulator running
 ../scripts/device/android-emulator.sh stop  # kill the emulator
 ```

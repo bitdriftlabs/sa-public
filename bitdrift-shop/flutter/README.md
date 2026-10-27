@@ -101,14 +101,14 @@ cp env.example .env   # then edit .env and set BITDRIFT_SDK_KEY
 # crashes). Headless: EMULATOR_WINDOW=0 ../scripts/device/android-emulator.sh start
 ../scripts/device/android-emulator.sh start
 
-bash scripts/android-3-start-app.sh   # build + install + launch
+bash scripts/android-2-start-app.sh   # build + install + launch
 ```
 
 **iOS:**
 ```bash
 ../scripts/device/ios-simulator.sh start   # override device: DEVICE_NAME="iPhone 16e" ...
 
-bash scripts/ios-3-start-app.sh   # build + install + launch
+bash scripts/ios-2-start-app.sh   # build + install + launch
 ```
 
 In the app: pick a persona, then **Start (3 runs)** / **Infinite** to drive a
@@ -118,8 +118,8 @@ right) shows the session id/url and lets you generate a temporary device code.
 ## Config
 
 Values are compile-time `--dart-define`s. Set them in `flutter/.env` (copy
-from `env.example` — see step 4 above); `scripts/android-3-start-app.sh`
-(Android) and `scripts/ios-3-start-app.sh` (iOS) both load it automatically.
+from `env.example` — see step 4 above); `scripts/android-2-start-app.sh`
+(Android) and `scripts/ios-2-start-app.sh` (iOS) both load it automatically.
 A shell-exported variable of the same name overrides `.env` if you ever need
 that (e.g. CI), but `.env` is the recommended way to set these:
 
@@ -144,7 +144,7 @@ flutter/
 │   ├── app.dart                 # MaterialApp + routes
 │   ├── config.dart              # build-time config + backend base URL
 │   ├── crash.dart               # native-signal crash injection + crash-loop flag
-│   ├── generated/key.dart       # committed empty stub; *-3-start-app.sh bakes the key per build
+│   ├── generated/key.dart       # committed empty stub; *-2-start-app.sh bakes the key per build
 │   ├── bd/capture.dart          # single-seam wrapper over the alpha SDK
 │   ├── api/client.dart          # typed endpoints + x-capture-path-template + logging
 │   ├── models/models.dart       # Product / Category views
@@ -155,9 +155,9 @@ flutter/
 │                                     # start/stop and stop-app live in ../scripts/device/
 │   ├── 0-install-flutter.sh          # one-time Flutter install (shared)
 │   ├── android-1-setup.sh            # one-time Android SDK/AVD setup
-│   ├── android-3-start-app.sh        # build + install + launch
+│   ├── android-2-start-app.sh        # build + install + launch
 │   ├── ios-1-setup.sh                # one-time iOS toolchain check (Xcode/CocoaPods/runtime)
-│   ├── ios-3-start-app.sh            # build + install + launch
+│   ├── ios-2-start-app.sh            # build + install + launch
 │   └── crash-loop.sh                 # Android crash-on-payment loop
 └── test/models_test.dart
 ```
