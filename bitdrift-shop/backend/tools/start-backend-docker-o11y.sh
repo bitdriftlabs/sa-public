@@ -8,4 +8,4 @@ TOOLS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$TOOLS/.."
 COMPOSE="-f docker-compose.yml -f docker-compose.o11y.yml"
 docker compose $COMPOSE down
-TAG=${1:-latest} docker compose $COMPOSE up --pull always
+TAG=${1:-otel} docker compose $COMPOSE up --pull always

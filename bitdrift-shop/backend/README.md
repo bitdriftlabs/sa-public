@@ -196,18 +196,21 @@ curl -X POST http://localhost:5173/api/chaos/configure \
 
 ## OpenTelemetry
 
-OpenTelemetry is **opt-in**. By default the server runs plain `uvicorn`: it starts faster and never
-tries to reach a collector. Set `OTEL_ENABLED=1` to run it under `opentelemetry-instrument` and export to a
-collector:
+OpenTelemetry is **opt-in, and not in the default image**. The default `:latest` image runs plain `uvicorn`: it is smaller,
+starts faster and never tries to reach a collector. The OpenTelemetry variant is a separate image tag, `:otel`
+(`./tools/build.sh otel`, then `./tools/dockerhub-push.sh otel`), built with `--build-arg WITH_OTEL=1`. Run it with
+`OTEL_ENABLED=1` and it runs under `opentelemetry-instrument` and exports to a collector:
 
 ```bash
-OTEL_ENABLED=1 OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4317 docker compose up --pull always
+TAG=otel OTEL_ENABLED=1 OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4317 docker compose up --pull always
 ```
+
+`OTEL_ENABLED=1` on the default image just logs a warning and runs without OpenTelemetry.
 
 Traces, metrics and logs all export over OTLP. Logs also go to stdout as
 structured JSON with `trace_id` / `span_id` injected when a span is active.
 
-To run against a collector on the external `tinyolly-network` (this start script sets `OTEL_ENABLED=1` for you):
+To run against a collector on the external `tinyolly-network` (this start script uses the `:otel` image and sets `OTEL_ENABLED=1` for you):
 
 ```bash
 docker network create tinyolly-network
