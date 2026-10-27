@@ -11,6 +11,8 @@ import os
 import random
 import string
 import sys
+import threading
+import time
 import uuid
 from datetime import datetime, timedelta
 
@@ -65,7 +67,10 @@ app = FastAPI(title="ShopDemo API")
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Chaos Mode — fault injection for realistic backend failure simulation
-# Activated via CHAOS_MODE=1 env var, or POST /api/chaos/enable at runtime
+# Activated via CHAOS_MODE=1 env var, or POST /api/chaos/enable at runtime.
+# Chaos is global: while it is on, every client gets it. An individual session can opt out
+# (POST /api/chaos/sessions/{id}/disable, then send X-Session-Id: {id} on its requests), or a single
+# request can (X-Chaos: off). Sessions can only opt out; they cannot turn chaos on while it is off.
 # ═══════════════════════════════════════════════════════════════════════════
 
 CHAOS_CONFIG = {
@@ -87,17 +92,51 @@ _chaos_enabled = os.environ.get("CHAOS_MODE", "0") == "1"
 # Stats tracking
 _chaos_stats: dict[str, int] = {k: 0 for k in CHAOS_CONFIG}
 _chaos_stats["total_requests"] = 0
+_chaos_stats["skipped_by_session"] = 0
 _chaos_stats["faults_injected"] = 0
+
+
+# Sessions that opted out of chaos: session id -> expiry (monotonic seconds). Bounded and expiring so a
+# long-running demo server never grows without limit.
+CHAOS_OPTOUT_TTL_SECONDS = int(os.environ.get("CHAOS_OPTOUT_TTL_SECONDS", str(6 * 3600)))
+CHAOS_OPTOUT_MAX = 1000
+_chaos_optouts: dict[str, float] = {}
+_chaos_optout_lock = threading.Lock()
+
+
+def _prune_optouts(now: float) -> None:
+    for sid in [sid for sid, exp in _chaos_optouts.items() if exp <= now]:
+        del _chaos_optouts[sid]
+    while len(_chaos_optouts) > CHAOS_OPTOUT_MAX:
+        del _chaos_optouts[next(iter(_chaos_optouts))]  # oldest first (dicts keep insertion order)
+
+
+def _session_opted_out(request: Request) -> bool:
+    sid = request.headers.get("x-session-id")
+    if not sid:
+        return False
+    with _chaos_optout_lock:
+        exp = _chaos_optouts.get(sid)
+        if exp is None:
+            return False
+        if exp <= time.monotonic():
+            del _chaos_optouts[sid]
+            return False
+        return True
 
 
 def _chaos_active(request: Request) -> bool:
     """Check if chaos should apply to this request."""
-    # Per-request override via header or query param
-    if request.headers.get("x-chaos") == "off":
+    # Opting out always wins: per request (X-Chaos: off, ?chaos=0) or for a whole session.
+    if request.headers.get("x-chaos") == "off" or request.query_params.get("chaos") == "0":
         return False
-    if request.headers.get("x-chaos") == "on" or request.query_params.get("chaos") == "1":
-        return True
-    return _chaos_enabled
+    forced = request.headers.get("x-chaos") == "on" or request.query_params.get("chaos") == "1"
+    if not (forced or _chaos_enabled):
+        return False
+    if _session_opted_out(request):
+        _chaos_stats["skipped_by_session"] += 1
+        return False
+    return True
 
 
 def _roll(fault_type: str) -> bool:
@@ -299,11 +338,43 @@ def chaos_disable():
 
 @app.get("/api/chaos/status")
 def chaos_status():
+    with _chaos_optout_lock:
+        _prune_optouts(time.monotonic())
+        opted_out = len(_chaos_optouts)
     return {
         "enabled": _chaos_enabled,
         "config": CHAOS_CONFIG,
         "stats": dict(_chaos_stats),
+        "opted_out_sessions": opted_out,
     }
+
+
+@app.post("/api/chaos/sessions/{session_id}/disable")
+def chaos_session_disable(session_id: str):
+    """Exempt one session from chaos. Its requests must carry `X-Session-Id: {session_id}`."""
+    with _chaos_optout_lock:
+        now = time.monotonic()
+        _prune_optouts(now)
+        _chaos_optouts.pop(session_id, None)  # re-insert so it counts as newest
+        _chaos_optouts[session_id] = now + CHAOS_OPTOUT_TTL_SECONDS
+        _prune_optouts(now)
+    return {"session_id": session_id, "chaos": "disabled", "ttl_seconds": CHAOS_OPTOUT_TTL_SECONDS}
+
+
+@app.post("/api/chaos/sessions/{session_id}/enable")
+def chaos_session_enable(session_id: str):
+    """Undo a session opt-out, so the session follows the global setting again."""
+    with _chaos_optout_lock:
+        removed = _chaos_optouts.pop(session_id, None) is not None
+    return {"session_id": session_id, "chaos": "follows_global", "was_opted_out": removed}
+
+
+@app.get("/api/chaos/sessions")
+def chaos_session_list():
+    with _chaos_optout_lock:
+        now = time.monotonic()
+        _prune_optouts(now)
+        return {"opted_out": {sid: round(exp - now) for sid, exp in _chaos_optouts.items()}}
 
 
 class ChaosConfigUpdate(BaseModel):
@@ -335,10 +406,22 @@ def chaos_reset_stats():
 # In-memory cart storage (simple demo — resets on server restart)
 _cart: dict[str, dict] = {}  # product_id -> {product, quantity}
 
-# Serve generated product images at /images/{product_id}.png
+# Serve product images at /images/{product_id}.jpg. The files never change while the server runs, so clients
+# may cache them for a day (StaticFiles already sends ETag and Last-Modified for revalidation).
+IMAGE_CACHE_SECONDS = int(os.environ.get("IMAGE_CACHE_SECONDS", "86400"))
+
+
+class CachedStaticFiles(StaticFiles):
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code in (200, 304):
+            response.headers["Cache-Control"] = f"public, max-age={IMAGE_CACHE_SECONDS}"
+        return response
+
+
 _images_dir = os.path.join(os.path.dirname(__file__), "images")
 if os.path.isdir(_images_dir):
-    app.mount("/images", StaticFiles(directory=_images_dir), name="images")
+    app.mount("/images", CachedStaticFiles(directory=_images_dir), name="images")
 
 
 # ---------------------------------------------------------------------------
@@ -484,7 +567,7 @@ def _random_name() -> str:
 
 def _image_url(request: Request, product_id: str) -> str:
     """Build an absolute URL for a locally hosted product image."""
-    return str(request.base_url) + f"images/{product_id}.png"
+    return str(request.base_url) + f"images/{product_id}.jpg"
 
 
 def _product_card(p: dict, request: Request) -> dict:

@@ -1,5 +1,7 @@
 services:
   backend:
+    environment:
+      OTEL_ENABLED: "1"
     networks:
       - tinyolly-network
 

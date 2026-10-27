@@ -10,6 +10,9 @@ COPY shopping_server.py .
 COPY images/ images/
 
 ENV PYTHONUNBUFFERED=1
+# OpenTelemetry is opt-in: set OTEL_ENABLED=1 to run under opentelemetry-instrument and export to the
+# collector below. Left off, the server starts faster and never tries to reach a collector.
+ENV OTEL_ENABLED=0
 ENV OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
 ENV OTEL_SERVICE_NAME=shoppingdemo-backend
 ENV OTEL_TRACES_EXPORTER=otlp
@@ -21,4 +24,4 @@ ENV OTEL_METRIC_EXPORT_INTERVAL=5000
 
 EXPOSE 5173
 
-CMD ["sh", "-c", "opentelemetry-instrument uvicorn shopping_server:app --host 0.0.0.0 --port 5173"]
+CMD ["sh", "-c", "if [ \"$OTEL_ENABLED\" = 1 ]; then exec opentelemetry-instrument uvicorn shopping_server:app --host 0.0.0.0 --port 5173; else exec uvicorn shopping_server:app --host 0.0.0.0 --port 5173; fi"]

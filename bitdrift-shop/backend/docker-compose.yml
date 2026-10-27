@@ -7,3 +7,6 @@ services:
       - "5173:5173"
     environment:
       CHAOS_MODE: "${CHAOS_MODE:-0}"
+      # OpenTelemetry is opt-in: OTEL_ENABLED=1 turns it on. The endpoint is passed through only when set.
+      OTEL_ENABLED: "${OTEL_ENABLED:-0}"
+      OTEL_EXPORTER_OTLP_ENDPOINT:

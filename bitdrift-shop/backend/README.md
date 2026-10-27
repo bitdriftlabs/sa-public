@@ -130,9 +130,30 @@ curl http://localhost:5173/api/chaos/status
 Or per request:
 
 ```bash
-curl -H "X-Chaos: on" http://localhost:5173/api/browse
+curl -H "X-Chaos: on" http://localhost:5173/api/browse    # force chaos for this request
 curl http://localhost:5173/api/browse?chaos=1
+curl -H "X-Chaos: off" http://localhost:5173/api/browse   # exempt this request
+curl http://localhost:5173/api/browse?chaos=0
 ```
+
+### Opting a session out
+
+Chaos is global: while it is on, every client gets it. An individual session can opt out, and nothing else changes for the
+other clients. A session can only opt *out*; it cannot turn chaos on while the server has it off.
+
+```bash
+# 1. Exempt a session (the id is whatever the client will send as X-Session-Id)
+curl -X POST http://localhost:5173/api/chaos/sessions/my-session/disable
+
+# 2. That session's requests now skip chaos
+curl -H "X-Session-Id: my-session" http://localhost:5173/api/browse
+
+# Follow the global setting again
+curl -X POST http://localhost:5173/api/chaos/sessions/my-session/enable
+```
+
+Opt-outs live in memory (cleared on restart), expire after 6 hours (`CHAOS_OPTOUT_TTL_SECONDS`), and are capped at 1000 sessions
+(oldest dropped). An opt-out wins over `X-Chaos: on`. The apps do not send `X-Session-Id` yet.
 
 ### Fault types
 
@@ -159,6 +180,9 @@ curl http://localhost:5173/api/browse?chaos=1
 | GET | `/api/chaos/status` | Current config and hit stats |
 | POST | `/api/chaos/configure` | Update fault probabilities |
 | POST | `/api/chaos/reset-stats` | Zero out hit counters |
+| POST | `/api/chaos/sessions/{id}/disable` | Exempt a session (send `X-Session-Id: {id}`) |
+| POST | `/api/chaos/sessions/{id}/enable` | Put the session back on the global setting |
+| GET | `/api/chaos/sessions` | Opted-out sessions and seconds until each expires |
 
 Raise one fault's rate:
 
@@ -172,17 +196,18 @@ curl -X POST http://localhost:5173/api/chaos/configure \
 
 ## OpenTelemetry
 
-Under Docker the server runs via `opentelemetry-instrument`. Point it at a
-collector with:
+OpenTelemetry is **opt-in**. By default the server runs plain `uvicorn`: it starts faster and never
+tries to reach a collector. Set `OTEL_ENABLED=1` to run it under `opentelemetry-instrument` and export to a
+collector:
 
 ```bash
-OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4317 docker compose up --pull always
+OTEL_ENABLED=1 OTEL_EXPORTER_OTLP_ENDPOINT=http://your-collector:4317 docker compose up --pull always
 ```
 
 Traces, metrics and logs all export over OTLP. Logs also go to stdout as
 structured JSON with `trace_id` / `span_id` injected when a span is active.
 
-To run against a collector on the external `tinyolly-network`:
+To run against a collector on the external `tinyolly-network` (this start script sets `OTEL_ENABLED=1` for you):
 
 ```bash
 docker network create tinyolly-network
@@ -196,7 +221,7 @@ bridge.
 
 ## Product images
 
-Served at `/images/{product_id}.png`. All 18 are committed and baked into the
+Served at `/images/{product_id}.jpg` (400×400 JPEG, about 35 KB each) with `Cache-Control: public, max-age=86400` (`IMAGE_CACHE_SECONDS` changes it) plus ETag and Last-Modified, so clients cache them and revalidate cheaply. All 18 are committed and baked into the
 image, so there's no generation step for normal use. To refresh them from
 [Pexels](https://www.pexels.com/api/), see [tools/README.md](tools/README.md).
 
