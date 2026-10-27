@@ -2,7 +2,7 @@
 
 **Version 5.0**
 
-Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.25.1` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
+Demo Android app simulating an e-commerce shopping experience, **already instrumented with the bitdrift Capture SDK** (`io.bitdrift:capture:0.26.0` + the `io.bitdrift.capture-plugin`). It pairs with a FastAPI backend (Docker) that serves randomized products and configurable fault injection, so the app produces realistic sessions, network traffic, crashes, and performance signals out of the box.
 
 This is community-contributed content provided for educational purposes only.
 
@@ -29,7 +29,7 @@ For bitdrift-internal testing against a non-production environment, point `BITDR
 
 ### Optional: test a local build of the SDK
 
-By default the app builds against the published `io.bitdrift:capture:0.25.1` Maven Central artifact. To validate an unreleased SDK build instead, set `BITDRIFT_USE_LOCAL_AAR` to the **full path** of the AAR to test, resolved in this order:
+By default the app builds against the published `io.bitdrift:capture:0.26.0` Maven Central artifact. To validate an unreleased SDK build instead, set `BITDRIFT_USE_LOCAL_AAR` to the **full path** of the AAR to test, resolved in this order:
 
 1. Command-line property: `./gradlew assembleDebug -PBITDRIFT_USE_LOCAL_AAR=/full/path/to/capture.aar`
 2. `BITDRIFT_USE_LOCAL_AAR` in `.local.properties` or `local.properties`
@@ -58,14 +58,14 @@ Want to correlate this app's bitdrift sessions with server-side Datadog APM trac
 
 Open in Android Studio and run on an emulator (API 36, 1080×2400, 2GB+ RAM). See [local config](README-refs.md#emulator-requirements) for details.
 
-**No Android Studio?** `scripts/android-{1..5}-*.sh` set up the SDK/AVD, boot the emulator, and build+install+launch from the command line — modeled on the Flutter app's own no-Studio scripts (`../flutter/scripts/android-*.sh`):
+**No Android Studio?** `scripts/android-1-setup.sh` and `android-2-start-app.sh` set up the SDK/AVD and build+install+launch from the command line (the emulator start/stop and stop-app scripts are shared by every app: `../scripts/device/`) — modeled on the Flutter app's own no-Studio scripts (`../flutter/scripts/android-*.sh`):
 
 ```bash
 ./scripts/android-1-setup.sh          # one-time: cmdline-tools, SDK packages, AVD
-./scripts/android-2-start-emulator.sh # boot and wait for it to come up
-./scripts/android-3-start-app.sh      # gradlew install<Variant> + launch
-./scripts/android-4-stop-app.sh       # force-stop, leaves the emulator running
-./scripts/android-5-stop-emulator.sh  # kill the emulator
+../scripts/device/android-emulator.sh start # boot and wait for it to come up
+./scripts/android-2-start-app.sh      # gradlew install<Variant> + launch
+../scripts/device/stop-app.sh native android       # force-stop, leaves the emulator running
+../scripts/device/android-emulator.sh stop  # kill the emulator
 ```
 
 ### Step 3: Generate data
@@ -80,9 +80,9 @@ Every Capture SDK feature below is wired up in this app, mapped to the call used
 
 | Feature | SDK surface | Where it lives |
 |---------|-------------|----------------|
-| **SDK + build plugin** | `io.bitdrift:capture:0.25.1` (or a local AAR under test — see [Optional: test a local build](#optional-test-a-local-build-of-the-sdk)), `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts) |
+| **SDK + build plugin** | `io.bitdrift:capture:0.26.0` (or a local AAR under test — see [Optional: test a local build](#optional-test-a-local-build-of-the-sdk)), `io.bitdrift.capture-plugin` | [build.gradle.kts](build.gradle.kts) |
 | **Logger startup** | `Logger.start(...)` in `Application.onCreate()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
-| **Session strategy** | `SessionConfiguration()` with no `inactivityTimeout` — a fresh session on every process start, never persisted/reused. Matches the iOS app's `.fixed()` | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
+| **Session strategy** | `SessionConfiguration()` with no `inactivityTimeout` — a fresh session on every process start, never persisted/reused — plus a new session per journey from the sim. The Advanced screen's `realistic` mode sets a 30-minute `inactivityTimeout` instead (see [../docs/REALISM.md](../docs/REALISM.md)). Matches the iOS app | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt) |
 | **Screen views** | `Logger.logScreenView()` via `NavController.OnDestinationChangedListener` | [MainActivity.kt](app/src/main/java/ai/bitdrift/shop/MainActivity.kt), [ScreenLogger.kt](app/src/main/java/ai/bitdrift/shop/ScreenLogger.kt) |
 | **User identity** | `Logger.setEntityId("demo")` on launch, then rotated per simulated user | [ShoppingDemoApp.kt](app/src/main/java/ai/bitdrift/shop/ShoppingDemoApp.kt), [JourneyEngine.kt](app/src/main/java/ai/bitdrift/shop/JourneyEngine.kt) + [spec/journey.yaml](../spec/journey.yaml) |
 | **Network capture** | `CaptureOkHttpEventListenerFactory` on OkHttp | [ApiClient.kt](app/src/main/java/ai/bitdrift/shop/ApiClient.kt) |
@@ -97,6 +97,10 @@ Every Capture SDK feature below is wired up in this app, mapped to the call used
 | **Session boundaries** | `Logger.startNewSession()` per simulated journey, and every 60s while the metrics demo runs | [JourneyEngine.kt](app/src/main/java/ai/bitdrift/shop/JourneyEngine.kt) + [spec/journey.yaml](../spec/journey.yaml), [MetricsDemo.kt](app/src/main/java/ai/bitdrift/shop/MetricsDemo.kt) |
 
 Fault scenarios built on top of this instrumentation: ANR, force-quit, crash loop (see [Crash Loop](README-refs.md#crash-loop), [foreground-background-crashes.md](../workflows/docs/foreground-background-crashes.md)) and a feature-flag-gated slow-rendering demo (see [demo-slow-rendering.md](demo-slow-rendering.md)).
+
+### Realism (Android and iOS)
+
+Crashes inside app code with precursor logs, a `per_journey`/`realistic` session toggle, `journey_id`/`step` correlation fields, `logCritical` `order_lost`, `cart_json` on `checkout_started`, the `dump_cart_state` and `flip_flag` Commands, and release builds that upload the R8 mapping (`./scripts/release-build.sh [--install]`) are described in [../docs/REALISM.md](../docs/REALISM.md).
 
 ### Persistent feature flags
 

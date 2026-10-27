@@ -48,6 +48,11 @@ final class SimulationManager: ObservableObject {
     @Published var recommendationsV2Enabled = false
     @Published var crashLoopEnabled = false
 
+    /// The crash loop is on, or the test harness named a crash (`-crash <name>`). Kept apart from
+    /// `crashLoopEnabled` because that flag is promoted into UserDefaults at startup, and a one-off
+    /// harness crash must not arm the crash loop for the launches that follow.
+    private var crashArmed: Bool { crashLoopEnabled || Autorun.crash != nil }
+
     /// Fast crash mode: skips the shopping journey entirely and fires the next
     /// crash combo immediately on every relaunch (see `fireFastCrash`). Selected
     /// on the startup config screen alongside `crashLoopEnabled`, not from
@@ -484,6 +489,10 @@ final class SimulationManager: ObservableObject {
     /// and background exactly once per full sweep, rather than relying on
     /// independent coin flips to eventually cover every combination.
     private func pickNextCrashCombo() -> (name: String, fire: () -> Void, fireInBackground: Bool) {
+        // Test harness (`-crash <name>` launch argument): that crash, in the foreground, not the sweep.
+        if let wanted = Autorun.crash, let entry = Crashes.all.first(where: { $0.name == wanted }) {
+            return (entry.name, entry.fire, false)
+        }
         let combo = Crashes.combo(
             atIndex: Prefs.crashLoop.int(Prefs.keyNextComboIndex),
             oomOnly: Prefs.crashLoop.bool(Prefs.keyOomOnly)
@@ -568,14 +577,25 @@ final class SimulationManager: ObservableObject {
         }
     }
 
+    /// What the session shows just before a crash: the `about_to_crash` announcement and `crash_kind` fields, or,
+    /// for a realistic crash, the lead-up a real app would log (no announcement, no crash_kind fields).
+    /// Shared by every crash entry point so the new catalog entries behave the same in all of them.
+    private func announceCrash(_ name: String, context: String, tag: String = "") {
+        if let precursor = Crashes.precursors[name] {
+            precursor()
+        } else {
+            Logger.addField(withKey: SpecFields.crashKind, value: name)
+            Logger.addField(withKey: SpecFields.crashContext, value: context)
+            ScreenLogger.logWarning("about_to_crash\(tag): \(name) (context=\(context))")
+        }
+    }
+
     /// Picks the next crash combo, logs it, then dispatches it.
     private func fireCrashNow() {
-        guard crashLoopEnabled else { return }
+        guard crashArmed else { return }
         let combo = pickNextCrashCombo()
         let crashContext = combo.fireInBackground ? "background" : "foreground"
-        Logger.addField(withKey: SpecFields.crashKind, value: combo.name)
-        Logger.addField(withKey: SpecFields.crashContext, value: crashContext)
-        ScreenLogger.logWarning("about_to_crash: \(combo.name) (context=\(crashContext))")
+        announceCrash(combo.name, context: crashContext)
         // Persist the resume intent before the crash — on iOS the relaunch comes
         // from the host watchdog, which reads these flags back on next start.
         persistCrashResumeIntent(restartDelay: restartDelay(for: combo.name))
@@ -593,6 +613,10 @@ final class SimulationManager: ObservableObject {
     /// backgrounding the app, and the point is a clean, known crash, not
     /// exercising the background-crash path.
     private func pickNextCrashOnlyCombo() -> (name: String, fire: () -> Void) {
+        // Test harness (`-crash <name>`): that crash, not the sweep.
+        if let wanted = Autorun.crash, let entry = Crashes.all.first(where: { $0.name == wanted }) {
+            return (entry.name, entry.fire)
+        }
         let combo = Crashes.combo(
             atIndex: Prefs.crashLoop.int(Prefs.keyNextComboIndex),
             oomOnly: Prefs.crashLoop.bool(Prefs.keyOomOnly),
@@ -615,11 +639,9 @@ final class SimulationManager: ObservableObject {
     /// "start and hang" rather than crash at the known step this mode exists
     /// to guarantee.
     private func fireSimplifiedCrashNow() {
-        guard crashLoopEnabled else { return }
+        guard crashArmed else { return }
         let combo = pickNextCrashOnlyCombo()
-        Logger.addField(withKey: SpecFields.crashKind, value: combo.name)
-        Logger.addField(withKey: SpecFields.crashContext, value: "foreground")
-        ScreenLogger.logWarning("about_to_crash: \(combo.name) (context=foreground)")
+        announceCrash(combo.name, context: "foreground")
         persistCrashResumeIntent(restartDelay: restartDelay(for: combo.name))
         isCancelled = true
         dispatchCrash(combo.fire, fireInBackground: false)
@@ -640,9 +662,7 @@ final class SimulationManager: ObservableObject {
             oomOnly: Prefs.crashLoop.bool(Prefs.keyOomOnly)
         )
         Logger.startNewSession()
-        Logger.addField(withKey: SpecFields.crashKind, value: combo.name)
-        Logger.addField(withKey: SpecFields.crashContext, value: crashContext)
-        ScreenLogger.logWarning("about_to_crash (fast): \(combo.name) (context=\(crashContext))")
+        announceCrash(combo.name, context: crashContext, tag: " (fast)")
         persistCrashResumeIntent(restartDelay: restartDelay(for: combo.name))
         dispatchCrash(combo.fire, fireInBackground: combo.fireInBackground)
     }
@@ -666,7 +686,7 @@ final class SimulationManager: ObservableObject {
     /// Toggles the engine's `if`/`fault`/`crash_point` ops read (spec/faults.yaml ids).
     private var journeyToggles: Set<String> {
         var toggles: Set<String> = []
-        if crashLoopEnabled { toggles.insert("crash_loop") }
+        if crashArmed { toggles.insert("crash_loop") }
         if appHangEnabled { toggles.insert("anr") }
         if forceQuitEnabled { toggles.insert("force_quit") }
         return toggles
@@ -677,6 +697,9 @@ final class SimulationManager: ObservableObject {
 
     private func runSingleJourney(_ navigator: Navigator) async {
         self.navigator = navigator
+        // journey_id is a global field for the whole journey: every log, span, network request and
+        // (if it comes to that) crash report inside it carries the id.
+        Logger.addField(withKey: SpecFields.journeyId, value: "j" + UUID().uuidString.prefix(8).lowercased())
         if AppConfig.simplifiedJourneyEnabled {
             await runSimplifiedPreamble(navigator)
             return
@@ -695,7 +718,12 @@ final class SimulationManager: ObservableObject {
 
         func isCancelled() -> Bool { sim.isCancelled }
 
-        func startNewSession() { Logger.startNewSession() }
+        // In `realistic` session mode the SDK's inactivity timeout owns session boundaries, so one
+        // session spans several journeys; only `per_journey` (the default) starts one per journey.
+        func startNewSession() { DemoSettings.startNewSessionForJourney() }
+
+        /// Latest cart response, so checkout_started can carry it as cart_json.
+        private var lastCart: JSON?
 
         func applyExposures(persona: String) { sim.setVariant(sim.activeVariant) }
 
@@ -712,6 +740,8 @@ final class SimulationManager: ObservableObject {
         func navigate(screen: String, args: [String: String]) async {
             guard let nav = sim.navigator else { return }
             func a(_ key: String) -> String { args[key] ?? "" }
+            // `step` is a global field, so every log, span and crash report carries where the journey is.
+            Logger.addField(withKey: SpecFields.step, value: screen)
             switch screen {
             case "welcome": nav.popToWelcome()
             case "browse": nav.navigate(to: .browse)
@@ -737,6 +767,20 @@ final class SimulationManager: ObservableObject {
         }
 
         func callApi(endpoint: String, args: [String: String]) async -> [String: Any]? {
+            let result = await callApiRaw(endpoint: endpoint, args: args)
+            switch endpoint {
+            case "cart_get", "cart_add", "cart_delete": lastCart = result.map(JSON.init)
+            case "confirmation" where result == nil:
+                // Payment succeeded but the order cannot be shown: a business-critical failure.
+                ScreenLogger.logCritical(SpecEvents.orderLost, [
+                    SpecFields.orderId: args["id"] ?? "", SpecFields.reason: "confirmation_unavailable",
+                ])
+            default: break
+            }
+            return result
+        }
+
+        private func callApiRaw(endpoint: String, args: [String: String]) async -> [String: Any]? {
             func a(_ key: String) -> String { args[key] ?? "" }
             let json: JSON?
             switch endpoint {
@@ -765,10 +809,14 @@ final class SimulationManager: ObservableObject {
         }
 
         func log(level: String, event: String, fields: [String: String]) {
+            // checkout_started carries the cart as one JSON field (JSON-path workflow metrics).
+            var f = fields
+            if event == SpecEvents.checkoutStarted { f[SpecFields.cartJson] = CartJson.from(lastCart) }
             switch level {
-            case "error": ScreenLogger.logError(event, fields)
-            case "warning": ScreenLogger.logWarning(event, fields)
-            default: ScreenLogger.logInfo(event, fields)
+            case "critical": ScreenLogger.logCritical(event, f)
+            case "error": ScreenLogger.logError(event, f)
+            case "warning": ScreenLogger.logWarning(event, f)
+            default: ScreenLogger.logInfo(event, f)
             }
         }
 
@@ -848,7 +896,7 @@ final class SimulationManager: ObservableObject {
         // with SDK configuration and end with app termination match in a single
         // session.
         if !forceQuitEnabled {
-            Logger.startNewSession()
+            DemoSettings.startNewSessionForJourney()
             ScreenLogger.logInfo(SpecEvents.journeyStarted, [
                 SpecFields.run: String(currentRun),
                 SpecFields.simSeed: String(simSeed),

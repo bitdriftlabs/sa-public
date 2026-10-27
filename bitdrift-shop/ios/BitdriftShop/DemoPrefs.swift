@@ -63,6 +63,8 @@ struct Prefs {
     static let recommendations = Prefs(suite: "recommendations")
     /// Signed-in user, read back by `UserIDFieldProvider` on every log.
     static let userSession = Prefs(suite: "user_session")
+    /// Realism settings (session mode, lose orders); spec/faults.yaml other_persisted.
+    static let demoSettings = Prefs(suite: "demo_settings")
     /// Last screen the user reached. Persisted so it survives the process dying,
     /// which is what lets the *next* launch report where a crash happened.
     static let screen = Prefs(suite: "screen")

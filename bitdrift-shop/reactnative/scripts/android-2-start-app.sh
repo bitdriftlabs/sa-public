@@ -2,14 +2,14 @@
 # Start Metro (if not already running) and build/install/launch the app on
 # the connected emulator, via the React Native CLI — no Android Studio.
 #
-# Unlike ../../android/scripts/android-3-start-app.sh (native app, gradlew
-# directly) and ../../flutter/scripts/android-3-start-app.sh (flutter build
+# Unlike ../../android/scripts/android-2-start-app.sh (native app, gradlew
+# directly) and ../../flutter/scripts/android-2-start-app.sh (flutter build
 # apk), there's no key-baking step here: this app reads BITDRIFT_SDK_KEY from
 # .env via react-native-dotenv at Metro *bundle* time (src/config.ts), so
 # restarting Metro with --reset-cache (metro-lib.sh does this) is all that's
 # needed to pick up a changed .env.
 #
-# Requires a running emulator (scripts/android-2-start-emulator.sh).
+# Requires a running emulator (../scripts/device/android-emulator.sh start).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -23,7 +23,7 @@ source "$ROOT/scripts/metro-lib.sh"
 # 1. A connected emulator.
 EMU_ID="$(adb devices | awk 'NR>1 && $2=="device"{print $1}' | grep -E '^emulator-' | head -n1 || true)"
 if [[ -z "$EMU_ID" ]]; then
-  echo "No emulator attached. Start one first: bash scripts/android-2-start-emulator.sh"
+  echo "No emulator attached. Start one first: ../scripts/device/android-emulator.sh start"
   exit 1
 fi
 echo "Targeting emulator: $EMU_ID"
@@ -56,10 +56,10 @@ export PATH="$JAVA_HOME/bin:$PATH"
 start_metro_background
 
 # 5. Build + install + launch. Only one emulator is ever expected to be
-#    attached here (same precondition as every other *-3-start-app.sh in
+#    attached here (same precondition as every other *-2-start-app.sh in
 #    this repo), so no --device targeting is needed.
 cd "$ROOT"
 npx react-native run-android --no-packager
 
 echo "Launched ai.bitdrift.rn.shop on $EMU_ID"
-echo "Stop it with: bash scripts/android-4-stop-app.sh"
+echo "Stop it with: ../scripts/device/stop-app.sh rn android"

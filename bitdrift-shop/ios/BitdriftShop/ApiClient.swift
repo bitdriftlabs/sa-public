@@ -83,7 +83,11 @@ enum ApiClient {
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
             throw HTTPError(status: http.statusCode, path: path)
         }
-        return JSON.parse(data)
+        let json = JSON.parse(data)
+        // Every catalog response teaches the category cache, so cart_json labels items outside the
+        // simulator too (manual shopping, the simplified journey).
+        ProductCatalog.learn(json)
+        return json
     }
 
     private static func get(_ path: String, pathTemplate: String? = nil) async throws -> JSON {
@@ -165,7 +169,10 @@ enum ApiClient {
     }
 
     static func getConfirmation(_ orderID: String) async throws -> JSON {
-        try await get("/confirmation/\(orderID)", pathTemplate: "/api/confirmation/<id>")
+        if DemoSettings.loseOrders {
+            throw URLError(.cannotConnectToHost, userInfo: [NSLocalizedDescriptionKey: "order lookup disabled (demo: lose orders)"])
+        }
+        return try await get("/confirmation/\(orderID)", pathTemplate: "/api/confirmation/<id>")
     }
 
     /// Latest published capture-ios release tag, so the Welcome screen can flag

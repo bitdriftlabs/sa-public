@@ -3,14 +3,14 @@
 #
 # Pipeline: gradlew install<Variant> -> adb launch.
 #
-# No key-baking step here, unlike ../../flutter/scripts/android-3-start-app.sh
+# No key-baking step here, unlike ../../flutter/scripts/android-2-start-app.sh
 # — this app's build.gradle.kts already reads BITDRIFT_SDK_KEY /
 # BITDRIFT_API_HOST straight from local.properties/.local.properties (or the
 # shell env as a fallback, which loses to local.properties if both are set)
 # into BuildConfig, so gradlew just needs to run with those already in place.
 # See README.md#step-0-configure-your-bitdrift-credentials.
 #
-# Requires a running emulator (scripts/android-2-start-emulator.sh).
+# Requires a running emulator (../scripts/device/android-emulator.sh start).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,7 +22,7 @@ export ANDROID_HOME="$SDK_DIR"
 # 1. A connected emulator.
 EMU_ID="$(adb devices | awk 'NR>1 && $2=="device"{print $1}' | grep -E '^emulator-' | head -n1 || true)"
 if [[ -z "$EMU_ID" ]]; then
-  echo "No emulator attached. Start one first: bash scripts/android-2-start-emulator.sh"
+  echo "No emulator attached. Start one first: ../scripts/device/android-emulator.sh start"
   exit 1
 fi
 echo "Targeting emulator: $EMU_ID"
@@ -40,4 +40,4 @@ cd "$ROOT"
 # 4. Launch.
 adb -s "$EMU_ID" shell am start -n ai.bitdrift.shop/.MainActivity
 echo "Launched ai.bitdrift.shop on $EMU_ID"
-echo "Stop it with: bash scripts/android-4-stop-app.sh"
+echo "Stop it with: ../scripts/device/stop-app.sh native android"

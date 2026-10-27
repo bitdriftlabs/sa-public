@@ -6,7 +6,7 @@
 # project's baseConfigurationReference, so unlike the Flutter app's script there
 # is no key-baking step here.
 #
-# Requires a booted simulator (scripts/ios-2-start-simulator.sh).
+# Requires a booted simulator (../scripts/device/ios-simulator.sh start).
 set -euo pipefail
 
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,7 +19,7 @@ SCHEME="BitdriftShop"
 DERIVED="build/debug"
 
 if ! resolve_target sim ""; then
-  echo "No simulator booted. Start one first: bash scripts/ios-2-start-simulator.sh" >&2
+  echo "No simulator booted. Start one first: ../scripts/device/ios-simulator.sh start" >&2
   exit 1
 fi
 echo "Targeting simulator: $TARGET_ID"
@@ -57,4 +57,4 @@ terminate_app
 xcrun simctl install "$TARGET_ID" "$APP"
 launch_app
 echo "Launched $BUNDLE_ID on $TARGET_ID"
-echo "Stop it with: bash scripts/ios-4-stop-app.sh"
+echo "Stop it with: ../scripts/device/stop-app.sh native ios"

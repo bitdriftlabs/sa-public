@@ -156,6 +156,8 @@ struct AdvancedScreen: View {
     @State private var showHangReminder = false
     @State private var showQuitReminder = false
     @State private var supportLogEnabled = false
+    @State private var sessionModeNext = DemoSettings.sessionMode
+    @State private var loseOrdersOn = DemoSettings.loseOrders
 
     private var isVariantASelected: Bool { sim.activeVariant == .variantA }
 
@@ -238,6 +240,30 @@ struct AdvancedScreen: View {
                         onColor: Palette.cyan
                     ) {
                         metrics.toggle()
+                    }
+
+                    Divider()
+
+                    sectionHeader("Realism")
+
+                    // Session mode is fixed when the SDK starts, so a change applies on the next launch.
+                    ToggleChipButton(
+                        title: "Sessions: \(sessionModeNext.rawValue)"
+                            + (sessionModeNext != DemoSettings.activeSessionMode ? " (relaunch to apply)" : ""),
+                        isOn: sessionModeNext == .realistic,
+                        onColor: Palette.indigo
+                    ) {
+                        sessionModeNext = sessionModeNext == .realistic ? .perJourney : .realistic
+                        DemoSettings.sessionMode = sessionModeNext
+                    }
+
+                    ToggleChipButton(
+                        title: loseOrdersOn ? "Lose orders: ON (logCritical)" : "Lose orders: OFF",
+                        isOn: loseOrdersOn,
+                        onColor: Palette.crimson
+                    ) {
+                        loseOrdersOn.toggle()
+                        DemoSettings.loseOrders = loseOrdersOn
                     }
 
                     Divider()
@@ -769,11 +795,11 @@ struct CartScreen: View {
             PrimaryButton(title: "Checkout as Guest", systemImage: "person") {
                 // bitdrift SDK: logInfo() records checkout funnel entry for
                 // conversion tracking.
-                ScreenLogger.logInfo(SpecEvents.checkoutStarted, [SpecFields.checkoutType: "guest"])
+                ScreenLogger.logInfo(SpecEvents.checkoutStarted, [SpecFields.checkoutType: "guest", SpecFields.cartJson: CartJson.from(apiData)])
                 nav.navigate(to: .checkoutGuest(productID: productID))
             }
             SecondaryButton(title: "Sign In to Checkout", systemImage: "lock") {
-                ScreenLogger.logInfo(SpecEvents.checkoutStarted, [SpecFields.checkoutType: "signin"])
+                ScreenLogger.logInfo(SpecEvents.checkoutStarted, [SpecFields.checkoutType: "signin", SpecFields.cartJson: CartJson.from(apiData)])
                 nav.navigate(to: .checkoutSignIn(productID: productID))
             }
             SecondaryButton(title: "Keep Shopping", systemImage: "cart") {
@@ -1218,8 +1244,9 @@ struct ConfirmationScreen: View {
             Button {
                 // bitdrift SDK: startNewSession() begins a new session for the next
                 // journey, keeping each purchase flow separate in the timeline.
-                // POC: session management — clean per-user Timeline entries.
-                Logger.startNewSession()
+                // POC: session management — clean per-user Timeline entries. (`realistic` session mode
+                // leaves session boundaries to the SDK's inactivity timeout.)
+                DemoSettings.startNewSessionForJourney()
 
                 // bitdrift SDK: removeField() clears user_id when starting a new
                 // journey — session-level logout.
@@ -1244,7 +1271,17 @@ struct ConfirmationScreen: View {
             // call's own weight.
             // POC: event tracking — screen-load waterfall.
             await CaptureBridge.trackSpan(SpecSpans.confirmationScreenLoad) { _ in
-                apiData = try? await ApiClient.getConfirmation(orderID)
+                do {
+                    apiData = try await ApiClient.getConfirmation(orderID)
+                } catch {
+                    // Leaving the screen cancels this task; that is navigation, not a lost order.
+                    if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled { return }
+                    // The customer paid but the order cannot be shown: logCritical so it pages
+                    // instead of hiding among the errors.
+                    ScreenLogger.logCritical(SpecEvents.orderLost, error: error, [
+                        SpecFields.orderId: orderID, SpecFields.reason: "confirmation_unavailable",
+                    ])
+                }
             }
         }
     }

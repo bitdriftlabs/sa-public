@@ -95,7 +95,7 @@ fi
 
 echo
 if [[ "$ok" == "1" ]]; then
-  echo "Done. To boot a simulator: bash scripts/ios-2-start-simulator.sh"
+  echo "Done. To boot a simulator: ../scripts/device/ios-simulator.sh start"
 else
   echo "Some steps above need manual action before iOS builds will work."
   exit 1

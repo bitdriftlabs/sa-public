@@ -174,15 +174,15 @@ crashes:
   # Each runs a precursor first (handled errors, retries) so the session explains *why* it crashed,
   # then fails inside a real-looking class. Android/iOS only; the stack's top frame is the app class.
   - {id: app_coupon_empty_cart, category: runtime_exception, expected_issue: crash, realistic: true,
-     impl: {android: app_coupon_empty_cart},
+     impl: {android: app_coupon_empty_cart, ios: app_coupon_empty_cart},
      precursor: [coupon_apply_failed],
      notes: "CartPricing.applyCoupon on an empty cart: maxBy / .max()! with no guard",
-     source: {android: "A:Crashes.kt:66"}}
+     source: {android: "A:Crashes.kt:66", ios: "I:Crashes.swift:84"}}
   - {id: app_promo_banner_payload, category: runtime_exception, expected_issue: crash, realistic: true,
-     impl: {android: app_promo_banner_payload},
+     impl: {android: app_promo_banner_payload, ios: app_promo_banner_payload},
      precursor: [promo_banner_parse_failed, promo_banner_retry],
      notes: "PromoBannerParser.parse on a payload whose discount_percent is not a number; the retry has no guard",
-     source: {android: "A:Crashes.kt:67"}}
+     source: {android: "A:Crashes.kt:67", ios: "I:Crashes.swift:85"}}
 
 # Per-crash timing constants (platform implementation detail, informational).
 timings:

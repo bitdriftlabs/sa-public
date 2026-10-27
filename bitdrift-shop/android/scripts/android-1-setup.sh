@@ -14,7 +14,7 @@
 # hit an unresolved boot failure (HVF/mprotect issues on macOS 26) and got
 # deleted. Now defaults to "Medium_Phone", one of Android Studio's own default
 # AVDs, confirmed to boot on this machine once -gpu host is avoided (see
-# android-2-start-emulator.sh) -- if it doesn't already exist, this script
+# scripts/device/android-emulator.sh) -- if it doesn't already exist, this script
 # creates it same as before; no longer shares a default with Flutter's
 # scripts unless those get updated too.
 set -euo pipefail
@@ -97,4 +97,4 @@ else
 fi
 
 echo
-echo "Done. To boot it: bash scripts/android-2-start-emulator.sh"
+echo "Done. To boot it: ../scripts/device/android-emulator.sh start"

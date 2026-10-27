@@ -1,4 +1,4 @@
-# Shared helpers for ios-4-stop-app.sh and ios-foreground-cycle.sh: this app's bundle id on top of the
+# Shared helpers for ios-foreground-cycle.sh: this app's bundle id on top of the
 # shared simctl/devicectl driver.
 #
 # Must match PRODUCT_BUNDLE_IDENTIFIER in ios/ShopDemoRN.xcodeproj. Carries a ".rn." segment so it can never

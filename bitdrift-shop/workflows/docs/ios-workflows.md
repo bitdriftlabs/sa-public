@@ -37,6 +37,8 @@ cycle resets the evaluation window and discards accumulated data.
 This was investigated twice with opposite conclusions, so state both, with the
 evidence attached, rather than pick one.
 
+> Naming: `.fixed()` and `.activityBased()` below are the SDK's pre-0.26 `SessionStrategy` names, which is what the measurements were taken with. In 0.26 they are `SessionConfiguration()` and `SessionConfiguration(inactivityTimeout:)`; the behaviour is the same.
+
 **Under `sessionStrategy: .fixed()`, it never closes.** Measured on device
 (`capture-ios` 0.24.2):
 

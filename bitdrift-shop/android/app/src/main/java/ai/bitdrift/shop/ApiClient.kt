@@ -40,7 +40,9 @@ object ApiClient {
         }.build()
         client.newCall(request).execute().use { response ->
             val body = response.body?.string() ?: "{}"
-            return JSONObject(body)
+            // Every catalog response teaches the category cache, so cart_json labels items outside the
+            // simulator too (manual shopping).
+            return JSONObject(body).also { ProductCatalog.learn(it) }
         }
     }
 
