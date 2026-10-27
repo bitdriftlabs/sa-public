@@ -20,23 +20,9 @@ Each app implements the same 19-screen shopping flow and the same probabilistic 
 >
 > The native iOS app is a direct port of the Android one — same 19 screens, same probabilistic simulation, and the same event, field, screen, and span names — so both feed the same `bd-shop-*` workflows and can be compared side by side. Where the platform left no choice (self-relaunch after a crash, ANR, frame-jank detection), [ios/README.md](ios/README.md#how-this-differs-from-the-android-app) documents the deviation.
 
-## Testing (command line, no IDE)
+## Testing
 
-```bash
-./test.sh all unit      # seconds: codegen drift, spec validation, conformance self-test, each app's compile/unit tests
-./test.sh all smoke     # ~5 min: build, install and launch every app, auto-run 5 journeys, validate what it emitted
-./test.sh android smoke # one app: android | ios | rn-android | rn-ios | flutter-android | flutter-ios
-```
-
-`smoke` needs a running (or bootable) Android emulator and iOS simulator, and runs the sim with no taps.
-Tune it with `SIM_RUNS`, `SIM_SEED` and `PERSONA` (`control`, `variant_a`, `variant_b`). Each app records the
-logs, spans and screen views it emits, and [`tools/conformance`](tools/conformance/conformance.py) checks them
-against [`spec/`](spec/): known names, required fields, levels, closed spans, one `sim_autorun_complete` marker.
-
-- Android and iOS take launch arguments (`sim_runs`, `sim_seed`, `persona`, `record_file`) and write the record on the device.
-- React Native and Flutter can't without native code, so in debug builds they ask a local collector
-  (`tools/conformance/collector.py`, started by `test.sh`) for the autorun config and POST their records to it.
-- `tools/codegen/generate.sh` regenerates every app's constants from `spec/`; `tools/codegen/check.sh` fails if they drift.
+`./test.sh all unit` (seconds) and `./test.sh all smoke` (about 5 minutes) run from the command line with no IDE. See [docs/TESTING.md](docs/TESTING.md).
 
 ## Emulators and simulators (shared by every app)
 
@@ -90,10 +76,4 @@ Build and run instructions live in each app's own folder. Start with the README 
 
 ## One spec, four apps
 
-The apps share data, not code. [`spec/`](spec/README.md) holds the screens, event, field and span names, feature flags, persona probabilities, and the journey itself. Each app is built from it:
-
-- **Generated constants:** every name an app logs comes from `spec/` (`tools/codegen`), so the platforms cannot drift apart.
-- **One journey, run everywhere:** each app interprets [`spec/journey.yaml`](spec/journey.yaml) with a small engine. Change a probability or a step once, run `tools/codegen/generate.sh`, and all four apps behave differently together.
-- **Reproducible and checked:** the same persona and seed give the same journey on every app. `./test.sh all unit` replays golden traces on every engine. `./test.sh all smoke` runs each app on a device, checks its recording against the reference engine, and diffs the apps against each other.
-
-The apps themselves stay idiomatic Kotlin, Swift, TypeScript and Dart, so each one still reads like a normal customer app.
+The apps share data, not code: one [`spec/`](spec/README.md) holds the screens, event names and the journey, and each app is generated from it. See [docs/SPEC.md](docs/SPEC.md).
