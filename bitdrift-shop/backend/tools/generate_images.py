@@ -124,7 +124,7 @@ def main():
             if img:
                 img = crop_square_and_resize(img, SIZE)
                 img = img.convert("RGB")
-                img.save(os.path.join(OUT_DIR, f"{pid}.png"), "PNG")
+                img.convert("RGB").save(os.path.join(OUT_DIR, f"{pid}.jpg"), "JPEG", quality=82, optimize=True)
                 print(f"    ✓ Downloaded")
                 success += 1
                 # Respect Pexels rate limit (200 req/month free, be polite)
@@ -134,7 +134,7 @@ def main():
         # Fallback to placeholder
         print(f"    → Using placeholder")
         img = make_placeholder(name)
-        img.save(os.path.join(OUT_DIR, f"{pid}.png"), "PNG")
+        img.convert("RGB").save(os.path.join(OUT_DIR, f"{pid}.jpg"), "JPEG", quality=82, optimize=True)
         fallback += 1
 
     print(f"\nDone! {success} real images, {fallback} placeholders saved to {OUT_DIR}/")

@@ -1,0 +1,8 @@
+# Only requirements*.txt, shopping_server.py and images/ go into the image.
+.git
+**/__pycache__
+*.pyc
+*.md
+docker-compose*.yml
+start-backend-*.sh
+tools

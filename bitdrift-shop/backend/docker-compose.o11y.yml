@@ -1,5 +1,9 @@
 services:
   backend:
+    # The :otel image is the one built with OpenTelemetry (tools/build.sh otel); the default image has none.
+    image: stevelerner/bitdrift-shop-backend:${TAG:-otel}
+    environment:
+      OTEL_ENABLED: "1"
     networks:
       - tinyolly-network
 
