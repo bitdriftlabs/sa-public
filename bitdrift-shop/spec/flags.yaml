@@ -84,30 +84,30 @@ flags:
     source: {android: "A:SimulationManager.kt:129", ios: "I:SimulationManager.swift:151", reactnative: "R:src/sim/variants.ts:62"}
     used_by: [workflows/slow-rendering.json, workflows/slow-rendering-manual-span.json]
 
-  # Install-persistent flags (hard cap 3, A:PersistentFeatureFlags.kt:30). Android only today.
+  # Install-persistent flags (hard cap 3, A:PersistentFeatureFlags.kt:30). Android and iOS.
   - name: express_checkout
     kind: persistent
     values: [enabled, disabled]
     mirror_field: ff_express_checkout
-    platforms: [android]
-    persisted: {android: "SharedPreferences persistent_flags/express_checkout"}
-    source: {android: "A:PersistentFeatureFlags.kt:24"}
+    platforms: [android, ios]
+    persisted: {android: "SharedPreferences persistent_flags/express_checkout", ios: "UserDefaults persistent_flags.express_checkout"}
+    source: {android: "A:PersistentFeatureFlags.kt:24", ios: "I:PersistentFeatureFlags.swift:15"}
     used_by: [workflows/feature-flag-sessions.json]
   - name: product_card_layout
     kind: persistent
     values: [grid, list]
     mirror_field: ff_product_card_layout
-    platforms: [android]
-    persisted: {android: "SharedPreferences persistent_flags/product_card_layout"}
-    source: {android: "A:PersistentFeatureFlags.kt:25"}
+    platforms: [android, ios]
+    persisted: {android: "SharedPreferences persistent_flags/product_card_layout", ios: "UserDefaults persistent_flags.product_card_layout"}
+    source: {android: "A:PersistentFeatureFlags.kt:25", ios: "I:PersistentFeatureFlags.swift:16"}
     used_by: [workflows/feature-flag-sessions.json]
   - name: free_shipping_banner
     kind: persistent
     values: [control, treatment]
     mirror_field: ff_free_shipping_banner
-    platforms: [android]
-    persisted: {android: "SharedPreferences persistent_flags/free_shipping_banner"}
-    source: {android: "A:PersistentFeatureFlags.kt:26"}
+    platforms: [android, ios]
+    persisted: {android: "SharedPreferences persistent_flags/free_shipping_banner", ios: "UserDefaults persistent_flags.free_shipping_banner"}
+    source: {android: "A:PersistentFeatureFlags.kt:26", ios: "I:PersistentFeatureFlags.swift:17"}
     used_by: [workflows/feature-flag-sessions.json]
 
 # KMP (best effort, not validated): sets flag values to the variant name and

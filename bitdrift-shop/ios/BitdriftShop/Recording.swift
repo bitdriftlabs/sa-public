@@ -116,6 +116,7 @@ final class RecordedSpan {
 
 /// Launch arguments for the automated test harness (`xcrun simctl launch ... -sim_runs 5 ...`):
 ///   -sim_runs N  -sim_seed S  -persona control|variant_a|variant_b  -record_file name.jsonl
+///   [-crash <name>]  with the crash loop on, fire this catalog crash (e.g. app_coupon_empty_cart)
 /// `sim_runs` > 0 turns on autorun: skip the config countdown, run N journeys, log
 /// `sim_autorun_complete`. `sim_seed` seeds the journey engine (masked to 0..<2^31, see `simSeed`).
 enum Autorun {
@@ -126,6 +127,8 @@ enum Autorun {
     static let simSeed = Int64(seed) & 0x7FFF_FFFF
     static let persona = defaults.string(forKey: "persona") ?? "control"
     static let recordFile = defaults.string(forKey: "record_file")
+    /// `-crash <catalog name>`: fire exactly this crash at the journey's crash point (instead of the sweep).
+    static let crash = defaults.string(forKey: "crash")
     static var started = false
 
     static var active: Bool { runs > 0 }

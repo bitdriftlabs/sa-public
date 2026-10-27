@@ -79,6 +79,10 @@ enum Crashes {
         ("native_sigabrt", crashNativeSigabrt),
         ("native_sigfpe", crashNativeSigfpe),
         ("native_sigill", crashNativeSigill),
+        // Realistic crashes (Phase 6): the failing frame is app code, and a precursor (below)
+        // logs what a real app would have logged first, instead of `about_to_crash`.
+        ("app_coupon_empty_cart", crashCouponEmptyCart),
+        ("app_promo_banner_payload", crashPromoBannerPayload),
     ] + oomCrashes
 
     /// Subset used by the "OOMs" crash-loop mode to cycle only memory crashes.
@@ -130,6 +134,45 @@ enum Crashes {
         let idx = ((index % total) + total) % total
         let entry = list[idx / slots]
         return (entry.name, entry.fire, slots > 1 && idx % slots == 1, total)
+    }
+
+    // MARK: - Realistic: crashes inside app types
+
+    private static let couponCode = "SUMMER20"
+
+    /// Precursors for the realistic crashes, run in place of the `about_to_crash` announcement
+    /// (and without the `crash_kind`/`crash_context` fields) so the session shows a plausible
+    /// lead-up: a handled error, a retry. Keyed by crash name; runs well before the crash fires,
+    /// inside the SDK's flush window.
+    static let precursors: [String: () -> Void] = [
+        "app_coupon_empty_cart": {
+            // The checkout code tries the coupon, the cart turns out empty, and the error is handled
+            // (logged) -- but a second path applies the same coupon without checking.
+            do {
+                _ = try CartPricing.applyCouponChecked([], code: couponCode)
+            } catch {
+                ScreenLogger.logError(SpecEvents.couponApplyFailed, error: error, [SpecFields.couponCode: couponCode])
+            }
+        },
+        "app_promo_banner_payload": {
+            // First parse fails and is handled; the app retries, and the retry is the one that crashes.
+            do {
+                _ = try PromoBannerParser.tryParse(PromoBannerParser.malformedPayload)
+            } catch {
+                ScreenLogger.logError(SpecEvents.promoBannerParseFailed, error: error, [SpecFields.attempt: "1"])
+                ScreenLogger.logInfo(SpecEvents.promoBannerRetry, [SpecFields.attempt: "2"])
+            }
+        },
+    ]
+
+    @inline(never)
+    private static func crashCouponEmptyCart() {
+        _ = CartPricing.applyCoupon([], code: couponCode)
+    }
+
+    @inline(never)
+    private static func crashPromoBannerPayload() {
+        _ = PromoBannerParser.parse(PromoBannerParser.malformedPayload)
     }
 
     // MARK: - Main-thread Swift runtime traps

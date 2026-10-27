@@ -176,26 +176,26 @@ fields:
 global_fields:
   - key: journey_id
     platforms: [android, ios]
-    source: {android: "A:SimulationManager.kt:674"}
+    source: {android: "A:SimulationManager.kt:674", ios: "I:SimulationManager.swift:691"}
   - key: step
     platforms: [android, ios]
-    source: {android: "A:SimulationManager.kt:417"}
+    source: {android: "A:SimulationManager.kt:417", ios: "I:SimulationManager.swift:735"}
   - key: session_mode
     platforms: [android, ios]
-    source: {android: "A:ShoppingDemoApp.kt:45"}
+    source: {android: "A:ShoppingDemoApp.kt:45", ios: "I:CaptureBridge.swift:104"}
   - key: app_variant
     values: {android: sdk-demo, ios: sdk-demo, reactnative: sdk-demo, flutter: sdk-demo, kmp: kmp-demo}
     open: OPEN-2   # resolved: iOS unifies on sdk-demo (applied in Phase 2b); see DECISIONS.md
-    source: {android: "A:ShoppingDemoApp.kt:90", ios: "I:CaptureBridge.swift:90", reactnative: "R:src/config.ts:25", flutter: "F:main.dart:20"}
+    source: {android: "A:ShoppingDemoApp.kt:90", ios: "I:CaptureBridge.swift:102", reactnative: "R:src/config.ts:25", flutter: "F:main.dart:20"}
   - key: platform
-    source: {android: "A:ShoppingDemoApp.kt:91", ios: "I:CaptureBridge.swift:91", reactnative: "R:App.tsx:97", flutter: "F:main.dart:21"}
+    source: {android: "A:ShoppingDemoApp.kt:91", ios: "I:CaptureBridge.swift:103", reactnative: "R:App.tsx:97", flutter: "F:main.dart:21"}
   - key: user_id
     set_when: "sign-in checkout succeeds; removed on 'new journey' from Confirmation; seeded at startup from persisted user_session.user_id"
     source: {android: "A:Screens.kt:1294", ios: "I:Screens.swift:980"}
     missing_on: [reactnative, flutter]
   - key: supportlog
     set_when: "Advanced screen 'Support Log' toggle"
-    source: {android: "A:Screens.kt:583", ios: "I:Screens.swift:256", reactnative: "R:src/context/SimulationContext.tsx:165"}
+    source: {android: "A:Screens.kt:583", ios: "I:Screens.swift:273", reactnative: "R:src/context/SimulationContext.tsx:165"}
     optional_on: [flutter]
   - key: support
     set_when: "SupportMode toggle; removed when off (matched by bd-shop-30)"
@@ -206,7 +206,7 @@ global_fields:
     source: {android: "A:SimulationManager.kt:565", ios: "I:SimulationManager.swift:477", reactnative: "R:src/context/SimulationContext.tsx:214"}
     missing_on: [flutter]   # Flutter logs crash_injection{crash} instead (D-EVT-F12)
   - key: crash_context
-    source: {android: "A:SimulationManager.kt:615", ios: "I:SimulationManager.swift:575"}
+    source: {android: "A:SimulationManager.kt:615", ios: "I:SimulationManager.swift:584"}
     missing_on: [reactnative, flutter]
   - key: crash_journey_point
     set_when: "crash loop: the journey point where the crash fires (spec/journey.yaml crash_point, OPEN-3 resolved)"
@@ -263,13 +263,13 @@ events:
     trigger: sim
     required: [total_runs]
     drift_fields: {flutter: "adds variant (D-EVT-F9)"}
-    source: {android: "A:ScreenLogger.kt:34", ios: "I:ScreenLogger.swift:158", reactnative: "R:src/utils/logger.ts:203", flutter: "F:sim/simulator.dart:72"}
+    source: {android: "A:ScreenLogger.kt:34", ios: "I:ScreenLogger.swift:171", reactnative: "R:src/utils/logger.ts:203", flutter: "F:sim/simulator.dart:72"}
   - name: simulation_end
     level: info
     trigger: sim
     required: [total_runs]
     drift_fields: {flutter: "adds completed_runs (D-EVT-F9)"}
-    source: {android: "A:ScreenLogger.kt:38", ios: "I:ScreenLogger.swift:162", reactnative: "R:src/utils/logger.ts:207", flutter: "F:sim/simulator.dart:97"}
+    source: {android: "A:ScreenLogger.kt:38", ios: "I:ScreenLogger.swift:175", reactnative: "R:src/utils/logger.ts:207", flutter: "F:sim/simulator.dart:97"}
   - name: simulation_cancelled
     level: info
     trigger: sim
@@ -373,20 +373,20 @@ events:
     required: [product_id, source_screen]
     was: {flutter: add_to_cart_tapped}  # conformed in Phase 2b
     sim_emits: {android: true, ios: true, reactnative: true, flutter: true}   # OPEN-5 resolved: the journey engine emits it
-    source: {android: "A:Screens.kt:993", ios: "I:Screens.swift:667", reactnative: "R:src/screens/ShoppingScreens.tsx:429", flutter: "F:ui/screens.dart:333"}
+    source: {android: "A:Screens.kt:993", ios: "I:Screens.swift:693", reactnative: "R:src/screens/ShoppingScreens.tsx:429", flutter: "F:ui/screens.dart:333"}
   - name: add_to_wishlist
     level: info
     trigger: ui
     required: [product_id, source_screen]
     was: {flutter: wishlist_add_tapped}  # conformed in Phase 2b
     sim_emits: {android: true, ios: true, reactnative: true, flutter: true}
-    source: {android: "A:Screens.kt:1001", ios: "I:Screens.swift:671", reactnative: "R:src/screens/ShoppingScreens.tsx:437", flutter: "F:ui/screens.dart:345"}
+    source: {android: "A:Screens.kt:1001", ios: "I:Screens.swift:697", reactnative: "R:src/screens/ShoppingScreens.tsx:437", flutter: "F:ui/screens.dart:345"}
   - name: cart_item_removed
     level: info
     trigger: ui
     required: [product_id]
     sim_emits: {android: true, ios: true, reactnative: true, flutter: true}
-    source: {android: "A:Screens.kt:1139", ios: "I:Screens.swift:818", reactnative: "R:src/screens/ShoppingScreens.tsx:533"}
+    source: {android: "A:Screens.kt:1139", ios: "I:Screens.swift:844", reactnative: "R:src/screens/ShoppingScreens.tsx:533"}
   - name: cart_failed
     level: error
     trigger: ui
@@ -394,21 +394,21 @@ events:
     optional: [reason]
     was: {flutter: add_to_cart_failed}  # conformed in Phase 2b
     drift_level: {flutter: warning}
-    source: {android: "A:Screens.kt:1072", ios: "I:Screens.swift:799", reactnative: "R:src/screens/ShoppingScreens.tsx:536", flutter: "F:ui/screens.dart:339"}
+    source: {android: "A:Screens.kt:1072", ios: "I:Screens.swift:825", reactnative: "R:src/screens/ShoppingScreens.tsx:536", flutter: "F:ui/screens.dart:339"}
   - name: checkout_started
     level: info
     trigger: ui
     required: [checkout_type]
     was: {flutter: checkout_created}  # conformed in Phase 2b
     sim_emits: {android: true, ios: true, reactnative: true, flutter: true}
-    source: {android: "A:Screens.kt:1160", ios: "I:Screens.swift:772", reactnative: "R:src/screens/ShoppingScreens.tsx:561", flutter: "F:ui/screens.dart:578"}
+    source: {android: "A:Screens.kt:1160", ios: "I:Screens.swift:798", reactnative: "R:src/screens/ShoppingScreens.tsx:561", flutter: "F:ui/screens.dart:578"}
   - name: checkout_failed
     level: error
     trigger: ui
     required: [checkout_type]
     optional: [reason]
     drift_level: {flutter: "warning in sim path (F:sim/simulator.dart:326)"}
-    source: {android: "A:Screens.kt:1242", ios: "I:Screens.swift:912", reactnative: "R:src/screens/ShoppingScreens.tsx:633", flutter: "F:ui/screens.dart:584"}
+    source: {android: "A:Screens.kt:1242", ios: "I:Screens.swift:938", reactnative: "R:src/screens/ShoppingScreens.tsx:633", flutter: "F:ui/screens.dart:584"}
     used_by: [workflows/payment-errors.json]
   - name: payment_completed
     level: info
@@ -417,7 +417,7 @@ events:
     optional: [card_last4]
     was: {flutter: payment_succeeded}  # conformed in Phase 2b
     sim_emits: {android: true, ios: true, reactnative: true, flutter: true}
-    source: {android: "A:Screens.kt:1392", ios: "I:Screens.swift:1137", reactnative: "R:src/screens/ShoppingScreens.tsx:729", flutter: "F:ui/screens.dart:675"}
+    source: {android: "A:Screens.kt:1392", ios: "I:Screens.swift:1126", reactnative: "R:src/screens/ShoppingScreens.tsx:729", flutter: "F:ui/screens.dart:675"}
   - name: crash_loop_stopped
     level: info
     trigger: ui
@@ -439,7 +439,7 @@ events:
     level: info
     trigger: startup
     optional: [sdk_started]
-    source: {android: "A:ShoppingDemoApp.kt:85", ios: "I:CaptureBridge.swift:83", reactnative: "R:App.tsx:222", flutter: "F:main.dart:27"}
+    source: {android: "A:ShoppingDemoApp.kt:85", ios: "I:CaptureBridge.swift:95", reactnative: "R:App.tsx:222", flutter: "F:main.dart:27"}
   - name: app_open
     level: info
     trigger: lifecycle
@@ -500,7 +500,7 @@ events:
     optional: [clean, crashed_on_screen, screen, crashed_on_trail]
     platforms: [android, ios]
     notes: "error when the previous run fatally terminated. iOS also reports where it died (clean, crashed_on_screen, screen, crashed_on_trail); Android reports the exit reason and fatal (Phase 6)."
-    source: {ios: "I:CaptureBridge.swift:165"}
+    source: {ios: "I:CaptureBridge.swift:179"}
     used_by: [workflows/crashes-by-final-screen.json, workflows/ios-journey-vs-crashes.json]
   # --- Phase 6: realistic crashes and business-critical failures -----------------
   - name: coupon_apply_failed
@@ -509,20 +509,20 @@ events:
     required: [coupon_code]
     platforms: [android, ios]
     notes: "Handled error logged just before the unguarded CartPricing.applyCoupon crash on an empty cart (the realistic-crash precursor, no about_to_crash)."
-    source: {android: "A:Crashes.kt:83"}
+    source: {android: "A:Crashes.kt:83", ios: "I:Crashes.swift:154"}
   - name: promo_banner_parse_failed
     level: error
     trigger: fault
     required: [attempt]
     platforms: [android, ios]
     notes: "Handled parse error on the first PromoBannerParser attempt; the unguarded retry then crashes."
-    source: {android: "A:Crashes.kt:92"}
+    source: {android: "A:Crashes.kt:91", ios: "I:Crashes.swift:162"}
   - name: promo_banner_retry
     level: info
     trigger: fault
     required: [attempt]
     platforms: [android, ios]
-    source: {android: "A:Crashes.kt:92"}
+    source: {android: "A:Crashes.kt:92", ios: "I:Crashes.swift:163"}
   - name: order_lost
     level: critical
     trigger: sim
@@ -530,7 +530,7 @@ events:
     optional: [reason]
     platforms: [android, ios]
     notes: "logCritical: payment succeeded but the order confirmation could not be fetched, so the customer was charged for an order that cannot be shown."
-    source: {android: "A:SimulationManager.kt:439"}
+    source: {android: "A:SimulationManager.kt:439", ios: "I:SimulationManager.swift:767"}
   - name: screen_visit
     level: info
     trigger: ui
@@ -563,14 +563,14 @@ events:
     optional: [crash_kind]
     was: {flutter: crash_injection}  # conformed in Phase 2b
     drift_fields: {reactnative: "sim message is 'about_to_crash: {name} (idx={idx})' (D-EVT-5)", flutter: "field 'crash' instead of crash_kind global field"}
-    source: {android: "A:SimulationManager.kt:623", ios: "I:SimulationManager.swift:578", reactnative: "R:src/context/SimulationContext.tsx:216", flutter: "F:crash.dart:48"}
+    source: {android: "A:SimulationManager.kt:623", ios: "I:SimulationManager.swift:586", reactnative: "R:src/context/SimulationContext.tsx:216", flutter: "F:crash.dart:48"}
     used_by: [workflows/crashes-by-final-screen.json]
   - name: background_crash_armed
     level: info
     trigger: fault
     required: [hint]
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:535"}
+    source: {ios: "I:SimulationManager.swift:544"}
   - name: watchdog_hang_armed
     level: warning
     trigger: fault
@@ -589,13 +589,13 @@ events:
     trigger: fault
     message_format: "simplified_journey_crash_point (step 5 of 7): CheckoutGuest"
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:952"}
+    source: {ios: "I:SimulationManager.swift:992"}
   - name: simplified_journey_completed
     level: info
     trigger: sim
     required: [steps_completed, variant]
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:973"}
+    source: {ios: "I:SimulationManager.swift:1013"}
 
   # --- demos -------------------------------------------------------------------
   - name: metric_values
@@ -698,23 +698,23 @@ spans:
   - name: app_cold_start
     parent: null
     optional_fields: [sdk_started]
-    source: {android: "A:CaptureBridge.kt:160", ios: "I:CaptureBridge.swift:273", reactnative: "R:App.tsx:206", flutter: "F:main.dart:37"}
+    source: {android: "A:CaptureBridge.kt:160", ios: "I:CaptureBridge.swift:287", reactnative: "R:App.tsx:206", flutter: "F:main.dart:37"}
     notes: "RN/Flutter emit it as a back-dated paired-log span (logCompletedSpan)."
     used_by: [workflows/android-cold-start-span-timings.json, workflows/ios-cold-start-span-timings.json]
   - name: app_cold_start.sdk_init
     parent: app_cold_start
-    source: {android: "A:CaptureBridge.kt:165", ios: "I:CaptureBridge.swift:284", reactnative: "R:App.tsx:211", flutter: "F:main.dart:26"}
+    source: {android: "A:CaptureBridge.kt:165", ios: "I:CaptureBridge.swift:298", reactnative: "R:App.tsx:211", flutter: "F:main.dart:26"}
     drift_fields: {flutter: "not parented to app_cold_start; emitted before the root"}
     used_by: [workflows/android-cold-start-span-timings.json, workflows/ios-cold-start-span-timings.json]
   - name: app_cold_start.scene_render
     parent: app_cold_start
     optional_on: [reactnative, flutter]
-    source: {android: "A:CaptureBridge.kt:170", ios: "I:CaptureBridge.swift:295"}
+    source: {android: "A:CaptureBridge.kt:170", ios: "I:CaptureBridge.swift:309"}
     used_by: [workflows/android-cold-start-span-timings.json, workflows/ios-cold-start-span-timings.json]
   - name: app_cold_start.state_restore
     parent: app_cold_start
     optional_on: [reactnative, flutter]
-    source: {android: "A:CaptureBridge.kt:182", ios: "I:CaptureBridge.swift:310"}
+    source: {android: "A:CaptureBridge.kt:182", ios: "I:CaptureBridge.swift:324"}
     used_by: [workflows/android-cold-start-span-timings.json, workflows/ios-cold-start-span-timings.json]
 
   # lifecycle
@@ -727,21 +727,21 @@ spans:
 
   # screen loads (standalone, no parent)
   - {name: welcome_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:66", ios: "I:Screens.swift:134"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
-  - {name: browse_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:654", ios: "I:Screens.swift:451"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
-  - {name: catalog_serialize, parent: browse_screen_load, platforms: [ios], source: {ios: "I:Screens.swift:455"}, used_by: [workflows/ios-screen-load-timings.json]}
-  - {name: product_detail_load, parent: null, fields: [rec_v2], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:937", ios: "I:Screens.swift:683"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: browse_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:654", ios: "I:Screens.swift:477"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: catalog_serialize, parent: browse_screen_load, platforms: [ios], source: {ios: "I:Screens.swift:481"}, used_by: [workflows/ios-screen-load-timings.json]}
+  - {name: product_detail_load, parent: null, fields: [rec_v2], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:937", ios: "I:Screens.swift:709"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
   - {name: product_image_load, parent: null, fields: [url], missing_on: [reactnative, flutter], source: {android: "A:Components.kt:676", ios: "I:Components.swift:78"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
-  - {name: cart_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1067", ios: "I:Screens.swift:790"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
-  - {name: checkout_screen_load, parent: null, fields: [checkout_type], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1236", ios: "I:Screens.swift:904"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
-  - {name: payment_screen_load, parent: null, fields: [payment_method], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1360", ios: "I:Screens.swift:1116"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
-  - {name: confirmation_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1617", ios: "I:Screens.swift:1246"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: cart_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1067", ios: "I:Screens.swift:816"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: checkout_screen_load, parent: null, fields: [checkout_type], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1236", ios: "I:Screens.swift:930"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: payment_screen_load, parent: null, fields: [payment_method], missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1360", ios: "I:Screens.swift:1142"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
+  - {name: confirmation_screen_load, parent: null, missing_on: [reactnative, flutter], source: {android: "A:Screens.kt:1617", ios: "I:Screens.swift:1272"}, used_by: [workflows/android-screen-load-timings.json, workflows/ios-screen-load-timings.json]}
 
   # recommendation engine (slow mode / recommendations_v2)
   - name: score_products
     parent: null
     fields: [product_id, screen_name]
     optional_on: [flutter]
-    source: {android: "A:Screens.kt:673", ios: "I:Screens.swift:406", reactnative: "R:src/screens/ShoppingScreens.tsx:178"}
+    source: {android: "A:Screens.kt:673", ios: "I:Screens.swift:432", reactnative: "R:src/screens/ShoppingScreens.tsx:178"}
     used_by: [workflows/slow-rendering-manual-span.json]
   - name: score_products.parse_catalog
     parent: score_products

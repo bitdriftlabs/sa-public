@@ -98,6 +98,8 @@ unit_ios() {
     || { echo "xcodebuild failed: see $OUT/ios-unit-build.log"; return 1; }
   bash "$ROOT/ios/scripts/test-journey-engine.sh" >"$OUT/ios-journey-engine.log" 2>&1 \
     || { echo "journey engine golden test failed: see $OUT/ios-journey-engine.log"; return 1; }
+  bash "$ROOT/ios/scripts/test-realism.sh" >"$OUT/ios-realism.log" 2>&1 \
+    || { echo "realism checks failed: see $OUT/ios-realism.log"; return 1; }
 }
 
 smoke_ios() {

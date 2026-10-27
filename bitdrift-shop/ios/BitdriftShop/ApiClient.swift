@@ -165,7 +165,10 @@ enum ApiClient {
     }
 
     static func getConfirmation(_ orderID: String) async throws -> JSON {
-        try await get("/confirmation/\(orderID)", pathTemplate: "/api/confirmation/<id>")
+        if DemoSettings.loseOrders {
+            throw URLError(.cannotConnectToHost, userInfo: [NSLocalizedDescriptionKey: "order lookup disabled (demo: lose orders)"])
+        }
+        return try await get("/confirmation/\(orderID)", pathTemplate: "/api/confirmation/<id>")
     }
 
     /// Latest published capture-ios release tag, so the Welcome screen can flag

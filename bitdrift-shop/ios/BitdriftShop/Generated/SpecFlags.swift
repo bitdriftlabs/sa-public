@@ -30,4 +30,10 @@ enum SpecFlags {
     static let forceQuitField = "ff_force_quit"
     static let recommendationsV2 = "recommendations_v2"
     static let recommendationsV2Field = "ff_recommendations_v2"
+    static let expressCheckout = "express_checkout"
+    static let expressCheckoutField = "ff_express_checkout"
+    static let productCardLayout = "product_card_layout"
+    static let productCardLayoutField = "ff_product_card_layout"
+    static let freeShippingBanner = "free_shipping_banner"
+    static let freeShippingBannerField = "ff_free_shipping_banner"
 }

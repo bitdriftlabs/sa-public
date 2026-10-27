@@ -159,6 +159,14 @@ enum ScreenLogger {
         Logger.logError(message, fields: encode(fields), error: error)
     }
 
+    /// bitdrift SDK: logCritical() is the level above error, for business-critical failures
+    /// (a paid order that cannot be shown) that should page rather than hide among the errors.
+    static func logCritical(_ message: String, error: Error? = nil, _ fields: [String: String] = [:]) {
+        printLog("CRITICAL", message, fields)
+        Recorder.write("log", ["level": "critical", "message": message], fields: fields.isEmpty ? nil : fields)
+        Logger.logCritical(message, fields: encode(fields), error: error)
+    }
+
     static func logSimulationStart(_ runs: Int) {
         logInfo(SpecEvents.simulationStart, [SpecFields.totalRuns: String(runs)])
     }

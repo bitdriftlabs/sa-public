@@ -1,4 +1,4 @@
-import Capture
+@_spi(ExperimentalAPI) import Capture
 import Foundation
 
 /// SDK lifecycle and the few helpers the Swift Capture API doesn't ship that the
@@ -70,11 +70,23 @@ enum CaptureBridge {
         // under `.activityBased()`) will read as an empty Sankey under this
         // strategy, since the fatal-issue replay lands in a new session that
         // the in-progress flow can never see.
+        //
+        // `realistic` session mode (Advanced screen, applied on the next launch) sets an inactivity
+        // timeout so one session spans several journeys and background/foreground transitions, as a
+        // real user's does; the default `per_journey` keeps the fixed-per-launch behaviour.
+        let sessionMode = DemoSettings.sessionMode
+        DemoSettings.activeSessionMode = sessionMode
+        let sessionConfiguration = sessionMode == .realistic
+            ? SessionConfiguration(inactivityTimeout: TimeInterval(DemoSettings.realisticInactivityMinutes * 60))
+            : SessionConfiguration()
+        // bitdrift SDK: `commands:` registers Commands (dump_cart_state, flip_flag) that an SE can
+        // run on this live device with `bd command send`.
         Logger.start(
             withAPIKey: AppConfig.apiKey,
-            sessionConfiguration: SessionConfiguration(),
+            sessionConfiguration: sessionConfiguration,
             configuration: .init(apiURL: AppConfig.apiURL),
-            initialFields: Self.persistedUserFields()
+            initialFields: Self.persistedUserFields(),
+            commands: AppCommands.all
         )?.enableIntegrations([.urlSession()])
 
         Logger.setEntityID("demo")
@@ -89,6 +101,8 @@ enum CaptureBridge {
         // by global field value.
         Logger.addField(withKey: SpecFields.appVariant, value: "sdk-demo")
         Logger.addField(withKey: SpecFields.platform, value: "ios")
+        Logger.addField(withKey: SpecFields.sessionMode, value: sessionMode.rawValue)
+        PersistentFeatureFlags.apply()
 
         reportPreviousRun()
 
