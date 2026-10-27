@@ -74,7 +74,7 @@ verified baseline, not a minimum or a "latest" claim.
 bash scripts/android-1-setup.sh
 ```
 Installs the command-line tools (no Studio), accepts SDK licenses, ensures the
-packages Flutter needs, and creates the `bitdrift_shop` AVD.
+packages Flutter needs, and creates the `Medium_Phone` AVD.
 
 **iOS:**
 ```bash

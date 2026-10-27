@@ -176,10 +176,10 @@ fields:
 global_fields:
   - key: journey_id
     platforms: [android, ios]
-    source: {android: "A:SimulationManager.kt:674", ios: "I:SimulationManager.swift:691"}
+    source: {android: "A:SimulationManager.kt:674", ios: "I:SimulationManager.swift:700"}
   - key: step
     platforms: [android, ios]
-    source: {android: "A:SimulationManager.kt:417", ios: "I:SimulationManager.swift:735"}
+    source: {android: "A:SimulationManager.kt:417", ios: "I:SimulationManager.swift:98"}
   - key: session_mode
     platforms: [android, ios]
     source: {android: "A:ShoppingDemoApp.kt:45", ios: "I:CaptureBridge.swift:104"}
@@ -530,7 +530,7 @@ events:
     optional: [reason]
     platforms: [android, ios]
     notes: "logCritical: payment succeeded but the order confirmation could not be fetched, so the customer was charged for an order that cannot be shown."
-    source: {android: "A:SimulationManager.kt:439", ios: "I:SimulationManager.swift:767"}
+    source: {android: "A:SimulationManager.kt:439", ios: "I:SimulationManager.swift:775"}
   - name: screen_visit
     level: info
     trigger: ui
@@ -589,13 +589,13 @@ events:
     trigger: fault
     message_format: "simplified_journey_crash_point (step 5 of 7): CheckoutGuest"
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:992"}
+    source: {ios: "I:SimulationManager.swift:1000"}
   - name: simplified_journey_completed
     level: info
     trigger: sim
     required: [steps_completed, variant]
     platforms: [ios]
-    source: {ios: "I:SimulationManager.swift:1013"}
+    source: {ios: "I:SimulationManager.swift:1021"}
 
   # --- demos -------------------------------------------------------------------
   - name: metric_values

@@ -1244,8 +1244,9 @@ struct ConfirmationScreen: View {
             Button {
                 // bitdrift SDK: startNewSession() begins a new session for the next
                 // journey, keeping each purchase flow separate in the timeline.
-                // POC: session management — clean per-user Timeline entries.
-                Logger.startNewSession()
+                // POC: session management — clean per-user Timeline entries. (`realistic` session mode
+                // leaves session boundaries to the SDK's inactivity timeout.)
+                DemoSettings.startNewSessionForJourney()
 
                 // bitdrift SDK: removeField() clears user_id when starting a new
                 // journey — session-level logout.
@@ -1273,6 +1274,8 @@ struct ConfirmationScreen: View {
                 do {
                     apiData = try await ApiClient.getConfirmation(orderID)
                 } catch {
+                    // Leaving the screen cancels this task; that is navigation, not a lost order.
+                    if Task.isCancelled || error is CancellationError || (error as? URLError)?.code == .cancelled { return }
                     // The customer paid but the order cannot be shown: logCritical so it pages
                     // instead of hiding among the errors.
                     ScreenLogger.logCritical(SpecEvents.orderLost, error: error, [

@@ -1,3 +1,4 @@
+import Capture
 import Foundation
 
 enum SessionMode: String {
@@ -26,6 +27,12 @@ enum DemoSettings {
     static var sessionMode: SessionMode {
         get { SessionMode(id: Prefs.demoSettings.string(keySessionMode)) }
         set { Prefs.demoSettings.set(keySessionMode, newValue.rawValue); Prefs.demoSettings.flush() }
+    }
+
+    /// Starts a new Capture session only in `per_journey` mode. In `realistic` mode the SDK's inactivity
+    /// timeout owns session boundaries, so every place that would rotate a session per journey goes through here.
+    static func startNewSessionForJourney() {
+        if activeSessionMode == .perJourney { Logger.startNewSession() }
     }
 
     /// Demo chaos switch: makes order-confirmation lookups fail so the `order_lost` critical log can be shown.

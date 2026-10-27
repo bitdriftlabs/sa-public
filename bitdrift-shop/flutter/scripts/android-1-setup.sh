@@ -5,7 +5,7 @@
 set -euo pipefail
 
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
-AVD_NAME="${AVD_NAME:-bitdrift_shop}"
+AVD_NAME="${AVD_NAME:-Medium_Phone}"
 DEVICE_PROFILE="${DEVICE_PROFILE:-pixel_7}"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip"
 

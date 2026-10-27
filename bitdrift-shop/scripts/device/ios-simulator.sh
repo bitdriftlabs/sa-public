@@ -48,9 +48,13 @@ start() {
   if [[ -n "$booted_line" ]]; then
     echo "A simulator is already booted: ${booted_line%% *}"
   else
+    # Every consumer (the start-app scripts, test.sh) takes the first booted simulator, so a second, eligible
+    # one booted next to an ineligible one would still lose to it. Refuse instead of leaving two.
     any_booted="$(xcrun simctl list devices booted | grep -oE "$UDID_RE" | head -n1 || true)"
     if [[ -n "$any_booted" ]]; then
-      echo "A simulator is booted ($any_booted) but its runtime is below iOS $MIN_IOS_VERSION; booting a separate eligible one instead."
+      echo "A simulator is booted ($any_booted) but its runtime is below iOS $MIN_IOS_VERSION." >&2
+      echo "Stop it first (scripts/device/ios-simulator.sh stop), or lower MIN_IOS_VERSION." >&2
+      exit 1
     fi
 
     udid="$(list_eligible available | awk -v name="$DEVICE_NAME" '{ln=$0; sub(/^[0-9A-Fa-f-]+ /, "", ln); if (ln == name) { print $1; exit } }')"

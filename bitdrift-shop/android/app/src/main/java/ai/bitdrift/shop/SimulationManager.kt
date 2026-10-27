@@ -430,7 +430,6 @@ class SimulationManager : ViewModel() {
         override suspend fun callApi(endpoint: String, args: Map<String, String>): org.json.JSONObject? {
             val result = callApiRaw(endpoint, args)
             when (endpoint) {
-                "browse", "search", "featured", "category_products", "product" -> ProductCatalog.learn(result)
                 "cart_get", "cart_add", "cart_delete" -> lastCart = result
                 "confirmation" -> if (result == null) {
                     // Payment succeeded but the order cannot be shown: a business-critical failure.

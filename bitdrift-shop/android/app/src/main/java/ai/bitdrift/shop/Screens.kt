@@ -1618,6 +1618,9 @@ fun ConfirmationScreen(navController: NavController, orderId: String?) {
                 if (DemoSettings.loseOrders(context)) throw java.io.IOException("order lookup disabled (demo: lose orders)")
                 apiData = ApiClient.getConfirmation(oid)
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Leaving the screen cancels this effect; that is navigation, not a lost order.
+            throw e
         } catch (e: Exception) {
             // The customer paid but the order cannot be shown: logCritical so it pages instead of
             // hiding among the errors.
@@ -1661,7 +1664,8 @@ fun ConfirmationScreen(navController: NavController, orderId: String?) {
                 // bitdrift SDK: startNewSession() begins a new session for the next journey,
                 // keeping each purchase flow separate in the timeline.
                 // POC: session management — clean per-user Timeline entries; each journey is its own session
-                RecordingLogger.startNewSession()
+                // (`realistic` session mode leaves session boundaries to the SDK's inactivity timeout.)
+                if (DemoSettings.activeSessionMode == SessionMode.PER_JOURNEY) RecordingLogger.startNewSession()
 
                 // bitdrift SDK: removeField() clears user_id when starting a new journey — session-level logout.
                 context.getSharedPreferences("user_session", android.content.Context.MODE_PRIVATE)
