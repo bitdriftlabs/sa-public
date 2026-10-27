@@ -1,6 +1,6 @@
 # spec/ drift decisions
 
-Phase 2a of `bitdrift-shop-PLAN.md`. Each entry: what differs (with `file:line` evidence),
+Phase 2a of the original plan (see [PLAN.md](../docs/PLAN.md)). Each entry: what differs (with `file:line` evidence),
 the decision, the reason, and workflow impact. Path prefixes: `A:` =
 `android/app/src/main/java/ai/bitdrift/shop/`, `I:` = `ios/BitdriftShop/`, `R:` =
 `reactnative/`, `F:` = `flutter/lib/`.

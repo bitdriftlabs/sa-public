@@ -48,6 +48,13 @@ Defaults: Android AVD `Medium_Phone`, software rendering on macOS (the hardware 
 iOS device `iPhone 17 Pro`, falling back to any iPhone on iOS 26.0 or newer. `./test.sh <app> smoke` boots what
 it needs through these same scripts.
 
+## More documentation
+
+- [docs/TESTING.md](docs/TESTING.md): the command-line test tiers and the record/conformance harness.
+- [docs/SPEC.md](docs/SPEC.md) and [spec/](spec/README.md): the shared spec the apps are built from.
+- [docs/REALISM.md](docs/REALISM.md): realistic crashes, session mode, Commands and the other Android and iOS realism features.
+- [docs/PLAN.md](docs/PLAN.md): project status, decisions and what is left.
+
 ## The backend (shared by every app)
 
 A single FastAPI server is the common element across all the apps. It serves a catalog of 18 products across categories (Electronics, Clothing, Home & Garden, Sports) and exposes the browse, search, cart, checkout, and payment endpoints each app calls. Every app points at the same locally-run server, so behavior and traffic stay consistent regardless of platform.

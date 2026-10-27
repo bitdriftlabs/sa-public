@@ -28,7 +28,7 @@ point instead of walking the crash sweep. Relaunch the app afterwards so the SDK
 ## Host-run unit checks
 
 Besides the app builds, the unit tier runs checks that need no device: spec validation (`spec/validate.py --strict`,
-which also verifies each `source:` file:line citation; `tools/codegen/fixrefs.py` re-points stale ones after edits),
+which also verifies each `source:` file:line citation; `validate.py --fix-refs` re-points stale ones after edits),
 the conformance self-test, the shared journey engine's golden traces on every language, and
 `ios/scripts/test-realism.sh` plus Android's `RealismTest` for the realistic-crash app code.
 

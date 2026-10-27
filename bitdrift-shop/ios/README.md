@@ -3,7 +3,7 @@
 **Version 5.0**
 
 Native SwiftUI demo app simulating an e-commerce shopping experience, **already
-instrumented with the bitdrift Capture SDK** (`capture-ios` 0.24.2 via Swift
+instrumented with the bitdrift Capture SDK** (`capture-ios` 0.26.0 via Swift
 Package Manager). It pairs with the same FastAPI backend the Android app uses, so
 it produces realistic sessions, network traffic, crashes, and performance signals
 out of the box.
@@ -178,9 +178,10 @@ the dashboard in real time.
 
 | Feature | SDK surface | Where it lives |
 |---------|-------------|----------------|
-| **SDK dependency** | `capture-ios` 0.24.2 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
-| **Logger startup** | `Logger.start(withAPIKey:sessionStrategy:configuration:fieldProviders:)` in `App.init()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
-| **Session strategy** | `.fixed()` — mints a fresh session on every process start, matching the Android app's `SessionStrategy.Fixed()`. Was `.activityBased()`, which is what let `bd-shop-19`'s crash-terminal Sankey close (see [../workflows/docs/ios-workflows.md](../workflows/docs/ios-workflows.md#journey-to-crash-sankey-it-depends-on-session-strategy)) — that Sankey now reads empty under `.fixed()` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
+| **SDK dependency** | `capture-ios` 0.26.0 (SPM, `Capture` product) | [project.pbxproj](BitdriftShop.xcodeproj/project.pbxproj) |
+| **Logger startup** | `Logger.start(withAPIKey:sessionConfiguration:configuration:initialFields:commands:)` in `App.init()`; `user_id` is seeded through `initialFields` | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift), [BitdriftShopApp.swift](BitdriftShop/BitdriftShopApp.swift) |
+| **Session strategy** | `SessionConfiguration()` — a fresh session on every process start, plus one per journey from the sim, matching the Android app. `bd-shop-19`'s crash-terminal Sankey needs the session to survive a relaunch, so under this default it reads empty (see [../workflows/docs/ios-workflows.md](../workflows/docs/ios-workflows.md#journey-to-crash-sankey-it-depends-on-session-strategy)). The Advanced screen's `realistic` mode sets a 30-minute `inactivityTimeout` instead | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
+| **Realism** | Crashes inside app code with precursor logs, `session_mode`, `journey_id`/`step`, `logCritical` `order_lost`, `cart_json`, Commands `dump_cart_state` and `flip_flag`, install-persistent feature flags — see [../docs/REALISM.md](../docs/REALISM.md) | [CartPricing.swift](BitdriftShop/CartPricing.swift), [AppCommands.swift](BitdriftShop/AppCommands.swift), [DemoSettings.swift](BitdriftShop/DemoSettings.swift) |
 | **Network capture** | `.enableIntegrations([.urlSession()])` — automatic, no per-call code | [CaptureBridge.swift](BitdriftShop/CaptureBridge.swift) |
 | **Path templates** | `x-capture-path-template` header on parameterised routes | [ApiClient.swift](BitdriftShop/ApiClient.swift) |
 | **Screen views** | `Logger.logScreenView(screenName:)`, centrally from `Navigator` | [Navigator.swift](BitdriftShop/Navigator.swift), [ScreenLogger.swift](BitdriftShop/ScreenLogger.swift) |
@@ -498,7 +499,7 @@ for main-thread hangs. Filter by `platform == "ios"` (a global field set at star
 
 ```
 ios/
-├── BitdriftShop.xcodeproj/     Xcode project (SPM: capture-ios 0.24.2)
+├── BitdriftShop.xcodeproj/     Xcode project (SPM: capture-ios 0.26.0)
 ├── Info.plist                  Bundle config; xcconfig values surface here
 ├── local.xcconfig              Blank template; includes .local.xcconfig
 ├── scripts/                    ios-{1,2}-*.sh (no-Xcode setup, build/run), foreground-cycle.sh, watchdog.sh, check-demo-state.sh, demo-lib.sh
