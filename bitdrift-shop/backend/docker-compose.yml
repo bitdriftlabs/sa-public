@@ -1,6 +1,6 @@
 services:
   backend:
-    image: stevelerner/shoppingdemo-backend:${TAG:-latest}
+    image: stevelerner/bitdrift-shop-backend:${TAG:-latest}
     pull_policy: always
     container_name: bitdrift-shop-backend
     ports:
