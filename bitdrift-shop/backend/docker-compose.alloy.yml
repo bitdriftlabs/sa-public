@@ -30,6 +30,6 @@ services:
       CLICKSTACK_OTLP_ENDPOINT: ${CLICKSTACK_OTLP_ENDPOINT:?set CLICKSTACK_OTLP_ENDPOINT in .env}
       CLICKSTACK_API_KEY: ${CLICKSTACK_API_KEY:?set CLICKSTACK_API_KEY in .env}
     ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "12345:12345"
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:12345:12345"

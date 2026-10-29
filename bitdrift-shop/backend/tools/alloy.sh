@@ -4,7 +4,9 @@
 # Grafana Alloy overlay (docker-compose.alloy.yml): the :otel image plus a collector that fans out
 # to Grafana Cloud, Honeycomb and ClickStack. Off by default.
 if [ -z "${GRAFANA_ALLOY_ENABLED:-}" ] && [ -f .env ]; then
-  GRAFANA_ALLOY_ENABLED=$(sed -n 's/^GRAFANA_ALLOY_ENABLED=//p' .env | tail -1 | tr -d "\"' \r")
+  # Same dotenv forms Compose accepts: optional `export`, spaces around `=`, quotes, ` # comment`.
+  GRAFANA_ALLOY_ENABLED=$(sed -n -E 's/^[[:space:]]*(export[[:space:]]+)?GRAFANA_ALLOY_ENABLED[[:space:]]*=//p' .env \
+    | tail -1 | tr -d '\r' | sed -E 's/[[:space:]]+#.*$//; s/^[[:space:]]+//; s/[[:space:]]+$//' | tr -d "\"'")
 fi
 COMPOSE="-f docker-compose.yml"
 DEFAULT_TAG=latest
