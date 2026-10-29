@@ -53,6 +53,9 @@ backend/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── docker-compose.o11y.yml         override: attach to tinyolly-network
+├── docker-compose.alloy.yml        override: optional Grafana Alloy collector
+├── alloy-config.alloy              Alloy pipeline: Grafana Cloud, Honeycomb, ClickStack
+├── .env.example                    copy to .env for the Alloy settings
 ├── requirements.txt
 ├── images/                         18 product images, committed
 └── tools/                          everything occasional — see tools/README.md
@@ -219,6 +222,22 @@ docker network create tinyolly-network
 
 The standard start script doesn't need that network — it uses Docker's default
 bridge.
+
+### Optional: Grafana Alloy collector
+
+To send the backend's traces, metrics and logs to Grafana Cloud, Honeycomb and ClickStack at the same time, turn on the
+bundled [Grafana Alloy](https://grafana.com/docs/alloy/) collector. It is off by default.
+
+```bash
+cp .env.example .env     # once; fill in the Grafana Cloud, Honeycomb and ClickStack credentials
+# set GRAFANA_ALLOY_ENABLED=true in .env, or per run:
+GRAFANA_ALLOY_ENABLED=true ./start-backend-docker.sh
+```
+
+With it on, both start scripts add [`docker-compose.alloy.yml`](docker-compose.alloy.yml): the backend uses the `:otel`
+image with `OTEL_ENABLED=1` and exports to an `otel-collector` container running Alloy, which batches everything and
+sends it to all three vendors ([`alloy-config.alloy`](alloy-config.alloy)). Every credential is required; compose stops
+with a message naming any that are missing. Alloy's UI is at `http://localhost:12345`. `.env` is gitignored.
 
 ---
 

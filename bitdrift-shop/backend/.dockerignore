@@ -6,3 +6,5 @@
 docker-compose*.yml
 start-backend-*.sh
 tools
+.env*
+*.alloy

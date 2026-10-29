@@ -1,0 +1,35 @@
+services:
+  backend:
+    # The :otel image is the one built with OpenTelemetry (tools/build.sh otel); the default image has none.
+    image: stevelerner/bitdrift-shop-backend:${TAG:-otel}
+    environment:
+      OTEL_ENABLED: "1"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      - otel-collector
+
+  # Grafana Alloy: receives the backend's OTLP traces, metrics and logs and fans them out to
+  # Grafana Cloud, Honeycomb and ClickStack (alloy-config.alloy). Credentials come from .env.
+  otel-collector:
+    image: grafana/alloy:latest
+    pull_policy: always
+    container_name: otel-collector
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT:?set GRAFANA_CLOUD_OTLP_ENDPOINT in .env}
+      GRAFANA_CLOUD_INSTANCE_ID: ${GRAFANA_CLOUD_INSTANCE_ID:?set GRAFANA_CLOUD_INSTANCE_ID in .env}
+      GRAFANA_CLOUD_API_TOKEN: ${GRAFANA_CLOUD_API_TOKEN:?set GRAFANA_CLOUD_API_TOKEN in .env}
+      HONEYCOMB_OTLP_ENDPOINT: ${HONEYCOMB_OTLP_ENDPOINT:-https://api.honeycomb.io}
+      HONEYCOMB_API_KEY: ${HONEYCOMB_API_KEY:?set HONEYCOMB_API_KEY in .env}
+      CLICKSTACK_OTLP_ENDPOINT: ${CLICKSTACK_OTLP_ENDPOINT:?set CLICKSTACK_OTLP_ENDPOINT in .env}
+      CLICKSTACK_API_KEY: ${CLICKSTACK_API_KEY:?set CLICKSTACK_API_KEY in .env}
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:12345:12345"
