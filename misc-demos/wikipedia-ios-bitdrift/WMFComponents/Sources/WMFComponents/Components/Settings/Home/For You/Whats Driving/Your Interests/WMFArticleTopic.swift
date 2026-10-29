@@ -1,0 +1,87 @@
+import WMFData
+import WMFNativeLocalizations
+
+public extension WMFArticleTopic {
+    var displayName: String {
+        switch self {
+        case .architecture:
+            return CommonStrings.topicArchitecture
+        case .visualArts:
+            return CommonStrings.topicArt
+        case .comicsAndAnime:
+            return CommonStrings.topicComicsAndAnime
+        case .entertainment:
+            return CommonStrings.topicEntertainment
+        case .fashion:
+            return CommonStrings.topicFashion
+        case .books:
+            return CommonStrings.topicLiterature
+        case .music:
+            return CommonStrings.topicMusic
+        case .performingArts:
+            return CommonStrings.topicPerformingArts
+        case .sports:
+            return CommonStrings.topicSports
+        case .films:
+            return CommonStrings.topicTVAndFilm
+        case .videoGames:
+            return CommonStrings.topicVideoGames
+        case .biography:
+            return CommonStrings.topicBiographyAll
+        case .women:
+            return CommonStrings.topicBiographyWomen
+        case .businessAndEconomics:
+            return CommonStrings.topicBusinessAndEconomics
+        case .education:
+            return CommonStrings.topicEducation
+        case .foodAndDrink:
+            return CommonStrings.topicFoodAndDrink
+        case .history:
+            return CommonStrings.topicHistory
+        case .militaryAndWarfare:
+            return CommonStrings.topicMilitaryAndWarfare
+        case .philosophyAndReligion:
+            return CommonStrings.topicPhilosophyAndReligion
+        case .politicsAndGovernment:
+            return CommonStrings.topicPoliticsAndGovernment
+        case .society:
+            return CommonStrings.topicSociety
+        case .transportation:
+            return CommonStrings.topicTransportation
+        case .biology:
+            return CommonStrings.topicBiology
+        case .chemistry:
+            return CommonStrings.topicChemistry
+        case .internetCulture:
+            return CommonStrings.topicComputersAndInternet
+        case .geographical:
+            return CommonStrings.topicEarthAndEnvironment
+        case .engineering:
+            return CommonStrings.topicEngineering
+        case .stem:
+            return CommonStrings.topicGeneralScience
+        case .mathematics:
+            return CommonStrings.topicMathematics
+        case .medicineAndHealth:
+            return CommonStrings.topicMedicineAndHealth
+        case .physics:
+            return CommonStrings.topicPhysics
+        case .technology:
+            return CommonStrings.topicTechnology
+        case .africa:
+            return CommonStrings.topicAfrica
+        case .asia:
+            return CommonStrings.topicAsia
+        case .centralAmerica:
+            return CommonStrings.topicCentralAmerica
+        case .europe:
+            return CommonStrings.topicEurope
+        case .northAmerica:
+            return CommonStrings.topicNorthAmerica
+        case .oceania:
+            return CommonStrings.topicOceania
+        case .southAmerica:
+            return CommonStrings.topicSouthAmerica
+        }
+    }
+}

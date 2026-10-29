@@ -1,0 +1,58 @@
+import CoreData
+
+// @unchecked: `isEvaluated` is mutable, but instances are confined to the sequential
+// populate flow in WMFYearInReviewDataController (mutated in a loop, then read in a
+// single Core Data perform closure) — see YearInReviewSlideDataControllerProtocol.
+final class YearInReviewEditCountSlideDataController: YearInReviewSlideDataControllerProtocol, @unchecked Sendable {
+
+    let id = WMFYearInReviewPersonalizedSlideID.editCount.rawValue
+    let year: Int
+    var isEvaluated: Bool = false
+    static let personalizationSources: Set<WMFYearInReviewPersonalizationSource> = [.account]
+    static let shouldFreeze = false
+    
+    private var editCount: Int?
+
+    private let globalUserID: Int?
+    
+    private let project: WMFProject?
+    
+    private let yirConfig: WMFFeatureConfigResponse.Common.YearInReview
+    private let service = WMFDataEnvironment.current.basicService
+    
+    init(year: Int, yirConfig: WMFFeatureConfigResponse.Common.YearInReview, dependencies: YearInReviewSlideDataControllerDependencies) {
+        self.year = year
+        self.yirConfig = yirConfig
+        self.globalUserID = dependencies.globalUserID
+        self.project = dependencies.project
+    }
+
+    func populateSlideData(in context: NSManagedObjectContext) async throws {
+        guard let globalUserID else { return }
+        
+        guard let dateRange = WMFYearInReviewDataController.contributorDateRange(year: year) else {
+            return
+        }
+        
+        let editCountDataController = WMFGlobalEditCountDataController(globalUserID: globalUserID)
+        self.editCount = try await editCountDataController.fetchEditCount(startDate: dateRange.start, endDate: dateRange.end)
+
+        isEvaluated = true
+    }
+
+    func makeCDSlide(in context: NSManagedObjectContext) throws -> CDYearInReviewSlide {
+        let slide = CDYearInReviewSlide(context: context)
+        slide.id = id
+        slide.year = Int32(year)
+
+        if let editCount {
+            slide.data = try JSONEncoder().encode(editCount)
+        }
+
+        return slide
+    }
+
+    static func shouldPopulate(from config: WMFFeatureConfigResponse.Common.YearInReview, userInfo: YearInReviewUserInfo) -> Bool {
+        return config.isActive(for: Date()) && userInfo.username != nil
+    }
+}

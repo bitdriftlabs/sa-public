@@ -1,0 +1,136 @@
+// Messages for Kannada (ಕನ್ನಡ)
+// Exported from translatewiki.net
+// Author: Ananth subray
+// Author: Anzx
+// Author: Nayvik
+// Author: Nemo bis
+// Author: VASANTH S.N.
+// Author: Vikashegde
+// Author: Vishwanatha Badikana
+// Author: ಮಲ್ನಾಡಾಚ್ ಕೊಂಕ್ಣೊ
+
+"about-libraries-complete-list" = "ಪೂರ್ಣ ಪಟ್ಟಿ";
+"about-libraries-license" = "ಪರವಾನಗಿ";
+"about-title" = "ಕುರಿತು";
+"about-translators" = "ಅನುವಾದಕರು";
+"about-translators-details" = "ಸ್ವಯಂಸೇವಕರಿಂದ $1 ಅಲ್ಲಿ ಅನುವಾದಿಸಲಾಯಿತು";
+"about-wikipedia" = "ವಿಕಿಪೀಡಿಯ";
+"account-creation-create-account" = "ನಿಮ್ಮ ಖಾತೆಯನ್ನು ಸೃಷ್ಟಿಸಿ";
+"account-creation-log-in" = "ಲಾಗ್ ಇನ್.";
+"account-creation-logging-in" = "ನೀವು ಲಾಗ್-ಇನ್ ಆಗುತ್ತಿದ್ದೀರಿ...";
+"account-creation-saving" = "ಉಳಿಸಲಾಗುತ್ತಿದೆ....";
+"account-creation-title" = "ಹೊಸ ಖಾತೆಯನ್ನು ರಚಿಸಿ";
+"account-group-title" = "ನಿಮ್ಮ ಖಾತೆ";
+"account-talk-page-title" = "ನಿಮ್ಮ ಚರ್ಚೆಪುಟ";
+"account-talk-preferences-title" = "ಚರ್ಚೆಪುಟ ಪ್ರಾಶಸ್ತ್ಯಗಳು";
+"action-add-to-reading-list" = "ಓದುವ ಪಟ್ಟಿಗೆ ಸೇರಿಸಿ";
+"action-add-to-reading-list-short" = "ಪಟ್ಟಿಗೆ ಸೇರಿಸಿ";
+"action-cancel" = "ರದ್ದು ಮಾಡು";
+"action-language-accessibility" = "ಭಾಷೆ ಬದಲಾಯಿಸಿ";
+"action-read" = "ಓದು";
+"action-redo" = "ಮತ್ತೆಮಾಡು";
+"action-remove" = "ತೆಗೆ";
+"action-retry" = "ಪುನಃ ಪ್ರಯತ್ನಿಸಿ";
+"action-save" = "ಉಳಿಸಿ";
+"action-saved" = "ಉಳಿಸಲಾಗಿದೆ";
+"action-share" = "ಹಂಚು";
+"action-share-accessibility" = "ಹಂಚು";
+"action-sort" = "ವಿಂಗಡಿಸು";
+"app-store-subtitle" = "ಒಂದು ಮುಕ್ತ ವಿಶ್ವಕೋಶ";
+"article-delete" = "ಅಳಿಸು";
+"article-languages-filter-placeholder" = "ಭಾಷೆ ಹುಡುಕು";
+"article-languages-label" = "ಭಾಷೆ ಆಯ್ದುಕೊಳ್ಳಿ";
+"article-languages-others" = "ಇತರೆ ಭಾಷೆಗಳು";
+"article-languages-yours" = "ನಿಮ್ಮ ಭಾಷೆಗಳು";
+"article-read-more-title" = "ಇನ್ನೂ ಓದಿ";
+"article-reference-view-title" = "ಉಲ್ಲೇಖ $1";
+"article-save-error-not-enough-space" = "ಈ ಲೇಖನವನ್ನು ಉಳಿಸಲು ಬೇಕಾಗುವಷ್ಟು ಜಾಗವು ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಇಲ್ಲ";
+"article-share" = "ಹಂಚು";
+"back-button-accessibility-label" = "ಹಿಂದಕ್ಕೆ";
+"back-button-popover-title" = "ಹಿಂದಕ್ಕೆ ಹೋಗಲು ಒತ್ತಿ";
+"button-next" = "ಮುಂದೆ";
+"button-ok" = "ಸರಿ";
+"button-publish" = "ಪ್ರಕಟಿಸಿ";
+"button-report-a-bug" = "ದೋಷವನ್ನು ವರದಿ ಮಾಡಿ";
+"button-save-for-later" = "ನಂತರಕ್ಕಾಗಿ ಉಳಿಸಿ";
+"button-saved-for-later" = "ನಂತರಕ್ಕಾಗಿ ಉಳಿಸಲಾಗಿದೆ";
+"close-button-accessibility-label" = "ಮುಚ್ಚಿ";
+"description-help-about-title" = "ಕುರಿತು";
+"description-help-more-info-title" = "ಹೆಚ್ಚಿನ ಮಾಹಿತಿ";
+"description-help-tips-for-example" = "ಉದಾಹರಣೆಗೆ:";
+// Fuzzy
+"diff-compare-header-from-info-heading" = "ಇಂದ:";
+// Fuzzy
+"diff-compare-header-to-info-heading" = "ಗೆ:";
+"diff-context-lines-collapsed-button-title" = "ತೋರಿಸು";
+"diff-context-lines-expanded-button-title" = "ಅಡಗಿಸು";
+"diff-paragraph-moved-direction-down" = "ಕೆಳಗೆ";
+"diff-paragraph-moved-direction-up" = "ಮೇಲೆ";
+"diff-single-header-summary-heading" = "ಸಂಪಾದನೆಯ ಸಾರಾಂಶ";
+"donation-reminder-wrap-up-card-body" = "ನೀವು ಓದಿದ ಲೇಖನಗಳನ್ನು ಆಧರಿಸಿ ದೇಣಿಗೆ ಜ್ಞಾಪನೆಗಳನ್ನು ಪರೀಕ್ಷಿಸಿದ್ದಕ್ಕಾಗಿ ಧನ್ಯವಾದಗಳು. ಇದು ವಿಕಿಪೀಡಿಯಾದಲ್ಲಿ ಶಾಶ್ವತವಾಗಿ ನೀಡಲು ಒಂದು ಮಾರ್ಗವಾಗುತ್ತದೆಯೇ ಎಂದು ನಿಮ್ಮ ಪ್ರತಿಕ್ರಿಯೆ ನಿರ್ಧರಿಸುತ್ತದೆ. ಇದು ಕೇವಲ ಒಂದು ನಿಮಿಷ ತೆಗೆದುಕೊಳ್ಳುತ್ತದೆ ಮತ್ತು ಯಾವುದೇ ದೇಣಿಗೆ ಅಗತ್ಯವಿಲ್ಲ.";
+"donation-reminder-wrap-up-card-heading" = "ದೇಣಿಗೆ ಜ್ಞಾಪನೆಗಳ ಕುರಿತು ಇಲ್ಲಿದೆ ಸಂಪೂರ್ಣ ಮಾಹಿತಿ";
+"donation-reminder-wrap-up-card-share-feedback" = "ಪ್ರತಿಕ್ರಿಯೆ ಹಂಚಿಕೊಳ್ಳಿ";
+"donation-reminder-wrap-up-payment-prompt-title" = "ನೀವು ಪ್ರತಿ ತಿಂಗಳು ಹೇಗೆ ನೀಡಲು ಬಯಸುತ್ತೀರಿ?";
+"donation-reminder-wrap-up-recurring-card-body" = "ನಾವು ಇನ್ನು ಮುಂದೆ ಅಪ್ಲಿಕೇಶನ್‌ನಲ್ಲಿನ ಜ್ಞಾಪನೆಗಳನ್ನು ತೋರಿಸುವುದಿಲ್ಲ ಆದರೆ ನೀವು ಪ್ರತಿ ತಿಂಗಳು $1 ವಾಗ್ದಾನ ಮಾಡುವ ಮೂಲಕ ಇನ್ನೂ ಬೆಂಬಲಿಸಬಹುದು.";
+"donation-reminder-wrap-up-recurring-card-give-monthly" = "ಪ್ರತಿ ತಿಂಗಳು ನೀಡಿ";
+"donation-reminder-wrap-up-recurring-card-heading" = "ಕೊನೆಯ ಪ್ರಯೋಗ.";
+"donation-reminder-wrap-up-survey-character-limit" = "ಮಿತಿಗಿಂತ ಹೆಚ್ಚು ಅಕ್ಷರ";
+"donation-reminder-wrap-up-survey-intro" = "ದೇಣಿಗೆ ಜ್ಞಾಪನೆಗಳ ಕುರಿತು ಒಂದು ಸಣ್ಣ ಪ್ರಶ್ನೆ";
+"donation-reminder-wrap-up-survey-option-keep" = "ಇಟ್ಟುಕೊಳ್ಳಿ";
+"donation-reminder-wrap-up-survey-option-remove" = "ಇದನ್ನು ತೆಗೆದುಹಾಕಿ";
+"donation-reminder-wrap-up-survey-placeholder" = "ಇನ್ನೇನಾದರೂ? (ಐಚ್ಛಿಕ)";
+"donation-reminder-wrap-up-survey-subtitle" = "ನೀವು ಓದಿದ ಲೇಖನಗಳನ್ನು ಆಧರಿಸಿದ ದೇಣಿಗೆ ಜ್ಞಾಪನೆಗಳು ಶಾಶ್ವತ ವೈಶಿಷ್ಟ್ಯವಾಗಬೇಕೇ?";
+"donation-reminder-wrap-up-survey-toast" = "ನಿಮ್ಮ ಪ್ರತಿಕ್ರಿಯೆಗೆ ಧನ್ಯವಾದಗಳು. ನಿಮ್ಮ ಉತ್ತರವು ಮುಂದೆ ಏನು ನಿರ್ಮಿಸಬೇಕೆಂದು ನಿರ್ಧರಿಸಲು ನಮಗೆ ಸಹಾಯ ಮಾಡುತ್ತದೆ.";
+"edit-menu-item" = "ಸಂಪಾದಿಸಿ";
+"edit-minor-text" = "ಇದು ಚುಟುಕಾದ ಬದಲಾವಣೆ";
+"edit-summary-add-summary-text" = "ಸಂಪಾದನೆಯ ಸಾರಾಂಶವನ್ನು ಸೇರಿಸಿ";
+"edit-summary-choice-fixed-grammar" = "ವ್ಯಾಕರಣ ತಿದ್ದಿದೆ";
+"edit-summary-placeholder-text" = "ನೀವು ಲೇಖನವನ್ನು ಹೇಗೆ ಉತ್ತಮಪಡಿಸಿದ್ದೀರಿ?";
+"edit-watch-this-page-text" = "ಈ ಪುಟವನ್ನು ವೀಕ್ಷಿಸಿ";
+"empty-no-history-title" = "ತೋರಿಸಲು ಯಾವುದೇ ಇತಿಹಾಸವಿಲ್ಲ";
+"field-email-title" = "ಇ-ಅಂಚೆ";
+"field-email-title-optional" = "ಇ-ಅಂಚೆ (ಐಚ್ಛಿಕ)";
+"field-new-password-title" = "ಹೊಸ ಪ್ರವೇಶಪದ";
+"field-password-title" = "ಪ್ರವೇಶಪದ";
+"field-username-title" = "ಬಳಕೆದಾರರ ಹೆಸರು";
+"forgot-password-username-or-email-title" = "ಅಥವಾ";
+"history-clear-delete-all" = "ಹೌದು, ಎಲ್ಲವನ್ನೂ ಅಳಿಸು";
+"history-title" = "ಇತಿಹಾಸ";
+"in-the-news-sub-title-from-language-wikipedia" = "$1 ವಿಕಿಪೀಡಿಯದಿಂದ";
+"in-the-news-sub-title-from-wikipedia" = "ವಿಕಿಪೀಡಿಯದಿಂದ";
+"in-the-news-title" = "ಸುದ್ದಿಯಲ್ಲಿ";
+"insert-action-title" = "ಸೇರ್ಪಡಿಸು";
+"insert-media-image-position-setting-center" = "ಮಧ್ಯೆ";
+"insert-media-image-position-setting-left" = "ಎಡ";
+"insert-media-image-position-setting-right" = "ಬಲ";
+"insert-media-image-size-settings-title" = "ಚಿತ್ರದ ಗಾತ್ರ";
+"insert-media-image-type-setting-basic" = "ಮೂಲಭೂತ";
+"insert-media-image-type-settings-title" = "ಚಿತ್ರ ಮಾದರಿ";
+"languages-settings-title" = "ಭಾಷೆಗಳು";
+"languages-title" = "ಭಾಷೆ ಬದಲಾಯಿಸಿ";
+"languages-wikipedia" = "ವಿಕಿಪೀಡಿಯ ಭಾಷೆಗಳು";
+"main-menu-account-login" = "ಲಾಗ್ ಇನ್";
+"main-menu-account-logout" = "ನಿರ್ಗಮಿಸು";
+"main-menu-nearby" = "ಹತ್ತಿರದ";
+"main-menu-terms-of-use" = "ಬಳಕೆಯ ನಿಬಂಧನೆಗಳು";
+"navbar-title-mode-edit-wikitext-preview" = "ಮುನ್ನೋಟ";
+"page-protected-can-not-edit-title" = "ಈ ಪುಟವನ್ನು ಸಂರಕ್ಷಿಸಲಾಗಿದೆ";
+"search-field-placeholder-text" = "ವಿಕಿಪೀಡಿಯ ಹುಡುಕು";
+"search-recent-clear-delete-all" = "ಎಲ್ಲವನ್ನೂ ಅಳಿಸಿ";
+"search-title" = "ಹುಡುಕಿ";
+"table-of-contents-close-accessibility-hint" = "ಮುಚ್ಚಿ";
+"wikimedia-articletopics-topic-art" = "Art";
+"wikimedia-articletopics-topic-asia" = "ಏಷ್ಯಾ";
+"wikimedia-articletopics-topic-central-america" = "ಮಧ್ಯ ಅಮೇರಿಕ";
+"wikimedia-articletopics-topic-education" = "ಶಿಕ್ಷಣ";
+"wikimedia-articletopics-topic-entertainment" = "ಮನೋರಂಜನೆ";
+"wikimedia-articletopics-topic-food-and-drink" = "ತಿಂಡಿ ಹಾಗೂ ಪಾನೀಯ";
+"wikimedia-articletopics-topic-literature" = "ಸಾಹಿತ್ಯ";
+"wikimedia-articletopics-topic-music" = "ಸಂಗೀತ";
+"wikimedia-articletopics-topic-north-america" = "ಉತ್ತರ ಅಮೇರಿಕ";
+"wikimedia-articletopics-topic-politics-and-government" = "ರಾಜಕೀಯ ಹಾಗೂ ಸರ್ಕಾರ";
+"wikimedia-articletopics-topic-society" = "ಸಮಾಜ";
+"wikimedia-articletopics-topic-south-america" = "ದಕ್ಷಿಣ ಅಮೇರಿಕ";
+"wikimedia-articletopics-topic-technology" = "Technology";
+"wikimedia-articletopics-topic-tv-and-film" = "ಟಿವಿ ಹಾಗೂ ಚಲನಚಿತ್ರ";
+"wikitext-upload-save" = "ಪ್ರಕಟಿಸಲಾಗುತ್ತಿದೆ…";

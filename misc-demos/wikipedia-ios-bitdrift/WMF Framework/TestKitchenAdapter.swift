@@ -1,0 +1,150 @@
+import UIKit
+import WMFTestKitchen
+import WMFData
+import CocoaLumberjackSwift
+
+@objc public class TestKitchenAdapter: NSObject, ClientDataCallback, EventSender {
+
+    @objc public static let shared = TestKitchenAdapter()
+
+    public lazy var client: TestKitchenClient = {
+        TestKitchenClient(
+            clientDataCallback: self,
+            eventSender: self
+        )
+    }()
+
+    private override init() {
+        super.init()
+    }
+
+    // MARK: - ClientDataCallback
+
+    public func getAgentData() -> AgentData? {
+        let appInstallID: String? = try? WMFDataEnvironment.current.crossProcessUserDefaultsStore?.load(key: WMFUserDefaultsKey.appInstallID.rawValue)
+        let versionName = WikipediaAppUtils.versionName()
+        let buildNumber = Int(Bundle.main.wmf_bundleVersion() ?? "0")
+        let deviceFamily = WikipediaAppUtils.formFactor()
+
+        let deviceLanguage = Locale.preferredLanguages.first ?? "en"
+
+        // Release status must be 1 of 2 values: dev or prod
+        let releaseStatus: String
+        #if DEBUG || WMF_ALPHA || WMF_EXPERIMENTAL || UITEST || TEST || WMF_LOCAL
+        releaseStatus = "dev"
+        #else
+        releaseStatus = Bundle.main.isTestFlight() ? "dev" : "prod"
+        #endif
+        
+        let appFlavor: String
+        #if DEBUG || WMF_LOCAL || UITEST || TEST
+        appFlavor = "devdebug"
+        #elseif WMF_ALPHA || WMF_EXPERIMENTAL
+        appFlavor = "alpharelease"
+        #else
+        if !Bundle.main.wmf_isAppStoreBundleIdentifier() {
+            appFlavor = "alpharelease"
+        } else if Bundle.main.isTestFlight() {
+            appFlavor = "betarelease"
+        } else {
+            appFlavor = "prodrelease"
+        }
+        #endif
+
+        return AgentData(
+            appFlavor: appFlavor,
+            appInstallId: appInstallID,
+            appTheme: UserDefaults.standard.themeAnalyticsName,
+            appVersion: buildNumber,
+            appVersionName: versionName,
+            clientPlatform: "ios",
+            clientPlatformFamily: "app",
+            deviceFamily: deviceFamily,
+            deviceLanguage: deviceLanguage,
+            releaseStatus: releaseStatus
+        )
+    }
+
+    public func getMediawikiData() -> MediawikiData? {
+        
+        guard let primarySiteURL = MWKDataStore.shared().primarySiteURL,
+              let project = WikimediaProject(siteURL: primarySiteURL) else {
+            return nil
+        }
+        
+        let databaseIdentifier = project.notificationsApiWikiIdentifier
+        
+        return MediawikiData(database: databaseIdentifier)
+    }
+
+    public func getPerformerData() -> PerformerData? {
+        
+        let dataStore = MWKDataStore.shared()
+        let isLoggedIn = dataStore.authenticationManager.authStateIsPermanent
+        let isTemp = dataStore.authenticationManager.authStateIsTemporary
+        let sessionId = EventPlatformClient.shared.sessionID
+
+        var languageGroups: String? = nil
+        var languagePrimary: String? = nil
+        
+        // If in widget, don't lean on MMKDataStore for preferred languages
+        if Bundle.main.isAppExtension {
+            let cachedContent = WidgetController.shared.widgetCache
+            languageGroups = cachedContent.settings.preferredLanguageCodes.joined(separator: ",")
+            languagePrimary = cachedContent.settings.languageCode
+        } else {
+            let languageCodes = dataStore.languageLinkController.preferredLanguages.compactMap { $0.languageCode }
+            languageGroups = languageCodes.joined(separator: ",")
+            languagePrimary = EventPlatformClient.shared.primaryLanguage
+        }
+
+
+        return PerformerData(
+            isLoggedIn: isLoggedIn,
+            isTemp: isTemp,
+            sessionId: sessionId,
+            languageGroups: languageGroups,
+            languagePrimary: languagePrimary
+        )
+    }
+
+    // MARK: - PageData helpers
+
+    public static func getPageData(title: String, project: WMFProject) -> PageData {
+        return PageData(
+            title: title.replacingOccurrences(of: " ", with: "_"),
+            contentLanguage: project.languageVariantCode ?? project.languageCode
+        )
+    }
+
+    // MARK: - EventSender
+
+    public func sendEvents(_ events: [Event]) {
+        let encoder = JSONEncoder()
+        for event in events {
+
+#if DEBUG
+            encoder.outputFormatting = .prettyPrinted
+#endif
+
+            guard let data = try? encoder.encode(event) else {
+                DDLogError("TestKitchenAdapter: Failed to encode event")
+                continue
+            }
+
+#if DEBUG
+            // Convert to loose dictionary so we can sort keys and print that way.
+            if let dict = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                let printablePayload = PrintableEventPayload(payload: dict)
+                print("\n\n🧑‍🍳TestKitchen: Scheduling event to be sent to \(event.schema):")
+                print("\(printablePayload)")
+            }
+#endif
+
+            /// Submitting through the client (rather than pushing straight to storage)
+            /// applies the stream's sampling configuration to TestKitchen events and
+            /// buffers them while stream configs are still loading on a first launch.
+            EventPlatformClient.shared.submitPreEncoded(data: data, stream: .productMetricsAppBase)
+        }
+    }
+}

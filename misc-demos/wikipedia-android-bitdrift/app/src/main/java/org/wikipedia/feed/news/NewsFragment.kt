@@ -1,0 +1,137 @@
+package org.wikipedia.feed.news
+
+import android.app.ActivityOptions
+import android.os.Bundle
+import android.util.Pair
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.os.bundleOf
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.appbar.AppBarLayout
+import org.wikipedia.Constants
+import org.wikipedia.R
+import org.wikipedia.databinding.FragmentNewsBinding
+import org.wikipedia.dataclient.WikiSite
+import org.wikipedia.extensions.setLayoutDirectionByLang
+import org.wikipedia.feed.view.ListItemView
+import org.wikipedia.history.HistoryEntry
+import org.wikipedia.page.PageActivity
+import org.wikipedia.page.PageTitle
+import org.wikipedia.readinglist.SaveArticleSheetDialog
+import org.wikipedia.richtext.RichTextUtil
+import org.wikipedia.util.DeviceUtil
+import org.wikipedia.util.DimenUtil
+import org.wikipedia.util.FeedbackUtil
+import org.wikipedia.util.GradientUtil
+import org.wikipedia.util.ResourceUtil
+import org.wikipedia.util.TabUtil
+import org.wikipedia.views.DefaultRecyclerAdapter
+import org.wikipedia.views.DefaultViewHolder
+import org.wikipedia.views.DrawableItemDecoration
+
+class NewsFragment : Fragment() {
+
+    private var _binding: FragmentNewsBinding? = null
+    private val binding get() = _binding!!
+    private val viewModel: NewsViewModel by viewModels()
+
+    private val offsetChangedListener =
+        AppBarLayout.OnOffsetChangedListener { layout: AppBarLayout, offset: Int ->
+            DeviceUtil.updateStatusBarTheme(
+                requireActivity(), binding.toolbar,
+                layout.totalScrollRange + offset > layout.totalScrollRange / 2
+            )
+            (requireActivity() as NewsActivity).updateNavigationBarColor()
+        }
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        super.onCreateView(inflater, container, savedInstanceState)
+        _binding = FragmentNewsBinding.inflate(inflater, container, false)
+
+        appCompatActivity.setSupportActionBar(binding.toolbar)
+        appCompatActivity.supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        appCompatActivity.supportActionBar?.title = ""
+
+        binding.root.setLayoutDirectionByLang(viewModel.wiki.languageCode)
+
+        binding.gradientView.background = GradientUtil.getPowerGradient(ResourceUtil.getThemedColor(requireContext(), R.attr.overlay_color), Gravity.TOP)
+        val imageUri = viewModel.item.thumb()
+        if (imageUri == null) {
+            binding.appBarLayout.setExpanded(false, false)
+        }
+        binding.headerImageView.loadImage(imageUri)
+
+        DeviceUtil.updateStatusBarTheme(requireActivity(), binding.toolbar, true)
+        binding.appBarLayout.addOnOffsetChangedListener(offsetChangedListener)
+        binding.toolbarContainer.setStatusBarScrimColor(ResourceUtil.getThemedColor(requireContext(), R.attr.paper_color))
+
+        binding.storyTextView.text = RichTextUtil.stripHtml(viewModel.item.story)
+        binding.newsStoryItemsRecyclerview.layoutManager = LinearLayoutManager(requireContext())
+        binding.newsStoryItemsRecyclerview.addItemDecoration(DrawableItemDecoration(requireContext(),
+            R.attr.list_divider))
+        binding.newsStoryItemsRecyclerview.isNestedScrollingEnabled = false
+        binding.newsStoryItemsRecyclerview.adapter = RecyclerAdapter(viewModel.item.links.map { it.getPageTitle(viewModel.wiki) }, Callback())
+        return binding.root
+    }
+
+    override fun onDestroyView() {
+        binding.appBarLayout.removeOnOffsetChangedListener(offsetChangedListener)
+        _binding = null
+        super.onDestroyView()
+    }
+
+    private val appCompatActivity get() = requireActivity() as AppCompatActivity
+
+    private class RecyclerAdapter(items: List<PageTitle>, private val callback: Callback) :
+        DefaultRecyclerAdapter<PageTitle, ListItemView>(items) {
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DefaultViewHolder<ListItemView> {
+            return DefaultViewHolder(ListItemView(parent.context))
+        }
+
+        override fun onBindViewHolder(holder: DefaultViewHolder<ListItemView>, position: Int) {
+            val title = item(position)
+            holder.view.setPageTitle(title)
+                .setHistoryEntry(HistoryEntry(title, HistoryEntry.SOURCE_NEWS))
+                .setCallback(callback)
+        }
+    }
+
+    private inner class Callback : ListItemView.Callback {
+        override fun onSelectPage(title: PageTitle, entry: HistoryEntry, openInNewBackgroundTab: Boolean) {
+            if (openInNewBackgroundTab) {
+                TabUtil.openInNewBackgroundTab(entry)
+                FeedbackUtil.showMessage(requireActivity(), R.string.article_opened_in_background_tab)
+            } else {
+                startActivity(PageActivity.newIntentForNewTab(requireContext(), entry, entry.title))
+            }
+        }
+
+        override fun onSelectPage(title: PageTitle, entry: HistoryEntry, sharedElements: Array<Pair<View, String>>) {
+            val options = ActivityOptions.makeSceneTransitionAnimation(requireActivity(), *sharedElements)
+            val intent = PageActivity.newIntentForNewTab(requireContext(), entry, entry.title)
+            if (sharedElements.isNotEmpty()) {
+                intent.putExtra(Constants.INTENT_EXTRA_HAS_TRANSITION_ANIM, true)
+            }
+            startActivity(intent, if (DimenUtil.isLandscape(requireContext()) || sharedElements.isEmpty()) null else options.toBundle())
+        }
+
+        override fun onSavePage(entry: HistoryEntry) {
+            SaveArticleSheetDialog.show(childFragmentManager, entry.title)
+        }
+    }
+
+    companion object {
+        fun newInstance(item: NewsItem, wiki: WikiSite): NewsFragment {
+            return NewsFragment().apply {
+                arguments = bundleOf(NewsActivity.EXTRA_NEWS_ITEM to item,
+                    Constants.ARG_WIKISITE to wiki)
+            }
+        }
+    }
+}

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/edit_preview_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/paper_color"
+    android:visibility="gone"
+    tools:visibility="visible">
+
+    <org.wikipedia.views.ObservableWebView
+        android:id="@+id/edit_preview_webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="?attr/paper_color">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="0.5dp"
+            android:background="?attr/border_color"/>
+
+        <TextView
+            android:id="@+id/licenseText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:lineSpacingMultiplier="1.2"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:textColor="?attr/secondary_color"
+            app:drawableStartCompat="@drawable/ic_license_cc"
+            app:drawableTint="?attr/secondary_color"
+            android:drawablePadding="8dp"
+            tools:text="Lorem ipsum" />
+
+    </FrameLayout>
+
+</FrameLayout>

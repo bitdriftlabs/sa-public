@@ -1,0 +1,437 @@
+import UIKit
+import WMFComponents
+import WMFData
+import CocoaLumberjackSwift
+import WMFNativeLocalizations
+
+final class SavedAllArticlesCoordinator: NSObject, Coordinator {
+
+    var navigationController: UINavigationController
+    private let dataStore: MWKDataStore
+    var theme: Theme
+    private var dataController: WMFLegacyReadingListsDataController?
+    private var dataSource: LegacyReadingListsDataSource?
+    private weak var hostingController: WMFSavedAllArticlesHostingController?
+
+    var exitEditingModeAction: (() -> Void)?
+
+    init(navigationController: UINavigationController, dataStore: MWKDataStore, theme: Theme) {
+        self.navigationController = navigationController
+        self.dataStore = dataStore
+        self.theme = theme
+        super.init()
+
+        NotificationCenter.default.addObserver(self, selector: #selector(articleDidChange(_:)), name: NSNotification.Name.WMFArticleUpdated, object: nil)
+    }
+
+    // MARK: - Coordinator
+
+    func start() -> Bool {
+        // No-op for embedded use case - use contentViewController instead
+        return true
+    }
+
+    // MARK: - Embedded View Controller
+
+    var contentViewController: WMFSavedAllArticlesHostingController {
+        if let existingController = hostingController {
+            return existingController
+        }
+
+        let dataSource = LegacyReadingListsDataSource(dataStore: dataStore)
+        dataSource.unsaveConfirmation = { [weak self] articles, fromLongPress, completion in
+            self?.deleteSavedArticles(articles: articles, fromLongPress: fromLongPress, completion: completion)
+        }
+        let dataController = WMFLegacyReadingListsDataController(delegate: dataSource)
+        self.dataSource = dataSource
+        self.dataController = dataController
+
+        let localizedStrings = WMFSavedAllArticlesViewModel.LocalizedStrings(
+            emptyStateTitle: CommonStrings.allArticlesEmptySavedTitle,
+            emptyStateMessage: CommonStrings.allArticlesEmptySavedSubtitle,
+            addToList: CommonStrings.addToReadingListShortActionTitle,
+            unsave: CommonStrings.shortUnsaveTitle,
+            open: CommonStrings.articleTabsOpen,
+            openInNewTab: CommonStrings.articleTabsOpenInNewTab,
+            openInBackgroundTab: CommonStrings.articleTabsOpenInBackgroundTab,
+            removeFromSaved: CommonStrings.unsaveTitle,
+            share: CommonStrings.shortShareTitle,
+            listLimitExceeded: CommonStrings.readingListsErrorListLimitExceeded,
+            entryLimitExceeded: CommonStrings.readingListsErrorArticleLimitExceeded,
+            notSynced: CommonStrings.readingListsErrorNotSynced,
+            articleQueuedToBeDownloaded: CommonStrings.readingListsWarningArticleQueuedToBeDownloaded)
+
+        let viewModel = WMFSavedAllArticlesViewModel(
+            dataController: dataController,
+            localizedStrings: localizedStrings
+        )
+
+        viewModel.didTapArticle = { [weak self] article, fromLongPress in
+
+            guard let siteURL = article.project.siteURL,
+                  let articleURL = siteURL.wmf_URL(withTitle: article.title) else {
+                return
+            }
+
+            ReadingListsFunnel.shared.logReadStartReadingList(articleURL)
+            if fromLongPress {
+                ArticleTabsFunnel.shared.logLongPressOpen()
+            }
+            self?.showArticle(title: article.title, project: article.project, inNewTab: false)
+        }
+
+        viewModel.didTapOpenInNewTab = { [weak self] article in
+            WMFArticleTabsDataController.shared.didTapOpenNewTab()
+            ArticleTabsFunnel.shared.logLongPressOpenInNewTab()
+            self?.showArticle(title: article.title, project: article.project, inNewTab: true)
+        }
+
+        viewModel.didTapOpenInBackgroundTab = { [weak self] article in
+            self?.openArticleInBackgroundTab(title: article.title, project: article.project)
+        }
+
+        viewModel.didTapShare = { [weak self] article, cgRect, fromLongPress in
+            if fromLongPress {
+                ArticleTabsFunnel.shared.logLongPressShare()
+            }
+            self?.shareArticle(article, cgRect: cgRect)
+        }
+
+        viewModel.didTapAddToList = { [weak self] articles in
+            self?.showAddToListSheet(for: articles)
+        }
+
+        viewModel.didUpdateEditingMode = { [weak self] isEditing in
+            if !isEditing {
+                self?.exitEditingModeAction?()
+            }
+        }
+
+        viewModel.didPullToRefresh = { [weak self] in
+            guard let self else { return }
+
+            await self.fullSync()
+            await self.retryFailedArticleDownloads()
+
+            await MainActor.run {
+                self.hostingController?.viewModel.loadArticles()
+            }
+        }
+
+        viewModel.didTapArticleAlert = { [weak self] savedArticle in
+            guard let self,
+                  let article = self.wmfArticlesFromSavedArticles([savedArticle]).first else {
+                return
+            }
+            presentArticleErrorRecovery(with: article)
+        }
+
+        viewModel.didTapReadingListTag = { [weak self] savedArticle, readingListName in
+            guard let self else { return }
+
+            let readingLists = readingLists(for: savedArticle)
+
+            let viewController: ThemeableViewController
+            if let name = readingListName,
+               let readingList = readingList(named: name, from: readingLists) {
+                viewController = ReadingListDetailViewController(for: readingList, with: dataStore)
+            } else {
+                viewController = ReadingListsViewController(with: dataStore, readingLists: readingLists)
+            }
+
+            viewController.apply(theme: theme)
+            navigationController.pushViewController(viewController, animated: true)
+        }
+
+        let controller = WMFSavedAllArticlesHostingController(viewModel: viewModel)
+        self.hostingController = controller
+        return controller
+    }
+
+    // MARK: - Navigation
+
+    private func showArticle(title: String, project: WMFProject, inNewTab: Bool) {
+
+        guard let siteURL = project.siteURL,
+              var articleURL = siteURL.wmf_URL(withTitle: title) else {
+            return
+        }
+        articleURL.wmf_languageVariantCode = project.languageVariantCode
+
+        let tabConfig: ArticleTabConfig = inNewTab ? .appendArticleAndAssignNewTabAndSetToCurrent : .appendArticleAndAssignCurrentTab
+
+        let articleCoordinator = ArticleCoordinator(
+            navigationController: navigationController,
+            articleURL: articleURL,
+            dataStore: dataStore,
+            theme: theme,
+            source: .undefined,
+            tabConfig: tabConfig
+        )
+        articleCoordinator.start()
+    }
+
+    private func openArticleInBackgroundTab(title: String, project: WMFProject) {
+
+        guard let siteURL = project.siteURL,
+              var articleURL = siteURL.wmf_URL(withTitle: title) else {
+            return
+        }
+
+        articleURL.wmf_languageVariantCode = project.languageVariantCode
+
+        Task {
+            do {
+                let articleTabsDataController = WMFArticleTabsDataController.shared
+                articleTabsDataController.didTapOpenNewTab()
+
+                let tabsCount = try await articleTabsDataController.tabsCount()
+                let tabsMax = articleTabsDataController.tabsMax
+                let article = WMFArticleTabsDataController.WMFArticle(identifier: nil, title: title, project: project, articleURL: articleURL)
+                if tabsCount >= tabsMax {
+
+                    if let currentTabIdentifier = try await articleTabsDataController.currentTabIdentifier() {
+                        _ = try await articleTabsDataController.appendArticle(article, toTabIdentifier: currentTabIdentifier)
+                    } else {
+                        _ = try await articleTabsDataController.createArticleTab(initialArticle: article)
+                    }
+
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        WMFToastManager.sharedInstance.showRichToast(String.localizedStringWithFormat(CommonStrings.articleTabsLimitToastFormat, tabsMax), subtitle: nil, image: WMFSFSymbolIcon.for(symbol: .exclamationMarkTriangleFill), dismissPreviousToasts: true)
+                    }
+                } else {
+                    _ = try await articleTabsDataController.createArticleTab(initialArticle: article, setAsCurrent: false)
+                    ArticleTabsFunnel.shared.logLongPressOpenInBackgroundTab()
+                }
+
+            } catch {
+                DDLogError("Failed to create background tab: \(error)")
+            }
+        }
+
+    }
+
+    private func shareArticle(_ savedArticle: WMFSavedArticle, cgRect: CGRect) {
+
+        guard let article = wmfArticlesFromSavedArticles([savedArticle]).first else {
+            return
+        }
+
+        var customActivities: [UIActivity] = []
+        let addToReadingListActivity = AddToReadingListActivity { [weak self] in
+            guard let self else { return }
+            let addArticlesToReadingListViewController = AddArticlesToReadingListViewController(with: dataStore, articles: [article], theme: theme)
+            addArticlesToReadingListViewController.delegate = self
+            let navVC = WMFComponentNavigationController(rootViewController: addArticlesToReadingListViewController, modalPresentationStyle: .overFullScreen)
+            navigationController.present(navVC, animated: true, completion: nil)
+        }
+        customActivities.append(addToReadingListActivity)
+
+        let shareActivityController = ShareActivityController(article: article, customActivities: customActivities)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            shareActivityController.popoverPresentationController?.sourceView = navigationController.view
+            shareActivityController.popoverPresentationController?.sourceRect = cgRect
+        }
+        navigationController.present(shareActivityController, animated: true, completion: nil)
+
+    }
+
+    private func wmfArticlesFromSavedArticles(_ savedArticles: [WMFSavedArticle]) -> [WMFArticle] {
+        let articleURLs: [URL] = savedArticles.compactMap { savedArticle in
+            guard let siteURL = savedArticle.project.siteURL,
+                  var articleURL = siteURL.wmf_URL(withTitle: savedArticle.title) else {
+                return nil
+            }
+
+            articleURL.wmf_languageVariantCode = savedArticle.project.languageVariantCode
+            return articleURL
+        }
+
+        let inMemoryKeys = articleURLs.compactMap { WMFInMemoryURLKey(url: $0)}
+
+        guard let articles = try? dataStore.viewContext.fetchArticlesWithInMemoryURLKeys(inMemoryKeys) else {
+            return []
+        }
+
+        return articles
+    }
+
+    private func showAddToListSheet(for savedArticles: [WMFSavedArticle]) {
+
+        let articles = wmfArticlesFromSavedArticles(savedArticles)
+
+        let addArticlesToReadingListViewController = AddArticlesToReadingListViewController(with: dataStore, articles: articles, theme: theme)
+        let navVC = WMFComponentNavigationController(rootViewController: addArticlesToReadingListViewController, modalPresentationStyle: .overFullScreen)
+        addArticlesToReadingListViewController.delegate = self
+        self.navigationController.present(navVC, animated: true)
+    }
+
+    private func retryFailedArticleDownloads(_ completion: @escaping () -> Void) {
+        dataStore.performBackgroundCoreDataOperation { (moc) in
+            defer {
+                completion()
+            }
+            let request: NSFetchRequest<ReadingListEntry> = ReadingListEntry.fetchRequest()
+            request.predicate = NSPredicate(format: "isDeletedLocally == NO")
+            request.propertiesToFetch = ["articleKey"]
+            do {
+                let entries = try moc.fetch(request)
+                let keys = entries.compactMap { $0.articleKey }
+                guard !keys.isEmpty else {
+                    return
+                }
+                try moc.retryFailedArticleDownloads(with: keys)
+            } catch let error {
+                DDLogError("Error retrying failed articles: \(error)")
+            }
+        }
+    }
+
+    private func presentArticleErrorRecovery(with article: WMFArticle) {
+        switch article.error {
+        case .apiFailed:
+            let alert = UIAlertController(title: article.error.localizedDescription, message: nil, preferredStyle: .actionSheet)
+            let retry = UIAlertAction(title: CommonStrings.retryActionTitle, style: .default) { _ in
+                article.retryDownload()
+            }
+            alert.addAction(retry)
+            let cancel = UIAlertAction(title: CommonStrings.cancelActionTitle, style: .default)
+            alert.addAction(cancel)
+            navigationController.present(alert, animated: true)
+        default:
+            break
+        }
+    }
+
+    private func readingLists(for savedArticle: WMFSavedArticle) -> [ReadingList] {
+        guard let siteURL = savedArticle.project.siteURL,
+              var articleURL = siteURL.wmf_URL(withTitle: savedArticle.title) else {
+            return []
+        }
+
+        articleURL.wmf_languageVariantCode = savedArticle.project.languageVariantCode
+
+        guard let articleKey = articleURL.wmf_inMemoryKey?.databaseKey,
+              let article = dataStore.fetchArticle(withKey: articleKey) else {
+            return []
+        }
+
+        return article.sortedNonDefaultReadingLists
+    }
+
+    private func readingList(named name: String, from readingLists: [ReadingList]) -> ReadingList? {
+        return readingLists.first { $0.name == name }
+    }
+
+    // MARK: - Article changes
+
+    @objc func articleDidChange(_ note: Notification) {
+        guard
+            let article = note.object as? WMFArticle,
+            article.hasChangedValuesForCurrentEventThatAffectSavedArticlePreviews,
+            let articleKey = article.inMemoryKey
+            else {
+                return
+        }
+
+        // fetch entry with the same key
+        let databaseKey = articleKey.databaseKey
+        let fetchRequest: NSFetchRequest<ReadingListEntry> = ReadingListEntry.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "articleKey == %@", databaseKey)
+        do {
+            guard let readingListEntry = try dataStore.viewContext.fetch(fetchRequest).first,
+                  let list = readingListEntry.list else {
+                return
+            }
+
+            guard let titleAndProject = readingListEntry.titleAndProject() else {
+                return
+            }
+            let title = titleAndProject.title
+            let project = titleAndProject.project
+
+            let alertType = LegacyReadingListsDataSource.determineAlertType(for: readingListEntry, article: article, readingList: list, listLimit: dataStore.viewContext.wmf_readingListsConfigMaxListsPerUser, entryLimit: dataStore.viewContext.wmf_readingListsConfigMaxEntriesPerList.intValue)
+
+            let identifier = LegacyReadingListsDataSource.articleID(title: title, project: project)
+            hostingController?.viewModel.updateAlertType(id: identifier, alertType: alertType)
+
+        } catch {
+            // nothing
+        }
+    }
+
+    private func fullSync() async {
+        await withCheckedContinuation { continuation in
+            dataStore.readingListsController.fullSync {
+                continuation.resume()
+            }
+        }
+    }
+
+    private func retryFailedArticleDownloads() async {
+        await withCheckedContinuation { continuation in
+            retryFailedArticleDownloads {
+                continuation.resume()
+            }
+        }
+    }
+
+}
+
+// MARK: - Unsave with confirmation
+
+extension SavedAllArticlesCoordinator {
+    /// Transitional: the SwiftUI list asks before unsaving an article that is in a custom list.
+    func deleteSavedArticles(articles: [WMFSavedArticle], fromLongPress: Bool, completion: @escaping (Bool) -> Void) {
+
+        if fromLongPress {
+            ArticleTabsFunnel.shared.logLongPressSave()
+        }
+
+        let wmfArticles = wmfArticlesFromSavedArticles(articles)
+
+        let alertController = ReadingListsAlertController()
+        let unsave = ReadingListsAlertActionType.unsave.action { [weak self] in
+            guard let self else { return }
+            self.unsaveAndAnnounceAndLog(articles: wmfArticles)
+            completion(true)
+        }
+        let cancel = ReadingListsAlertActionType.cancel.action {
+            completion(false)
+        }
+
+        alertController.showAlertIfNeeded(presenter: self.navigationController, for: wmfArticles, with: [cancel, unsave]) { [weak self] showed in
+            guard let self else { return }
+            if !showed {
+                self.unsaveAndAnnounceAndLog(articles: wmfArticles)
+                completion(true)
+            }
+        }
+    }
+
+    private func unsaveAndAnnounceAndLog(articles: [WMFArticle]) {
+        dataStore.readingListsController.unsave(articles, in: dataStore.viewContext)
+
+        let articlesCount = articles.count
+        UIAccessibility.post(notification: UIAccessibility.Notification.announcement, argument: CommonStrings.articleDeletedNotification(articleCount: articlesCount))
+        let language = articles.count == 1 ? articles.first?.url?.wmf_languageCode : nil
+        ReadingListsFunnel.shared.logUnsaveInReadingList(articlesCount: articlesCount, language: language)
+    }
+}
+
+extension SavedAllArticlesCoordinator: AddArticlesToReadingListDelegate {
+    func addArticlesToReadingListWillClose(_ addArticlesToReadingList: AddArticlesToReadingListViewController) {
+        // no-op
+    }
+
+    func addArticlesToReadingListDidDisappear(_ addArticlesToReadingList: AddArticlesToReadingListViewController) {
+        // no-op
+    }
+
+    func addArticlesToReadingList(_ addArticlesToReadingList: AddArticlesToReadingListViewController, didAddArticles articles: [WMFArticle], to readingList: WMF.ReadingList) {
+        hostingController?.viewModel.toggleEditing()
+        exitEditingModeAction?()
+        hostingController?.viewModel.loadArticles()
+    }
+}

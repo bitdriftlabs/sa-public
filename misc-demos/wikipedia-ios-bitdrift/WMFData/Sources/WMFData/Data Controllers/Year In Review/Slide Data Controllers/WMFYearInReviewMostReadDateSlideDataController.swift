@@ -1,0 +1,52 @@
+import CoreData
+
+// @unchecked: `isEvaluated` is mutable, but instances are confined to the sequential
+// populate flow in WMFYearInReviewDataController (mutated in a loop, then read in a
+// single Core Data perform closure) — see YearInReviewSlideDataControllerProtocol.
+final class YearInReviewMostReadDateSlideDataController: YearInReviewSlideDataControllerProtocol, @unchecked Sendable {
+    let id = WMFYearInReviewPersonalizedSlideID.mostReadDate.rawValue
+    let year: Int
+    var isEvaluated: Bool = false
+    static let personalizationSources: Set<WMFYearInReviewPersonalizationSource> = [.readingHistory]
+    static let shouldFreeze = true
+    
+    var mostReadDate: WMFPageViewDates?
+
+    private weak var legacyPageViewsDataDelegate: LegacyPageViewsDataDelegate?
+    private let yirConfig: WMFFeatureConfigResponse.Common.YearInReview
+    
+    init(year: Int, yirConfig: WMFFeatureConfigResponse.Common.YearInReview, dependencies: YearInReviewSlideDataControllerDependencies) {
+        self.year = year
+        self.yirConfig = yirConfig
+        self.legacyPageViewsDataDelegate = dependencies.legacyPageViewsDataDelegate
+    }
+
+    func populateSlideData(in context: NSManagedObjectContext) async throws {
+        
+        guard let startDate = yirConfig.dataStartDate,
+              let endDate = yirConfig.dataEndDate else {
+            throw NSError(domain: "", code: 0, userInfo: nil)
+        }
+        
+        let dates = try await WMFPageViewsDataController().fetchPageViewDates(startDate: startDate, endDate: endDate)
+        
+        if let mostReadHour = dates?.times.max(by: { $0.viewCount < $1.viewCount }),
+           let mostReadDay = dates?.days.max(by: { $0.viewCount < $1.viewCount }),
+           let mostReadMonth = dates?.months.max(by: { $0.viewCount < $1.viewCount }) {
+                self.mostReadDate = WMFPageViewDates(days: [mostReadDay], times: [mostReadHour], months: [mostReadMonth])
+                isEvaluated = true
+            }
+    }
+
+    func makeCDSlide(in context: NSManagedObjectContext) throws -> CDYearInReviewSlide {
+        let slide = CDYearInReviewSlide(context: context)
+        slide.id = id
+        slide.year = Int32(year)
+        slide.data = try mostReadDate.map { try JSONEncoder().encode($0) }
+        return slide
+    }
+
+    static func shouldPopulate(from config: WMFFeatureConfigResponse.Common.YearInReview, userInfo: YearInReviewUserInfo) -> Bool {
+        return config.isActive(for: Date())
+    }
+}

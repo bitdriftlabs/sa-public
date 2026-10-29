@@ -1,0 +1,306 @@
+import Foundation
+import WMFData
+
+#if DEBUG
+
+internal enum WMFMockError: Error {
+    case unableToPullData
+    case unableToDeserialize
+}
+
+fileprivate extension WMFData.WMFServiceRequest {
+    
+    var isOnThisDayEventsGet: Bool {
+        guard let url,
+              url.host?.hasSuffix(".wikipedia.org") == true,
+              url.path.contains("/api/rest_v1/feed/onthisday/events/") else {
+            return false
+        }
+        return method == .GET
+    }
+    
+    var isFeatureConfigGet: Bool {
+        switch WMFDataEnvironment.current.serviceEnvironment {
+        case .production:
+            guard let url,
+                  url.host == "en.wikipedia.org",
+                  url.path == "/api/rest_v1/feed/configuration" else {
+                return false
+            }
+            
+            return method == .GET
+        case .staging:
+            guard let url,
+                  url.host == "test.wikipedia.org",
+                  url.path == "/wiki/MediaWiki:AppsFeatureConfig.json",
+                  let action = parameters?["action"] as? String else {
+                return false
+            }
+            
+            return method == .GET && action == "raw"
+        }
+    }
+    
+    var isDonateConfigGet: Bool {
+        switch WMFDataEnvironment.current.serviceEnvironment {
+        case .production:
+            guard let url,
+                  url.host == "donate.wikimedia.org",
+                  url.path == "/wiki/MediaWiki:AppsDonationConfig.json",
+                  let action = parameters?["action"] as? String else {
+                return false
+            }
+            
+            return method == .GET && action == "raw"
+        case .staging:
+            guard let url,
+                  url.host == "test.wikipedia.org",
+                  url.path == "/wiki/MediaWiki:AppsDonationConfig.json",
+                  let action = parameters?["action"] as? String else {
+                return false
+            }
+            
+            return method == .GET && action == "raw"
+        }
+    }
+    
+    var isPaymentMethodsGet: Bool {
+        guard let url,
+              url.host == "payments.wikimedia.org",
+              let action = parameters?["action"] as? String else {
+            return false
+        }
+       
+        return method == .GET && action == "getPaymentMethods"
+    }
+    
+    var isSubmitPaymentPost: Bool {
+        guard let url,
+              url.host == "payments.wikimedia.org",
+              let action = parameters?["action"] as? String else {
+            return false
+        }
+       
+        return method == .POST && action == "submitPayment"
+    }
+    
+    var isFundraisingCampaignGet: Bool {
+        switch WMFDataEnvironment.current.serviceEnvironment {
+        case .production:
+            guard let url,
+                  url.host == "donate.wikimedia.org",
+                  url.path == "/wiki/MediaWiki:AppsCampaignConfig.json",
+                  let action = parameters?["action"] as? String else {
+                return false
+            }
+            
+            return method == .GET && action == "raw"
+        case .staging:
+            guard let url,
+                  url.host == "test.wikipedia.org",
+                  url.path == "/wiki/MediaWiki:AppsCampaignConfig.json",
+                  let action = parameters?["action"] as? String else {
+                return false
+            }
+            
+            return method == .GET && action == "raw"
+        }
+    }
+    
+    var isArticleSummaryGet: Bool {
+        guard let url = url,
+              url.absoluteString.contains("/page/summary/") else {
+            return false
+        }
+
+        return true
+    }
+
+    var isSemanticSearchGet: Bool {
+        guard let url,
+              url.path == "/w/api.php",
+              let parameters
+        else { return false }
+
+        return method == .GET && parameters["cirrusSemanticSearch"] != nil
+    }
+
+    var isAttributionSignalsGet: Bool {
+        guard let url,
+              url.path.contains("/attribution/"),
+              url.path.hasSuffix("/signals")
+        else { return false }
+
+        return method == .GET
+    }
+
+}
+
+public final class WMFMockBasicService: WMFService {
+    
+    private let overrideJSONResourceName: String?
+    
+    public init(jsonResourceName: String? = nil) {
+        self.overrideJSONResourceName = jsonResourceName
+    }
+    
+    public func perform<R: WMFServiceRequest>(request: R, completion: @escaping @Sendable (Result<Data, any Error>) -> Void) {
+        guard let jsonData = jsonData(for: request) else {
+            completion(.failure(WMFMockError.unableToPullData))
+            return
+        }
+        
+        completion(.success(jsonData))
+    }
+    
+    public func perform<R: WMFServiceRequest>(request: R, completion: @escaping @Sendable (Result<[String: Any]?, Error>) -> Void) {
+        
+        guard let jsonData = jsonData(for: request) else {
+            completion(.failure(WMFMockError.unableToPullData))
+            return
+        }
+        
+        guard let jsonDict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+            completion(.failure(WMFMockError.unableToDeserialize))
+            return
+        }
+        
+        completion(.success(jsonDict))
+    }
+    
+    public func performDecodableGET<R: WMFServiceRequest, T: Decodable & Sendable>(request: R, completion: @escaping @Sendable (Result<T, Error>) -> Void) {
+        
+        guard let jsonData = jsonData(for: request) else {
+            completion(.failure(WMFMockError.unableToPullData))
+            return
+        }
+        
+        let decoder = JSONDecoder()
+        
+        guard let response = try? decoder.decode(T.self, from: jsonData) else {
+            completion(.failure(WMFMockError.unableToDeserialize))
+            return
+        }
+        
+        completion(.success(response))
+    }
+    
+    public func performDecodablePOST<R, T>(request: R, completion: @escaping @Sendable (Result<T, Error>) -> Void) where R : WMFData.WMFServiceRequest, T : Decodable {
+        
+        guard let jsonData = jsonData(for: request) else {
+            completion(.failure(WMFMockError.unableToPullData))
+            return
+        }
+        
+        let decoder = JSONDecoder()
+        
+        guard let response = try? decoder.decode(T.self, from: jsonData) else {
+            completion(.failure(WMFMockError.unableToDeserialize))
+            return
+        }
+        
+        completion(.success(response))
+    }
+    
+    private func jsonData(for request: WMFData.WMFServiceRequest) -> Data? {
+        // If a specific resource was injected (e.g. for unit tests), use it directly
+        if let overrideJSONResourceName {
+            guard let url = Bundle.module.url(forResource: overrideJSONResourceName, withExtension: "json"),
+                  let data = try? Data(contentsOf: url) else {
+                return nil
+            }
+            return data
+        }
+        
+        if request.isDonateConfigGet {
+            let resourceName = "donate-get-config"
+             
+            guard let url = Bundle.module.url(forResource: resourceName, withExtension: "json"),
+                  let jsonData = try? Data(contentsOf: url) else {
+                return nil
+            }
+            
+            return jsonData
+        } else if request.isFeatureConfigGet {
+            let resourceName = "feature-get-config"
+             
+            guard let url = Bundle.module.url(forResource: resourceName, withExtension: "json"),
+                  let jsonData = try? Data(contentsOf: url) else {
+                return nil
+            }
+            
+            return jsonData
+        } else if request.isPaymentMethodsGet {
+            let resourceName = "donate-get-payment-methods"
+            
+            guard let url = Bundle.module.url(forResource: resourceName, withExtension: "json"),
+                  let jsonData = try? Data(contentsOf: url) else {
+                return nil
+            }
+            
+            return jsonData
+        } else if request.isSubmitPaymentPost {
+            let resourceName = "donate-post-submit-payment-success"
+            
+            guard let url = Bundle.module.url(forResource: resourceName, withExtension: "json"),
+                  let jsonData = try? Data(contentsOf: url) else {
+                return nil
+            }
+            
+            return jsonData
+        } else if request.isFundraisingCampaignGet {
+            let resourceName = "fundraising-campaign-get-config"
+            
+            guard let url = Bundle.module.url(forResource: resourceName, withExtension: "json"),
+                  let jsonData = try? Data(contentsOf: url) else {
+                return nil
+            }
+            
+            return jsonData
+        } else if request.isArticleSummaryGet {
+            let resourceName = "article-summary-get"
+            
+            guard let url = Bundle.module.url(forResource: resourceName, withExtension: "json"),
+                  let jsonData = try? Data(contentsOf: url) else {
+                return nil
+            }
+            
+            return jsonData
+        } else if request.isSemanticSearchGet {
+            let resourceName = "semantic-search-get"
+
+            guard let url = Bundle.module.url(forResource: resourceName, withExtension: "json"),
+                  let jsonData = try? Data(contentsOf: url) else {
+                return nil
+            }
+
+            return jsonData
+        } else if request.isAttributionSignalsGet {
+            let resourceName = "attribution-signals-get"
+
+            guard let url = Bundle.module.url(forResource: resourceName, withExtension: "json"),
+                  let jsonData = try? Data(contentsOf: url) else {
+                return nil
+            }
+
+            return jsonData
+        } else if request.isOnThisDayEventsGet {
+            let resourceName = "onthisday-events-02-21-get"
+
+            guard let url = Bundle.module.url(forResource: resourceName, withExtension: "json"),
+                  let jsonData = try? Data(contentsOf: url) else {
+                return nil
+            }
+
+            return jsonData
+        }
+
+        return nil
+    }
+    
+    public func clearCachedData() {
+        // no-op
+    }
+}
+
+#endif

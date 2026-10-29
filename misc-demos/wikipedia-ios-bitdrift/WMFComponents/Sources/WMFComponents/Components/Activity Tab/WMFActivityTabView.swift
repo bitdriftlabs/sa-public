@@ -1,0 +1,618 @@
+import SwiftUI
+import WMFData
+import Charts
+import Foundation
+
+public struct WMFActivityTabView: View {
+    @ObservedObject var appEnvironment = WMFAppEnvironment.current
+    @ObservedObject public var viewModel: WMFActivityTabViewModel
+
+    @State private var animatedGlobalEditCount: Int = 0
+    @State private var hasShownGlobalEditsCard: Bool = false
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var theme: WMFTheme {
+        return appEnvironment.theme
+    }
+
+    /// Where the Year in Review card belongs, or `.none` when it should not render at all.
+    ///
+    /// Logged in, the card sits at the top of the content. Logged out it is pinned above the tab
+    /// bar — except at accessibility text sizes, where it is taller than the space an inset can
+    /// give it, so it moves inline and scrolls with the content instead of squeezing everything
+    /// above it.
+    private enum YearInReviewCardPlacement {
+        case none, top, inlineBottom, pinnedBottom
+    }
+
+    /// The absence of a card is folded in here rather than checked at each site: `yearInReviewCard`
+    /// resolves to an empty view when there is no view model, but a padding modifier wrapped around
+    /// it still reserves its insets. The loading check is here for the same reason — the pinned
+    /// placement is attached outside the branch that swaps in the progress view.
+    private var yearInReviewCardPlacement: YearInReviewCardPlacement {
+        guard !viewModel.isLoading,
+              viewModel.yearInReviewViewModel != nil else { return .none }
+        if viewModel.authenticationState == .loggedIn { return .top }
+        return dynamicTypeSize.isAccessibilitySize ? .inlineBottom : .pinnedBottom
+    }
+
+    public init(viewModel: WMFActivityTabViewModel) {
+        self.viewModel = viewModel
+    }
+    
+    public var body: some View {
+        ScrollViewReader { proxy in
+            if viewModel.isLoading {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                if viewModel.authenticationState == .loggedIn {
+                    if !viewModel.customizeViewModel.isTimelineOfBehaviorOn, !viewModel.customizeViewModel.isTimeSpentReadingOn, !viewModel.customizeViewModel.isEditingInsightsOn, !viewModel.customizeViewModel.isReadingInsightsOn {
+                        customizedEmptyState()
+                    } else {
+                        loggedInList(proxy: proxy)
+                    }
+                } else {
+                    loggedOutList(proxy: proxy)
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if yearInReviewCardPlacement == .pinnedBottom {
+                yearInReviewCard
+                    .padding(.bottom, 16)
+            }
+        }
+        .onAppear {
+            viewModel.fetchData(fromAppearance: true)
+        }
+    }
+
+    @ViewBuilder
+    private var yearInReviewCard: some View {
+        if let yearInReviewViewModel = viewModel.yearInReviewViewModel {
+            WMFActivityTabYearInReviewCardView(viewModel: yearInReviewViewModel)
+        }
+    }
+
+    private func loggedInList(proxy: ScrollViewProxy) -> some View {
+        List {
+            if yearInReviewCardPlacement == .top {
+                Section {
+                    yearInReviewCard
+                        .padding(.top, 8)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color(uiColor: theme.paperBackground))
+                }
+                .listRowSeparator(.hidden)
+            }
+
+            if viewModel.customizeViewModel.isTimeSpentReadingOn || viewModel.customizeViewModel.isReadingInsightsOn {
+                Section {
+                    VStack(spacing: 16) {
+                        if viewModel.customizeViewModel.isTimeSpentReadingOn {
+                            headerView
+                                .accessibilityElement()
+                                .accessibilityLabel(viewModel.articlesReadViewModel.usernamesReading)
+                                .accessibilityHint(viewModel.localizedStrings.onWikipediaiOS)
+
+                            VStack(alignment: .center, spacing: 8) {
+                                hoursMinutesRead
+                                    .accessibilityLabel(viewModel.hoursMinutesRead)
+                                Text(viewModel.localizedStrings.timeSpentReading)
+                                    .font(Font(WMFFont.for(.semiboldHeadline)))
+                                    .foregroundColor(Color(uiColor: theme.text))
+                                    .accessibilityHidden(true)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .accessibilityElement()
+                            .accessibilityLabel("\(viewModel.hoursMinutesRead), \(viewModel.localizedStrings.timeSpentReading)")
+                        }
+
+                        if viewModel.customizeViewModel.isReadingInsightsOn {
+                            articlesReadModule(proxy: proxy)
+                            savedArticlesModule
+
+                            if viewModel.shouldShowExploreCTA {
+                                exploreCTA
+                                    .padding(.vertical, 12)
+                            }
+
+                            if !viewModel.articlesReadViewModel.topCategories.isEmpty {
+                                topCategoriesModule(categories: viewModel.articlesReadViewModel.topCategories)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 16)
+                    .listRowInsets(EdgeInsets())
+                    .background(
+                        LinearGradient(
+                            stops: [
+                                Gradient.Stop(color: Color(uiColor: theme.paperBackground), location: 0),
+                                Gradient.Stop(color: Color(uiColor: theme.softEditorBlue), location: 1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+                .listRowSeparator(.hidden)
+            }
+
+            if viewModel.customizeViewModel.isEditingInsightsOn && viewModel.shouldShowYourImpactHeader {
+
+                Section(header: YourImpactHeaderView(viewModel: viewModel)) {
+
+                    VStack(spacing: 16) {
+
+                        if let mostViewedArticlesViewModel = viewModel.mostViewedArticlesViewModel {
+                            TopViewedEditsView(viewModel: viewModel, mostViewedViewModel: mostViewedArticlesViewModel)
+                        }
+
+                        if let contributionsViewModel = viewModel.contributionsViewModel {
+                            ContributionsView(viewModel: contributionsViewModel)
+                        }
+
+                        if viewModel.allTimeImpactViewModel != nil || viewModel.recentActivityViewModel != nil || viewModel.articleViewsViewModel != nil {
+                            CombinedImpactView(allTimeImpactViewModel: viewModel.allTimeImpactViewModel, recentActivityViewModel: viewModel.recentActivityViewModel, articleViewsViewModel: viewModel.articleViewsViewModel)
+                        }
+
+                        if let globalEditCount = viewModel.globalEditCount, globalEditCount > 0 {
+                            totalEditsView(amount: animatedGlobalEditCount)
+                                .onAppear {
+                                    if !hasShownGlobalEditsCard {
+                                        hasShownGlobalEditsCard = true
+                                        animatedGlobalEditCount = 0
+                                        withAnimation(.easeOut(duration: 0.6)) {
+                                            animatedGlobalEditCount = globalEditCount
+                                        }
+                                    } else {
+                                        animatedGlobalEditCount = globalEditCount
+                                    }
+                                }
+                                .onChange(of: globalEditCount) { _, newValue in
+                                    withAnimation(.easeOut(duration: 0.6)) {
+                                        animatedGlobalEditCount = newValue
+                                    }
+                                }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+                    .listRowInsets(EdgeInsets())
+                    .background(
+                        LinearGradient(
+                            stops: [
+                                Gradient.Stop(color: Color(uiColor: theme.paperBackground), location: 0),
+                                Gradient.Stop(color: Color(uiColor: theme.softEditorBlue), location: 1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+                .listRowSeparator(.hidden)
+            }
+
+            if viewModel.customizeViewModel.isTimelineOfBehaviorOn {
+                timelineSectionsList()
+                    .id("timelineSection")
+            }
+        }
+        .background(Color(uiColor: theme.paperBackground).edgesIgnoringSafeArea(.all))
+        .scrollContentBackground(.hidden)
+        .listStyle(.grouped)
+        .listCustomSectionSpacing(0)
+        // Grouped lists reserve space above the first section for a header this list never
+        // supplies. Every top-level section here brings its own top padding, so that reserved
+        // space is pure gap.
+        .contentMargins(.top, 0, for: .scrollContent)
+    }
+
+    private var exploreCTA: some View {
+        VStack(alignment: .center, spacing: 12) {
+            Text(viewModel.localizedStrings.lookingForSomethingNew)
+                .font(Font(WMFFont.for(.semiboldSubheadline)))
+                .foregroundStyle(Color(uiColor: theme.text))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            WMFSmallButton(configuration: .init(style: .primary), title: viewModel.localizedStrings.exploreWikipedia, action: {
+                viewModel.exploreWikipedia()
+            })
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    @ViewBuilder
+    private func loggedOutList(proxy: ScrollViewProxy) -> some View {
+        if viewModel.sections.count == 0 {
+            // A ScrollView rather than a fixed-height stack: at accessibility text sizes the
+            // logged-out box, the empty view, and the Year in Review card are together taller than
+            // the screen, and without scrolling the content is clipped.
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        loggedOutView
+                            .accessibilityElement(children: .contain)
+
+                        Spacer(minLength: 16)
+
+                        WMFEmptyView(
+                            appEnvironment: appEnvironment,
+                            viewModel: viewModel.emptyViewModel,
+                            type: .noItems,
+                            isScrollable: false)
+                            .frame(maxWidth: .infinity)
+
+                        Spacer(minLength: 16)
+
+                        if yearInReviewCardPlacement == .inlineBottom {
+                            yearInReviewCard
+                                .padding(.bottom, 16)
+                        }
+                    }
+                    // Keeps the normal-size layout centered the way the fixed-height stack did,
+                    // while still letting the content grow past the screen and scroll.
+                    .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                }
+            }
+            .background(Color(uiColor: theme.paperBackground).edgesIgnoringSafeArea(.all))
+        } else {
+            List {
+                Section {
+                    loggedOutView
+                        .accessibilityElement(children: .contain)
+                        .listRowInsets(EdgeInsets())
+                }
+                .listRowSeparator(.hidden)
+
+                if yearInReviewCardPlacement == .inlineBottom {
+                    Section {
+                        yearInReviewCard
+                            .padding(.top, 8)
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color(uiColor: theme.paperBackground))
+                    }
+                    .listRowSeparator(.hidden)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .listStyle(.grouped)
+            .listCustomSectionSpacing(0)
+            .background(Color(uiColor: theme.paperBackground).edgesIgnoringSafeArea(.all))
+        }
+    }
+
+    private func totalEditsView(amount: Int) -> some View {
+
+        let cardView = WMFActivityTabInfoCardView(
+            icon: WMFSFSymbolIcon.for(symbol: .globeAmericas),
+            title: viewModel.localizedStrings.totalEditsAcrossProjects,
+            dateText: nil,
+            onTapModule: {
+                viewModel.onTapGlobalEdits?()
+            }, content: {
+                HStack(alignment: .bottom) {
+                    Text("\(amount)")
+                        .foregroundStyle(Color(theme.text))
+                        .font(Font(WMFFont.for(.boldTitle1)))
+                    Spacer()
+                }
+            }
+        )
+
+        let formattedAmount = amountAccessibilityLabel(for: amount)
+
+        // Expose the amount as the accessibility value (separate from the label) so VoiceOver
+        // pauses naturally between the card's title and its numeric value
+        return cardView.accessibilityElement(children: .ignore)
+            .accessibilityLabel(viewModel.localizedStrings.totalEditsAcrossProjects)
+            .accessibilityValue(formattedAmount)
+            .accessibilityAddTraits(.isButton)
+
+    }
+
+    private func timelineSectionsList() -> some View {
+        ForEach(viewModel.sections) { section in
+            TimelineSectionView(activityViewModel: viewModel, section: section)
+        }
+    }
+
+    private var headerView: some View {
+        VStack(alignment: .center, spacing: 8) {
+            Text(viewModel.articlesReadViewModel.usernamesReading)
+                .foregroundColor(Color(uiColor: theme.text))
+                .font(Font(WMFFont.for(.boldHeadline)))
+                .frame(maxWidth: .infinity, alignment: .center)
+            Text(viewModel.localizedStrings.onWikipediaiOS)
+                .font(.custom("Menlo", size: 11, relativeTo: .caption2))
+                .foregroundColor(Color(uiColor: theme.text))
+                .padding(.vertical, 4)
+                .padding(.horizontal, 8)
+                .background(
+                    Capsule()
+                        .fill(Color(uiColor: theme.softEditorBlue))
+                )
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    private var loggedOutView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                Text(viewModel.localizedStrings.loggedOutTitle)
+                    .font(Font(WMFFont.for(.semiboldHeadline)))
+                    .foregroundColor(Color(uiColor: theme.text))
+                Spacer()
+            }
+            Text(viewModel.localizedStrings.loggedOutSubtitle)
+                .font(Font(WMFFont.for(.callout)))
+                .foregroundColor(Color(uiColor: theme.text))
+            HStack(spacing: 12) {
+                WMFSmallButton(
+                    configuration: .init(style: .primary),
+                    title: viewModel.localizedStrings.loggedOutPrimaryCTA,
+                    image: WMFSFSymbolIcon.for(symbol: .personFilled),
+                    action: {
+                        viewModel.didTapPrimaryLoggedOutCTA?()
+                    }
+                )
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 8)
+        }
+        .multilineTextAlignment(.leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(uiColor: theme.paperBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(uiColor: theme.baseBackground), lineWidth: 0.5)
+                )
+        )
+        .padding(.horizontal, 16)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(viewModel.localizedStrings.loggedOutTitle). \(viewModel.localizedStrings.loggedOutSubtitle)")
+        .background(Color(uiColor: theme.paperBackground))
+    }
+
+    private var hoursMinutesRead: some View {
+        Text(viewModel.hoursMinutesRead)
+            .font(Font(WMFFont.for(.boldTitle1)))
+            .overlay(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color(red: 221/255, green: 51/255, blue: 51/255),   // #DD3333
+                        Color(red: 1.0, green: 149/255, blue: 0),           // #FF9500
+                        Color(red: 1.0, green: 204/255, blue: 51/255),      // #FFCC33
+                        Color(red: 102/255, green: 153/255, blue: 1.0)      // #6699FF
+                    ]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .mask(
+                    Text(viewModel.hoursMinutesRead)
+                        .font(Font(WMFFont.for(.boldTitle1)))
+                )
+            )
+    }
+
+    private func articlesReadModule(proxy: ScrollViewProxy) -> some View {
+
+        let cardView = WMFActivityTabInfoCardView(
+            icon: WMFSFSymbolIcon.for(symbol: .bookPages),
+            title: viewModel.localizedStrings.totalArticlesRead,
+            dateText: viewModel.articlesReadViewModel.dateTimeLastRead,
+            onTapModule: {
+                withAnimation(.easeInOut) {
+                    proxy.scrollTo("timelineSection", anchor: .top)
+                }
+            },
+            content: {
+                HStack(alignment: .bottom) {
+                    Text("\(viewModel.articlesReadViewModel.totalArticlesRead)")
+                        .foregroundStyle(Color(theme.text))
+                        .font(Font(WMFFont.for(.boldTitle1)))
+                    Spacer()
+                    articlesReadGraph(weeklyReads: viewModel.articlesReadViewModel.weeklyReads)
+                }
+            }
+        )
+
+        let formattedAmount = amountAccessibilityLabel(for: viewModel.articlesReadViewModel.totalArticlesRead)
+        // Combine title + accessibility-friendly date rendering as the accessibility label
+        // (the "context" of the card). Expose the amount as the accessibility value so
+        // VoiceOver naturally pauses between the contextual label and the numeric value,
+        // matching the standard iOS control pattern (e.g. sliders, steppers).
+        let accessibilityLabel: String = [viewModel.localizedStrings.totalArticlesRead, viewModel.articlesReadViewModel.dateTimeLastReadAccessibilityLabel].joined(separator: ". ")
+
+        return cardView
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(formattedAmount)
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private var savedArticlesModule: some View {
+
+        let thumbURLs = viewModel.articlesSavedViewModel.articlesSavedThumbURLs
+        let displayCount = min(thumbURLs.count, 3)
+        let remaining = viewModel.articlesSavedViewModel.articlesSavedAmount - displayCount
+
+        let cardView = WMFActivityTabInfoCardView(
+            icon: WMFSFSymbolIcon.for(symbol: .bookmark),
+            title: viewModel.localizedStrings.articlesSavedTitle,
+            dateText: viewModel.articlesSavedViewModel.dateTimeLastSaved,
+            onTapModule: {
+                viewModel.articlesSavedViewModel.onTapSaved?()
+            },
+            content: {
+                HStack(alignment: .bottom) {
+                    Text("\(viewModel.articlesSavedViewModel.articlesSavedAmount)")
+                        .foregroundStyle(Color(theme.text))
+                        .font(Font(WMFFont.for(.boldTitle1)))
+                    Spacer()
+                    if !thumbURLs.isEmpty {
+                        savedArticlesImages(thumbURLs: thumbURLs, totalSavedCount: viewModel.articlesSavedViewModel.articlesSavedAmount, remaining: remaining)
+                    }
+                }
+            }
+        )
+
+        let formattedAmount = amountAccessibilityLabel(for: viewModel.articlesSavedViewModel.articlesSavedAmount)
+        let accessibilityLabel: String = [viewModel.localizedStrings.articlesSavedTitle, viewModel.articlesSavedViewModel.dateTimeLastSavedAccessibilityLabel].joined(separator: ". ")
+
+        return cardView
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(formattedAmount)
+            .accessibilityAddTraits(.isButton)
+    }
+
+    private func showPlus(displayCount: Int, totalSavedCount: Int) -> Bool {
+        if displayCount < 3 && totalSavedCount == 3 {
+            return true
+        } else if totalSavedCount > 3 {
+            return true
+        } else {
+            return false
+        }
+    }
+
+    private func savedArticlesImages(thumbURLs: [URL?], totalSavedCount: Int, remaining: Int) -> some View {
+        HStack(spacing: 4) {
+            let displayCount = min(thumbURLs.count, 3)
+            let showPlus = showPlus(displayCount: displayCount, totalSavedCount: totalSavedCount)
+
+            ForEach(Array(thumbURLs.prefix(displayCount)), id: \.self) { imageURL in
+                AsyncImage(url: imageURL) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    Color.gray.opacity(0.3)
+                }
+                .frame(width: 38, height: 38)
+                .clipShape(Circle())
+            }
+
+            if showPlus {
+                Text("+\(remaining)")
+                    .font(Font(WMFFont.for(.caption2)))
+                    .foregroundColor(Color(uiColor: theme.paperBackground))
+                    .frame(width: 38, height: 38)
+                    .background(
+                        Circle()
+                            .fill(Color(uiColor: theme.secondaryText))
+                    )
+            }
+        }
+    }
+
+    private func articlesReadGraph(weeklyReads: [Int]) -> some View {
+        let maxReads = weeklyReads.max() ?? 1
+        let chartHeight: CGFloat = 45
+        let minBarHeight: CGFloat = 4
+
+        return VStack {
+            Spacer(minLength: 0)
+            HStack(alignment: .bottom, spacing: 6) {
+                ForEach(weeklyReads.indices, id: \.self) { index in
+                    let percentage = maxReads > 0 ? CGFloat(weeklyReads[index]) / CGFloat(maxReads) : 0
+                    let barHeight = weeklyReads[index] > 0 ? chartHeight * percentage : minBarHeight
+
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(weeklyReads[index] > 0
+                            ? Color(uiColor: theme.accent)
+                            : Color(uiColor: theme.newBorder))
+                        .frame(width: 12, height: barHeight)
+                        .accessibilityLabel("\(viewModel.localizedStrings.week) \(index + 1)")
+                        .accessibilityValue("\(weeklyReads[index]) \(viewModel.localizedStrings.articlesRead)")
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .frame(maxWidth: 54, maxHeight: chartHeight)
+        .padding(.trailing, 8)
+    }
+
+    private func topCategoriesModule(categories: [String]) -> some View {
+
+        let cardView = WMFActivityTabInfoCardView(
+            icon: WMFSFSymbolIcon.for(symbol: .rectangle3, font: WMFFont.boldCaption1),
+            title: viewModel.localizedStrings.topCategories,
+            dateText: nil,
+            onTapModule: nil,
+            content: {
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(categories.indices, id: \.self) { index in
+                        let category = categories[index]
+                        Text(category)
+                            .foregroundStyle(Color(theme.text))
+                            .font(Font(WMFFont.for(.callout)))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .lineLimit(2)
+
+                        if index < categories.count - 1 {
+                            Divider()
+                                .frame(height: 1)
+                                .overlay(
+                                    Rectangle()
+                                        .fill(Color(uiColor: theme.baseBackground))
+                                        .frame(height: 1)
+                                )
+                                .padding(0)
+                        }
+                    }
+                }
+            }
+        )
+
+        let accessibilityLabel = viewModel.localizedStrings.topCategories
+        let accessibilityValue = viewModel.articlesReadViewModel.topCategories.joined(separator: ", ")
+
+        return cardView
+            .accessibilityElement()
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(accessibilityValue)
+    }
+
+    private func amountAccessibilityLabel(for amount: Int) -> String {
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .decimal
+
+        return numberFormatter.string(from: NSNumber(value: amount)) ?? "\(amount)"
+    }
+
+    /// Logged in with every module turned off. The Year in Review card still belongs here, so it
+    /// keeps the same top placement it has in `loggedInList` and the empty state fills what is left.
+    ///
+    /// Scrollable for the same reason as the logged-out state: at accessibility text sizes the card
+    /// and the empty view together exceed the screen.
+    private func customizedEmptyState() -> some View {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 0) {
+                    if yearInReviewCardPlacement == .top {
+                        yearInReviewCard
+                            .padding(.top, 8)
+                            .padding(.bottom, 16)
+                    }
+
+                    WMFSimpleEmptyStateView(imageName: "empty_activity_tab", openCustomize: viewModel.openCustomize, title: viewModel.localizedStrings.customizeEmptyState)
+                        .frame(maxWidth: .infinity)
+                }
+                .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+            }
+        }
+        .background(Color(uiColor: theme.paperBackground).edgesIgnoringSafeArea(.all))
+    }
+}

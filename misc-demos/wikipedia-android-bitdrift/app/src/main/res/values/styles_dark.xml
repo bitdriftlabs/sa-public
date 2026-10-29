@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="ThemeDark">
+        <item name="android:isLightTheme" tools:targetApi="q">false</item>
+
+        <item name="talk_page_empty_state_drawable">@drawable/talk_page_empty_state_illustration_dark</item>
+
+        <item name="paper_color">@color/gray700</item>
+        <item name="background_color">@color/gray675</item>
+        <item name="border_color">@color/gray650</item>
+        <item name="inactive_color">@color/gray500</item>
+        <item name="placeholder_color">@color/gray400</item>
+        <item name="secondary_color">@color/gray300</item>
+        <item name="primary_color">@color/gray200</item>
+        <item name="progressive_color">@color/blue300</item>
+        <item name="success_color">@color/green600</item>
+        <item name="destructive_color">@color/red500</item>
+        <item name="warning_color">@color/orange500</item>
+        <item name="highlight_color">@color/yellow500_40</item>
+        <item name="focus_color">@color/orange500_50</item>
+        <item name="addition_color">@color/blue600_30</item>
+        <item name="overlay_color">@color/black_70</item>
+        <item name="list_divider">@drawable/divider_dark</item>
+        <item name="shadow_border">@drawable/shadow_dark</item>
+
+        <item name="input_stroke_color_state">@color/color_state_input_field_dark</item>
+        <item name="image_tags_onboarding_drawables">@drawable/ic_image_tags_onboarding_dark</item>
+        <item name="sync_reading_list_prompt_drawable">@drawable/ic_sync_illustration_dark</item>
+
+    </style>
+
+    <style name="ThemeDark.Translucent">
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+</resources>

@@ -1,0 +1,40 @@
+package org.wikipedia.page.linkpreview
+
+import android.text.style.SuperscriptSpan
+import androidx.core.text.getSpans
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.wikipedia.dataclient.WikiSite.Companion.forLanguageCode
+import org.wikipedia.dataclient.page.PageSummary
+import org.wikipedia.json.JsonUtil
+import org.wikipedia.test.TestFileUtil
+import org.wikipedia.util.StringUtil.fromHtml
+
+@RunWith(RobolectricTestRunner::class)
+class LinkPreviewContentsTest {
+    private lateinit var rbPageSummary: PageSummary
+
+    @Before
+    @Throws(Throwable::class)
+    fun setUp() {
+        val json = TestFileUtil.readRawFile("rb_page_summary_valid.json")
+        rbPageSummary = JsonUtil.decodeFromString(json)!!
+    }
+
+    @Test
+    fun testExtractHasSuperscripts() {
+        val linkPreviewContents = LinkPreviewContents(rbPageSummary, TEST)
+        val extract = fromHtml(linkPreviewContents.extract)
+
+        // the 3 <sup> tags in the formula are represented correctly
+        assertEquals(EXPECTED_SUPS, extract.getSpans<SuperscriptSpan>().size)
+    }
+
+    companion object {
+        private const val EXPECTED_SUPS = 3
+        private val TEST = forLanguageCode("test")
+    }
+}

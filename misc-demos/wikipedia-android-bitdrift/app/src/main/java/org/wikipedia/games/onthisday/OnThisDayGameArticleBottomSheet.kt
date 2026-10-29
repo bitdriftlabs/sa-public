@@ -1,0 +1,153 @@
+package org.wikipedia.games.onthisday
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.core.os.bundleOf
+import androidx.core.view.isInvisible
+import androidx.core.widget.TextViewCompat
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import org.wikipedia.Constants
+import org.wikipedia.R
+import org.wikipedia.analytics.eventplatform.WikiGamesEvent
+import org.wikipedia.commons.FilePageActivity
+import org.wikipedia.concurrency.FlowEventBus
+import org.wikipedia.database.AppDatabase
+import org.wikipedia.databinding.DialogOnThisDayGameArticleBinding
+import org.wikipedia.dataclient.page.PageSummary
+import org.wikipedia.events.ArticleSavedOrDeletedEvent
+import org.wikipedia.extensions.parcelable
+import org.wikipedia.history.HistoryEntry
+import org.wikipedia.page.ExtendedBottomSheetDialogFragment
+import org.wikipedia.page.PageActivity
+import org.wikipedia.page.PageTitle
+import org.wikipedia.readinglist.SaveArticleSheetDialog
+import org.wikipedia.util.DimenUtil
+import org.wikipedia.util.FeedbackUtil
+import org.wikipedia.util.ResourceUtil
+import org.wikipedia.util.ShareUtil
+import org.wikipedia.util.StringUtil
+import org.wikipedia.util.UriUtil
+import org.wikipedia.views.AllowSnackbarOverBottomSheet
+import org.wikipedia.views.ViewUtil
+
+class OnThisDayGameArticleBottomSheet : ExtendedBottomSheetDialogFragment(), AllowSnackbarOverBottomSheet {
+
+    private var _binding: DialogOnThisDayGameArticleBinding? = null
+    private val binding get() = _binding!!
+    private val viewModel: OnThisDayGameViewModel by activityViewModels()
+    private lateinit var pageSummary: PageSummary
+    private val pageTitle get() = pageSummary.getPageTitle(viewModel.wikiSite)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        pageSummary = requireArguments().parcelable<PageSummary>(Constants.ARG_TITLE)!!
+    }
+
+    override fun onPause() {
+        super.onPause()
+        dismiss()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+
+    override fun onStart() {
+        super.onStart()
+        BottomSheetBehavior.from(binding.root.parent as View).peekHeight = DimenUtil.displayHeightPx
+    }
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        _binding = DialogOnThisDayGameArticleBinding.inflate(inflater, container, false)
+        WikiGamesEvent.submit("impression", "game_play", slideName = "game_end_article", isArchive = viewModel.isArchiveGame)
+
+        binding.articleTitle.text = StringUtil.fromHtml(pageSummary.displayTitle)
+        binding.articleDescription.text = StringUtil.fromHtml(pageSummary.description)
+
+        if (pageSummary.thumbnailUrl.isNullOrEmpty()) {
+            binding.articleThumbnail.isInvisible = true
+            binding.articleSummaryContainer.isInvisible = false
+            binding.articleSummary.text = StringUtil.fromHtml(pageSummary.extractHtml.orEmpty().ifEmpty { pageSummary.description })
+        } else {
+            binding.articleThumbnail.isInvisible = false
+            binding.articleSummaryContainer.isInvisible = true
+            ViewUtil.loadImage(
+                binding.articleThumbnail,
+                pageSummary.thumbnailUrl,
+                placeholderId = R.mipmap.launcher
+            )
+            binding.articleThumbnail.setOnClickListener {
+                val leadImageName = UriUtil.decodeURL(pageSummary.leadImageName.orEmpty())
+                val filePageTitle = PageTitle("File:$leadImageName", viewModel.wikiSite)
+                startActivity(FilePageActivity.newIntent(requireContext(), filePageTitle))
+            }
+        }
+
+        val event = viewModel.getEventByPageTitle(pageSummary.apiTitle)
+        binding.relatedEventInfo.text = StringUtil.fromHtml(event.text)
+
+        val isCorrect = viewModel.getQuestionCorrectByPageTitle(pageSummary.apiTitle)
+        val answerIcon = if (isCorrect) R.drawable.check_circle_24px else R.drawable.ic_cancel_24px
+        val answerIconTintList = ResourceUtil.getThemedColorStateList(requireContext(), if (isCorrect) R.attr.success_color else R.attr.destructive_color)
+        val answerText = if (isCorrect) R.string.on_this_day_game_article_answer_correct_stats_message else R.string.on_this_day_game_article_answer_incorrect_stats_message
+        binding.answerStatus.setCompoundDrawablesRelativeWithIntrinsicBounds(answerIcon, 0, 0, 0)
+        TextViewCompat.setCompoundDrawableTintList(binding.answerStatus, answerIconTintList)
+        binding.answerStatus.text = getString(answerText)
+
+        binding.saveButton.setOnClickListener {
+            WikiGamesEvent.submit("save_click", "game_play", slideName = "game_end_article", isArchive = viewModel.isArchiveGame)
+            SaveArticleSheetDialog.show(parentFragmentManager, pageTitle)
+        }
+        binding.shareButton.setOnClickListener {
+            WikiGamesEvent.submit("share_click", "game_play", slideName = "game_end_article", isArchive = viewModel.isArchiveGame)
+            ShareUtil.shareText(requireActivity(), pageSummary.getPageTitle(viewModel.wikiSite))
+        }
+        FeedbackUtil.setButtonTooltip(binding.shareButton, binding.saveButton)
+        binding.readArticleButton.setOnClickListener {
+            WikiGamesEvent.submit("read_click", "game_play", slideName = "game_end_article", isArchive = viewModel.isArchiveGame)
+            val entry = HistoryEntry(pageSummary.getPageTitle(viewModel.wikiSite), HistoryEntry.SOURCE_ON_THIS_DAY_GAME)
+            startActivity(PageActivity.newIntentForNewTab(requireActivity(), entry, entry.title))
+        }
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                updateSaveButton()
+                FlowEventBus.events.collectLatest { event ->
+                    if (event is ArticleSavedOrDeletedEvent) {
+                        updateSaveButton()
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun updateSaveButton() {
+        val isSaved = AppDatabase.instance.readingListPageDao().findPageInAnyList(pageTitle) != null
+        _binding?.saveButton?.setImageResource(
+            if (isSaved) R.drawable.ic_bookmark_white_24dp else R.drawable.ic_bookmark_border_white_24dp
+        )
+    }
+
+    companion object {
+        fun newInstance(page: PageSummary): OnThisDayGameArticleBottomSheet {
+            return OnThisDayGameArticleBottomSheet().apply {
+                arguments = bundleOf(
+                    Constants.ARG_TITLE to page,
+                )
+            }
+        }
+    }
+}

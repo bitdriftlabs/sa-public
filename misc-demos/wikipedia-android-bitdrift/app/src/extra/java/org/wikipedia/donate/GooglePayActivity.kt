@@ -1,0 +1,344 @@
+package org.wikipedia.donate
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.os.Bundle
+import android.text.method.LinkMovementMethod
+import android.view.View
+import androidx.activity.viewModels
+import androidx.core.net.toUri
+import androidx.core.view.children
+import androidx.core.view.isVisible
+import androidx.core.widget.addTextChangedListener
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.wallet.PaymentsClient
+import com.google.android.gms.wallet.button.ButtonConstants
+import com.google.android.gms.wallet.button.ButtonOptions
+import com.google.android.gms.wallet.contract.TaskResultContracts
+import com.google.android.material.button.MaterialButton
+import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.wikipedia.R
+import org.wikipedia.WikipediaApp
+import org.wikipedia.activity.BaseActivity
+import org.wikipedia.analytics.eventplatform.DonorExperienceEvent
+import org.wikipedia.databinding.ActivityDonateBinding
+import org.wikipedia.dataclient.donate.CampaignCollection
+import org.wikipedia.dataclient.donate.DonationConfig
+import org.wikipedia.donate.donationreminder.DonationReminderHelper
+import org.wikipedia.util.FeedbackUtil
+import org.wikipedia.util.Resource
+import org.wikipedia.util.ResourceUtil
+import org.wikipedia.util.StringUtil
+import org.wikipedia.util.UriUtil
+import kotlin.math.max
+
+class GooglePayActivity : BaseActivity() {
+    private lateinit var binding: ActivityDonateBinding
+    private lateinit var paymentsClient: PaymentsClient
+    private lateinit var campaignId: String
+
+    private val viewModel: GooglePayViewModel by viewModels()
+
+    private var shouldWatchText = true
+    private var typedManually = false
+
+    private val transactionFee get() = max(DonateUtil.getAmountFloat(binding.donateAmountText.text.toString()) * GooglePayComponent.TRANSACTION_FEE_PERCENTAGE, viewModel.transactionFee)
+
+    private val paymentDataLauncher = registerForActivityResult(TaskResultContracts.GetPaymentDataResult()) { taskResult ->
+        when (taskResult.status.statusCode) {
+            CommonStatusCodes.SUCCESS -> {
+                taskResult.result?.let { paymentData ->
+                    viewModel.submit(paymentData,
+                        binding.checkBoxTransactionFee.isChecked,
+                        binding.checkBoxRecurring.isChecked,
+                        if (viewModel.emailOptInRequired) binding.checkBoxAllowEmail.isChecked else true,
+                        intent.getStringExtra(DonateDialog.ARG_CAMPAIGN_ID).orEmpty().ifEmpty { CAMPAIGN_ID_APP_MENU })
+                }
+            }
+
+            CommonStatusCodes.CANCELED -> {
+                // The user cancelled the payment attempt
+            }
+
+            CommonStatusCodes.ERROR -> {
+                taskResult.status.statusMessage?.let { message ->
+                    FeedbackUtil.showMessage(this, message)
+                }
+            }
+        }
+    }
+
+    public override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityDonateBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        setSupportActionBar(binding.toolbar)
+        binding.toolbar.title = getString(R.string.donate_gpay_activity_title_with_currency, DonateUtil.currencyCode)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        title = ""
+        campaignId = intent.getStringExtra(DonateDialog.ARG_CAMPAIGN_ID).orEmpty().ifEmpty { CAMPAIGN_ID_APP_MENU }
+
+        binding.donateAmountInput.prefixText = DonateUtil.currencySymbol
+
+        paymentsClient = GooglePayComponent.createPaymentsClient(this)
+
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.CREATED) {
+                launch {
+                    viewModel.uiState.collect { resource ->
+                        when (resource) {
+                            is Resource.Loading -> {
+                                setLoadingState()
+                            }
+                            is Resource.Error -> {
+                                DonorExperienceEvent.logAction("error_other", "gpay", campaignId = campaignId)
+                                setErrorState(resource.throwable)
+                            }
+                            is GooglePayViewModel.NoPaymentMethod -> {
+                                DonorExperienceEvent.logAction("no_payment_method", "gpay", campaignId = campaignId)
+                                DonateDialog.launchDonateLink(
+                                    context = this@GooglePayActivity,
+                                    url = intent.getStringExtra(DonateDialog.ARG_DONATE_URL),
+                                    checkMonthly = viewModel.checkedRecurringDonation
+                                )
+                                finish()
+                            }
+                            is Resource.Success -> {
+                                try {
+                                    onContentsReceived(resource.data)
+                                    DonorExperienceEvent.logAction("impression", "googlepay_initiated", campaignId = campaignId)
+                                } catch (_: IllegalStateException) {
+                                    // An IllegalStateException could happen on certain devices if Google Pay is not fully set up or supported.
+                                    // In this case, fall back to an external link for donation.
+                                    DonateDialog.launchDonateLink(
+                                        context = this@GooglePayActivity,
+                                        url = intent.getStringExtra(DonateDialog.ARG_DONATE_URL),
+                                        checkMonthly = viewModel.checkedRecurringDonation
+                                    )
+                                    finish()
+                                }
+                            }
+                            is GooglePayViewModel.DonateSuccess -> {
+                                DonorExperienceEvent.logAction("impression", "gpay_processed", campaignId = campaignId)
+                                CampaignCollection.addDonationResult(
+                                    amount = viewModel.finalAmount,
+                                    currency = DonateUtil.currencyCode,
+                                    recurring = binding.checkBoxRecurring.isChecked
+                                )
+                                if (viewModel.checkedRecurringDonation && DonationReminderHelper.isInWrapUpDateRange) {
+                                    DonorExperienceEvent.logDonationReminderAction("impression", "reminder_recur_confirmed")
+                                }
+                                setResult(RESULT_OK)
+                                finish()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        binding.errorView.backClickListener = View.OnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
+
+        binding.payButton.setOnClickListener {
+            val amountText = binding.donateAmountText.text.toString()
+            if (!validateInput(amountText)) {
+                return@setOnClickListener
+            }
+
+            var totalAmount = DonateUtil.getAmountFloat(amountText)
+            if (binding.checkBoxTransactionFee.isChecked) {
+                totalAmount += transactionFee
+            }
+
+            viewModel.finalAmount = totalAmount
+
+            if (typedManually) {
+                DonorExperienceEvent.logAction("amount_entered", "gpay", campaignId = campaignId)
+            }
+            DonorExperienceEvent.submit("donate_confirm_click", "gpay",
+                "add_transaction: ${binding.checkBoxTransactionFee.isChecked}, recurring: ${binding.checkBoxRecurring.isChecked}, email_subscribe: ${binding.checkBoxAllowEmail.isChecked}")
+
+            val task = paymentsClient.loadPaymentData(viewModel.getPaymentDataRequest())
+            task.addOnCompleteListener(paymentDataLauncher::launch)
+        }
+
+        binding.donateAmountText.addTextChangedListener { text ->
+            validateInput(text.toString())
+            if (!shouldWatchText) {
+                return@addTextChangedListener
+            }
+            val buttonToHighlight = binding.amountPresetsContainer.children.firstOrNull { child ->
+                if (child is MaterialButton) {
+                    val amount = DonateUtil.getAmountFloat(text.toString())
+                    child.tag == amount
+                } else {
+                    false
+                }
+            }
+            typedManually = true
+            setButtonHighlighted(buttonToHighlight)
+        }
+
+        binding.linkProblemsDonating.setOnClickListener {
+            DonorExperienceEvent.logAction("report_problem_click", "gpay", campaignId = campaignId)
+            UriUtil.visitInExternalBrowser(this, getString(R.string.donate_problems_url).toUri())
+        }
+        binding.linkOtherWays.setOnClickListener {
+            DonorExperienceEvent.logAction("other_give_click", "gpay", campaignId = campaignId)
+            UriUtil.visitInExternalBrowser(this, getString(R.string.donate_other_ways_url).toUri())
+        }
+        binding.linkFAQ.setOnClickListener {
+            DonorExperienceEvent.logAction("faq_click", "gpay", campaignId = campaignId)
+            UriUtil.visitInExternalBrowser(this, getString(R.string.donate_faq_url).toUri())
+        }
+        binding.linkTaxDeduct.setOnClickListener {
+            DonorExperienceEvent.logAction("taxinfo_click", "gpay", campaignId = campaignId)
+            UriUtil.visitInExternalBrowser(this, getString(R.string.donate_tax_url).toUri())
+        }
+        binding.disclaimerText1.movementMethod = LinkMovementMethod.getInstance()
+        binding.disclaimerText2.movementMethod = LinkMovementMethod.getInstance()
+    }
+
+    private fun validateInput(text: String): Boolean {
+        val amount = DonateUtil.getAmountFloat(text)
+        val min = viewModel.minimumAmount
+        val max = viewModel.maximumAmount
+
+        updateTransactionFee()
+
+        if (amount <= 0f || amount < min) {
+            binding.donateAmountInput.error = getString(R.string.donate_gpay_minimum_amount,
+                DonateUtil.currencyFormat.format(min))
+            DonorExperienceEvent.submit("submission_error", "gpay", "error_reason: min_amount")
+            return false
+        } else if (max > 0f && amount > max) {
+            binding.donateAmountInput.error = getString(R.string.donate_gpay_maximum_amount,
+                DonateUtil.currencyFormat.format(max))
+            DonorExperienceEvent.submit("submission_error", "gpay", "error_reason: max_amount")
+            return false
+        } else {
+            binding.donateAmountInput.isErrorEnabled = false
+        }
+        return true
+    }
+
+    private fun setLoadingState() {
+        binding.contentsContainer.isVisible = false
+        binding.errorView.isVisible = false
+        binding.progressBar.isVisible = true
+    }
+
+    private fun setErrorState(throwable: Throwable) {
+        binding.contentsContainer.isVisible = false
+        binding.progressBar.isVisible = false
+        binding.errorView.isVisible = true
+        binding.errorView.setError(throwable)
+    }
+
+    private fun onContentsReceived(donationConfig: DonationConfig) {
+        binding.contentsContainer.isVisible = true
+        binding.progressBar.isVisible = false
+        binding.errorView.isVisible = false
+
+        binding.checkBoxAllowEmail.isVisible = viewModel.emailOptInRequired
+
+        updateTransactionFee()
+
+        binding.disclaimerText1.text = StringUtil.fromHtml(viewModel.disclaimerInformationSharing)
+        binding.disclaimerText2.text = StringUtil.fromHtml(viewModel.disclaimerMonthlyCancel)
+
+        val methods = JSONArray().put(GooglePayComponent.baseCardPaymentMethod)
+        binding.payButton.initialize(ButtonOptions.newBuilder()
+            .setButtonTheme(if (WikipediaApp.instance.currentTheme.isDark) ButtonConstants.ButtonTheme.DARK else ButtonConstants.ButtonTheme.LIGHT)
+            .setButtonType(ButtonConstants.ButtonType.DONATE)
+            .setAllowedPaymentMethods(methods.toString())
+            .build())
+
+        val viewIds = mutableListOf<Int>()
+        val presets = donationConfig.currencyAmountPresets[DonateUtil.currencyCode]?.toMutableSet()
+        // TODO: remove this when experiment is completed in November 2026.
+        DonationReminderHelper.updateDonationPresets(presets)
+        if (viewModel.filledAmount > 0f) {
+            presets?.add(viewModel.filledAmount)
+        }
+        var filledAmountButton: MaterialButton? = null
+        presets?.sorted()?.forEach { amount ->
+            val viewId = View.generateViewId()
+            viewIds.add(viewId)
+            val button = MaterialButton(this)
+            button.text = DonateUtil.currencyFormat.format(amount)
+            button.id = viewId
+            button.tag = amount
+            if (amount == viewModel.filledAmount) {
+                filledAmountButton = button
+            }
+            binding.amountPresetsContainer.addView(button)
+
+            button.setOnClickListener {
+                setButtonHighlighted(it)
+                setAmountText(it.tag as Float)
+                DonorExperienceEvent.logAction("amount_selected", "gpay", campaignId = campaignId)
+            }
+        }
+        binding.amountPresetsFlow.referencedIds = viewIds.toIntArray()
+        setFilledAmountToText()
+        setCheckedRecurringDonation()
+        setButtonHighlighted(filledAmountButton)
+    }
+
+    private fun setFilledAmountToText() {
+        if (viewModel.filledAmount > 0f) {
+            setAmountText(viewModel.filledAmount)
+        }
+    }
+
+    private fun setCheckedRecurringDonation() {
+        binding.checkBoxRecurring.isChecked = viewModel.checkedRecurringDonation
+    }
+
+    private fun setButtonHighlighted(button: View? = null) {
+        binding.amountPresetsContainer.children.forEach { child ->
+            if (child is MaterialButton) {
+                if (child == button) {
+                    child.backgroundTintList = ResourceUtil.getThemedColorStateList(this, R.attr.progressive_color)
+                    child.setTextColor(Color.WHITE)
+                } else {
+                    child.backgroundTintList = ResourceUtil.getThemedColorStateList(this, R.attr.background_color)
+                    child.setTextColor(ResourceUtil.getThemedColor(this, R.attr.primary_color))
+                }
+            }
+        }
+    }
+
+    private fun updateTransactionFee() {
+        binding.checkBoxTransactionFee.text = getString(R.string.donate_gpay_check_transaction_fee,
+            DonateUtil.currencyFormat.format(transactionFee))
+    }
+
+    private fun setAmountText(amount: Float) {
+        shouldWatchText = false
+        binding.donateAmountText.setText(viewModel.decimalFormat.format(amount))
+        shouldWatchText = true
+    }
+
+    companion object {
+        private const val CAMPAIGN_ID_APP_MENU = "appmenu"
+        const val FILLED_AMOUNT = "filledAmount"
+        const val CHECKED_RECURRING_DONATION = "checkedRecurringDonation"
+
+        fun newIntent(context: Context, campaignId: String? = null, donateUrl: String? = null, filledAmount: Float = 0f, checkedRecurringDonation: Boolean = false): Intent {
+            return Intent(context, GooglePayActivity::class.java)
+                .putExtra(DonateDialog.ARG_CAMPAIGN_ID, campaignId)
+                .putExtra(DonateDialog.ARG_DONATE_URL, donateUrl)
+                .putExtra(FILLED_AMOUNT, filledAmount)
+                .putExtra(CHECKED_RECURRING_DONATION, checkedRecurringDonation)
+        }
+    }
+}

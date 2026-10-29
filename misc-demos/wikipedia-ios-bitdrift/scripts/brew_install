@@ -1,0 +1,14 @@
+#!/bin/bash
+# Setup homebrew and upgrade required formulae
+
+scripts/setup_homebrew
+
+BREW_FORMULAE="clang-format swiftlint"
+
+# check if each formula is installed, if not install it, do not upgrade against the user's wishes
+for formula in ${BREW_FORMULAE}; do
+	if ! brew list --formula | grep -q "^${formula}$"; then
+		brew install "$formula"
+	fi
+done
+

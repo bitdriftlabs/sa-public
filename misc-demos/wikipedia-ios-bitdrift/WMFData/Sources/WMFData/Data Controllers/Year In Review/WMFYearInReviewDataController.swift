@@ -1,0 +1,879 @@
+import Foundation
+import UIKit
+import CoreData
+
+@preconcurrency
+@objc public class WMFYearInReviewDataController: NSObject, @unchecked Sendable {
+
+    public enum CustomError: Error {
+        case missingExperimentsDataController
+        case unexpectedAssignment
+        case alreadyAssignedExperiment
+        case notQualifiedForExperiment
+        case missingPrimaryAppLanguage
+    }
+
+    public let coreDataStore: WMFCoreDataStore
+    private let userDefaultsStore: WMFKeyValueStore?
+    private let developerSettingsDataController: WMFDeveloperSettingsDataControlling
+    private let experimentsDataController: WMFExperimentsDataController?
+
+    @objc public static let targetYear = 2026
+    public static let appShareLink = "https://apps.apple.com/app/apple-store/id324715238?pt=208305&ct=yir_2026_share&mt=8"
+
+    private let service = WMFDataEnvironment.current.mediaWikiService
+    private var dataPopulationBackgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+    
+    /// The Year in Review experience for the user. A data-rich user sees the personalized slides. A
+    /// low-data user sees the collective slides.
+    public enum YiRUserDataState: String, Sendable {
+        case dataRich = "data-rich"
+        case lowData = "low-data"
+    }
+
+    /// The experience that the developer settings force, regardless of the personalized data.
+    public enum YiRForcedExperience: String, Sendable, CaseIterable {
+        case dataRich = "data-rich"
+        case lowData = "low-data"
+        /// A data-rich user whose personalized slides all show their empty version. Use it to check the empty states.
+        case allEmptyStates = "all-empty-states"
+    }
+
+    @objc public static func dataControllerForObjectiveC() -> WMFYearInReviewDataController? {
+        return try? WMFYearInReviewDataController()
+    }
+
+    public var config: WMFFeatureConfigResponse.Common.YearInReview? {
+        let remoteConfig = developerSettingsDataController.loadFeatureConfig()?.common.yir(year: Self.targetYear)
+
+        // TEMPORARY: while the developer force flag is on, use the test wiki entry first, then the
+        // remote entry of this build's environment, then the local copy. Builds without the flag
+        // use only the remote entry, so the remote config still controls launch.
+        if developerSettingsDataController.forceYiREntryPoint2026 {
+            return developerSettingsDataController.loadTestWikiFeatureConfig()?.common.yir(year: Self.targetYear)
+                ?? remoteConfig
+                ?? WMFYearInReviewLocalConfig.year2026
+        }
+
+        return remoteConfig
+    }
+
+    public init(coreDataStore: WMFCoreDataStore? = WMFDataEnvironment.current.coreDataStore, userDefaultsStore: WMFKeyValueStore? = WMFDataEnvironment.current.userDefaultsStore, developerSettingsDataController: WMFDeveloperSettingsDataControlling = WMFDeveloperSettingsDataController.shared, experimentStore: WMFKeyValueStore? = WMFDataEnvironment.current.sharedCacheStore) throws {
+
+        guard let coreDataStore else {
+            throw WMFDataControllerError.coreDataStoreUnavailable
+        }
+        self.coreDataStore = coreDataStore
+        self.userDefaultsStore = userDefaultsStore
+        self.developerSettingsDataController = developerSettingsDataController
+        if let experimentStore {
+            self.experimentsDataController = WMFExperimentsDataController(store: experimentStore)
+        } else {
+            self.experimentsDataController = nil
+        }
+    }
+
+    // MARK: - Feature Announcement
+
+    public var hasTappedActivityTabAfterYiRReady: Bool {
+        get {
+            return (try? userDefaultsStore?.load(key: WMFUserDefaultsKey.tappedActivityTabYIR.rawValue)) ?? false
+        } set {
+            try? userDefaultsStore?.save(key: WMFUserDefaultsKey.tappedActivityTabYIR.rawValue, value: newValue)
+        }
+    }
+    
+    // MARK: - Date Ranges
+
+    /// The period for the contributor slide and for donor and editor rewards: December 1 of the
+    /// previous year to December 1 of `year`, at 00:00 UTC. The end date is the first instant
+    /// outside the period. This is set in the app, not in the remote config.
+    public static func contributorDateRange(year: Int) -> DateInterval? {
+        guard let start = utcDate(year: year - 1, month: 12, day: 1),
+              let end = utcDate(year: year, month: 12, day: 1) else {
+            return nil
+        }
+        return DateInterval(start: start, end: end)
+    }
+
+    private static func utcDate(year: Int, month: Int, day: Int) -> Date? {
+        var calendar = Calendar(identifier: .gregorian)
+        if let utc = TimeZone(secondsFromGMT: 0) {
+            calendar.timeZone = utc
+        }
+        return calendar.date(from: DateComponents(year: year, month: month, day: day))
+    }
+
+    // MARK: - User Data State
+
+    /// A user is data rich when at least this number of personalized slides have enough data to
+    /// show their full version.
+    static let dataRichEligibleSlideThreshold = 2
+
+    /// Which Year in Review experience to show. The developer settings override wins, but only when
+    /// `forceYiREntryPoint2026` is on. Otherwise the slides in the stored report decide. Without a
+    /// report, the user is low data.
+    @MainActor
+    public func fetchUserDataState() throws -> YiRUserDataState {
+        switch forcedExperience {
+        case .dataRich, .allEmptyStates:
+            return .dataRich
+        case .lowData:
+            return .lowData
+        case nil:
+            break
+        }
+
+        guard let report = try fetchYearInReviewReport(forYear: Self.targetYear) else {
+            return .lowData
+        }
+        let eligibleSlideCount = report.slides.count(where: Self.hasEnoughData)
+        return eligibleSlideCount >= Self.dataRichEligibleSlideThreshold ? .dataRich : .lowData
+    }
+
+    /// True if the developer settings force the empty version of each personalized slide.
+    public var forcesAllEmptyStates: Bool {
+        forcedExperience == .allEmptyStates
+    }
+
+    /// The developer settings override. It has an effect only when `forceYiREntryPoint2026` is on.
+    private var forcedExperience: YiRForcedExperience? {
+        guard developerSettingsDataController.forceYiREntryPoint2026 else {
+            return nil
+        }
+        return developerSettingsDataController.forceYiRExperience
+    }
+
+    /// True if the slide can show its full version, not its empty version.
+    static func hasEnoughData(_ slide: WMFYearInReviewSlide) -> Bool {
+        guard let data = slide.data else {
+            return false
+        }
+        let decoder = JSONDecoder()
+        switch slide.id {
+        case .readCount:
+            return (try? decoder.decode(WMFYearInReviewReadData.self, from: data))?.isEligible ?? false
+        case .topArticles:
+            return (try? decoder.decode(WMFYearInReviewTopArticlesSlideData.self, from: data))?.isEligible ?? false
+        case .topTopics:
+            return (try? decoder.decode(WMFYearInReviewTopTopicsSlideData.self, from: data))?.isEligible ?? false
+        case .daysVisited:
+            return (try? decoder.decode(WMFYearInReviewDaysVisitedSlideData.self, from: data))?.isEligible ?? false
+        case .editCount, .donateCount, .saveCount, .mostReadDate, .viewCount, .mostReadCategories, .location:
+            // These slides are not in the 2026 flow yet. Add each one when its slide is built.
+            return false
+        }
+    }
+
+    /// How many distinct days the reader opened at least one article, in the same data window as
+    /// `fetchUserDataState()`. The announcement copy shows this number.
+    ///
+    /// The window is applied to the page view timestamps in the fetch, then each is turned into a
+    /// day in `calendar`. The window bounds are UTC instants, so comparing local starts of day with
+    /// them would be wrong away from UTC.
+    public func fetchReadingDayCount(calendar: Calendar = .current) async throws -> Int {
+        guard let config = self.config,
+              let startDate = config.dataStartDate,
+              let endDate = config.dataEndDate else {
+            return 0
+        }
+
+        let pageViewsDataController = try WMFPageViewsDataController(coreDataStore: coreDataStore)
+        let days = try await pageViewsDataController.fetchDistinctPageViewDays(startDate: startDate, endDate: endDate, calendar: calendar)
+        return days.count
+    }
+
+    /// The badge shows for logged-in and logged-out users alike, so this gates only on availability.
+    public func shouldShowActivityTabBadge(countryCode: String?) -> Bool {
+        guard shouldShowYearInReviewEntryPoint(countryCode: countryCode) else {
+            return false
+        }
+        return !hasTappedActivityTabAfterYiRReady
+    }
+
+    public func shouldShowYiRNotification(isLoggedOut: Bool, isTemporaryAccount: Bool) -> Bool {
+
+        // The entry point gate checks the Year in Review setting, the config, the active dates and the country.
+        guard shouldShowYearInReviewEntryPoint(countryCode: Locale.current.region?.identifier) else {
+            return false
+        }
+
+        if isTemporaryAccount {
+            return false
+        }
+
+        if isLoggedOut {
+            return !hasTappedProfileItem && !hasSeenYiRIntroSlide
+        }
+        return !hasSeenYiRIntroSlide
+    }
+
+    public var hasTappedProfileItem: Bool {
+        get {
+            return (try? userDefaultsStore?.load(key: WMFUserDefaultsKey.tappedYIR2026.rawValue)) ?? false
+        } set {
+            try? userDefaultsStore?.save(key: WMFUserDefaultsKey.tappedYIR2026.rawValue, value: newValue)
+        }
+    }
+
+    /// Set by the 2026 flow when the first slide is displayed.
+    public var hasSeenYiRIntroSlide: Bool {
+        get {
+            return (try? userDefaultsStore?.load(key: WMFUserDefaultsKey.seenYearInReview2026IntroSlide.rawValue)) ?? false
+        } set {
+            try? userDefaultsStore?.save(key: WMFUserDefaultsKey.seenYearInReview2026IntroSlide.rawValue, value: newValue)
+        }
+    }
+
+    /// Set as soon as the announcement is presented, so a force quit before interacting with it does
+    /// not earn a second showing.
+    public var hasPresentedYiRFeatureAnnouncement: Bool {
+        get {
+            (try? userDefaultsStore?.load(key: WMFUserDefaultsKey.seenYearInReview2026FeatureAnnouncement.rawValue)) ?? false
+        }
+        set {
+            try? userDefaultsStore?.save(key: WMFUserDefaultsKey.seenYearInReview2026FeatureAnnouncement.rawValue, value: newValue)
+        }
+    }
+
+    /// True when the developer settings force the announcement.
+    public var isForcingFeatureAnnouncement: Bool {
+        developerSettingsDataController.forceYiREntryPoint2026 && developerSettingsDataController.forceYiR2026Announcement
+    }
+
+    public func shouldShowYearInReviewFeatureAnnouncement() -> Bool {
+
+        // Developer setting: show the announcement regardless of everything below — the remote
+        // config, the active date window, the opt-out toggle, suppressed countries and the
+        // once-per-user gate. Deliberately the first thing checked, so the announcement can be built
+        // and tested before a 2026 block exists in the remote feature config. This is why the flag
+        // is named `force` rather than `show`: none of the gates below survive it.
+        //
+        // This only gets the announcement on screen. Everything behind it that needs `config` —
+        // report population and every personalized slide — still has nothing to work with until a
+        // 2026 config is published.
+        //
+        // The flag is a sub-setting of forceYiREntryPoint2026 and has no effect without it.
+        if isForcingFeatureAnnouncement {
+            return true
+        }
+
+        guard let config = self.config else {
+            return false
+        }
+
+        guard config.isActive(for: Date()) else {
+            return false
+        }
+
+        guard yearInReviewSettingsIsEnabled else {
+            return false
+        }
+
+        // Checks the remote config, the active date range, the Settings toggle, and the hidden countries.
+        guard shouldShowYearInReviewEntryPoint(countryCode: Locale.current.region?.identifier) else {
+            return false
+        }
+
+        guard !hasPresentedYiRFeatureAnnouncement else {
+            return false
+        }
+
+        guard !hasSeenYiRIntroSlide else {
+            return false
+        }
+
+        // Fundraising goes first. If the campaign banner showed this session, wait for the next app open.
+        guard !WMFFundraisingCampaignDataController.shared.hasPresentedCampaignThisSession else {
+            return false
+        }
+
+        return true
+    }
+
+    // MARK: Entry Point
+
+    public func shouldShowYearInReviewEntryPoint(countryCode: String?, currentDate: Date? = Date()) -> Bool {
+        assert(Thread.isMainThread, "This method must be called from the main thread in order to keep it synchronous")
+
+        guard yearInReviewSettingsIsEnabled else {
+            return false
+        }
+
+        // The developer force flag does not skip these checks. It only lets `isActive(for:)` pass
+        // before the start date.
+        let currentDate = currentDate ?? Date()
+
+        guard let countryCode else {
+            return false
+        }
+
+        guard let config = self.config else {
+            return false
+        }
+
+        guard config.isActive(for: currentDate) else {
+            return false
+        }
+
+        // Check remote valid country codes
+        let uppercaseConfigHideCountryCodes = config.hideCountryCodes.map { $0.uppercased() }
+        guard !uppercaseConfigHideCountryCodes.contains(countryCode.uppercased()) else {
+            return false
+        }
+
+        return true
+    }
+
+    // MARK: - Survey
+
+    public var hasPresentedYiRSurvey: Bool {
+        get {
+            return (try? userDefaultsStore?.load(key: WMFUserDefaultsKey.yearInReview2026SurveyPresented.rawValue)) ?? false
+        } set {
+            try? userDefaultsStore?.save(key: WMFUserDefaultsKey.yearInReview2026SurveyPresented.rawValue, value: newValue)
+        }
+    }
+
+    // MARK: - Hide Year in Review
+
+    @objc public func shouldShowYearInReviewSettingsItem(countryCode: String?) -> Bool {
+
+        guard let countryCode else {
+            return false
+        }
+
+        guard let config = self.config else {
+            return false
+        }
+
+        // Note: Purposefully not checking config's yirConfig.isActive here. We want to continue showing the Settings item after we have disabled the feature remotely.
+
+        // Check remote valid country codes
+        let uppercaseConfigHideCountryCodes = config.hideCountryCodes.map { $0.uppercased() }
+        guard !uppercaseConfigHideCountryCodes.contains(countryCode.uppercased()) else {
+            return false
+        }
+
+        return true
+    }
+
+    /// Deliberately not year scoped: a user who turned Year in Review off in 2025 stays opted out.
+    @objc public var yearInReviewSettingsIsEnabled: Bool {
+        get {
+            return (try? userDefaultsStore?.load(key: WMFUserDefaultsKey.yearInReviewSettingsIsEnabled.rawValue)) ?? true
+        } set {
+            try? userDefaultsStore?.save(key: WMFUserDefaultsKey.yearInReviewSettingsIsEnabled.rawValue, value: newValue)
+        }
+    }
+
+    // MARK: - Experiment
+
+    public enum YiRLoginExperimentAssignment {
+        case control
+        case groupB
+    }
+
+    private var assignmentCache: YiRLoginExperimentAssignment?
+
+    public func needsLoginExperimentAssignment() -> Bool {
+        guard let primaryAppLanguage = WMFDataEnvironment.current.primaryAppLanguage else {
+            return false
+        }
+
+        guard primaryAppLanguage.qualifiesForExperiment else {
+            return false
+        }
+
+        guard let experimentsDataController else {
+            return false
+        }
+
+        guard experimentsDataController.bucketForExperiment(.yirLoginPrompt) == nil else {
+            return false
+        }
+
+        return true
+    }
+
+    public func assignLoginExperimentIfNeeded() throws -> YiRLoginExperimentAssignment {
+
+        guard let experimentsDataController else {
+            throw CustomError.missingExperimentsDataController
+        }
+
+        let bucketValue = try experimentsDataController.determineBucketForExperiment(.yirLoginPrompt, withPercentage: 50)
+
+        let assignment: YiRLoginExperimentAssignment
+
+        switch bucketValue {
+        case .yirLoginPromptControl:
+            assignment = .control
+        case .yirLoginPromptGroupB:
+            assignment = .groupB
+        default:
+            throw CustomError.unexpectedAssignment
+        }
+
+        self.assignmentCache = assignment
+        return assignment
+    }
+
+    public var bypassLoginForPersonalizedFlow: Bool {
+        let assignment = getLoginExperimentAssignment()
+        if let assignment {
+            switch assignment {
+            case .control:
+                return false
+            case .groupB:
+                return true
+            }
+        }
+
+        return false
+    }
+
+    public func getLoginExperimentAssignment() -> YiRLoginExperimentAssignment? {
+        guard let primaryAppLanguage = WMFDataEnvironment.current.primaryAppLanguage else {
+            return nil
+        }
+
+        guard let experimentsDataController else {
+            return nil
+        }
+
+        guard primaryAppLanguage.qualifiesForExperiment else {
+            return nil
+        }
+
+        if let assignmentCache {
+            return assignmentCache
+        }
+
+        guard let bucketValue = experimentsDataController.bucketForExperiment(.yirLoginPrompt) else {
+            return nil
+        }
+
+        let assignment: YiRLoginExperimentAssignment
+        switch bucketValue {
+
+        case .yirLoginPromptControl:
+            assignment = .control
+        case .yirLoginPromptGroupB:
+            assignment = .groupB
+        default:
+            return nil
+        }
+
+        self.assignmentCache = assignment
+        return assignment
+    }
+
+    // MARK: Report Data Population
+
+    func shouldPopulateYearInReviewReportData(countryCode: String?) -> Bool {
+
+        guard yearInReviewSettingsIsEnabled else {
+            return false
+        }
+
+        guard let countryCode else {
+            return false
+        }
+
+        guard let config = self.config else {
+            return false
+        }
+
+        guard config.isActive(for: Date()) else {
+            return false
+        }
+
+        // Check remote valid country codes
+        let uppercaseConfigHideCountryCodes = config.hideCountryCodes.map { $0.uppercased() }
+        guard !uppercaseConfigHideCountryCodes.contains(countryCode.uppercased()) else {
+            return false
+        }
+
+        return true
+    }
+
+    private func beginDataPopulationBackgroundTask() async {
+
+        guard dataPopulationBackgroundTaskID == .invalid else {
+            return
+        }
+
+        dataPopulationBackgroundTaskID = await UIApplication.shared.beginBackgroundTask(withName: WMFBackgroundTasksNameKey.yearInReviewPopulateReportData.rawValue, expirationHandler: {
+            UIApplication.shared.endBackgroundTask(self.dataPopulationBackgroundTaskID)
+            self.dataPopulationBackgroundTaskID = .invalid
+        })
+    }
+
+    private func endDataPopulationBackgroundTask() {
+
+        guard dataPopulationBackgroundTaskID != .invalid else {
+            return
+        }
+
+        // Reset the identifier synchronously, then end the task on the main actor.
+        // UIApplication is MainActor-isolated, and this is called from a `defer` in
+        // an async context (which cannot `await`), so hop via a Task. The identifier
+        // is a Sendable value type, so it is safe to capture.
+        let taskID = dataPopulationBackgroundTaskID
+        dataPopulationBackgroundTaskID = UIBackgroundTaskIdentifier.invalid
+        Task { @MainActor in
+            UIApplication.shared.endBackgroundTask(taskID)
+        }
+    }
+
+    @discardableResult
+    public func populateYearInReviewReportData(for year: Int, countryCode: String,  primaryAppLanguageProject: WMFProject?, username: String?, userID: Int?, globalUserID: Int?, savedSlideDataDelegate: SavedArticleSlideDataDelegate, legacyPageViewsDataDelegate: LegacyPageViewsDataDelegate, mainPageIdentifier: WMFMainPageIdentifying? = nil) async throws -> WMFYearInReviewReport? {
+
+        guard shouldPopulateYearInReviewReportData(countryCode: countryCode) else {
+            return nil
+        }
+
+        await beginDataPopulationBackgroundTask()
+
+        defer {
+            endDataPopulationBackgroundTask()
+        }
+
+        let backgroundContext = try coreDataStore.newBackgroundContext
+
+        guard let config = self.config else {
+            return nil
+        }
+
+        let slideFactory = YearInReviewSlideDataControllerFactory(
+            year: year,
+            config: config,
+            username: username,
+            userID: userID,
+            globalUserID: globalUserID,
+            project: primaryAppLanguageProject,
+            savedSlideDataDelegate: savedSlideDataDelegate,
+            legacyPageViewsDataDelegate: legacyPageViewsDataDelegate,
+            mainPageIdentifier: mainPageIdentifier
+        )
+
+        // First pull existing report slide IDs from Core Data
+        let existingIDs = try await backgroundContext.perform {
+            let predicate = NSPredicate(format: "year == %d", year)
+            let cdReport = try self.coreDataStore.fetch(
+                entityType: CDYearInReviewReport.self,
+                predicate: predicate,
+                fetchLimit: 1,
+                in: backgroundContext
+            )?.first
+            return Set((cdReport?.slides as? Set<CDYearInReviewSlide>)?.compactMap { $0.id } ?? [])
+        }
+
+        // For any slide IDs missing, create associated slide data controllers and populate their data. Set evaluated flag if population succeeds
+        var slideDataControllers = try await slideFactory.makeSlideDataControllers(missingFrom: existingIDs)
+        for index in slideDataControllers.indices {
+            do {
+                try await slideDataControllers[index].populateSlideData(in: backgroundContext)
+                slideDataControllers[index].isEvaluated = true
+            } catch {
+                slideDataControllers[index].isEvaluated = false
+            }
+        }
+
+        // Snapshot the evaluated controllers into a `let` so the @Sendable perform
+        // closure below captures an immutable binding rather than the mutable
+        // `slideDataControllers` var.
+        let evaluatedSlideDataControllers = slideDataControllers.filter { $0.isEvaluated }
+
+        // Create new core data slides from evaluated data controllers, save to core data report and return generic report struct
+        let report = try await backgroundContext.perform {
+            let predicate = NSPredicate(format: "year == %d", year)
+            guard let cdReport = try self.coreDataStore.fetchOrCreate(
+                entityType: CDYearInReviewReport.self,
+                predicate: predicate,
+                in: backgroundContext
+            ) else {
+                throw WMFCoreDataStoreError.missingEntity
+            }
+
+            cdReport.year = Int32(year)
+
+            var finalCDSlides: Set<CDYearInReviewSlide> = []
+
+            // Only preserve existing slides that should freeze
+            for slide in cdReport.slides as? Set<CDYearInReviewSlide> ?? [] {
+                if let cdSlideID = slide.id,
+                   let slideID = WMFYearInReviewPersonalizedSlideID(rawValue: cdSlideID) {
+                    let dataController = slideID.dataController()
+                    if dataController.shouldFreeze {
+                        finalCDSlides.insert(slide)
+                    } else {
+                        backgroundContext.delete(slide)
+                    }
+                }
+            }
+
+            for slideDataController in evaluatedSlideDataControllers {
+                if let cdSlide = try? slideDataController.makeCDSlide(in: backgroundContext) {
+                    finalCDSlides.insert(cdSlide)
+                }
+            }
+
+            cdReport.slides = Set(finalCDSlides) as NSSet
+
+            try self.coreDataStore.saveIfNeeded(moc: backgroundContext)
+
+            // Convert core data report to plain struct before returning
+
+            let slides = finalCDSlides.compactMap(self.makeSlide(from:))
+            return WMFYearInReviewReport(year: year, slides: slides)
+        }
+
+        return report
+    }
+
+    public func fetchYearInReviewReport(forYear year: Int) throws -> WMFYearInReviewReport? {
+        assert(Thread.isMainThread, "This report must be called from the main thread in order to keep it synchronous")
+
+        let viewContext = try coreDataStore.viewContext
+
+        let fetchRequest = NSFetchRequest<CDYearInReviewReport>(entityName: "CDYearInReviewReport")
+        fetchRequest.predicate = NSPredicate(format: "year == %d", year)
+
+        let cdReports = try viewContext.fetch(fetchRequest)
+        guard let cdReport = cdReports.first else { return nil }
+
+        let slides = (cdReport.slides as? Set<CDYearInReviewSlide>)?.compactMap(makeSlide(from:)) ?? []
+        return WMFYearInReviewReport(year: Int(cdReport.year), slides: slides)
+    }
+
+    private func makeSlide(from cdSlide: CDYearInReviewSlide) -> WMFYearInReviewSlide? {
+        guard let id = self.getSlideId(cdSlide.id) else { return nil }
+        return WMFYearInReviewSlide(
+            year: Int(cdSlide.year),
+            id: id,
+            data: cdSlide.data
+        )
+    }
+
+    private func getSlideId(_ idString: String?) -> WMFYearInReviewPersonalizedSlideID? {
+        guard let raw = idString else { return nil }
+        return WMFYearInReviewPersonalizedSlideID(rawValue: raw)
+    }
+
+    public func deleteAllYearInReviewReports() async throws {
+        let backgroundContext = try coreDataStore.newBackgroundContext
+
+        try await backgroundContext.perform {
+            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "CDYearInReviewReport")
+            let batchDeleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+            batchDeleteRequest.resultType = .resultTypeObjectIDs
+            let result = try backgroundContext.execute(batchDeleteRequest) as? NSBatchDeleteResult
+
+            if let objectIDArray = result?.result as? [NSManagedObjectID], !objectIDArray.isEmpty {
+                let changes = [NSDeletedObjectsKey: objectIDArray]
+                NSManagedObjectContext.mergeChanges(fromRemoteContextSave: changes, into: [backgroundContext])
+            }
+
+            try self.coreDataStore.saveIfNeeded(moc: backgroundContext)
+        }
+    }
+
+    /// Deletes every stored Year in Review slide that is made from `source`, for all years. The
+    /// slides are calculated again the next time the report is populated.
+    ///
+    /// Call this when the user clears the source: `.readingHistory` when they clear reading
+    /// history, `.account` on logout, and `.donations` when they delete local donation history.
+    public func deletePersonalizedData(for source: WMFYearInReviewPersonalizationSource) async throws {
+
+        let backgroundContext = try coreDataStore.newBackgroundContext
+
+        try await backgroundContext.perform { [weak self] in
+            guard let self else { return }
+
+            let cdSlides = try self.coreDataStore.fetch(
+                entityType: CDYearInReviewSlide.self,
+                predicate: nil,
+                fetchLimit: nil,
+                in: backgroundContext
+            )
+
+            for slide in cdSlides ?? [] {
+                guard let slideID = slide.id,
+                      let dataController = WMFYearInReviewPersonalizedSlideID(rawValue: slideID)?.dataController() else {
+                    continue
+                }
+
+                guard dataController.personalizationSources.contains(source) else { continue }
+
+                backgroundContext.delete(slide)
+            }
+
+            try self.coreDataStore.saveIfNeeded(moc: backgroundContext)
+        }
+    }
+
+    /// Deletes all stored Year in Review reports and slides, for all years. Call this when the
+    /// user turns Year in Review off. This does not reset the setting or the seen and tapped flags.
+    public func deleteAllPersonalizedData() async throws {
+        try await deleteAllYearInReviewReports()
+    }
+
+    public func shouldHideDonateButton() -> Bool {
+
+        guard let config = self.config else {
+            return false
+        }
+
+        guard let locale = Locale.current.region?.identifier else {
+            return false
+        }
+
+        let uppercaseConfigHideDonateCountryCodes = config.hideDonateCountryCodes.map { $0.uppercased() }
+        guard uppercaseConfigHideDonateCountryCodes.contains(locale.uppercased()) else {
+            return false
+        }
+
+        return true
+    }
+
+    // MARK: So far these are only called from unit tests
+    public func deleteYearInReviewReport(year: Int) async throws {
+        let backgroundContext = try coreDataStore.newBackgroundContext
+
+        try await backgroundContext.perform { [weak self] in
+            guard let self else { return }
+
+            let reportPredicate = NSPredicate(format: "year == %d", year)
+            if let cdReport = try self.coreDataStore.fetch(
+                entityType: CDYearInReviewReport.self,
+                predicate: reportPredicate,
+                fetchLimit: 1,
+                in: backgroundContext
+            )?.first {
+                backgroundContext.delete(cdReport)
+                try self.coreDataStore.saveIfNeeded(moc: backgroundContext)
+            }
+        }
+    }
+
+    public func fetchYearInReviewReports() async throws -> [WMFYearInReviewReport] {
+        let viewContext = try coreDataStore.viewContext
+        let reports: [WMFYearInReviewReport] = try await viewContext.perform {
+            let fetchRequest = NSFetchRequest<CDYearInReviewReport>(entityName: "CDYearInReviewReport")
+            let cdReports = try viewContext.fetch(fetchRequest)
+
+            return cdReports.compactMap { cdReport in
+                guard let cdSlides = cdReport.slides as? Set<CDYearInReviewSlide> else { return nil }
+                let slides = cdSlides.compactMap(self.makeSlide(from:))
+                return WMFYearInReviewReport(year: Int(cdReport.year), slides: slides)
+            }
+        }
+        return reports
+    }
+
+    public func createNewYearInReviewReport(year: Int, slides: [WMFYearInReviewSlide]) async throws {
+        let newReport = WMFYearInReviewReport(year: year, slides: slides)
+
+        try await saveYearInReviewReport(newReport)
+    }
+
+    public func saveYearInReviewReport(_ report: WMFYearInReviewReport) async throws {
+        guard let backgroundContext = try? coreDataStore.newBackgroundContext else { return }
+
+        try? await backgroundContext.perform { [weak self] in
+            guard let self else { return }
+
+            let reportPredicate = NSPredicate(format: "year == %d", report.year)
+            let cdReport = try self.coreDataStore.fetchOrCreate(
+                entityType: CDYearInReviewReport.self,
+                predicate: reportPredicate,
+                in: backgroundContext
+            )
+
+            cdReport?.year = Int32(report.year)
+            cdReport?.slides = Set(report.slides.compactMap { self.makeCDSlide(from: $0, in: backgroundContext) }) as NSSet
+
+            try self.coreDataStore.saveIfNeeded(moc: backgroundContext)
+        }
+    }
+
+    private func makeCDSlide(from slide: WMFYearInReviewSlide, in context: NSManagedObjectContext) -> CDYearInReviewSlide? {
+        do {
+            // Match on year too, so that saving one year's report does not take over another year's slides.
+            let predicate = NSPredicate(format: "id == %@ && year == %d", slide.id.rawValue, slide.year)
+            let cdSlide = try self.coreDataStore.fetchOrCreate(
+                entityType: CDYearInReviewSlide.self,
+                predicate: predicate,
+                in: context
+            )
+
+            cdSlide?.year = Int32(slide.year)
+            cdSlide?.id = slide.id.rawValue
+            cdSlide?.data = slide.data
+
+            return cdSlide
+        } catch {
+            return nil
+        }
+    }
+
+    // TODO: 2026 — if there is a 2026 app icon, this needs its own key alongside
+    // `qualifiesForIcon2025` rather than overwriting last year's value.
+    public func updateContributorStatus(isContributor: Bool) {
+        try? userDefaultsStore?.save(
+            key: WMFUserDefaultsKey.qualifiesForIcon2025.rawValue,
+            value: isContributor
+        )
+    }
+}
+
+public struct WMFYearInReviewReadData: Codable {
+    /// The user must have read at least this number of articles to see the full total articles slide.
+    public static let minimumReadCount = 3
+
+    /// The number of unique articles read. Pages outside the main namespace and main pages are
+    /// left out.
+    public let readCount: Int
+    public let minutesRead: Int
+
+    /// If false, show the empty state of the total articles slide.
+    public var isEligible: Bool {
+        readCount >= Self.minimumReadCount
+    }
+}
+
+public class SavedArticleSlideData: NSObject, Codable {
+    public let savedArticlesCount: Int
+    public let articleTitles: [String]
+
+    public init(savedArticlesCount: Int, articleTitles: [String]) {
+        self.savedArticlesCount = savedArticlesCount
+        self.articleTitles = articleTitles
+    }
+}
+
+public struct DonateAndEditCounts: Codable {
+    public let donateCount: Int?
+    public let editCount: Int?
+
+    public init(donateCount: Int?, editCount: Int?) {
+        self.donateCount = donateCount
+        self.editCount = editCount
+    }
+}
+
+public protocol SavedArticleSlideDataDelegate: AnyObject {
+    func getSavedArticleSlideData(from startDate: Date, to endEnd: Date) async -> SavedArticleSlideData
+}
+
+public protocol LegacyPageViewsDataDelegate: AnyObject {
+    func getLegacyPageViews(from startDate: Date, to endDate: Date, needsLatLong: Bool) async throws -> [WMFLegacyPageView]
+}
+
+fileprivate extension WMFLanguage {
+    var qualifiesForExperiment: Bool {
+        return languageCode.lowercased() == "en"
+    }
+}

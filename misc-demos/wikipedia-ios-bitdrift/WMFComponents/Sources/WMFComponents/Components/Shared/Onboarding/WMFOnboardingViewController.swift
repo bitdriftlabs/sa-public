@@ -1,0 +1,106 @@
+import SwiftUI
+
+
+@MainActor
+public protocol WMFOnboardingViewDelegate: AnyObject {
+    func onboardingViewDidClickPrimaryButton()
+    func onboardingViewDidClickSecondaryButton()
+    func onboardingViewWillSwipeToDismiss()
+    func onboardingDidSwipeToDismiss()
+}
+
+public extension WMFOnboardingViewDelegate {
+    func onboardingViewWillSwipeToDismiss() {
+        
+    }
+    
+    func onboardingDidSwipeToDismiss() {
+        
+    }
+}
+
+public class WMFOnboardingViewController: WMFCanvasViewController {
+
+    public weak var delegate: WMFOnboardingViewDelegate? {
+        didSet {
+            hostingController.delegate = delegate
+        }
+    }
+
+    public var closeButtonAction: (() -> Void)?
+
+    // MARK: - Properties
+
+    public var hostingController: WMFOnboardingHostingViewController
+
+    public init(viewModel: WMFOnboardingViewModel) {
+        self.hostingController = WMFOnboardingHostingViewController(viewModel: viewModel)
+        super.init()
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    public override func viewDidLoad() {
+        super.viewDidLoad()
+        addComponent(hostingController, pinToEdges: true)
+        // Use navigationController's presentationController if embedded, otherwise use own
+        (navigationController ?? self).presentationController?.delegate = self
+
+        if closeButtonAction != nil {
+            
+            let config = WMFLargeCloseButtonConfig(imageType: .plainX, target: self, action: #selector(closeTapped), alignment: .leading)
+            let closeButton = UIBarButtonItem.closeNavigationBarButtonItem(config: config)
+
+            navigationItem.leftBarButtonItem = closeButton
+        }
+    }
+
+    @objc private func closeTapped() {
+        closeButtonAction?()
+    }
+}
+
+extension WMFOnboardingViewController: UIAdaptivePresentationControllerDelegate {
+    public func presentationControllerWillDismiss(_ presentationController: UIPresentationController) {
+        delegate?.onboardingViewWillSwipeToDismiss()
+    }
+    
+    public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        delegate?.onboardingDidSwipeToDismiss()
+    }
+}
+
+
+public final class WMFOnboardingHostingViewController: WMFComponentHostingController<WMFOnboardingView> {
+
+    // MARK: - Properties
+
+    public weak var delegate: WMFOnboardingViewDelegate?
+
+    // MARK: - Properties
+    init(viewModel: WMFOnboardingViewModel) {
+        super.init(rootView: WMFOnboardingView(viewModel: viewModel))
+        self.rootView.primaryButtonAction = { [weak self] in
+            self?.primaryButtonAction()
+        }
+
+        self.rootView.secondaryButtonAction = { [weak self] in
+            self?.secondaryButtonAction()
+        }
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func primaryButtonAction() {
+        delegate?.onboardingViewDidClickPrimaryButton()
+    }
+
+    func secondaryButtonAction() {
+        delegate?.onboardingViewDidClickSecondaryButton()
+    }
+
+}

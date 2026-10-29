@@ -1,0 +1,60 @@
+import Foundation
+
+class WMFUserDefaultsStore: WMFKeyValueStore {
+    
+    private let defaults: UserDefaults
+    
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    func load<T: Codable>(key: String...) throws -> T? {
+        let defaultsKey = key.joined(separator: ".")
+        return try load(defaultsKey: defaultsKey)
+    }
+    
+    func save<T: Codable>(key: String..., value: T) throws {
+        let defaultsKey = key.joined(separator: ".")
+        try save(defaultsKey: defaultsKey, value: value)
+    }
+    
+    func synchronize() {
+        defaults.synchronize()
+    }
+
+    func remove(key: String...) throws {
+           let defaultsKey = key.joined(separator: ".")
+           defaults.removeObject(forKey: defaultsKey)
+       }
+
+    func keys(inDirectory directory: String) throws -> [String] {
+        let prefix = directory + "."
+        return defaults.dictionaryRepresentation()
+            .keys
+            .filter { $0.hasPrefix(prefix) }
+            .map { String($0.dropFirst(prefix.count)) }
+    }
+
+    private func load<T: Codable>(defaultsKey: String) throws -> T? {
+        do {
+            guard let data = defaults.value(forKey: defaultsKey) as? Data else {
+                throw WMFUserDefaultsStoreError.unexpectedType
+            }
+            
+            let value = try JSONDecoder().decode(T.self, from: data)
+            return value
+        } catch let error {
+            throw WMFUserDefaultsStoreError.failureDecodingJSON(error)
+        }
+    }
+    
+    private func save<T: Codable>(defaultsKey: String, value: T) throws {
+        do {
+            let data = try JSONEncoder().encode(value)
+            defaults.set(data, forKey: defaultsKey)
+        } catch let error {
+            throw WMFUserDefaultsStoreError.failureEncodingJSON(error)
+        }
+    }
+
+}

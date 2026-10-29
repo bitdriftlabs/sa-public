@@ -1,0 +1,238 @@
+import UIKit
+import Combine
+
+open class WMFComponentNavigationController: UINavigationController {
+
+    // MARK: - Private Properties
+
+    private var cancellables = Set<AnyCancellable>()
+
+    // MARK: - Public Properties
+
+    var appEnvironment: WMFAppEnvironment {
+        return WMFAppEnvironment.current
+    }
+
+    var theme: WMFTheme {
+        return WMFAppEnvironment.current.theme
+    }
+    
+    private let customBarBackgroundColor: UIColor?
+    
+    var forcePortrait = false
+
+    // MARK: - Public
+    
+    @objc public init(rootViewController: UIViewController, modalPresentationStyle: UIModalPresentationStyle, customBarBackgroundColor: UIColor? = nil) {
+        self.customBarBackgroundColor = customBarBackgroundColor
+        super.init(rootViewController: rootViewController)
+        self.modalPresentationStyle = modalPresentationStyle
+        subscribeToAppEnvironmentChanges()
+        setup()
+    }
+    
+    open override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        setBarAppearance(customLargeTitleFont: self.customLargeTitleFont)
+    }
+    
+    override open func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        triggerNavigationBarRender()
+    }
+    
+    private var shouldUseTransparentAppearance: Bool = false
+
+    public func setTransparentAppearance(_ transparent: Bool) {
+        shouldUseTransparentAppearance = transparent
+        setBarAppearance(customLargeTitleFont: customLargeTitleFont)
+    }
+    
+    // HACK: Forces liquid glass bar button items to re-render with correct appearance.
+    // Without this, buttons render incorrectly until a layout event occurs (e.g. keyboard appearing).
+    public func triggerNavigationBarRender() {
+        if #available(iOS 26.0, *) {
+            if UIAccessibility.isReduceTransparencyEnabled {
+                if tabBarController != nil {
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        let frame = self.navigationBar.frame
+                        self.navigationBar.frame = frame.insetBy(dx: 0, dy: 0.1)
+                        self.navigationBar.frame = frame
+                    }
+                    
+                } else {
+                    let frame = navigationBar.frame
+                    navigationBar.frame = frame.insetBy(dx: 0, dy: 0.1)
+                    navigationBar.frame = frame
+                }
+
+            }
+        }
+    }
+    
+    required public init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    open override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        return forcePortrait ? .portrait : topViewController?.supportedInterfaceOrientations ?? .all
+    }
+
+    open override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation {
+        return topViewController?.preferredInterfaceOrientationForPresentation ?? .portrait
+    }
+    
+    public func turnOnForcePortrait() {
+        forcePortrait = true
+    }
+    
+    public func turnOffForcePortrait() {
+        forcePortrait = false
+    }
+    
+    // MARK: - AppEnvironment Subscription
+
+    private func subscribeToAppEnvironmentChanges() {
+        WMFAppEnvironment.publisher
+            .sink(receiveValue: { [weak self] _ in self?.appEnvironmentDidChange() })
+            .store(in: &cancellables)
+    }
+
+    // MARK: - Subclass Overrides
+
+    public func appEnvironmentDidChange() {
+        overrideUserInterfaceStyle = theme.userInterfaceStyle
+        setNeedsStatusBarAppearanceUpdate()
+
+        setBarAppearance(customLargeTitleFont: customLargeTitleFont)
+        
+        // loop through bar button items, update tint colors
+        if let topVC = self.topViewController {
+            let leftItems = topVC.navigationItem.leftBarButtonItems ?? []
+            let rightItems = topVC.navigationItem.rightBarButtonItems ?? []
+            
+            for item in leftItems + rightItems {
+                if item.tag == WMFLargeCloseButtonImageType.prominentCheck.tag {
+                    item.tintColor = theme.link
+                }
+            }
+        }
+    }
+    
+    private var customLargeTitleFont: UIFont?
+
+    func setBarAppearance(customLargeTitleFont: UIFont?) {
+        guard !shouldUseTransparentAppearance else {
+            let appearance = UINavigationBarAppearance()
+            appearance.configureWithTransparentBackground()
+            navigationBar.standardAppearance = appearance
+            navigationBar.scrollEdgeAppearance = appearance
+            navigationBar.compactAppearance = appearance
+            if #available(iOS 18.0, *) {
+                navigationBar.compactScrollEdgeAppearance = appearance
+            }
+            return
+        }
+        if #available(iOS 26.0, *) {
+            applySystemGlassAppearance(customLargeTitleFont: customLargeTitleFont)
+        } else {
+            applyLegacyAppearance(customLargeTitleFont: customLargeTitleFont)
+        }
+    }
+
+    private func applySystemGlassAppearance(customLargeTitleFont: UIFont?) {
+        let appearance = UINavigationBarAppearance()
+
+        appearance.configureWithDefaultBackground()
+        appearance.shadowColor = nil
+
+        let largeTitleFont = self.customLargeTitleFont ?? WMFFont.navigationBarLeadingLargeTitleFont
+        let titleColor = theme.text
+
+        if let customLargeTitleFont {
+            appearance.largeTitleTextAttributes = [.font: customLargeTitleFont, .foregroundColor: titleColor]
+        } else {
+            appearance.largeTitleTextAttributes = [.font: largeTitleFont, .foregroundColor: titleColor]
+        }
+
+        appearance.titleTextAttributes = [.foregroundColor: titleColor]
+
+        navigationBar.tintColor = theme.navigationBarTintColor
+        navigationBar.standardAppearance = appearance
+        navigationBar.scrollEdgeAppearance = appearance
+        navigationBar.compactAppearance = appearance
+
+        if #available(iOS 18.0, *) {
+            navigationBar.compactScrollEdgeAppearance = appearance
+        }
+    }
+    
+    private func applyLegacyAppearance(customLargeTitleFont: UIFont?) {
+        if let customLargeTitleFont {
+            self.customLargeTitleFont = customLargeTitleFont
+        } else {
+            self.customLargeTitleFont = nil
+        }
+        
+        let barAppearance = UINavigationBarAppearance()
+        barAppearance.configureWithOpaqueBackground()
+        
+        if let customBarBackgroundColor {
+            barAppearance.backgroundColor = customBarBackgroundColor
+            let backgroundImage = UIImage.roundedRectImage(with: customBarBackgroundColor, cornerRadius: 1)
+            barAppearance.backgroundImage = backgroundImage
+        } else if modalPresentationStyle == .pageSheet {
+            barAppearance.backgroundColor = theme.midBackground
+            let backgroundImage = UIImage.roundedRectImage(with: theme.midBackground, cornerRadius: 1)
+            barAppearance.backgroundImage = backgroundImage
+        } else {
+            barAppearance.backgroundColor = theme.paperBackground
+            let backgroundImage = UIImage.roundedRectImage(with: theme.paperBackground, cornerRadius: 1)
+            barAppearance.backgroundImage = backgroundImage
+        }
+        
+        barAppearance.shadowImage = UIImage()
+        barAppearance.shadowColor = .clear
+        
+        let largeTitleFont = self.customLargeTitleFont ?? WMFFont.navigationBarLeadingLargeTitleFont
+        barAppearance.largeTitleTextAttributes = [.font: largeTitleFont]
+        
+        navigationBar.tintColor = theme.navigationBarTintColor
+        navigationBar.standardAppearance = barAppearance
+        navigationBar.scrollEdgeAppearance = barAppearance
+        navigationBar.compactAppearance = barAppearance
+    }
+
+    open override var preferredStatusBarStyle: UIStatusBarStyle {
+        return theme.preferredStatusBarStyle
+    }
+    
+    // MARK: - Private
+    
+    private func setup() {
+        interactivePopGestureRecognizer?.delegate = self
+    }
+
+}
+
+extension WMFComponentNavigationController: UIGestureRecognizerDelegate {
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer == interactivePopGestureRecognizer else {
+            return true
+        }
+        return viewControllers.count > 1 && transitionCoordinator == nil
+    }
+    
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        false
+    }
+
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer == barHideOnSwipeGestureRecognizer else {
+            return false
+        }
+        return otherGestureRecognizer is UIPanGestureRecognizer && otherGestureRecognizer.view == view
+    }
+}
