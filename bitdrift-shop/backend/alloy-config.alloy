@@ -1,0 +1,54 @@
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+    traces  = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    metrics = [otelcol.exporter.otlphttp.grafana_cloud.input, otelcol.exporter.otlphttp.honeycomb.input, otelcol.exporter.otlphttp.clickstack.input]
+    logs    = [otelcol.exporter.otlphttp.grafana_cloud.input, otelcol.exporter.otlphttp.honeycomb.input, otelcol.exporter.otlphttp.clickstack.input]
+    traces  = [otelcol.exporter.otlphttp.grafana_cloud.input, otelcol.exporter.otlphttp.honeycomb.input, otelcol.exporter.otlphttp.clickstack.input]
+  }
+}
+
+otelcol.auth.basic "grafana_cloud" {
+  username = sys.env("GRAFANA_CLOUD_INSTANCE_ID")
+  password = sys.env("GRAFANA_CLOUD_API_TOKEN")
+}
+
+otelcol.exporter.otlphttp "grafana_cloud" {
+  client {
+    endpoint = sys.env("GRAFANA_CLOUD_OTLP_ENDPOINT")
+    auth     = otelcol.auth.basic.grafana_cloud.handler
+  }
+}
+
+// Honeycomb: traces, metrics and logs (datasets created per service).
+otelcol.exporter.otlphttp "honeycomb" {
+  client {
+    endpoint = sys.env("HONEYCOMB_OTLP_ENDPOINT")
+    headers  = {
+      "x-honeycomb-team" = sys.env("HONEYCOMB_API_KEY"),
+    }
+  }
+}
+
+// ClickStack Cloud: traces, metrics and logs (hosted OTLP endpoint, port 4318).
+otelcol.exporter.otlphttp "clickstack" {
+  client {
+    endpoint = sys.env("CLICKSTACK_OTLP_ENDPOINT")
+    headers  = {
+      "authorization" = sys.env("CLICKSTACK_API_KEY"),
+    }
+  }
+}
