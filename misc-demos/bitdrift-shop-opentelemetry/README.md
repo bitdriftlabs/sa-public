@@ -52,8 +52,9 @@ Local URLs once the stack is running ([Quick Start](#quick-start)):
 | Generate traffic | Tap **Sim 5 / Sim 10 / Sim ∞** on the Welcome screen | Stop Sim ∞ with the ✕ (Cancel) button in the simulation banner |
 | Stop everything | `./stop-backend.sh` | Removes the OTel Demo stack, ClickStack and Portainer containers |
 
-**Config** (`android/.local.properties`, gitignored): `BITDRIFT_SDK_KEY`, `BITDRIFT_API_HOST`,
-`OTEL_DEMO_HOST` (default `10.0.2.2`), `OTEL_DEMO_PORT` (`8081`). Local ports: ClickStack UI `8080`,
+**Config** (`android/.local.properties`, gitignored; env vars also work): `BITDRIFT_SDK_KEY`,
+`BITDRIFT_API_HOST` (default `api.bitdrift.io`; use `api.bitdrift.dev` to report to `.dev`),
+`OTEL_DEMO_HOST` (default `10.0.2.2`), `OTEL_DEMO_PORT` (default `8081`). Local ports: ClickStack UI `8080`,
 OTLP `4317`/`4318`, OTel Demo frontend proxy `8081`.
 
 **bitdrift environment.** `bd` targets production (`.io`) by default. `bd install-profile staging`
