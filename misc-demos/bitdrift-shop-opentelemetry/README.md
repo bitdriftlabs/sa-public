@@ -260,7 +260,7 @@ The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `co
 To view traces once an app (next step) is running and you've generated some traffic:
 
 - Open **http://localhost:8080**
-- Tap **Sim 10** in the app
+- Tap **Sim 10** in the app (or **Sim ∞** to run journeys back to back until you tap the stop icon in the simulation banner)
 - Search or browse traces/logs/metrics in the ClickStack UI — data lands within a few seconds
 - To sanity-check ingestion directly in ClickHouse: `docker exec clickstack sh -c "curl -s 'http://localhost:8123/?query=SELECT+count()+FROM+otel_traces'"`
 

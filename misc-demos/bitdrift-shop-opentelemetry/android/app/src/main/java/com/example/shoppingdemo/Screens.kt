@@ -104,6 +104,12 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
                 simulationManager.simulate(10, navController)
             }
 
+            // Runs journeys back to back until cancelled from the simulation banner — keeps
+            // traces/metrics flowing for long-running export tests.
+            SimButton(title = "Sim ∞", color = Color(0xFFFF9800)) {
+                simulationManager.infiniteSimulate(navController)
+            }
+
             // Workshop 7 — Device Identification & Debugging (android, basic sdk)
             // workshop-301.md § "7 — Device Identification"
             // Device code: generates a short-lived code copied to clipboard for support lookup.
