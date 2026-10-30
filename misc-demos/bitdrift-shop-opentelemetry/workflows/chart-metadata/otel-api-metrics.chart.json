@@ -1,0 +1,86 @@
+[
+  {
+    "rule_id": "api-request-count",
+    "metadata": {
+      "title": "API Requests by Endpoint",
+      "summary": {
+        "description": "Completed requests to the OTel Demo frontend-proxy /api/*, grouped by normalized endpoint template."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Requests",
+            "y_axis": {
+              "description": "Count",
+              "unit": "UNSPECIFIED"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "api-latency",
+    "metadata": {
+      "title": "API Latency by Endpoint (p50/p90/p99)",
+      "summary": {
+        "description": "_duration_ms of each /api/* request, grouped by endpoint template \u2014 the mobile-side view of the same calls the OTel Demo traces."
+      },
+      "metric_chart_metadata": {
+        "histogram_bar_chart_display_mode": {},
+        "metadata": [
+          {
+            "title": "Latency",
+            "y_axis": {
+              "description": "Duration",
+              "unit": "MILLISECONDS"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "api-errors",
+    "metadata": {
+      "title": "API Errors by Endpoint",
+      "summary": {
+        "description": "Requests whose _result was not success (failed, timed out or non-2xx), grouped by endpoint template."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Errors",
+            "y_axis": {
+              "description": "Count",
+              "unit": "UNSPECIFIED"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "api-error-rate",
+    "metadata": {
+      "title": "API Error Rate",
+      "summary": {
+        "description": "Share of /api/* requests that did not succeed."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Error rate",
+            "y_axis": {
+              "description": "Rate",
+              "unit": "PERCENTAGE"
+            }
+          }
+        ]
+      }
+    }
+  }
+]

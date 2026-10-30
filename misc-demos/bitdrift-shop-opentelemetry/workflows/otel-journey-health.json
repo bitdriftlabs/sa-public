@@ -1,0 +1,262 @@
+{
+  "name": "bitdrift-shop-opentelemetry \u2014 Journey Health",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.oteldemo"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "journey-start",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_screen_name",
+                      "operator": "EQUAL",
+                      "string_value": "Welcome"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "journey-complete",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_body": true,
+                      "operator": "EQUAL",
+                      "string_value": "confirmation_reached"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "payment-failed",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_body": true,
+                      "operator": "EQUAL",
+                      "string_value": "payment_failed"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "checkout-failed",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_body": true,
+                      "operator": "EQUAL",
+                      "string_value": "checkout_failed"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "cart-failed",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_body": true,
+                      "operator": "EQUAL",
+                      "string_value": "cart_failed"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "screen-view",
+            "ootb_match": {
+              "generic_condition": "SCREEN_VIEW"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "journeys-started",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "journey-start"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "journeys-completed",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "journey-complete"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "ff_variant"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "journey-completion-rate",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "rate": {
+              "numerator": {
+                "match_id": "journey-complete"
+              },
+              "denominator": {
+                "match_id": "journey-start"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "payment-failures-by-method",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "payment-failed"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "payment_method"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "checkout-and-cart-failures",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "checkout-failed"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "checkout_type"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "count": {
+              "value": {
+                "match_id": "cart-failed"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "screen-views",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "screen-view"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "_screen_name"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
