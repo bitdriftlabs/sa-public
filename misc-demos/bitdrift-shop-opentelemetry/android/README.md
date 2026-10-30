@@ -131,8 +131,20 @@ in-app simulation or tap through manually). Only sessions that start after the w
 counted, and it relies only on the SDK's screen-view logs. See [../workflows/README.md](../workflows/README.md)
 for what each workflow deploys and how to do it by hand with `bd`.
 
-Optionally, deploy the metric workflows and dashboard (API volume/latency/errors, journey health) with
-`./scripts/deploy-metric-workflows.sh` — see [../workflows/README.md](../workflows/README.md#metric-workflows--dashboard).
+### Deploy the metric workflows and dashboard (optional)
+
+Deploys two metric workflows (backend API volume/latency/errors, journey health) and the
+**Telescope Store** dashboard that charts them (Journey and Backend API tabs):
+
+```bash
+./scripts/deploy-metric-workflows.sh
+```
+
+Idempotent: existing workflows are reconciled and redeployed, and the dashboard is replaced (it
+references the workflows by ID, which the script looks up and substitutes into
+[`dashboards/otel-telescope-store.dashboard.json`](../dashboards/otel-telescope-store.dashboard.json)).
+The dashboard shows data once the app has run journeys (use **Sim 5 / Sim 10 / Sim ∞**). See
+[../workflows/README.md](../workflows/README.md#metric-workflows--dashboard) for the chart list.
 
 ## Run the Android app
 
