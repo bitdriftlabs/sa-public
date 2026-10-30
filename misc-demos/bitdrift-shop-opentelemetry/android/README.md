@@ -131,6 +131,9 @@ in-app simulation or tap through manually). Only sessions that start after the w
 counted, and it relies only on the SDK's screen-view logs. See [../workflows/README.md](../workflows/README.md)
 for what each workflow deploys and how to do it by hand with `bd`.
 
+Optionally, deploy the metric workflows and dashboard (API volume/latency/errors, journey health) with
+`./scripts/deploy-metric-workflows.sh` — see [../workflows/README.md](../workflows/README.md#metric-workflows--dashboard).
+
 ## Run the Android app
 
 Set `OTEL_DEMO_PORT=8081` in `.local.properties` (see [Local Config](#local-config)), then open the project in Android Studio and run on an emulator. The app connects via `http://10.0.2.2:8081`. See [Emulator Requirements](../APPENDIX.md#emulator-requirements) in the appendix for supported configs.
