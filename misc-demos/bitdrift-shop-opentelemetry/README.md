@@ -55,36 +55,6 @@ running; `colima status` shows the current state. The ClickStack container in st
 needs more RAM than Colima's default VM — see [Memory Requirements](APPENDIX.md#memory-requirements)
 in the appendix.
 
-### Container Monitoring (Optional): Portainer
-
-Between the OTel Demo stack (~20 containers), ClickStack, and optionally Zipkin, `docker ps`/`docker logs` gets unwieldy fast. [Portainer CE](https://github.com/portainer/portainer) is an open-source web GUI for monitoring and managing containers, images, volumes, and logs.
-
-Install and run it, skipping Portainer's own first-run setup-token flow so you land straight in the UI:
-
-```bash
-docker run -d --name portainer -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce --no-setup-token
-```
-
-Open **http://localhost:9000** — no admin account/token step, straight into the dashboard listing all running containers.
-
-> **Local dev only:** `--no-setup-token` skips authentication entirely, and the container has full access to the host's Docker socket — anyone who can reach port 9000 has root-equivalent control over your Docker daemon. Fine for a `localhost`-only dev setup; don't expose this port beyond your own machine.
-
-**Stop it:**
-
-```bash
-docker stop portainer
-docker rm portainer
-```
-
-You also need a local clone of the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) itself — this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) that layer on top of it, not the backend stack:
-
-```bash
-git clone https://github.com/open-telemetry/opentelemetry-demo.git
-cd opentelemetry-demo
-```
-
-Every `docker compose` command below (and the `cp .../docker-compose.b3-propagation.yaml ...` step) is meant to be run from that `opentelemetry-demo` clone's root.
-
 ## Quick Start
 
 ### 1. Set up ClickStack
@@ -251,3 +221,33 @@ See [APPENDIX.md](APPENDIX.md) for troubleshooting notes and reference material 
 - A full audit runbook for checking the rest of the stack after a Colima mount fix, so no other services are silently running on bad first-boot state
 - Fully purging ClickStack/HyperDX's hidden anonymous data volume when the UI errors out or shows stale data
 - Memory requirements, plus Android-specific reference material (Screens list, Project Structure, Architecture diagram, Emulator requirements) and the B3/Zipkin switch
+
+## Container Monitoring (Optional): Portainer
+
+Between the OTel Demo stack (~20 containers), ClickStack, and optionally Zipkin, `docker ps`/`docker logs` gets unwieldy fast. [Portainer CE](https://github.com/portainer/portainer) is an open-source web GUI for monitoring and managing containers, images, volumes, and logs.
+
+Install and run it, skipping Portainer's own first-run setup-token flow so you land straight in the UI:
+
+```bash
+docker run -d --name portainer -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce --no-setup-token
+```
+
+Open **http://localhost:9000** — no admin account/token step, straight into the dashboard listing all running containers.
+
+> **Local dev only:** `--no-setup-token` skips authentication entirely, and the container has full access to the host's Docker socket — anyone who can reach port 9000 has root-equivalent control over your Docker daemon. Fine for a `localhost`-only dev setup; don't expose this port beyond your own machine.
+
+**Stop it:**
+
+```bash
+docker stop portainer
+docker rm portainer
+```
+
+You also need a local clone of the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) itself — this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) that layer on top of it, not the backend stack:
+
+```bash
+git clone https://github.com/open-telemetry/opentelemetry-demo.git
+cd opentelemetry-demo
+```
+
+Every `docker compose` command below (and the `cp .../docker-compose.b3-propagation.yaml ...` step) is meant to be run from that `opentelemetry-demo` clone's root.
