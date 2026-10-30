@@ -5,11 +5,17 @@
 # EMULATOR_WINDOW=0 runs headless.
 #
 # Mirrors ../../../../bitdrift-shop/android/scripts/android-2-start-emulator.sh
-# — identical logic, same shared "Medium_Phone_Control" AVD default.
+# — identical logic, same "medium_phone" AVD default (the earlier
+# "Medium_Phone_Control" / "bitdrift_shop" AVDs hit unresolved boot failures —
+# HVF/mprotect issues on macOS 26 — and were replaced).
 set -euo pipefail
 
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
-AVD_NAME="${AVD_NAME:-Medium_Phone_Control}"
+AVD_NAME="${AVD_NAME:-medium_phone}"
+# Newer emulator builds require ANDROID_SDK_ROOT specifically and log
+# "ANDROID_SDK_ROOT is undefined" (then fail) if only ANDROID_HOME is set.
+export ANDROID_HOME="$SDK_DIR"
+export ANDROID_SDK_ROOT="$SDK_DIR"
 export PATH="$SDK_DIR/emulator:$SDK_DIR/platform-tools:$PATH"
 
 # Already booted?

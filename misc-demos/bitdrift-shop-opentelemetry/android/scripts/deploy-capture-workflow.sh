@@ -9,8 +9,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORKFLOW_NAME="bitdrift-shop-opentelemetry — Capture All Sessions (Demo)"
-WORKFLOW_FILE="$ROOT/workflows/capture-all-sessions.json"
-METADATA_FILE="$ROOT/workflows/capture-all-sessions.metadata.json"
+WORKFLOW_FILE="$ROOT/../workflows/capture-all-sessions.json"
+METADATA_FILE="$ROOT/../workflows/capture-all-sessions.metadata.json"
 
 if ! command -v bd >/dev/null 2>&1; then
   echo "ERROR: bd CLI not found. Install it: https://github.com/bitdriftlabs/bd-cli-releases" >&2

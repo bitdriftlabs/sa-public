@@ -2,10 +2,10 @@ package com.example.shoppingdemo
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -387,14 +387,16 @@ fun SimulationOverlay(simulationManager: SimulationManager) {
 @Composable
 fun ProductImageRow(products: List<JSONObject>, onProductClick: (String) -> Unit = {}) {
     if (products.isEmpty()) return
-    Column(
+    // LazyColumn, not Column + verticalScroll: only ~160dp is visible, and a plain scrolling
+    // Column composes (and the session-replay wireframe captures) every row, stacking dozens
+    // of off-screen Cards/images.
+    LazyColumn(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(max = 160.dp)
-            .verticalScroll(rememberScrollState())
     ) {
-        products.forEach { product ->
+        items(products) { product ->
             val productId = product.optString("id", "")
             Card(
                 onClick = { onProductClick(productId) },
@@ -431,14 +433,16 @@ fun ProductImageRow(products: List<JSONObject>, onProductClick: (String) -> Unit
 @Composable
 fun CategoryRow(categories: List<JSONObject>, onCategoryClick: (String) -> Unit = {}) {
     if (categories.isEmpty()) return
-    Column(
+    // LazyColumn, not Column + verticalScroll: only ~160dp is visible, and a plain scrolling
+    // Column composes (and the session-replay wireframe captures) every row, stacking dozens
+    // of off-screen Cards/images.
+    LazyColumn(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(max = 160.dp)
-            .verticalScroll(rememberScrollState())
     ) {
-        categories.forEach { cat ->
+        items(categories) { cat ->
             val name = cat.optString("name", "")
             val count = cat.optInt("product_count", 0)
             val color = categoryColors[name] ?: Color.Gray

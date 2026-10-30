@@ -1,0 +1,92 @@
+{
+  "name": "bitdrift-shop-opentelemetry \u2014 User Journey Paths (Welcome \u2192 Confirmation)",
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "start",
+            "ootb_match": {
+              "generic_condition": "SCREEN_VIEW",
+              "generic_match": {
+                "and_matcher": {
+                  "matchers": [
+                    {
+                      "base_matcher": {
+                        "log_field": "_screen_name",
+                        "operator": "EQUAL",
+                        "string_value": "Welcome"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "match_rule": {
+            "match_id": "middle",
+            "ootb_match": {
+              "generic_condition": "SCREEN_VIEW"
+            }
+          },
+          "loop_match_id": "middle"
+        },
+        {
+          "match_rule": {
+            "match_id": "end",
+            "ootb_match": {
+              "generic_condition": "SCREEN_VIEW",
+              "generic_match": {
+                "and_matcher": {
+                  "matchers": [
+                    {
+                      "base_matcher": {
+                        "log_field": "_screen_name",
+                        "operator": "EQUAL",
+                        "string_value": "Confirmation"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "sankey",
+      "sankey_diagram_rule": {
+        "nodes": [
+          {
+            "id": "start",
+            "fixed": "Welcome"
+          },
+          {
+            "id": "middle",
+            "extract_field": "_screen_name"
+          },
+          {
+            "id": "end",
+            "fixed": "Confirmation"
+          }
+        ]
+      }
+    }
+  ],
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.oteldemo"
+          }
+        ]
+      }
+    }
+  ]
+}

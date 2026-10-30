@@ -16,17 +16,15 @@ class ShoppingDemoApp : Application() {
         appContext = applicationContext
 
         // Workshop 1 - Initialization (android, basic sdk)
-        // Uncomment this block during the workshop to enable bitdrift startup.
-
         // buildBitdriftConfiguration() resolves to one of two source-set variants based on
         // BITDRIFT_ENABLE_OTEL_EXPORT (see app/build.gradle.kts) -- app/src/otelExportEnabled
         // wires up OTel span export, app/src/otelExportDisabled is a no-op Configuration(), for
         // building against the published SDK (which lacks OtelExportConfiguration entirely).
         Logger.start(
-        apiKey = BuildConfig.BITDRIFT_SDK_KEY,
-        apiUrl = HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST).build(),
-        sessionConfiguration = SessionConfiguration(),
-        configuration = buildBitdriftConfiguration(),
+            apiKey = BuildConfig.BITDRIFT_SDK_KEY,
+            apiUrl = HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST).build(),
+            sessionConfiguration = SessionConfiguration(),
+            configuration = buildBitdriftConfiguration(),
         )
         // Register lifecycle callbacks
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())
@@ -44,6 +42,8 @@ class ShoppingDemoApp : Application() {
         // Set once at startup; attached to every log, span, and network request automatically.
         // Not persisted to disk — re-add on every process start.
         Logger.addField("app_variant", "otel-demo")
+        // Matches the iOS/shop apps' `platform` field so one chart can group or filter across platforms.
+        Logger.addField("platform", "android")
 
     }
 

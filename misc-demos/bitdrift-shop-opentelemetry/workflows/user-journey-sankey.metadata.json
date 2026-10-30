@@ -1,0 +1,9 @@
+{
+  "description": "Path discovery for the Telescope Store shopper journey in the bitdrift-shop-opentelemetry Android demo (ai.bitdrift.oteldemo). Starts at the Welcome screen, ends at Confirmation, and shows every screen (Browse, Search, Cart, Checkout, Payment, ...) users pass through in between, from the SDK's screen-view logs.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "sankey",
+      "title": "Welcome \u2192 Confirmation \u2014 User Paths"
+    }
+  ]
+}

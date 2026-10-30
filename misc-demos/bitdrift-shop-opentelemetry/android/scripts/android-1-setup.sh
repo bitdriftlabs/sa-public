@@ -6,12 +6,13 @@
 #
 # Mirrors ../../../../bitdrift-shop/android/scripts/android-1-setup.sh — same
 # SDK levels and device profile (Medium Phone, 1080x2400), so AVD_NAME
-# defaults to the same "Medium_Phone_Control" AVD shared across this repo's
-# Android demos.
+# defaults to the same "medium_phone" AVD shared across this repo's Android
+# demos (matches android-2-start-emulator.sh; the older "Medium_Phone_Control"
+# AVD hit unresolved boot failures on macOS 26 and was replaced).
 set -euo pipefail
 
 SDK_DIR="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
-AVD_NAME="${AVD_NAME:-Medium_Phone_Control}"
+AVD_NAME="${AVD_NAME:-medium_phone}"
 DEVICE_PROFILE="${DEVICE_PROFILE:-medium_phone}"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-mac-11076708_latest.zip"
 
