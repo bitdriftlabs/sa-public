@@ -241,16 +241,20 @@ dependencies {
 
 // Force a full uninstall before every debug install (Android Studio Run/Debug or
 // `./gradlew installDebug`), so no stale APK/class data can linger between builds.
+// adb comes from AGP's SDK components, so it's the same SDK installDebug itself uses (including
+// an SDK located only via sdk.dir in local.properties).
+val adbExecutable = androidComponents.sdkComponents.adb
 tasks.matching { it.name == "installDebug" }.configureEach {
     doFirst {
-        val adb = System.getenv("ANDROID_HOME")?.let { "$it/platform-tools/adb" }
-            ?: System.getenv("ANDROID_SDK_ROOT")?.let { "$it/platform-tools/adb" }
-            ?: "adb"
-        // Plain ProcessBuilder, not Project.exec — the latter was removed in Gradle 9.
-        // Exit code intentionally ignored: fails harmlessly if not yet installed.
-        ProcessBuilder(adb, "uninstall", "ai.bitdrift.oteldemo")
-            .redirectErrorStream(true)
-            .start()
-            .waitFor()
+        // Best effort: a missing adb or a not-yet-installed app must never fail the install.
+        try {
+            // Plain ProcessBuilder, not Project.exec — the latter was removed in Gradle 9.
+            ProcessBuilder(adbExecutable.get().asFile.absolutePath, "uninstall", "ai.bitdrift.oteldemo")
+                .redirectErrorStream(true)
+                .start()
+                .waitFor()
+        } catch (e: Exception) {
+            logger.info("Skipping pre-install uninstall: ${e.message}")
+        }
     }
 }
