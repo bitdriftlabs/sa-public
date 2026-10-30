@@ -1085,6 +1085,9 @@ fun ConfirmationScreen(navController: NavController, orderId: String?) {
                 // begins a new shopping journey — keeps each purchase flow in its own session.
                 // https://docs.bitdrift.io/sdk/quickstart#android
                 Logger.startNewSession()
+                // Journey boundary: the workflows count journeys by this event, not by Welcome
+                // screen views (those also fire when a simulation returns to Welcome).
+                Logger.logInfo { "journey_started" }
 
                 // Workshop 5 — Global Fields (android, basic sdk)
                 // workshop-301.md § "5 — Global Fields"

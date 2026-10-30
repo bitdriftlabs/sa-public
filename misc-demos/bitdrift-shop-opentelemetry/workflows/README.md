@@ -81,9 +81,9 @@ cd android && ./scripts/deploy-metric-workflows.sh
 | | `api-latency` | histogram of `_duration_ms` (p50/p90/p99), by `_path_template` |
 | | `api-errors` | count where `_result != success`, by `_path_template` |
 | | `api-error-rate` | rate: errors / requests |
-| `otel-journey-health.json` | `journeys-started` | count of `Welcome` screen views |
-| | `journeys-completed` | count of `confirmation_reached`, by `ff_variant` |
-| | `journey-completion-rate` | rate: completed / started |
+| `otel-journey-health.json` | `journeys-started` | count of `journey_started` logs (one per journey) |
+| | `journeys-completed` | count of `Confirmation` screen views (manual and simulated), by `ff_variant` |
+| | `journey-completion-rate` | rate: `Confirmation` views / `journey_started` |
 | | `payment-failures-by-method` | count of `payment_failed`, by `payment_method` |
 | | `checkout-and-cart-failures` | `checkout_failed` (by `checkout_type`) and `cart_failed` counts |
 | | `screen-views` | count of screen views, by `_screen_name` |

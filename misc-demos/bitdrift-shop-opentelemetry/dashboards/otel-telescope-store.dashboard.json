@@ -50,7 +50,7 @@
             "chart_metadata": {
               "title": "Journeys started",
               "summary": {
-                "description": "Welcome screen views"
+                "description": "journey_started logs"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},
@@ -85,7 +85,7 @@
             "chart_metadata": {
               "title": "Journey completion rate",
               "summary": {
-                "description": "confirmation_reached / Welcome views"
+                "description": "Confirmation screen views / journey_started logs"
               },
               "metric_chart_metadata": {
                 "time_series_display_mode": {},

@@ -22,9 +22,9 @@
                 "matchers": [
                   {
                     "base_matcher": {
-                      "log_field": "_screen_name",
+                      "log_body": true,
                       "operator": "EQUAL",
-                      "string_value": "Welcome"
+                      "string_value": "journey_started"
                     }
                   }
                 ]
@@ -39,17 +39,20 @@
         {
           "match_rule": {
             "match_id": "journey-complete",
-            "generic_match": {
-              "and_matcher": {
-                "matchers": [
-                  {
-                    "base_matcher": {
-                      "log_body": true,
-                      "operator": "EQUAL",
-                      "string_value": "confirmation_reached"
+            "ootb_match": {
+              "generic_condition": "SCREEN_VIEW",
+              "generic_match": {
+                "and_matcher": {
+                  "matchers": [
+                    {
+                      "base_matcher": {
+                        "log_field": "_screen_name",
+                        "operator": "EQUAL",
+                        "string_value": "Confirmation"
+                      }
                     }
-                  }
-                ]
+                  ]
+                }
               }
             }
           }

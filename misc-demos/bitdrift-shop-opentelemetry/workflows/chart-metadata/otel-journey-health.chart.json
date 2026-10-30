@@ -4,7 +4,7 @@
     "metadata": {
       "title": "Journeys Started",
       "summary": {
-        "description": "Welcome screen views \u2014 one per shopping journey (each journey starts a new session)."
+        "description": "journey_started logs \u2014 one per shopping journey (logged at app launch, after Start New Journey, and at the start of each simulated journey)."
       },
       "metric_chart_metadata": {
         "time_series_display_mode": {},
@@ -25,7 +25,7 @@
     "metadata": {
       "title": "Journeys Completed by Variant",
       "summary": {
-        "description": "confirmation_reached logs, grouped by the ff_variant feature-flag field."
+        "description": "Confirmation screen views (manual and simulated purchases), grouped by the ff_variant feature-flag field."
       },
       "metric_chart_metadata": {
         "time_series_display_mode": {},
@@ -46,7 +46,7 @@
     "metadata": {
       "title": "Journey Completion Rate",
       "summary": {
-        "description": "confirmation_reached / Welcome screen views."
+        "description": "Confirmation screen views / journey_started logs."
       },
       "metric_chart_metadata": {
         "time_series_display_mode": {},

@@ -20,6 +20,9 @@ fi
 
 # deploy_workflow <file-base> -> echoes the workflow id
 deploy_workflow() {
+  # Command substitution doesn't inherit errexit, so enable it here: a failed update must abort the
+  # script before the (already-stale) workflow is redeployed and the dashboard replaced.
+  set -e
   local base="$1" file meta chart name id state
   file="$ROOT/workflows/$base.json"
   meta="$ROOT/workflows/$base.metadata.json"
