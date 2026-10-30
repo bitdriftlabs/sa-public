@@ -25,6 +25,50 @@ Once the stack is running ([Quick Start](#quick-start) below), these are the loc
 | **Portainer** (optional) | [http://localhost:9000](http://localhost:9000) | Container manager/dashboard — see [Container Monitoring](#container-monitoring-optional-portainer) |
 | **Zipkin** (if using B3 instead of ClickStack) | [http://localhost:9411](http://localhost:9411) | See [B3_ZIPKIN.md](B3_ZIPKIN.md) |
 
+## Quick Reference (humans and agents)
+
+**Layout**
+
+| Path | Contents |
+|---|---|
+| `android/` | Kotlin/Compose app (`ai.bitdrift.oteldemo`, Capture SDK 0.26.0), emulator + deploy scripts in `android/scripts/` |
+| `ios/` | SwiftUI app and scripts |
+| `workflows/` | Android bitdrift workflows (capture + tracing, journey sankey, metric workflows) and `chart-metadata/` |
+| `dashboards/` | Dashboard JSON with workflow-ID placeholders (filled in by the deploy script) |
+| `docker-compose.b3-propagation.yaml`, `B3_ZIPKIN.md`, `APPENDIX.md` | Optional B3/Zipkin override and troubleshooting |
+
+**Common tasks** (run from the project root unless noted)
+
+| Task | Command | Notes |
+|---|---|---|
+| Build, install, launch Android app | `cd android && ./scripts/android-3-start-app.sh` | Needs a running emulator (`android-2-start-emulator.sh`); reads `android/.local.properties` |
+| Boot the emulator | `cd android && ./scripts/android-2-start-emulator.sh` | AVD `medium_phone`; `EMULATOR_WINDOW=0` for headless |
+| Deploy capture + tracing workflow | `cd android && ./scripts/deploy-capture-workflow.sh` | Idempotent; do this *before* driving traffic |
+| Deploy journey sankey | `cd android && ./scripts/deploy-sankey-workflow.sh` | Idempotent |
+| Deploy metric workflows + dashboard | `cd android && ./scripts/deploy-metric-workflows.sh` | Idempotent; the dashboard is replaced |
+| Generate traffic | Tap **Sim 5 / Sim 10 / Sim ∞** on the Welcome screen | Stop Sim ∞ from the simulation banner |
+| Stop everything | `./stop-backend.sh` | Removes the OTel Demo stack, ClickStack and Portainer containers |
+
+**Config** (`android/.local.properties`, gitignored): `BITDRIFT_SDK_KEY`, `BITDRIFT_API_HOST`,
+`OTEL_DEMO_HOST` (default `10.0.2.2`), `OTEL_DEMO_PORT` (`8081`). Local ports: ClickStack UI `8080`,
+OTLP `4317`/`4318`, OTel Demo frontend proxy `8081`.
+
+**bitdrift environment.** `bd` targets production (`.io`) by default. `bd install-profile staging`
+switches the CLI to `.dev` (then `bd auth`); `bd install-profile default` switches back. Confirm
+with `bd connectivity check -ojson --jq '.endpoints[0].address'`. Docs and scripts here assume
+`.io`.
+
+**Things that bite**
+- A workflow only sees sessions that start *after* it deploys.
+- Tracing uses the manual OkHttp interceptor; keep `automaticOkHttpInstrumentation=false` or every
+  request is double-instrumented.
+- `NavHost` transitions are disabled on purpose — the default crossfade stacks screens during fast
+  simulation and bloats session-replay wireframes.
+- OTLP metric connectors must be `https` and are called from bitdrift's cloud, so local ClickStack
+  needs a public HTTPS tunnel (see [workflows/README.md](workflows/README.md#exporting-metrics-to-clickstack-optional)).
+- OTel *span* export from the app needs a local capture AAR (`BITDRIFT_USE_LOCAL_AAR`); the default
+  build uses the published SDK and leaves it off.
+
 ## What This Is
 
 - **bitdrift Capture SDK** — logging, screen views, network capture, feature flag exposure. The
