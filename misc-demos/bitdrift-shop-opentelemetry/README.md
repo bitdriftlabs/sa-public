@@ -14,13 +14,12 @@ Two client apps live in this repo, both driving the same backend and simulation 
 | `android/` | Kotlin, Jetpack Compose | [android/README.md](android/README.md) |
 | `ios/` | Swift, SwiftUI | [ios/README.md](ios/README.md) |
 
-This README covers what's shared between them: the backend stack (OTel Demo + ClickStack),
-Docker/Colima prerequisites, and the Quick Start through getting that backend running. Once it's
-up, jump to the platform README for SDK configuration and how to run that app.
+This README covers the shared backend (OTel Demo + ClickStack), Docker/Colima prerequisites and the
+Quick Start; then follow the platform README for SDK config and running the app.
 
 ## Quick Links
 
-Once the stack is running ([Quick Start](#quick-start) below), these are the local URLs you'll come back to most:
+Local URLs once the stack is running ([Quick Start](#quick-start)):
 
 | Service | URL | What it's for |
 |---|---|---|
@@ -103,21 +102,16 @@ What the Android app emits (useful when writing workflows or investigating sessi
 
 ## What This Is
 
-- **bitdrift Capture SDK** — logging, screen views, network capture, feature flag exposure. The
-  Android app also includes ANR simulation (see [android/README.md](android/README.md)); there's
-  no OS equivalent to simulate on iOS.
-- **OpenTelemetry Demo backend** — the open-source OTel Demo microservices stack (Telescope Store), not the original FastAPI backend. Each app talks to its frontend proxy on port 8081 (moved off the default 8080 to leave that port free for ClickStack).
+- **bitdrift Capture SDK** — logging, screen views, network capture, feature flag exposure. Android also has ANR simulation ([android/README.md](android/README.md)); iOS has no equivalent.
+- **OpenTelemetry Demo backend** — the OTel Demo microservices (Telescope Store), not the original FastAPI backend. Apps talk to its frontend proxy on port 8081 (moved off 8080, which ClickStack uses).
 
-The OTel Demo backend generates rich distributed traces across its microservices as the app drives cart and checkout flows. The bitdrift SDK captures the mobile-side story: screen views, structured logs, network timing, and session context.
+The backend produces distributed traces as the app drives cart and checkout; the SDK captures the mobile side: screen views, logs, network timing and session context.
 
 ## Prerequisites (macOS)
 
-The OTel Demo backend is a `docker compose` stack, so it needs a Docker daemon — but
-**not Docker Desktop**. Like the rest of `bitdrift-shop` in this repo (see
-[bitdrift-shop/backend/README.md#prerequisites-macos](../../bitdrift-shop/backend/README.md#prerequisites-macos)),
-the recommended backend here is [Colima](https://github.com/abiosoft/colima), a
-lightweight Docker daemon that runs in a small Linux VM without Docker Desktop's
-licensing or resource overhead:
+The backend is a `docker compose` stack. Use [Colima](https://github.com/abiosoft/colima) (a lightweight
+Docker daemon in a small Linux VM), **not Docker Desktop** — same as the rest of `bitdrift-shop`
+(see [bitdrift-shop/backend/README.md#prerequisites-macos](../../bitdrift-shop/backend/README.md#prerequisites-macos)):
 
 ```bash
 brew install colima docker docker-compose
@@ -125,53 +119,45 @@ colima start
 docker ps          # should print an empty table, not a connection error
 ```
 
-`colima start` provisions the VM and points the `docker` CLI at it — no `DOCKER_HOST`
-needed. If a command below reports `Cannot connect to the Docker daemon`, Colima isn't
-running; `colima status` shows the current state. The ClickStack container in step 1
-needs more RAM than Colima's default VM — see [Memory Requirements](APPENDIX.md#memory-requirements)
-in the appendix.
+`colima start` points the `docker` CLI at the VM (no `DOCKER_HOST` needed). `Cannot connect to the
+Docker daemon` means Colima isn't running (`colima status`). ClickStack needs more RAM than
+Colima's default — see [Memory Requirements](APPENDIX.md#memory-requirements).
 
-You also need a local clone of the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) itself — this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) that layer on top of it, not the backend stack:
+Also clone the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo); this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) on top of it:
 
 ```bash
 git clone https://github.com/open-telemetry/opentelemetry-demo.git
 cd opentelemetry-demo
 ```
 
-Every `docker compose` command below (and the `cp .../docker-compose.b3-propagation.yaml ...` step) is meant to be run from that `opentelemetry-demo` clone's root.
+Run every `docker compose` command below (and the `cp .../docker-compose.b3-propagation.yaml ...` step) from that clone's root.
 
 ## Quick Start
 
 ### 1. Set up ClickStack
 
-Set this up **before** starting the OTel Demo backend, so the backend's collector is already
-wired to export to ClickStack the first time it boots — no need to restart it afterward. (If you'd
-rather skip ClickStack entirely and use plain W3C or Zipkin instead, skip to
-[step 2](#2-start-the-otel-demo-backend-configured-for-clickstack) and see
-[Switch to B3 Propagation and Zipkin (Optional)](APPENDIX.md#switch-to-b3-propagation-and-zipkin-optional).)
+Do this **before** starting the backend, so its collector exports to ClickStack from first boot. (To
+skip ClickStack and use Zipkin instead, see
+[Switch to B3 Propagation and Zipkin](APPENDIX.md#switch-to-b3-propagation-and-zipkin-optional).)
 
 [ClickStack](https://github.com/ClickHouse/ClickStack) is ClickHouse's open-source observability stack for OpenTelemetry — logs, traces, metrics, and session replay in one UI. (Formerly branded standalone as "HyperDX" — same image, ports, and API, just repackaged/renamed under ClickHouse.) It's an export target for the OTel Collector — no B3 override or propagation change required, it works with the stock W3C setup from step 2.
 
-> **Memory requirement:** the ClickStack container needs significantly more RAM than Colima's/Docker Desktop's default VM — see [Memory Requirements](APPENDIX.md#memory-requirements) in the appendix before proceeding.
+> **Memory:** ClickStack needs far more RAM than the default Colima/Docker VM — apply [Memory Requirements](APPENDIX.md#memory-requirements) first.
 
-Run the ClickStack all-in-one container standalone (it does **not** join the `opentelemetry-demo` docker network — it's just a container on your host). Name it so it's easy to manage/restart later:
-
-Make sure Colima is running first — with the memory bump from [Memory Requirements](APPENDIX.md#memory-requirements) if you haven't already applied it:
+Run the all-in-one container standalone (it does **not** join the `opentelemetry-demo` network) and name it for easy restarts:
 
 ```bash
 colima start
 docker run -d --name clickstack -p 8080:8080 -p 4317:4317 -p 4318:4318 docker.hyperdx.io/hyperdx/hyperdx-all-in-one
 ```
 
-> The image itself is still published under the `hyperdx` Docker namespace (`docker.hyperdx.io/hyperdx/hyperdx-all-in-one`) — that's just the registry path and is current/correct. Everywhere else in this doc refers to it as ClickStack.
+> The image is still published under the `hyperdx` Docker namespace; that's just the registry path. Elsewhere this doc calls it ClickStack.
 
-> **Port note:** ClickStack's UI defaults to host port 8080 — the same port the OTel Demo `frontend-proxy` normally wants. Step 2 moves the frontend proxy to `8081` via `ENVOY_PORT` so both can run at once.
+> **Port:** ClickStack's UI uses host port 8080, which the OTel Demo `frontend-proxy` also wants. Step 2 moves the proxy to `8081` via `ENVOY_PORT`.
 
-Open **http://localhost:8080** and sign up (any email/password works locally) — this auto-creates a team and an ingestion API key. Grab the key from **Team Settings → API Keys** in the UI.
+Open **http://localhost:8080** and sign up (any email/password works locally); this creates a team and an ingestion API key. **Copy the key from Team Settings → API Keys now** — step 2 configures the collector's exporter with it before first boot.
 
-> **Grab the key now and hold onto it** — the next step (starting the OTel Demo backend) uses it to configure the collector's ClickStack exporter before the backend's first boot.
-
-> **Persistence:** this container is run without an explicit `-v` volume flag, but the image itself declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker silently creates an anonymous volume for it — data survives a `docker stop`/`start` or a Colima/Docker VM restart. It's only lost if the container is removed (`docker rm`) without also removing that volume. If you need a true reset (e.g. after corrupted state), see [Fully purging ClickStack / HyperDX](APPENDIX.md#fully-purging-clickstack--hyperdx) in the appendix — that also creates a **new** team + API key on next signup, so re-check the key if traces stop showing up after a purge.
+> **Persistence:** there is no `-v` flag, but the image declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker creates an anonymous volume: data survives `docker stop`/`start` and VM restarts, and is lost only if the container is removed (`docker rm`). For a true reset see [Fully purging ClickStack / HyperDX](APPENDIX.md#fully-purging-clickstack--hyperdx); that also creates a **new** team and API key on next signup.
 
 #### Link bitdrift traces to ClickStack (shard config)
 
