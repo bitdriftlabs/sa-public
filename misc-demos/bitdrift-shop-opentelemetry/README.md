@@ -64,8 +64,6 @@ with `bd connectivity check -ojson --jq '.endpoints[0].address'`. Docs and scrip
   request is double-instrumented.
 - `NavHost` transitions are disabled on purpose — the default crossfade stacks screens during fast
   simulation and bloats session-replay wireframes.
-- OTLP metric connectors must be `https` and are called from bitdrift's cloud, so local ClickStack
-  needs a public HTTPS tunnel (see [workflows/README.md](workflows/README.md#exporting-metrics-to-clickstack-optional)).
 - OTel *span* export from the app needs a local capture AAR (`BITDRIFT_USE_LOCAL_AAR`); the default
   build uses the published SDK and leaves it off.
 
@@ -150,10 +148,6 @@ trace_id_deep_link_url_template: http://localhost:8080/search?traceId={traceId}
 ```
 
 `localhost` only resolves on the machine running ClickStack, so the link works from your own browser only.
-
-#### (Optional) Export bitdrift metrics to ClickStack
-
-bitdrift can push workflow metrics to ClickStack over OTLP — see [workflows/README.md](workflows/README.md#exporting-metrics-to-clickstack-optional). It needs a public HTTPS URL for ClickStack's port 4318.
 
 ### 2. Start the OTel Demo backend (configured for ClickStack)
 

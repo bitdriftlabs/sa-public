@@ -89,25 +89,3 @@ cd android && ./scripts/deploy-metric-workflows.sh
 | | `screen-views` | count of screen views, by `_screen_name` |
 
 Generate traffic with the in-app **Sim 5 / Sim 10 / Sim ∞** buttons.
-
-## Exporting metrics to ClickStack (optional)
-
-A *connector* is the OTLP destination; each chart series is then pointed at it.
-
-1. **Make ClickStack reachable.** The connector is called from bitdrift's cloud and must be `https`, so
-   ClickStack's local `http://localhost:4318` can't be used directly. Put an HTTPS tunnel in front of
-   port 4318 (for example `cloudflared tunnel --url http://localhost:4318`). That exposes your ingest
-   port publicly, protected only by the ingestion API key.
-2. **Create the connector** (connectors are created with the CLI; the UI only lists them):
-
-   ```bash
-   printf '{"Authorization": "<ClickStack ingestion key>"}' > /tmp/clickstack-headers.json && chmod 600 /tmp/clickstack-headers.json
-   bd connector upsert otlp clickstack-local --endpoint https://<tunnel-host>/v1/metrics --headers-file /tmp/clickstack-headers.json
-   rm /tmp/clickstack-headers.json
-   ```
-
-3. **Attach it to a chart.** In the chart's **Configure OTLP metric export** dialog, add an export
-   config, pick `clickstack-local`, and set the metric name (plus percentiles for histogram series).
-   Or set `connector_export_config` on the series in the chart metadata
-   (`bd schema workflow.create ConnectorExportConfig --docs` for the fields).
-4. Metrics land in ClickStack's Chart Explorer after the export delay (default 180 s).

@@ -60,8 +60,7 @@
                     "y_axis": {
                       "description": "Journeys started",
                       "unit": "UNSPECIFIED"
-                    },
-                    "connector_export_config": []
+                    }
                   }
                 ]
               }
@@ -96,8 +95,7 @@
                     "y_axis": {
                       "description": "Completion rate",
                       "unit": "PERCENTAGE"
-                    },
-                    "connector_export_config": []
+                    }
                   }
                 ]
               }
@@ -132,8 +130,7 @@
                     "y_axis": {
                       "description": "Completed",
                       "unit": "UNSPECIFIED"
-                    },
-                    "connector_export_config": []
+                    }
                   }
                 ]
               }
@@ -168,8 +165,7 @@
                     "y_axis": {
                       "description": "Payment failures",
                       "unit": "UNSPECIFIED"
-                    },
-                    "connector_export_config": []
+                    }
                   }
                 ]
               }
@@ -204,16 +200,14 @@
                     "y_axis": {
                       "description": "Checkout failures",
                       "unit": "UNSPECIFIED"
-                    },
-                    "connector_export_config": []
+                    }
                   },
                   {
                     "title": "Cart failures",
                     "y_axis": {
                       "description": "Cart failures",
                       "unit": "UNSPECIFIED"
-                    },
-                    "connector_export_config": []
+                    }
                   }
                 ]
               }
@@ -248,8 +242,7 @@
                     "y_axis": {
                       "description": "Screen views",
                       "unit": "UNSPECIFIED"
-                    },
-                    "connector_export_config": []
+                    }
                   }
                 ]
               }
@@ -317,8 +310,7 @@
                     "y_axis": {
                       "description": "Requests",
                       "unit": "UNSPECIFIED"
-                    },
-                    "connector_export_config": []
+                    }
                   }
                 ]
               }
@@ -353,8 +345,7 @@
                     "y_axis": {
                       "description": "Latency",
                       "unit": "MILLISECONDS"
-                    },
-                    "connector_export_config": []
+                    }
                   }
                 ]
               }
@@ -389,8 +380,7 @@
                     "y_axis": {
                       "description": "Errors",
                       "unit": "UNSPECIFIED"
-                    },
-                    "connector_export_config": []
+                    }
                   }
                 ]
               }
@@ -425,8 +415,7 @@
                     "y_axis": {
                       "description": "Error rate",
                       "unit": "PERCENTAGE"
-                    },
-                    "connector_export_config": []
+                    }
                   }
                 ]
               }
