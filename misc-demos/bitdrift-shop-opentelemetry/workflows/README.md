@@ -66,3 +66,50 @@ bd workflow deploy <ID>
 
 To track a different journey, change the `Welcome`/`Confirmation` screen names (match IDs `start`
 and `end`) and the matching `fixed` labels in the sankey action.
+
+## Metric workflows + dashboard (for testing OTLP metric export)
+
+Two metric workflows and a dashboard give the Android demo a spread of metric shapes (counts, a latency
+histogram with percentiles, rates, grouped series) to export to ClickStack over OTLP — see
+[Export bitdrift metrics to ClickStack](../README.md#optional-export-bitdrift-metrics-to-clickstack).
+
+| File | Chart rule (`rule_id`) | Shape |
+|------|------------------------|-------|
+| `otel-api-metrics.json` | `api-request-count` | count, by `_path_template` |
+| | `api-latency` | histogram of `_duration_ms` (p50/p90/p99), by `_path_template` |
+| | `api-errors` | count where `_result != success`, by `_path_template` |
+| | `api-error-rate` | rate: errors / requests |
+| `otel-journey-health.json` | `journeys-started` | count of `Welcome` screen views |
+| | `journeys-completed` | count of `confirmation_reached`, by `ff_variant` |
+| | `journey-completion-rate` | rate: completed / started |
+| | `payment-failures-by-method` | count of `payment_failed`, by `payment_method` |
+| | `checkout-and-cart-failures` | two counts: `checkout_failed` (by `checkout_type`), `cart_failed` |
+| | `screen-views` | count of screen views, by `_screen_name` |
+
+Both are scoped to `ai.bitdrift.oteldemo`. Chart titles, units and series labels live in
+`chart-metadata/<name>.chart.json`. Deploy (from the project root):
+
+```bash
+for n in otel-api-metrics otel-journey-health; do
+  bd workflow create workflows/$n.json \
+    --metadata-file workflows/$n.metadata.json \
+    --chart-metadata-file workflows/chart-metadata/$n.chart.json \
+    --deploy
+done
+```
+
+Then deploy the dashboard: look up each workflow's ID, substitute it for the placeholder in
+`dashboards/otel-telescope-store.dashboard.json` (`__OTEL_JOURNEY_HEALTH_WORKFLOW_ID__`,
+`__OTEL_API_METRICS_WORKFLOW_ID__`), and create it:
+
+```bash
+bd workflow list --workflow-name "bitdrift-shop-opentelemetry" -ojson --jq '[.items[]|{id:.workflow.id,name:.workflow.name}]'
+sed -e 's/__OTEL_JOURNEY_HEALTH_WORKFLOW_ID__/<id>/g' -e 's/__OTEL_API_METRICS_WORKFLOW_ID__/<id>/g' \
+  dashboards/otel-telescope-store.dashboard.json > /tmp/dash.json
+bd dashboard create --request-file /tmp/dash.json
+```
+
+To export a series, add `connector_export_config` to that series in the chart metadata (and the
+dashboard's chart metadata) and redeploy; see the README link above for the shape. Generate traffic
+with the in-app **Sim** buttons — a workflow only sees sessions that start after it deploys.
+

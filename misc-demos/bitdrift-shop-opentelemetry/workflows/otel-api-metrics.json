@@ -1,0 +1,178 @@
+{
+  "name": "bitdrift-shop-opentelemetry \u2014 Backend API Metrics",
+  "platform_targets": [
+    {
+      "android": {
+        "apps": [
+          {
+            "app_id": "ai.bitdrift.oteldemo"
+          }
+        ]
+      }
+    }
+  ],
+  "flows": [
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "api-response",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_name",
+                      "operator": "EQUAL",
+                      "string_value": "_http"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_path_template",
+                      "operator": "WILDCARD",
+                      "string_value": "/api/*"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "steps": [
+        {
+          "match_rule": {
+            "match_id": "api-error",
+            "generic_match": {
+              "and_matcher": {
+                "matchers": [
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_name",
+                      "operator": "EQUAL",
+                      "string_value": "_http"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_span_type",
+                      "operator": "EQUAL",
+                      "string_value": "end"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_path_template",
+                      "operator": "WILDCARD",
+                      "string_value": "/api/*"
+                    }
+                  },
+                  {
+                    "base_matcher": {
+                      "log_field": "_result",
+                      "operator": "NOT_EQUAL",
+                      "string_value": "success"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "rule_id": "api-request-count",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "api-response"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "_path_template"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "api-latency",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "histogram": {
+              "value": {
+                "match_id": "api-response",
+                "name": "_duration_ms"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "_path_template"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "api-errors",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "count": {
+              "value": {
+                "match_id": "api-error"
+              },
+              "group_by": {
+                "values": [
+                  {
+                    "field_key": "_path_template"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "api-error-rate",
+      "metric_chart_rule": {
+        "time_series": [
+          {
+            "rate": {
+              "numerator": {
+                "match_id": "api-error"
+              },
+              "denominator": {
+                "match_id": "api-response"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "description": "Shopper-journey health for the Telescope Store app: journeys started/completed, completion rate, payment/checkout/cart failures and screen views.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "journeys-started",
+      "title": "Journeys Started"
+    },
+    {
+      "rule_id": "journeys-completed",
+      "title": "Journeys Completed by Variant"
+    },
+    {
+      "rule_id": "journey-completion-rate",
+      "title": "Journey Completion Rate"
+    },
+    {
+      "rule_id": "payment-failures-by-method",
+      "title": "Payment Failures by Method"
+    },
+    {
+      "rule_id": "checkout-and-cart-failures",
+      "title": "Checkout and Cart Failures"
+    },
+    {
+      "rule_id": "screen-views",
+      "title": "Screen Views by Screen"
+    }
+  ]
+}

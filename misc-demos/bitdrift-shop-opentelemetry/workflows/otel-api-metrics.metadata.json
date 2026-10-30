@@ -1,0 +1,21 @@
+{
+  "description": "Backend API volume, latency and errors for the Telescope Store (OTel Demo frontend-proxy /api/*), measured from the app's network spans. Good source for exercising OTLP metric export: counts, a latency histogram with percentiles, and a rate.",
+  "per_rule_metadata": [
+    {
+      "rule_id": "api-request-count",
+      "title": "API Requests by Endpoint"
+    },
+    {
+      "rule_id": "api-latency",
+      "title": "API Latency by Endpoint (p50/p90/p99)"
+    },
+    {
+      "rule_id": "api-errors",
+      "title": "API Errors by Endpoint"
+    },
+    {
+      "rule_id": "api-error-rate",
+      "title": "API Error Rate"
+    }
+  ]
+}
