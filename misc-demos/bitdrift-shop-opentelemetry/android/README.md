@@ -89,7 +89,7 @@ are required together or the app crashes at startup with `NoClassDefFoundError` 
 
 A span only exports once tracing is actually active for the session — the
 [Deploy the session-capture workflow](#deploy-the-session-capture-workflow) step below already
-covers this, since [capture-all-sessions.json](workflows/README.md) includes a
+covers this, since [capture-all-sessions.json](../workflows/README.md) includes a
 `start_tracing_rule` alongside the capture/flush rule.
 
 ## Deploy the session-capture workflow
@@ -111,14 +111,25 @@ bd auth
 bd auth --status
 ```
 
-Then deploy the workflow:
+Then deploy the capture + tracing workflow (starts tracing and captures every journey of `ai.bitdrift.oteldemo`, triggered on the `Welcome` screen):
 
 ```bash
 ./scripts/deploy-capture-workflow.sh
 ```
 
-Idempotent — safe to re-run; it reuses the existing workflow instead of creating a duplicate. See
-[workflows/README.md](workflows/README.md) for what it deploys and how to do it by hand with `bd`.
+Idempotent — safe to re-run; it reuses the existing workflow instead of creating a duplicate.
+
+Then deploy the user-journey sankey, which charts every screen path shoppers take from **Welcome** to
+**Confirmation**:
+
+```bash
+./scripts/deploy-sankey-workflow.sh
+```
+
+Also idempotent. It prints the workflow URL; open it once the app has run a few journeys (use the
+in-app simulation or tap through manually). Only sessions that start after the workflow deploys are
+counted, and it relies only on the SDK's screen-view logs. See [../workflows/README.md](../workflows/README.md)
+for what each workflow deploys and how to do it by hand with `bd`.
 
 ## Run the Android app
 
@@ -134,8 +145,14 @@ Set `OTEL_DEMO_PORT=8081` in `.local.properties` (see [Local Config](#local-conf
 ./scripts/android-5-stop-emulator.sh  # kill the emulator
 ```
 
+Notes on the scripts:
+
+- The AVD defaults to `medium_phone` (override with `AVD_NAME=...`). `android-2` also exports `ANDROID_SDK_ROOT`, which newer emulator builds require. Set `EMULATOR_WINDOW=0` to run headless, or `EMU_GPU=swiftshader_indirect` for software rendering (the default on macOS is the host GPU).
+- `installDebug` uninstalls the previous build first, so stale APK data can't mask a code change.
+- `scripts/emulator-relaunch-watchdog.sh` is only for the ANR demo (see [readme-anr.md](readme-anr.md)); it dismisses ANR dialogs and relaunches the app.
+
 ## Further reading
 
 - [../APPENDIX.md](../APPENDIX.md) — troubleshooting notes and reference material, including several Android-specific sections (Screens list, Project Structure, Architecture diagram, Emulator Requirements)
 - [readme-anr.md](readme-anr.md) — a worked `bd` CLI investigation correlating the ANR simulation with Sankey funnel data
-- [workflows/README.md](workflows/README.md) — the session-capture workflow JSON and how to deploy it by hand
+- [../workflows/README.md](../workflows/README.md) — the capture/tracing workflow and user-journey sankey JSON, and how to deploy them by hand

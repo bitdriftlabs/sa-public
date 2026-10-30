@@ -125,7 +125,20 @@ fi
 EMULATOR_NAME=$(get_emulator_name "$SERIAL")
 
 start_app() {
-  "${ADB[@]}" shell am start -n "$ACTIVITY" >/dev/null 2>&1 || true
+  local out rc
+  out=$("${ADB[@]}" shell am start -n "$ACTIVITY" 2>&1) || rc=$?
+  rc=${rc:-0}
+  # `am start` exits 0 even when it fails to resolve the activity (prints "Error type 3" /
+  # "Error: Activity class ... does not exist"), so check the output as well as the exit code.
+  if [[ "$rc" -eq 0 ]] && ! echo "$out" | grep -qE '^Error|Error type|does not exist'; then
+    echo "[$(ts)] [launch] am start ok: ${out//$'\r'/ }"
+    return 0
+  fi
+
+  echo "[$(ts)] [launch] am start failed (rc=$rc): ${out//$'\r'/ }"
+  echo "[$(ts)] [launch] trying monkey launcher fallback"
+  "${ADB[@]}" shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
+  return 0
 }
 
 force_stop() {

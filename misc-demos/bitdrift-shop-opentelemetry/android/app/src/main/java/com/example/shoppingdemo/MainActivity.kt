@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -61,7 +63,14 @@ fun ShoppingDemoContent() {
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
-            startDestination = Screen.Welcome.route
+            startDestination = Screen.Welcome.route,
+            // No transitions: the default 700ms crossfade keeps the outgoing screen composed, and
+            // the simulation navigates every ~50ms, so a dozen screens pile up (a 360+ view tree
+            // and a stacked session-replay wireframe) until the animations drain.
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None }
         ) {
             composable(Screen.Welcome.route) {
                 WelcomeScreen(navController, simulationManager)

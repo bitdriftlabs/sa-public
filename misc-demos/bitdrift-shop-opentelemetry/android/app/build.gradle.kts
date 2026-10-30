@@ -54,7 +54,7 @@ val bitdriftLocalAarStamp: String =
 
 println(
     "bitdrift capture dependency: " +
-        if (bitdriftUseLocalAar) "LOCAL AAR ($bitdriftLocalAarPath)" else "Maven Central (io.bitdrift:capture:0.25.0)"
+        if (bitdriftUseLocalAar) "LOCAL AAR ($bitdriftLocalAarPath)" else "Maven Central (io.bitdrift:capture:0.26.0)"
 )
 
 // OtelExportConfiguration (and the otelExportConfiguration param on Configuration) only exist in
@@ -120,7 +120,7 @@ android {
         buildConfigField("String", "BITDRIFT_API_HOST", "\"$bitdriftApiHost\"")
         buildConfigField("String", "OTEL_DEMO_HOST", "\"$otelDemoHost\"")
         buildConfigField("int", "OTEL_DEMO_PORT", otelDemoPort)
-        buildConfigField("String", "BITDRIFT_SDK_VERSION", "\"0.25.0\"")
+        buildConfigField("String", "BITDRIFT_SDK_VERSION", "\"0.26.0\"")
         buildConfigField("String", "CLICKSTACK_ENDPOINT", "\"$clickstackEndpoint\"")
         buildConfigField("String", "CLICKSTACK_INGESTION_API_KEY", "\"$clickstackIngestionApiKey\"")
         // Surfaced in the UI (see Components.kt) so it's obvious at a glance which capture
@@ -187,7 +187,7 @@ dependencies {
         implementation(files("$rootDir/libs/common-release.aar"))
 
         // capture.aar is a bare local file with no POM, so its runtime dependencies
-        // (mirrored from the published capture:0.25.0 POM) must be declared explicitly.
+        // (mirrored from the published capture:0.26.0 POM) must be declared explicitly.
         implementation("androidx.appcompat:appcompat:1.7.0")
         implementation("androidx.core:core:1.13.1")
         implementation("androidx.lifecycle:lifecycle-common:2.8.7")
@@ -203,7 +203,7 @@ dependencies {
         // why (stdlib/coroutines version mismatch otherwise).
         implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
     } else {
-        implementation("io.bitdrift:capture:0.25.0")
+        implementation("io.bitdrift:capture:0.26.0")
     }
 
     // OkHttp for backend API calls
@@ -237,4 +237,24 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+// Force a full uninstall before every debug install (Android Studio Run/Debug or
+// `./gradlew installDebug`), so no stale APK/class data can linger between builds.
+// adb comes from AGP's SDK components, so it's the same SDK installDebug itself uses (including
+// an SDK located only via sdk.dir in local.properties).
+val adbExecutable = androidComponents.sdkComponents.adb
+tasks.matching { it.name == "installDebug" }.configureEach {
+    doFirst {
+        // Best effort: a missing adb or a not-yet-installed app must never fail the install.
+        try {
+            // Plain ProcessBuilder, not Project.exec — the latter was removed in Gradle 9.
+            ProcessBuilder(adbExecutable.get().asFile.absolutePath, "uninstall", "ai.bitdrift.oteldemo")
+                .redirectErrorStream(true)
+                .start()
+                .waitFor()
+        } catch (e: Exception) {
+            logger.info("Skipping pre-install uninstall: ${e.message}")
+        }
+    }
 }
