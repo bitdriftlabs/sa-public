@@ -3,6 +3,10 @@
 Demo e-commerce shopping apps instrumented with the **bitdrift Capture SDK** and backed by the
 [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store.
 
+> **Read first:** [Quick Reference](#quick-reference-humans-and-agents) has the commands, config and
+> gotchas; [Telemetry Reference](#telemetry-reference) lists the screens, events and fields the app emits.
+> Platform details: [android/README.md](android/README.md), [ios/README.md](ios/README.md).
+
 Two client apps live in this repo, both driving the same backend and simulation logic:
 
 | App | Stack | Docs |
@@ -10,13 +14,12 @@ Two client apps live in this repo, both driving the same backend and simulation 
 | `android/` | Kotlin, Jetpack Compose | [android/README.md](android/README.md) |
 | `ios/` | Swift, SwiftUI | [ios/README.md](ios/README.md) |
 
-This README covers what's shared between them: the backend stack (OTel Demo + ClickStack),
-Docker/Colima prerequisites, and the Quick Start through getting that backend running. Once it's
-up, jump to the platform README for SDK configuration and how to run that app.
+This README covers the shared backend (OTel Demo + ClickStack), Docker/Colima prerequisites and the
+Quick Start; then follow the platform README for SDK config and running the app.
 
 ## Quick Links
 
-Once the stack is running ([Quick Start](#quick-start) below), these are the local URLs you'll come back to most:
+Local URLs once the stack is running ([Quick Start](#quick-start)):
 
 | Service | URL | What it's for |
 |---|---|---|
@@ -25,23 +28,92 @@ Once the stack is running ([Quick Start](#quick-start) below), these are the loc
 | **Portainer** (optional) | [http://localhost:9000](http://localhost:9000) | Container manager/dashboard — see [Container Monitoring](#container-monitoring-optional-portainer) |
 | **Zipkin** (if using B3 instead of ClickStack) | [http://localhost:9411](http://localhost:9411) | See [B3_ZIPKIN.md](B3_ZIPKIN.md) |
 
+## Quick Reference (humans and agents)
+
+**Layout**
+
+| Path | Contents |
+|---|---|
+| `android/` | Kotlin/Compose app (`ai.bitdrift.oteldemo`, Capture SDK 0.26.0), emulator + deploy scripts in `android/scripts/` |
+| `ios/` | SwiftUI app and scripts |
+| `workflows/` | Android bitdrift workflows (capture + tracing, journey sankey, metric workflows) and `chart-metadata/` |
+| `dashboards/` | Dashboard JSON with workflow-ID placeholders (filled in by the deploy script) |
+| `docker-compose.b3-propagation.yaml`, `B3_ZIPKIN.md`, `APPENDIX.md` | Optional B3/Zipkin override and troubleshooting |
+
+**Common tasks** (run from the project root unless noted)
+
+| Task | Command | Notes |
+|---|---|---|
+| Build, install, launch Android app | `cd android && ./scripts/android-3-start-app.sh` | Needs a running emulator (`android-2-start-emulator.sh`); reads `android/.local.properties` |
+| Boot the emulator | `cd android && ./scripts/android-2-start-emulator.sh` | AVD `medium_phone`; `EMULATOR_WINDOW=0` for headless |
+| Deploy capture + tracing workflow | `cd android && ./scripts/deploy-capture-workflow.sh` | Idempotent; do this *before* driving traffic |
+| Deploy journey sankey | `cd android && ./scripts/deploy-sankey-workflow.sh` | Idempotent |
+| Deploy metric workflows + dashboard | `cd android && ./scripts/deploy-metric-workflows.sh` | Idempotent; the dashboard is replaced |
+| Generate traffic | Tap **Sim 5 / Sim 10 / Sim ∞** on the Welcome screen | Stop Sim ∞ with the ✕ (Cancel) button in the simulation banner |
+| Stop everything | `./stop-backend.sh` | Removes the OTel Demo stack, ClickStack and Portainer containers |
+
+**Config** (`android/.local.properties`, gitignored; env vars also work): `BITDRIFT_SDK_KEY`,
+`BITDRIFT_API_HOST` (default `api.bitdrift.io`; use `api.bitdrift.dev` to report to `.dev`),
+`OTEL_DEMO_HOST` (default `10.0.2.2`), `OTEL_DEMO_PORT` (default `8081`). Local ports: ClickStack UI `8080`,
+OTLP `4317`/`4318`, OTel Demo frontend proxy `8081`.
+
+**bitdrift environment.** `bd` targets production (`.io`) by default. `bd install-profile staging`
+switches the CLI to `.dev` (then `bd auth`); `bd install-profile default` switches back. Confirm
+with `bd connectivity check -ojson --jq '.endpoints[0].address'`. Docs and scripts here assume
+`.io`.
+
+**Things that bite**
+- A workflow only sees sessions that start *after* it deploys.
+- Tracing uses the manual OkHttp interceptor; keep `automaticOkHttpInstrumentation=false` or every
+  request is double-instrumented.
+- `NavHost` transitions are disabled on purpose — the default crossfade stacks screens during fast
+  simulation and bloats session-replay wireframes.
+- OTel *span* export from the app needs a local capture AAR (`BITDRIFT_USE_LOCAL_AAR`); the default
+  build uses the published SDK and leaves it off.
+
+**Verify it works**
+
+| Check | Command | Expect |
+|---|---|---|
+| Backend up | `curl -s "http://localhost:8081/api/products?currencyCode=USD" \| head -c 200` | JSON product list |
+| ClickStack up | `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/` | `200` |
+| App running | `adb shell pidof ai.bitdrift.oteldemo` | a PID |
+| bitdrift tenant | `bd connectivity check -ojson --jq '.endpoints[0].address'` | `https://api.bitdrift.io` (`.io`) or `https://api.bitdrift.dev` (`.dev`) |
+| Workflows deployed | `bd workflow list --workflow-name "bitdrift-shop-opentelemetry" -ojson --jq '[.items[]\|{id:.workflow.id,name:.workflow.name,state:.workflow.state}]'` | the four workflows below, `LIVE` |
+
+**Workflow and dashboard inventory** (names are the lookup keys the deploy scripts use)
+
+| Name | File | Purpose |
+|---|---|---|
+| `bitdrift-shop-opentelemetry — Capture All Sessions (Demo)` | `workflows/capture-all-sessions.json` | On the `Welcome` screen view: flush the session and start backend tracing |
+| `bitdrift-shop-opentelemetry — User Journey Paths (Welcome → Confirmation)` | `workflows/user-journey-sankey.json` | Sankey of screen paths from `Welcome` to `Confirmation` |
+| `bitdrift-shop-opentelemetry — Backend API Metrics` | `workflows/otel-api-metrics.json` | `/api/*` request count, latency histogram, errors, error rate |
+| `bitdrift-shop-opentelemetry — Journey Health` | `workflows/otel-journey-health.json` | Journeys started/completed, completion rate, failures, screen views |
+| `bitdrift-shop-opentelemetry — Telescope Store` (dashboard) | `dashboards/otel-telescope-store.dashboard.json` | Journey and Backend API tabs over the two metric workflows |
+
+## Telemetry Reference
+
+What the Android app emits (useful when writing workflows or investigating sessions).
+
+- **Screens** (`SCREEN_VIEW`, field `_screen_name`): `Welcome`, `Browse`, `Search`, `Featured`, `Categories`, `CategoryBrowse`, `ProductDetail`, `Reviews`, `Cart`, `Wishlist`, `CheckoutGuest`, `CheckoutSignIn`, `PaymentCard`, `PaymentApplePay`, `PaymentPayPal`, `PaymentAndroidPay`, `PaymentFailed`, `Confirmation`.
+- **Log events** (match on log body): `app_launched`, `journey_started` (one per journey: app launch, Start New Journey, each simulated journey), `app_open`, `app_close`, `feature_flag_exposure_set`, `simulation_start`/`simulation_end` (field `total_runs`), `add_to_cart` and `add_to_wishlist` (fields `product_id`, `source_screen`), `cart_item_removed` (`product_id`), `cart_failed` (`product_id`), `checkout_failed` (`checkout_type`), `payment_failed` (`payment_method`), `payment_retry` (`original_method`, `retry_method`), `confirmation_reached`.
+- **Network** (span end log, message `HTTPResponse`): `_span_name=_http`, `_span_type=end`, `_host`, `_path`, `_path_template`, `_method`, `_status_code`, `_duration_ms`, `_result` (`success` or not), `_trace_id`. Backend calls are `/api/*` on `10.0.2.2:8081`.
+- **Global fields** (on every log/span): `app_variant=otel-demo`, `platform=android`, plus feature-flag fields `ff_variant`, `ff_checkout_flow`, `ff_payment_ui`, `ff_cart_abandon_rate`, `ff_payment_android_pay`, `ff_anr_a`.
+- **Feature-flag exposures:** `checkout_flow` and `payment_ui`, set per session by the simulation presets.
+- **Sessions:** the simulation calls `Logger.startNewSession()` once per journey, so one journey is one session.
+
 ## What This Is
 
-- **bitdrift Capture SDK** — logging, screen views, network capture, feature flag exposure. The
-  Android app also includes ANR simulation (see [android/README.md](android/README.md)); there's
-  no OS equivalent to simulate on iOS.
-- **OpenTelemetry Demo backend** — the open-source OTel Demo microservices stack (Telescope Store), not the original FastAPI backend. Each app talks to its frontend proxy on port 8081 (moved off the default 8080 to leave that port free for ClickStack).
+- **bitdrift Capture SDK** — logging, screen views, network capture, feature flag exposure. Android also has ANR simulation ([android/README.md](android/README.md)); iOS has no equivalent.
+- **OpenTelemetry Demo backend** — the OTel Demo microservices (Telescope Store), not the original FastAPI backend. Apps talk to its frontend proxy on port 8081 (moved off 8080, which ClickStack uses).
 
-The OTel Demo backend generates rich distributed traces across its microservices as the app drives cart and checkout flows. The bitdrift SDK captures the mobile-side story: screen views, structured logs, network timing, and session context.
+The backend produces distributed traces as the app drives cart and checkout; the SDK captures the mobile side: screen views, logs, network timing and session context.
 
 ## Prerequisites (macOS)
 
-The OTel Demo backend is a `docker compose` stack, so it needs a Docker daemon — but
-**not Docker Desktop**. Like the rest of `bitdrift-shop` in this repo (see
-[bitdrift-shop/backend/README.md#prerequisites-macos](../../bitdrift-shop/backend/README.md#prerequisites-macos)),
-the recommended backend here is [Colima](https://github.com/abiosoft/colima), a
-lightweight Docker daemon that runs in a small Linux VM without Docker Desktop's
-licensing or resource overhead:
+The backend is a `docker compose` stack. Use [Colima](https://github.com/abiosoft/colima) (a lightweight
+Docker daemon in a small Linux VM), **not Docker Desktop** — same as the rest of `bitdrift-shop`
+(see [bitdrift-shop/backend/README.md#prerequisites-macos](../../bitdrift-shop/backend/README.md#prerequisites-macos)):
 
 ```bash
 brew install colima docker docker-compose
@@ -49,74 +121,55 @@ colima start
 docker ps          # should print an empty table, not a connection error
 ```
 
-`colima start` provisions the VM and points the `docker` CLI at it — no `DOCKER_HOST`
-needed. If a command below reports `Cannot connect to the Docker daemon`, Colima isn't
-running; `colima status` shows the current state. The ClickStack container in step 1
-needs more RAM than Colima's default VM — see [Memory Requirements](APPENDIX.md#memory-requirements)
-in the appendix.
+`colima start` points the `docker` CLI at the VM (no `DOCKER_HOST` needed). `Cannot connect to the
+Docker daemon` means Colima isn't running (`colima status`). ClickStack needs more RAM than
+Colima's default — see [Memory Requirements](APPENDIX.md#memory-requirements).
 
-### Container Monitoring (Optional): Portainer
-
-Between the OTel Demo stack (~20 containers), ClickStack, and optionally Zipkin, `docker ps`/`docker logs` gets unwieldy fast. [Portainer CE](https://github.com/portainer/portainer) is an open-source web GUI for monitoring and managing containers, images, volumes, and logs.
-
-Install and run it, skipping Portainer's own first-run setup-token flow so you land straight in the UI:
-
-```bash
-docker run -d --name portainer -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce --no-setup-token
-```
-
-Open **http://localhost:9000** — no admin account/token step, straight into the dashboard listing all running containers.
-
-> **Local dev only:** `--no-setup-token` skips authentication entirely, and the container has full access to the host's Docker socket — anyone who can reach port 9000 has root-equivalent control over your Docker daemon. Fine for a `localhost`-only dev setup; don't expose this port beyond your own machine.
-
-**Stop it:**
-
-```bash
-docker stop portainer
-docker rm portainer
-```
-
-You also need a local clone of the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) itself — this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) that layer on top of it, not the backend stack:
+Also clone the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo); this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) on top of it:
 
 ```bash
 git clone https://github.com/open-telemetry/opentelemetry-demo.git
 cd opentelemetry-demo
 ```
 
-Every `docker compose` command below (and the `cp .../docker-compose.b3-propagation.yaml ...` step) is meant to be run from that `opentelemetry-demo` clone's root.
+Run every `docker compose` command below (and the `cp .../docker-compose.b3-propagation.yaml ...` step) from that clone's root.
 
 ## Quick Start
 
 ### 1. Set up ClickStack
 
-Set this up **before** starting the OTel Demo backend, so the backend's collector is already
-wired to export to ClickStack the first time it boots — no need to restart it afterward. (If you'd
-rather skip ClickStack entirely and use plain W3C or Zipkin instead, skip to
-[step 2](#2-start-the-otel-demo-backend-configured-for-clickstack) and see
-[Switch to B3 Propagation and Zipkin (Optional)](APPENDIX.md#switch-to-b3-propagation-and-zipkin-optional).)
+Do this **before** starting the backend, so its collector exports to ClickStack from first boot. (To
+skip ClickStack and use Zipkin instead, see
+[Switch to B3 Propagation and Zipkin](APPENDIX.md#switch-to-b3-propagation-and-zipkin-optional).)
 
 [ClickStack](https://github.com/ClickHouse/ClickStack) is ClickHouse's open-source observability stack for OpenTelemetry — logs, traces, metrics, and session replay in one UI. (Formerly branded standalone as "HyperDX" — same image, ports, and API, just repackaged/renamed under ClickHouse.) It's an export target for the OTel Collector — no B3 override or propagation change required, it works with the stock W3C setup from step 2.
 
-> **Memory requirement:** the ClickStack container needs significantly more RAM than Colima's/Docker Desktop's default VM — see [Memory Requirements](APPENDIX.md#memory-requirements) in the appendix before proceeding.
+> **Memory:** ClickStack needs far more RAM than the default Colima/Docker VM — apply [Memory Requirements](APPENDIX.md#memory-requirements) first.
 
-Run the ClickStack all-in-one container standalone (it does **not** join the `opentelemetry-demo` docker network — it's just a container on your host). Name it so it's easy to manage/restart later:
-
-Make sure Colima is running first — with the memory bump from [Memory Requirements](APPENDIX.md#memory-requirements) if you haven't already applied it:
+Run the all-in-one container standalone (it does **not** join the `opentelemetry-demo` network) and name it for easy restarts:
 
 ```bash
 colima start
 docker run -d --name clickstack -p 8080:8080 -p 4317:4317 -p 4318:4318 docker.hyperdx.io/hyperdx/hyperdx-all-in-one
 ```
 
-> The image itself is still published under the `hyperdx` Docker namespace (`docker.hyperdx.io/hyperdx/hyperdx-all-in-one`) — that's just the registry path and is current/correct. Everywhere else in this doc refers to it as ClickStack.
+> The image is still published under the `hyperdx` Docker namespace; that's just the registry path. Elsewhere this doc calls it ClickStack.
 
-> **Port note:** ClickStack's UI defaults to host port 8080 — the same port the OTel Demo `frontend-proxy` normally wants. Step 2 moves the frontend proxy to `8081` via `ENVOY_PORT` so both can run at once.
+> **Port:** ClickStack's UI uses host port 8080, which the OTel Demo `frontend-proxy` also wants. Step 2 moves the proxy to `8081` via `ENVOY_PORT`.
 
-Open **http://localhost:8080** and sign up (any email/password works locally) — this auto-creates a team and an ingestion API key. Grab the key from **Team Settings → API Keys** in the UI.
+Open **http://localhost:8080** and sign up (any email/password works locally); this creates a team and an ingestion API key. **Copy the key from Team Settings → API Keys now** — step 2 configures the collector's exporter with it before first boot.
 
-> **Grab the key now and hold onto it** — the next step (starting the OTel Demo backend) uses it to configure the collector's ClickStack exporter before the backend's first boot.
+> **Persistence:** there is no `-v` flag, but the image declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker creates an anonymous volume: data survives `docker stop`/`start` and VM restarts, and is lost only if the container is removed (`docker rm`). For a true reset see [Fully purging ClickStack / HyperDX](APPENDIX.md#fully-purging-clickstack--hyperdx); that also creates a **new** team and API key on next signup.
 
-> **Persistence:** this container is run without an explicit `-v` volume flag, but the image itself declares an internal `VOLUME` for `/var/lib/clickhouse`, so Docker silently creates an anonymous volume for it — data survives a `docker stop`/`start` or a Colima/Docker VM restart. It's only lost if the container is removed (`docker rm`) without also removing that volume. If you need a true reset (e.g. after corrupted state), see [Fully purging ClickStack / HyperDX](APPENDIX.md#fully-purging-clickstack--hyperdx) in the appendix — that also creates a **new** team + API key on next signup, so re-check the key if traces stop showing up after a purge.
+#### Link bitdrift traces to ClickStack (shard config)
+
+To make **View Trace** in bitdrift open the trace in your local ClickStack, set the shard's trace deep-link template (bitdrift-side config, not set by this repo):
+
+```yaml
+trace_id_deep_link_url_template: http://localhost:8080/search?traceId={traceId}
+```
+
+`localhost` only resolves on the machine running ClickStack, so the link works from your own browser only.
 
 ### 2. Start the OTel Demo backend (configured for ClickStack)
 
@@ -215,7 +268,7 @@ The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `co
 To view traces once an app (next step) is running and you've generated some traffic:
 
 - Open **http://localhost:8080**
-- Tap **Sim 10** in the app
+- Tap **Sim 10** in the app (or **Sim ∞** to run journeys back to back until you tap the ✕ (Cancel) button in the simulation banner)
 - Search or browse traces/logs/metrics in the ClickStack UI — data lands within a few seconds
 - To sanity-check ingestion directly in ClickHouse: `docker exec clickstack sh -c "curl -s 'http://localhost:8123/?query=SELECT+count()+FROM+otel_traces'"`
 
@@ -237,3 +290,24 @@ See [APPENDIX.md](APPENDIX.md) for troubleshooting notes and reference material 
 - A full audit runbook for checking the rest of the stack after a Colima mount fix, so no other services are silently running on bad first-boot state
 - Fully purging ClickStack/HyperDX's hidden anonymous data volume when the UI errors out or shows stale data
 - Memory requirements, plus Android-specific reference material (Screens list, Project Structure, Architecture diagram, Emulator requirements) and the B3/Zipkin switch
+
+## Container Monitoring (Optional): Portainer
+
+Between the OTel Demo stack (~20 containers), ClickStack, and optionally Zipkin, `docker ps`/`docker logs` gets unwieldy fast. [Portainer CE](https://github.com/portainer/portainer) is an open-source web GUI for monitoring and managing containers, images, volumes, and logs.
+
+Install and run it, skipping Portainer's own first-run setup-token flow so you land straight in the UI:
+
+```bash
+docker run -d --name portainer -p 9000:9000 -v /var/run/docker.sock:/var/run/docker.sock portainer/portainer-ce --no-setup-token
+```
+
+Open **http://localhost:9000** — no admin account/token step, straight into the dashboard listing all running containers.
+
+> **Local dev only:** `--no-setup-token` skips authentication entirely, and the container has full access to the host's Docker socket — anyone who can reach port 9000 has root-equivalent control over your Docker daemon. Fine for a `localhost`-only dev setup; don't expose this port beyond your own machine.
+
+**Stop it:**
+
+```bash
+docker stop portainer
+docker rm portainer
+```

@@ -1,0 +1,135 @@
+[
+  {
+    "rule_id": "journeys-started",
+    "metadata": {
+      "title": "Journeys Started",
+      "summary": {
+        "description": "journey_started logs \u2014 one per shopping journey (logged at app launch, after Start New Journey, and at the start of each simulated journey)."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Journeys started",
+            "y_axis": {
+              "description": "Count",
+              "unit": "UNSPECIFIED"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "journeys-completed",
+    "metadata": {
+      "title": "Journeys Completed by Variant",
+      "summary": {
+        "description": "Confirmation screen views (manual and simulated purchases), grouped by the ff_variant feature-flag field."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Completed",
+            "y_axis": {
+              "description": "Count",
+              "unit": "UNSPECIFIED"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "journey-completion-rate",
+    "metadata": {
+      "title": "Journey Completion Rate",
+      "summary": {
+        "description": "Confirmation screen views / journey_started logs."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Completion rate",
+            "y_axis": {
+              "description": "Rate",
+              "unit": "PERCENTAGE"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "payment-failures-by-method",
+    "metadata": {
+      "title": "Payment Failures by Method",
+      "summary": {
+        "description": "payment_failed logs grouped by payment_method (card, apple_pay, paypal, android_pay)."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Payment failures",
+            "y_axis": {
+              "description": "Count",
+              "unit": "UNSPECIFIED"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "checkout-and-cart-failures",
+    "metadata": {
+      "title": "Checkout and Cart Failures",
+      "summary": {
+        "description": "checkout_failed (by checkout_type) and cart_failed logs."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Checkout failures",
+            "y_axis": {
+              "description": "Count",
+              "unit": "UNSPECIFIED"
+            }
+          },
+          {
+            "title": "Cart failures",
+            "y_axis": {
+              "description": "Count",
+              "unit": "UNSPECIFIED"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "rule_id": "screen-views",
+    "metadata": {
+      "title": "Screen Views by Screen",
+      "summary": {
+        "description": "SCREEN_VIEW logs grouped by _screen_name."
+      },
+      "metric_chart_metadata": {
+        "time_series_display_mode": {},
+        "metadata": [
+          {
+            "title": "Screen views",
+            "y_axis": {
+              "description": "Count",
+              "unit": "UNSPECIFIED"
+            }
+          }
+        ]
+      }
+    }
+  }
+]

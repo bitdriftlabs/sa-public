@@ -431,6 +431,8 @@ class SimulationManager : ViewModel() {
         Logger.startNewSession()
         // Give the SDK time to fully initialise the new session before recording exposures
         delay(200L)
+        // Journey boundary (see the Journey Health workflow): one event per journey.
+        Logger.logInfo { "journey_started" }
         // Re-apply flag exposures after startNewSession() — exposure is per-session,
         // so it must be recorded again on the new session for the dashboard to detect it.
         setVariant(activeVariant)

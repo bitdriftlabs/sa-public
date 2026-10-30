@@ -1,0 +1,428 @@
+{
+  "name": "bitdrift-shop-opentelemetry \u2014 Telescope Store",
+  "tabs": [
+    {
+      "name": "Journey",
+      "stylistic_components": [
+        {
+          "id": "j-h",
+          "text_component": {
+            "text": "Telescope Store \u2014 shopper journeys",
+            "variant": "h2"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 0,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "j-p",
+          "text_component": {
+            "text": "Journeys started and completed, completion rate, failures and screen views from the Android demo app. Drive traffic with the in-app Sim buttons.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 3,
+            "column_span": 12,
+            "row_span": 4
+          }
+        }
+      ],
+      "charts": [
+        {
+          "id": "j-0",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__OTEL_JOURNEY_HEALTH_WORKFLOW_ID__",
+                "chart_rule_id": "journeys-started"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 7,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Journeys started",
+              "summary": {
+                "description": "journey_started logs"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Journeys started",
+                    "y_axis": {
+                      "description": "Journeys started",
+                      "unit": "UNSPECIFIED"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "j-1",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__OTEL_JOURNEY_HEALTH_WORKFLOW_ID__",
+                "chart_rule_id": "journey-completion-rate"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 7,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Journey completion rate",
+              "summary": {
+                "description": "Confirmation screen views / journey_started logs"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Completion rate",
+                    "y_axis": {
+                      "description": "Completion rate",
+                      "unit": "PERCENTAGE"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "j-2",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__OTEL_JOURNEY_HEALTH_WORKFLOW_ID__",
+                "chart_rule_id": "journeys-completed"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 21,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Journeys completed by variant",
+              "summary": {
+                "description": "Grouped by ff_variant"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Completed",
+                    "y_axis": {
+                      "description": "Completed",
+                      "unit": "UNSPECIFIED"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "j-3",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__OTEL_JOURNEY_HEALTH_WORKFLOW_ID__",
+                "chart_rule_id": "payment-failures-by-method"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 21,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Payment failures by method",
+              "summary": {
+                "description": "payment_failed by payment_method"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Payment failures",
+                    "y_axis": {
+                      "description": "Payment failures",
+                      "unit": "UNSPECIFIED"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "j-4",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__OTEL_JOURNEY_HEALTH_WORKFLOW_ID__",
+                "chart_rule_id": "checkout-and-cart-failures"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 35,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Checkout and cart failures",
+              "summary": {
+                "description": "checkout_failed / cart_failed"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Checkout failures",
+                    "y_axis": {
+                      "description": "Checkout failures",
+                      "unit": "UNSPECIFIED"
+                    }
+                  },
+                  {
+                    "title": "Cart failures",
+                    "y_axis": {
+                      "description": "Cart failures",
+                      "unit": "UNSPECIFIED"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "j-5",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__OTEL_JOURNEY_HEALTH_WORKFLOW_ID__",
+                "chart_rule_id": "screen-views"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 35,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "Screen views by screen",
+              "summary": {
+                "description": "SCREEN_VIEW by _screen_name"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Screen views",
+                    "y_axis": {
+                      "description": "Screen views",
+                      "unit": "UNSPECIFIED"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Backend API",
+      "stylistic_components": [
+        {
+          "id": "a-h",
+          "text_component": {
+            "text": "Telescope Store \u2014 backend API (OTel Demo /api/*)",
+            "variant": "h2"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 0,
+            "column_span": 12,
+            "row_span": 3
+          }
+        },
+        {
+          "id": "a-p",
+          "text_component": {
+            "text": "Request volume, latency percentiles and errors for the calls the app makes to the OTel Demo frontend-proxy.",
+            "variant": "p"
+          },
+          "dashboard_layout_settings": {
+            "x": 0,
+            "y": 3,
+            "column_span": 12,
+            "row_span": 3
+          }
+        }
+      ],
+      "charts": [
+        {
+          "id": "a-0",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__OTEL_API_METRICS_WORKFLOW_ID__",
+                "chart_rule_id": "api-request-count"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 6,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "API requests by endpoint",
+              "summary": {
+                "description": "Normalized _path_template"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Requests",
+                    "y_axis": {
+                      "description": "Requests",
+                      "unit": "UNSPECIFIED"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "a-1",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__OTEL_API_METRICS_WORKFLOW_ID__",
+                "chart_rule_id": "api-latency"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 6,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "API latency by endpoint (p50/p90/p99)",
+              "summary": {
+                "description": "_duration_ms"
+              },
+              "metric_chart_metadata": {
+                "histogram_bar_chart_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Latency",
+                    "y_axis": {
+                      "description": "Latency",
+                      "unit": "MILLISECONDS"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "a-2",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__OTEL_API_METRICS_WORKFLOW_ID__",
+                "chart_rule_id": "api-errors"
+              }
+            },
+            "layout_settings": {
+              "x": 0,
+              "y": 20,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "API errors by endpoint",
+              "summary": {
+                "description": "_result != success"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Errors",
+                    "y_axis": {
+                      "description": "Errors",
+                      "unit": "UNSPECIFIED"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "a-3",
+          "chart_component_layout": {
+            "chart_id": {
+              "workflow": {
+                "workflow_id": "__OTEL_API_METRICS_WORKFLOW_ID__",
+                "chart_rule_id": "api-error-rate"
+              }
+            },
+            "layout_settings": {
+              "x": 6,
+              "y": 20,
+              "column_span": 6,
+              "row_span": 14
+            },
+            "chart_metadata": {
+              "title": "API error rate",
+              "summary": {
+                "description": "errors / requests"
+              },
+              "metric_chart_metadata": {
+                "time_series_display_mode": {},
+                "metadata": [
+                  {
+                    "title": "Error rate",
+                    "y_axis": {
+                      "description": "Error rate",
+                      "unit": "PERCENTAGE"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

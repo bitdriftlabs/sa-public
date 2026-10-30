@@ -104,6 +104,12 @@ fun WelcomeScreen(navController: NavController, simulationManager: SimulationMan
                 simulationManager.simulate(10, navController)
             }
 
+            // Runs journeys back to back until cancelled from the simulation banner — keeps
+            // traces/metrics flowing for long-running export tests.
+            SimButton(title = "Sim ∞", color = Color(0xFFFF9800)) {
+                simulationManager.infiniteSimulate(navController)
+            }
+
             // Workshop 7 — Device Identification & Debugging (android, basic sdk)
             // workshop-301.md § "7 — Device Identification"
             // Device code: generates a short-lived code copied to clipboard for support lookup.
@@ -1079,6 +1085,9 @@ fun ConfirmationScreen(navController: NavController, orderId: String?) {
                 // begins a new shopping journey — keeps each purchase flow in its own session.
                 // https://docs.bitdrift.io/sdk/quickstart#android
                 Logger.startNewSession()
+                // Journey boundary: the workflows count journeys by this event, not by Welcome
+                // screen views (those also fire when a simulation returns to Welcome).
+                Logger.logInfo { "journey_started" }
 
                 // Workshop 5 — Global Fields (android, basic sdk)
                 // workshop-301.md § "5 — Global Fields"

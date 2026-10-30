@@ -36,6 +36,9 @@ class ShoppingDemoApp : Application() {
         // workshop-301.md § "4c — Logging Examples"
         // Structured log: stable event name + fields for variable data.
         Logger.logInfo { "app_launched" }
+        // The launch session is the first journey when driven manually; simulations and the
+        // "Start New Journey" button log their own journey_started after startNewSession().
+        Logger.logInfo { "journey_started" }
 
         // Workshop 5 — Global Fields (android, basic sdk)
         // workshop-301.md § "5 — Global Fields"

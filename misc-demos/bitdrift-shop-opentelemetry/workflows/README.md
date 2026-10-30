@@ -4,16 +4,13 @@ Workflow JSON for the bitdrift-shop-opentelemetry Android demo app. Scoped to `a
 
 ## `capture-all-sessions.json` — Capture All Sessions (Demo)
 
-Guarantees a full session capture **and starts backend tracing** for every purchase journey of this
-app. It fires on the `Welcome` screen view (the first step of the purchase flow — the app calls
-`Logger.startNewSession()` per journey) rather than on app launch, with no sampling and no other match conditions,
-so every journey is flushed (`capture-all-sessions` rule) and has trace context propagated on its
-network calls (`trace-all-sessions`, a `start_tracing_rule`). Tracing is what this demo shows, so
-without this workflow requests aren't traced end to end into the OTel Demo backend. Locked to
-`ai.bitdrift.oteldemo` (`platform_targets`), so it never touches other apps. Deploy this **before**
-running the live demo, not mid-demo: a workflow only sees sessions that start *after* it deploys, so
-anything already running when you deploy it won't be captured. To trigger on a different step, change
-the `_screen_name` value in the `session-start` match.
+Captures every purchase journey **and starts backend tracing** for it, which is what this demo
+showcases. It fires on the `Welcome` screen view (the app calls `Logger.startNewSession()` per
+journey) rather than on app launch, with no sampling: the `capture-all-sessions` rule flushes the
+session and `trace-all-sessions` (`start_tracing_rule`) propagates trace context on its network
+calls. Locked to `ai.bitdrift.oteldemo` (`platform_targets`). Deploy it **before** the live demo: a
+workflow only sees sessions that start *after* it deploys. To trigger on a different step, change
+the `_screen_name` in the `session-start` match.
 
 Deploy it with the script (idempotent — reuses the existing workflow instead of creating a
 duplicate if you run it more than once):
@@ -66,3 +63,29 @@ bd workflow deploy <ID>
 
 To track a different journey, change the `Welcome`/`Confirmation` screen names (match IDs `start`
 and `end`) and the matching `fixed` labels in the sankey action.
+
+## Metric workflows + dashboard
+
+Two metric workflows and a dashboard (`../dashboards/otel-telescope-store.dashboard.json`) give the
+app a spread of metric shapes — counts, a latency histogram with percentiles, rates, grouped series.
+Chart titles and units live in `chart-metadata/<name>.chart.json`. Deploy everything (idempotent;
+the dashboard is replaced):
+
+```bash
+cd android && ./scripts/deploy-metric-workflows.sh
+```
+
+| Workflow | Chart (`rule_id`) | Shape |
+|----------|-------------------|-------|
+| `otel-api-metrics.json` | `api-request-count` | count, by `_path_template` |
+| | `api-latency` | histogram of `_duration_ms` (p50/p90/p99), by `_path_template` |
+| | `api-errors` | count where `_result != success`, by `_path_template` |
+| | `api-error-rate` | rate: errors / requests |
+| `otel-journey-health.json` | `journeys-started` | count of `journey_started` logs (one per journey) |
+| | `journeys-completed` | count of `Confirmation` screen views (manual and simulated), by `ff_variant` |
+| | `journey-completion-rate` | rate: `Confirmation` views / `journey_started` |
+| | `payment-failures-by-method` | count of `payment_failed`, by `payment_method` |
+| | `checkout-and-cart-failures` | `checkout_failed` (by `checkout_type`) and `cart_failed` counts |
+| | `screen-views` | count of screen views, by `_screen_name` |
+
+Generate traffic with the in-app **Sim 5 / Sim 10 / Sim ∞** buttons.
