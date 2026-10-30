@@ -4,16 +4,13 @@ Workflow JSON for the bitdrift-shop-opentelemetry Android demo app. Scoped to `a
 
 ## `capture-all-sessions.json` — Capture All Sessions (Demo)
 
-Guarantees a full session capture **and starts backend tracing** for every purchase journey of this
-app. It fires on the `Welcome` screen view (the first step of the purchase flow — the app calls
-`Logger.startNewSession()` per journey) rather than on app launch, with no sampling and no other match conditions,
-so every journey is flushed (`capture-all-sessions` rule) and has trace context propagated on its
-network calls (`trace-all-sessions`, a `start_tracing_rule`). Tracing is what this demo shows, so
-without this workflow requests aren't traced end to end into the OTel Demo backend. Locked to
-`ai.bitdrift.oteldemo` (`platform_targets`), so it never touches other apps. Deploy this **before**
-running the live demo, not mid-demo: a workflow only sees sessions that start *after* it deploys, so
-anything already running when you deploy it won't be captured. To trigger on a different step, change
-the `_screen_name` value in the `session-start` match.
+Captures every purchase journey **and starts backend tracing** for it, which is what this demo
+showcases. It fires on the `Welcome` screen view (the app calls `Logger.startNewSession()` per
+journey) rather than on app launch, with no sampling: the `capture-all-sessions` rule flushes the
+session and `trace-all-sessions` (`start_tracing_rule`) propagates trace context on its network
+calls. Locked to `ai.bitdrift.oteldemo` (`platform_targets`). Deploy it **before** the live demo: a
+workflow only sees sessions that start *after* it deploys. To trigger on a different step, change
+the `_screen_name` in the `session-start` match.
 
 Deploy it with the script (idempotent — reuses the existing workflow instead of creating a
 duplicate if you run it more than once):
@@ -67,14 +64,19 @@ bd workflow deploy <ID>
 To track a different journey, change the `Welcome`/`Confirmation` screen names (match IDs `start`
 and `end`) and the matching `fixed` labels in the sankey action.
 
-## Metric workflows + dashboard (for testing OTLP metric export)
+## Metric workflows + dashboard
 
-Two metric workflows and a dashboard give the Android demo a spread of metric shapes (counts, a latency
-histogram with percentiles, rates, grouped series) to export to ClickStack over OTLP — see
-[Export bitdrift metrics to ClickStack](../README.md#optional-export-bitdrift-metrics-to-clickstack).
+Two metric workflows and a dashboard (`../dashboards/otel-telescope-store.dashboard.json`) give the
+app a spread of metric shapes — counts, a latency histogram with percentiles, rates, grouped series.
+Chart titles and units live in `chart-metadata/<name>.chart.json`. Deploy everything (idempotent;
+the dashboard is replaced):
 
-| File | Chart rule (`rule_id`) | Shape |
-|------|------------------------|-------|
+```bash
+cd android && ./scripts/deploy-metric-workflows.sh
+```
+
+| Workflow | Chart (`rule_id`) | Shape |
+|----------|-------------------|-------|
 | `otel-api-metrics.json` | `api-request-count` | count, by `_path_template` |
 | | `api-latency` | histogram of `_duration_ms` (p50/p90/p99), by `_path_template` |
 | | `api-errors` | count where `_result != success`, by `_path_template` |
@@ -83,33 +85,29 @@ histogram with percentiles, rates, grouped series) to export to ClickStack over 
 | | `journeys-completed` | count of `confirmation_reached`, by `ff_variant` |
 | | `journey-completion-rate` | rate: completed / started |
 | | `payment-failures-by-method` | count of `payment_failed`, by `payment_method` |
-| | `checkout-and-cart-failures` | two counts: `checkout_failed` (by `checkout_type`), `cart_failed` |
+| | `checkout-and-cart-failures` | `checkout_failed` (by `checkout_type`) and `cart_failed` counts |
 | | `screen-views` | count of screen views, by `_screen_name` |
 
-Both are scoped to `ai.bitdrift.oteldemo`. Chart titles, units and series labels live in
-`chart-metadata/<name>.chart.json`. Deploy (from the project root):
+Generate traffic with the in-app **Sim 5 / Sim 10 / Sim ∞** buttons.
 
-```bash
-for n in otel-api-metrics otel-journey-health; do
-  bd workflow create workflows/$n.json \
-    --metadata-file workflows/$n.metadata.json \
-    --chart-metadata-file workflows/chart-metadata/$n.chart.json \
-    --deploy
-done
-```
+## Exporting metrics to ClickStack (optional)
 
-Then deploy the dashboard: look up each workflow's ID, substitute it for the placeholder in
-`dashboards/otel-telescope-store.dashboard.json` (`__OTEL_JOURNEY_HEALTH_WORKFLOW_ID__`,
-`__OTEL_API_METRICS_WORKFLOW_ID__`), and create it:
+A *connector* is the OTLP destination; each chart series is then pointed at it.
 
-```bash
-bd workflow list --workflow-name "bitdrift-shop-opentelemetry" -ojson --jq '[.items[]|{id:.workflow.id,name:.workflow.name}]'
-sed -e 's/__OTEL_JOURNEY_HEALTH_WORKFLOW_ID__/<id>/g' -e 's/__OTEL_API_METRICS_WORKFLOW_ID__/<id>/g' \
-  dashboards/otel-telescope-store.dashboard.json > /tmp/dash.json
-bd dashboard create --request-file /tmp/dash.json
-```
+1. **Make ClickStack reachable.** The connector is called from bitdrift's cloud and must be `https`, so
+   ClickStack's local `http://localhost:4318` can't be used directly. Put an HTTPS tunnel in front of
+   port 4318 (for example `cloudflared tunnel --url http://localhost:4318`). That exposes your ingest
+   port publicly, protected only by the ingestion API key.
+2. **Create the connector** (connectors are created with the CLI; the UI only lists them):
 
-To export a series, add `connector_export_config` to that series in the chart metadata (and the
-dashboard's chart metadata) and redeploy; see the README link above for the shape. Generate traffic
-with the in-app **Sim** buttons — a workflow only sees sessions that start after it deploys.
+   ```bash
+   printf '{"Authorization": "<ClickStack ingestion key>"}' > /tmp/clickstack-headers.json && chmod 600 /tmp/clickstack-headers.json
+   bd connector upsert otlp clickstack-local --endpoint https://<tunnel-host>/v1/metrics --headers-file /tmp/clickstack-headers.json
+   rm /tmp/clickstack-headers.json
+   ```
 
+3. **Attach it to a chart.** In the chart's **Configure OTLP metric export** dialog, add an export
+   config, pick `clickstack-local`, and set the metric name (plus percentiles for histogram series).
+   Or set `connector_export_config` on the series in the chart metadata
+   (`bd schema workflow.create ConnectorExportConfig --docs` for the fields).
+4. Metrics land in ClickStack's Chart Explorer after the export delay (default 180 s).

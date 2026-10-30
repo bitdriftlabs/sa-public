@@ -120,7 +120,7 @@ Open **http://localhost:8080** and sign up (any email/password works locally) â€
 
 #### Link bitdrift traces to ClickStack (shard config)
 
-So the **View Trace** links in bitdrift open the trace in your local ClickStack, set the shard's trace deep-link template (this is bitdrift-side config, not something this repo sets):
+To make **View Trace** in bitdrift open the trace in your local ClickStack, set the shard's trace deep-link template (bitdrift-side config, not set by this repo):
 
 ```yaml
 trace_id_deep_link_url_template: http://localhost:8080/search?traceId={traceId}
@@ -130,38 +130,7 @@ trace_id_deep_link_url_template: http://localhost:8080/search?traceId={traceId}
 
 #### (Optional) Export bitdrift metrics to ClickStack
 
-bitdrift can push workflow metrics to ClickStack over OTLP/HTTP through a *connector*. Two constraints:
-
-- The connector endpoint must be **`https`**, and it is called from bitdrift's cloud, so ClickStack's local `http://localhost:4318` can't be used directly. Expose port 4318 through an HTTPS tunnel first (for example `tailscale funnel 4318`, ngrok, or cloudflared). That makes your ClickStack ingest port publicly reachable, protected only by the ingestion API key.
-- The connector is only a destination; you then point a workflow metric at it.
-
-1. Create a headers file with the ClickStack ingestion key from step 1 (keep it out of git):
-
-   ```bash
-   echo '{"Authorization": "<your ClickStack API key>"}' > /tmp/clickstack-headers.json && chmod 600 /tmp/clickstack-headers.json
-   ```
-
-2. Create the connector (the endpoint path is `/v1/metrics`):
-
-   ```bash
-   bd connector upsert otlp clickstack --endpoint https://<your-tunnel-host>/v1/metrics --headers-file /tmp/clickstack-headers.json
-   bd connector list
-   ```
-
-3. Attach it to a metric chart in a workflow's chart metadata (`--chart-metadata-file` on `bd workflow create`/`update`), under the metric series' `connector_export_config`:
-
-   ```json
-   "connector_export_config": [
-     {
-       "connector_name": "clickstack",
-       "otlp_connector_export_config": { "metric_name": "bitdrift.shop.journey_count" }
-     }
-   ]
-   ```
-
-   Histogram series also need `percentiles` (for example `[0.5, 0.95]`); counters must leave it empty. Run `bd schema workflow.create ConnectorExportConfig --docs` for all fields. Exports lag by `export_delay_seconds` (default 180).
-
-4. Redeploy the workflow, then look for the metric in ClickStack's Chart Explorer.
+bitdrift can push workflow metrics to ClickStack over OTLP â€” see [workflows/README.md](workflows/README.md#exporting-metrics-to-clickstack-optional). It needs a public HTTPS URL for ClickStack's port 4318.
 
 ### 2. Start the OTel Demo backend (configured for ClickStack)
 
