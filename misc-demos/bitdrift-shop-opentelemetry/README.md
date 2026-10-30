@@ -55,6 +55,15 @@ running; `colima status` shows the current state. The ClickStack container in st
 needs more RAM than Colima's default VM — see [Memory Requirements](APPENDIX.md#memory-requirements)
 in the appendix.
 
+You also need a local clone of the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) itself — this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) that layer on top of it, not the backend stack:
+
+```bash
+git clone https://github.com/open-telemetry/opentelemetry-demo.git
+cd opentelemetry-demo
+```
+
+Every `docker compose` command below (and the `cp .../docker-compose.b3-propagation.yaml ...` step) is meant to be run from that `opentelemetry-demo` clone's root.
+
 ## Quick Start
 
 ### 1. Set up ClickStack
@@ -242,12 +251,3 @@ Open **http://localhost:9000** — no admin account/token step, straight into th
 docker stop portainer
 docker rm portainer
 ```
-
-You also need a local clone of the [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) itself — this repo only ships overrides (`docker-compose.b3-propagation.yaml`, `otelcol-config-extras.yml`) that layer on top of it, not the backend stack:
-
-```bash
-git clone https://github.com/open-telemetry/opentelemetry-demo.git
-cd opentelemetry-demo
-```
-
-Every `docker compose` command below (and the `cp .../docker-compose.b3-propagation.yaml ...` step) is meant to be run from that `opentelemetry-demo` clone's root.
