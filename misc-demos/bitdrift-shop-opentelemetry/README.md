@@ -3,6 +3,10 @@
 Demo e-commerce shopping apps instrumented with the **bitdrift Capture SDK** and backed by the
 [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) Telescope Store.
 
+> **Read first:** [Quick Reference](#quick-reference-humans-and-agents) has the commands, config and
+> gotchas; [Telemetry Reference](#telemetry-reference) lists the screens, events and fields the app emits.
+> Platform details: [android/README.md](android/README.md), [ios/README.md](ios/README.md).
+
 Two client apps live in this repo, both driving the same backend and simulation logic:
 
 | App | Stack | Docs |
@@ -66,6 +70,36 @@ with `bd connectivity check -ojson --jq '.endpoints[0].address'`. Docs and scrip
   simulation and bloats session-replay wireframes.
 - OTel *span* export from the app needs a local capture AAR (`BITDRIFT_USE_LOCAL_AAR`); the default
   build uses the published SDK and leaves it off.
+
+**Verify it works**
+
+| Check | Command | Expect |
+|---|---|---|
+| Backend up | `curl -s "http://localhost:8081/api/products?currencyCode=USD" \| head -c 200` | JSON product list |
+| ClickStack up | `curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/` | `200` |
+| App running | `adb shell pidof ai.bitdrift.oteldemo` | a PID |
+| bitdrift tenant | `bd connectivity check -ojson --jq '.endpoints[0].address'` | `https://api.bitdrift.io` (`.io`) or `https://api.bitdrift.dev` (`.dev`) |
+| Workflows deployed | `bd workflow list --workflow-name "bitdrift-shop-opentelemetry" -ojson --jq '[.items[]\|{id:.workflow.id,name:.workflow.name,state:.workflow.state}]'` | the four workflows below, `LIVE` |
+
+**Workflow and dashboard inventory** (names are the lookup keys the deploy scripts use)
+
+| Name | File | Purpose |
+|---|---|---|
+| `bitdrift-shop-opentelemetry — Capture All Sessions (Demo)` | `workflows/capture-all-sessions.json` | On the `Welcome` screen view: flush the session and start backend tracing |
+| `bitdrift-shop-opentelemetry — User Journey Paths (Welcome → Confirmation)` | `workflows/user-journey-sankey.json` | Sankey of screen paths from `Welcome` to `Confirmation` |
+| `bitdrift-shop-opentelemetry — Backend API Metrics` | `workflows/otel-api-metrics.json` | `/api/*` request count, latency histogram, errors, error rate |
+| `bitdrift-shop-opentelemetry — Journey Health` | `workflows/otel-journey-health.json` | Journeys started/completed, completion rate, failures, screen views |
+| `bitdrift-shop-opentelemetry — Telescope Store` (dashboard) | `dashboards/otel-telescope-store.dashboard.json` | Journey and Backend API tabs over the two metric workflows |
+
+## Telemetry Reference
+
+What the Android app emits (useful when writing workflows or investigating sessions).
+
+- **Screens** (`SCREEN_VIEW`, field `_screen_name`): `Welcome`, `Browse`, `Search`, `Featured`, `Categories`, `CategoryBrowse`, `ProductDetail`, `Reviews`, `Cart`, `Wishlist`, `CheckoutGuest`, `CheckoutSignIn`, `PaymentCard`, `PaymentApplePay`, `PaymentPayPal`, `PaymentAndroidPay`, `PaymentFailed`, `Confirmation`.
+- **Log events** (match on log body): `app_launched`, `app_open`, `app_close`, `feature_flag_exposure_set`, `simulation_start`, `simulation_end`, `confirmation_reached`, `payment_failed` (field `payment_method`), `payment_retry`, `checkout_failed` (field `checkout_type`), `cart_failed`, `cart_item_removed`.
+- **Network** (span end log, message `HTTPResponse`): `_span_name=_http`, `_span_type=end`, `_host`, `_path`, `_path_template`, `_method`, `_status_code`, `_duration_ms`, `_result` (`success` or not), `_trace_id`. Backend calls are `/api/*` on `10.0.2.2:8081`.
+- **Global fields** (on every log/span): `app_variant=otel-demo`, `platform=android`, plus feature-flag fields `ff_variant`, `ff_checkout_flow`, `ff_payment_ui`, `ff_cart_abandon_rate`, `ff_payment_android_pay`, `ff_anr_a`.
+- **Sessions:** the simulation calls `Logger.startNewSession()` once per journey, so one journey is one session.
 
 ## What This Is
 
