@@ -49,7 +49,7 @@ Local URLs once the stack is running ([Quick Start](#quick-start)):
 | Deploy capture + tracing workflow | `cd android && ./scripts/deploy-capture-workflow.sh` | Idempotent; do this *before* driving traffic |
 | Deploy journey sankey | `cd android && ./scripts/deploy-sankey-workflow.sh` | Idempotent |
 | Deploy metric workflows + dashboard | `cd android && ./scripts/deploy-metric-workflows.sh` | Idempotent; the dashboard is replaced |
-| Generate traffic | Tap **Sim 5 / Sim 10 / Sim ∞** on the Welcome screen | Stop Sim ∞ from the simulation banner |
+| Generate traffic | Tap **Sim 5 / Sim 10 / Sim ∞** on the Welcome screen | Stop Sim ∞ with the ✕ (Cancel) button in the simulation banner |
 | Stop everything | `./stop-backend.sh` | Removes the OTel Demo stack, ClickStack and Portainer containers |
 
 **Config** (`android/.local.properties`, gitignored): `BITDRIFT_SDK_KEY`, `BITDRIFT_API_HOST`,
@@ -95,9 +95,10 @@ with `bd connectivity check -ojson --jq '.endpoints[0].address'`. Docs and scrip
 What the Android app emits (useful when writing workflows or investigating sessions).
 
 - **Screens** (`SCREEN_VIEW`, field `_screen_name`): `Welcome`, `Browse`, `Search`, `Featured`, `Categories`, `CategoryBrowse`, `ProductDetail`, `Reviews`, `Cart`, `Wishlist`, `CheckoutGuest`, `CheckoutSignIn`, `PaymentCard`, `PaymentApplePay`, `PaymentPayPal`, `PaymentAndroidPay`, `PaymentFailed`, `Confirmation`.
-- **Log events** (match on log body): `app_launched`, `app_open`, `app_close`, `feature_flag_exposure_set`, `simulation_start`, `simulation_end`, `confirmation_reached`, `payment_failed` (field `payment_method`), `payment_retry`, `checkout_failed` (field `checkout_type`), `cart_failed`, `cart_item_removed`.
+- **Log events** (match on log body): `app_launched`, `app_open`, `app_close`, `feature_flag_exposure_set`, `simulation_start`/`simulation_end` (field `total_runs`), `add_to_cart` and `add_to_wishlist` (fields `product_id`, `source_screen`), `cart_item_removed` (`product_id`), `cart_failed` (`product_id`), `checkout_failed` (`checkout_type`), `payment_failed` (`payment_method`), `payment_retry` (`original_method`, `retry_method`), `confirmation_reached`.
 - **Network** (span end log, message `HTTPResponse`): `_span_name=_http`, `_span_type=end`, `_host`, `_path`, `_path_template`, `_method`, `_status_code`, `_duration_ms`, `_result` (`success` or not), `_trace_id`. Backend calls are `/api/*` on `10.0.2.2:8081`.
 - **Global fields** (on every log/span): `app_variant=otel-demo`, `platform=android`, plus feature-flag fields `ff_variant`, `ff_checkout_flow`, `ff_payment_ui`, `ff_cart_abandon_rate`, `ff_payment_android_pay`, `ff_anr_a`.
+- **Feature-flag exposures:** `checkout_flow` and `payment_ui`, set per session by the simulation presets.
 - **Sessions:** the simulation calls `Logger.startNewSession()` once per journey, so one journey is one session.
 
 ## What This Is
@@ -266,7 +267,7 @@ The OTel Demo stack's services all use `restart: unless-stopped`, so a plain `co
 To view traces once an app (next step) is running and you've generated some traffic:
 
 - Open **http://localhost:8080**
-- Tap **Sim 10** in the app (or **Sim ∞** to run journeys back to back until you tap the stop icon in the simulation banner)
+- Tap **Sim 10** in the app (or **Sim ∞** to run journeys back to back until you tap the ✕ (Cancel) button in the simulation banner)
 - Search or browse traces/logs/metrics in the ClickStack UI — data lands within a few seconds
 - To sanity-check ingestion directly in ClickHouse: `docker exec clickstack sh -c "curl -s 'http://localhost:8123/?query=SELECT+count()+FROM+otel_traces'"`
 
