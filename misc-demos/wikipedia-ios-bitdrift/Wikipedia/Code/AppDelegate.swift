@@ -2,7 +2,7 @@ import UIKit
 import WMFData
 import BackgroundTasks
 import CocoaLumberjackSwift
-import Capture
+@_spi(ExperimentalAPI) import Capture
 import CaptureCocoaLumberjack
 
 #if TEST
@@ -33,12 +33,29 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let apiHost = (Bundle.main.object(forInfoDictionaryKey: "BitdriftAPIHost") as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "api.bitdrift.io"
             Logger.start(
                 withAPIKey: apiKey,
-                sessionStrategy: .fixed(),
+                sessionConfiguration: SessionConfiguration(),
                 configuration: Configuration(
                     apiURL: URL(string: "https://\(apiHost)")!
                 )
             )?
             .enableIntegrations([.urlSession(), .cocoaLumberjack()], disableSwizzling: true)
+
+            // Set ENTITY_ID in Configurations/BitdriftLocal.xcconfig (defaults to "demo").
+            if let entityID = Bundle.main.object(forInfoDictionaryKey: "BitdriftEntityID") as? String, !entityID.isEmpty {
+                Logger.setEntityID(entityID)
+            }
+
+            // Device commands (experimental), adapted from the Capture SDK's iOS sample app. Each key must
+            // also exist in the server command catalog. ios_memory_dump is built into newer SDK versions,
+            // so the app doesn't register it.
+            Task {
+                await Logger.registerCommand(key: "memory_dump") { arguments in
+                    BitdriftMemoryDump.run(arguments: arguments)
+                }
+                await Logger.registerCommand(key: "flip_flag") { arguments in
+                    BitdriftFlags.flip(arguments: arguments)
+                }
+            }
         } else {
             DDLogWarn("bitdrift Capture not started: set BITDRIFT_API_KEY in Configurations/BitdriftLocal.xcconfig")
         }
@@ -227,3 +244,64 @@ private final class BackgroundAppRefreshCompletion {
     }
 }
 #endif
+
+// MARK: - bitdrift device commands
+
+/// flip_flag: toggles a named flag and reports it as a feature flag exposure.
+enum BitdriftFlags {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var flags: [String: Bool] = [:]
+
+    static func flip(arguments: CommandArguments) -> Result<CommandResult, CommandError> {
+        guard case let .string(flag) = arguments["flag"], !flag.isEmpty else {
+            return .failure(CommandError(title: "Missing flag argument"))
+        }
+        let previous: Bool = lock.withLock {
+            let previous = flags[flag] ?? false
+            flags[flag] = !previous
+            return previous
+        }
+        Logger.setFeatureFlagExposure(withName: flag, variant: !previous)
+        return .success(CommandResult(context: ["flag": flag, "from": String(previous), "to": String(!previous)]))
+    }
+}
+
+/// memory_dump: this process's memory footprint (TASK_VM_INFO).
+
+/// Reports this process's memory footprint (TASK_VM_INFO) as command result fields.
+/// Pass `is_attachment = true` to get the same data as a JSON attachment instead.
+enum BitdriftMemoryDump {
+    static func run(arguments: CommandArguments) -> Result<CommandResult, CommandError> {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info>.stride / MemoryLayout<integer_t>.stride)
+        let status = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        guard status == KERN_SUCCESS else {
+            return .failure(CommandError(title: "Unable to collect memory information", description: "task_info returned \(status)"))
+        }
+
+        let fields: [String: String] = [
+            "phys_footprint": String(info.phys_footprint),
+            "ledger_phys_footprint_peak": String(info.ledger_phys_footprint_peak),
+            "internal": String(info.internal),
+            "compressed": String(info.compressed),
+            "external": String(info.external),
+            "ledger_tag_graphics_footprint": String(info.ledger_tag_graphics_footprint),
+            "ledger_tag_media_footprint": String(info.ledger_tag_media_footprint),
+            "ledger_tag_network_nonvolatile": String(info.ledger_tag_network_nonvolatile)
+        ]
+
+        if case .bool(true) = arguments["is_attachment"] {
+            do {
+                let data = try JSONSerialization.data(withJSONObject: fields, options: [.prettyPrinted, .sortedKeys])
+                return .success(CommandResult(attachment: CommandAttachment(data: data, mimeType: "application/json")))
+            } catch {
+                return .failure(CommandError(title: "Unable to encode memory information", description: error.localizedDescription))
+            }
+        }
+        return .success(CommandResult(context: fields))
+    }
+}
