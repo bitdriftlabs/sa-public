@@ -33,12 +33,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             let apiHost = (Bundle.main.object(forInfoDictionaryKey: "BitdriftAPIHost") as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "api.bitdrift.io"
             Logger.start(
                 withAPIKey: apiKey,
-                sessionStrategy: .fixed(),
+                sessionConfiguration: SessionConfiguration(),
                 configuration: Configuration(
                     apiURL: URL(string: "https://\(apiHost)")!
                 )
             )?
             .enableIntegrations([.urlSession(), .cocoaLumberjack()], disableSwizzling: true)
+
+            // Set ENTITY_ID in Configurations/BitdriftLocal.xcconfig (defaults to "demo").
+            if let entityID = Bundle.main.object(forInfoDictionaryKey: "BitdriftEntityID") as? String, !entityID.isEmpty {
+                Logger.setEntityID(entityID)
+            }
         } else {
             DDLogWarn("bitdrift Capture not started: set BITDRIFT_API_KEY in Configurations/BitdriftLocal.xcconfig")
         }

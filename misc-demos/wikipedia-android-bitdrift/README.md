@@ -14,6 +14,8 @@ Add your bitdrift API key to `local.properties` in the repository root (Android 
 BITDRIFT_API_KEY=<your API key>
 # Optional. Defaults to api.bitdrift.io.
 BITDRIFT_API_HOST=api.bitdrift.io
+# Optional. Defaults to demo.
+ENTITY_ID=<entity ID>
 ```
 
 Then build and install the dev flavor:

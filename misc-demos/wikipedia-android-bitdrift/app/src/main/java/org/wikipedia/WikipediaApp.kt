@@ -167,7 +167,9 @@ class WikipediaApp : Application() {
             sessionConfiguration = SessionConfiguration(),
             configuration = Configuration(),
         )
-        Logger.setEntityId("demo")
+        // update local.properties to include ENTITY_ID (defaults to "demo")
+        Logger.setEntityId(BuildConfig.ENTITY_ID)
+
         appStartTime = TimeSource.Monotonic.markNow()
 
         WikiSite.setDefaultBaseUrl(Prefs.mediaWikiBaseUrl)

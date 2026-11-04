@@ -19,6 +19,8 @@ Create `Configurations/BitdriftLocal.xcconfig` (it is gitignored) with your API 
 BITDRIFT_API_KEY = <your API key>
 // Optional. Defaults to api.bitdrift.io. Give the host without a scheme.
 BITDRIFT_API_HOST = api.bitdrift.io
+// Optional. Defaults to demo.
+ENTITY_ID = <entity ID>
 ```
 
 xcconfig treats `//` as the start of a comment, so if your API key contains `//`, write it as `/$()/`. Without an API key the app runs normally but Capture is not started.
