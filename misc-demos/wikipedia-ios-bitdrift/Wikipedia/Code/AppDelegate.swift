@@ -45,10 +45,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 Logger.setEntityID(entityID)
             }
 
-            // Device commands (experimental). The key must also exist in the server command catalog.
+            // Device commands (experimental), adapted from the Capture SDK's iOS sample app. Each key must
+            // also exist in the server command catalog. ios_memory_dump is built into newer SDK versions,
+            // so the app doesn't register it.
             Task {
-                await Logger.registerCommand(key: "ios_memory_dump") { arguments in
+                await Logger.registerCommand(key: "memory_dump") { arguments in
                     BitdriftMemoryDump.run(arguments: arguments)
+                }
+                await Logger.registerCommand(key: "flip_flag") { arguments in
+                    BitdriftFlags.flip(arguments: arguments)
                 }
             }
         } else {
@@ -240,7 +245,28 @@ private final class BackgroundAppRefreshCompletion {
 }
 #endif
 
-// MARK: - bitdrift device command: ios_memory_dump
+// MARK: - bitdrift device commands
+
+/// flip_flag: toggles a named flag and reports it as a feature flag exposure.
+enum BitdriftFlags {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var flags: [String: Bool] = [:]
+
+    static func flip(arguments: CommandArguments) -> Result<CommandResult, CommandError> {
+        guard case let .string(flag) = arguments["flag"], !flag.isEmpty else {
+            return .failure(CommandError(title: "Missing flag argument"))
+        }
+        let previous: Bool = lock.withLock {
+            let previous = flags[flag] ?? false
+            flags[flag] = !previous
+            return previous
+        }
+        Logger.setFeatureFlagExposure(withName: flag, variant: !previous)
+        return .success(CommandResult(context: ["flag": flag, "from": String(previous), "to": String(!previous)]))
+    }
+}
+
+/// memory_dump: this process's memory footprint (TASK_VM_INFO).
 
 /// Reports this process's memory footprint (TASK_VM_INFO) as command result fields.
 /// Pass `is_attachment = true` to get the same data as a JSON attachment instead.

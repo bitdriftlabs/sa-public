@@ -28,6 +28,10 @@ The app uses Capture SDK 0.26.0 with automatic OkHttp and WebView instrumentatio
 
 Long-press the bottom-right corner of any screen for three seconds to open a debug menu that simulates a memory leak, an out-of-memory crash, a native crash (SIGSEGV) and an ANR.
 
+### Device commands
+
+The app registers handlers for the device commands in bitdrift's command catalog (`app/src/main/java/org/wikipedia/bitdriftdev/BitdriftCommands.kt`), adapted from the Capture SDK's test app: `flip_flag`, `memory_dump`, `system_trace`, `heap_profile_demo` and `ui_state_slow`. Run them from the Device Console or `bd command invoke`. A command must also be in your account's command catalog with platform targets that include this app. `system_trace` and `heap_profile_demo` use Android's ProfilingManager and need Android 15 or later.
+
 ### Documentation
 
 All documentation is kept on [our website](https://docs.bitdrift.io/)). Check it out!

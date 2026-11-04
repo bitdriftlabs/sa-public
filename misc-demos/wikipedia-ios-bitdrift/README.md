@@ -27,6 +27,10 @@ xcconfig treats `//` as the start of a comment, so if your API key contains `//`
 
 Then follow the steps below to build and run.
 
+### Device commands
+
+`AppDelegate.swift` registers handlers for two device commands from bitdrift's command catalog, adapted from the Capture SDK's iOS sample app: `flip_flag` and `memory_dump`. Run them from the Device Console or `bd command invoke`. A command must also be in your account's command catalog with platform targets that include this app. `ios_memory_dump` is built into newer Capture SDK versions and needs no app code.
+
 ## Building and Running
 
 Note: Your Xcode version must be at least 16.0.
