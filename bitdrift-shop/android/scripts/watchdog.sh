@@ -10,6 +10,8 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../scripts/lib" && pwd)/generate
 ACTIVITY="ai.bitdrift.shop/.MainActivity"
 SERIAL=""
 INTERVAL_SECS=2
+STUCK_POLLS=0
+STUCK_POLLS_RELAUNCH_AFTER=2
 TAP_X=""
 TAP_Y=""
 RECENTS_CARD_X=""
@@ -384,6 +386,30 @@ while true; do
   fi
   if is_crash_loop_active; then
     CRASH_LOOP_MODE_SEEN=1
+  fi
+
+  # Crash loop "alive but stuck" safety net: on Android 14+/targetSdk 34+ the alarm's
+  # PendingIntent can be blocked as a background activity launch ("Background activity
+  # launch blocked!"). The process is then spawned (so pidof succeeds) but no window is
+  # ever focused, and the app sits on the system starting window forever. (SYSTEM_ALERT_WINDOW
+  # does not exempt it: a dead process has no overlay window.) Treat "crash
+  # loop active + process alive + app window not focused for several polls" as stuck.
+  if is_crash_loop_active && is_app_running; then
+    if "${ADB[@]}" shell dumpsys window 2>/dev/null | tr -d '\r' | grep -E 'mCurrentFocus' | grep -q "$PKG"; then
+      STUCK_POLLS=0
+    else
+      STUCK_POLLS=$((STUCK_POLLS + 1))
+    fi
+    if [[ "$STUCK_POLLS" -ge "$STUCK_POLLS_RELAUNCH_AFTER" ]]; then
+      echo "[$(ts)] [crash-loop] app alive but not focused for $STUCK_POLLS polls (likely BAL-blocked restart) — force-stop + relaunch"
+      "${ADB[@]}" shell am force-stop "$PKG" >/dev/null 2>&1 || true
+      STUCK_POLLS=0
+      relaunch_app_with_wait || true
+      sleep "$INTERVAL_SECS"
+      continue
+    fi
+  else
+    STUCK_POLLS=0
   fi
 
   if is_app_running && is_force_quit_restart_pending; then

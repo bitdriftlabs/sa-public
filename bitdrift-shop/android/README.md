@@ -8,6 +8,8 @@ This is community-contributed content provided for educational purposes only.
 
 > ⚠️ **Run `./scripts/watchdog.sh` before enabling Crash Loop, ANR-A, or Force-Quit** (Advanced screen) — these modes deliberately crash, freeze, or kill the app, and without the watchdog relaunching it the emulator gets stuck. Fast Crash Mode fires too fast to stop from the UI — use `adb` instead. Details: [Crash Loop](README-refs.md#crash-loop), [ANR-A](README-refs.md#anr-a-guest-journey-testing), [Force-Quit](README-refs.md#force-quit-journey-testing).
 >
+> **Crash-loop restarts depend on the watchdog on Android 14+.** The app arms an AlarmManager relaunch before each crash, but with targetSdk 36 the system blocks it as a background activity launch (`Background activity launch blocked!` in logcat; `SYSTEM_ALERT_WINDOW` does not help because a dead process has no overlay window). `./scripts/watchdog.sh` relaunches via `adb` instead, and force-stops + relaunches if the app is alive but never gets a focused window.
+
 > **These flags persist across restarts by design** (so each mode survives its own crash/relaunch cycle) — which means leaving one on and later starting an unrelated demo leaves it silently armed. Run `./scripts/check-demo-state.sh` (add `--reset` to clear) before starting any demo session.
 
 > Want to instrument **your own** app instead? See [instrumentation-guide/](../../instrumentation-guide/) for a prompt-driven walkthrough.
@@ -207,6 +209,22 @@ crash automatically, instead of a human reading one report at a time:
 - **Blocking thread attribution** (08) — charts which thread was holding the lock
 - **Vendor SDK attribution** (09) — charts crash share by third-party namespace
 - **Attribution rate** (10) — ties 08/09 together into a single "% of crashes explained" chart
+
+**Trend view with stacked bars.** The same `issue-match` mechanism can drive stacked bar
+charts for spotting crash trends by eye: one single-step flow per dimension (crash type,
+app state, top-level error name), each emitting a low-cardinality field with `add_field` and
+charted as a count grouped by that field, with `stackedTimeSeriesBarChartDisplayMode` set in
+the chart metadata. Bar height is total crashes per bucket; the segments show what they're made
+of, so a new color or a growing segment marks a regression. Keep the workflow app-agnostic (no
+app ID filter) to cover every app in the account.
+
+Tips when feeding these charts from the Crash Loop:
+
+- Crash reports upload on the **next launch**, so the newest bucket undercounts, and a single
+  device in Fast Crash Mode can dominate every chart. Treat loop data as a demo signal, not a trend.
+- The workflow must live in the same bitdrift environment the app sends to (`BITDRIFT_API_HOST` in
+  `.local.properties`); one created in a different environment stays empty.
+- The loop needs the watchdog running (see the note at the top) or it stalls after the first crash.
 
 Business/engineering framing for each: [foreground-background-crashes.md](../workflows/docs/foreground-background-crashes.md), [advanced-crash-attribution.md](../workflows/docs/advanced-crash-attribution.md).
 
