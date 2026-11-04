@@ -10,6 +10,10 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../scripts/lib" && pwd)/generate
 ACTIVITY="ai.bitdrift.shop/.MainActivity"
 SERIAL=""
 INTERVAL_SECS=2
+STUCK_POLLS=0
+STUCK_TRACK_PID=""
+STUCK_PID_EVER_FOCUSED=0
+STUCK_POLLS_RELAUNCH_AFTER=3
 TAP_X=""
 TAP_Y=""
 RECENTS_CARD_X=""
@@ -384,6 +388,44 @@ while true; do
   fi
   if is_crash_loop_active; then
     CRASH_LOOP_MODE_SEEN=1
+  fi
+
+  # Crash loop "alive but stuck" safety net: on Android 14+/targetSdk 34+ the alarm's
+  # PendingIntent can be blocked as a background activity launch ("Background activity
+  # launch blocked!"). The process is then spawned (so pidof succeeds) but its window is
+  # never focused, and the app sits on the system starting window forever.
+  # (SYSTEM_ALERT_WINDOW does not exempt it: a dead process has no overlay window.)
+  # Loss of focus alone is NOT stuck: the crash loop intentionally backgrounds the app
+  # (moveTaskToBack) before background crashes, including OOM variants that run 20-30s.
+  # So only flag a process that has NEVER been focused since it started, and only after
+  # the same PID has been seen unfocused for several consecutive polls.
+  if is_crash_loop_active && is_app_running; then
+    cur_pid=$("${ADB[@]}" shell pidof "$PKG" 2>/dev/null | tr -d '\r' | awk '{print $1}') || true
+    if [[ "$cur_pid" != "$STUCK_TRACK_PID" ]]; then
+      STUCK_TRACK_PID="$cur_pid"
+      STUCK_PID_EVER_FOCUSED=0
+      STUCK_POLLS=0
+    fi
+    if "${ADB[@]}" shell dumpsys window 2>/dev/null | tr -d '\r' | grep -E 'mCurrentFocus' | grep -q "$PKG"; then
+      STUCK_PID_EVER_FOCUSED=1
+    fi
+    if [[ "$STUCK_PID_EVER_FOCUSED" -eq 1 ]]; then
+      STUCK_POLLS=0
+    else
+      STUCK_POLLS=$((STUCK_POLLS + 1))
+    fi
+    if [[ "$STUCK_POLLS" -ge "$STUCK_POLLS_RELAUNCH_AFTER" ]]; then
+      echo "[$(ts)] [crash-loop] pid $cur_pid never focused after $STUCK_POLLS polls (likely BAL-blocked restart) — force-stop + relaunch"
+      "${ADB[@]}" shell am force-stop "$PKG" >/dev/null 2>&1 || true
+      STUCK_POLLS=0
+      STUCK_TRACK_PID=""
+      relaunch_app_with_wait || true
+      sleep "$INTERVAL_SECS"
+      continue
+    fi
+  else
+    STUCK_POLLS=0
+    STUCK_TRACK_PID=""
   fi
 
   if is_app_running && is_force_quit_restart_pending; then
