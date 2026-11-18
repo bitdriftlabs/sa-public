@@ -89,6 +89,25 @@ object BitdriftCommands {
                 val context = appContext ?: return@registerCommand error("no_context")
                 profileResult(request.type, request.durationMs.toLong(), AppProfiler.capture(context, request))
             },
+            // Perfetto Java heap dump (one snapshot) through ProfilingManager (Android 15+).
+            Capture.Logger.registerCommand("java_heap_dump_demo") {
+                log()
+                val request = AppProfiler.Request.JavaHeapDump(bufferSizeKb = argument<Long>("buffer_size_kb").toIntSaturated())
+                val context = appContext ?: return@registerCommand error("no_context")
+                profileResult(request.type, durationMs = null, AppProfiler.capture(context, request))
+            },
+            // Perfetto system trace (CPU scheduling, thread states, frames) through ProfilingManager (Android 15+).
+            // The catalog's system_trace only allows duration_ms, so it always records a stack sample.
+            Capture.Logger.registerCommand("system_trace_iain") {
+                log()
+                val durationMs = argument<Long>("duration_ms")
+                if (durationMs !in 1..60_000) {
+                    return@registerCommand error("invalid_duration", code = CommandErrorCode.InvalidArguments)
+                }
+                val request = AppProfiler.Request.SystemTrace(durationMs.toInt())
+                val context = appContext ?: return@registerCommand error("no_context")
+                profileResult(request.type, durationMs, AppProfiler.capture(context, request))
+            },
             // Sleeps, to test cancellation. The test app owns this with a ViewModel; here it lives with the app.
             Capture.Logger.registerCommand("ui_state_slow") {
                 log()
@@ -100,33 +119,48 @@ object BitdriftCommands {
 
     private suspend fun CommandScope.profileResult(
         profilingType: AppProfiler.ProfilingType,
-        durationMs: Long,
+        durationMs: Long?,
         result: AppProfiler.Result,
     ): CommandResult =
         when (result) {
             is AppProfiler.Result.Saved -> {
-                val bytes = withContext(Dispatchers.IO) { File(result.path).takeIf(File::exists)?.readBytes() }
-                if (bytes == null) {
+                // Hand the SDK a file it owns rather than bytes: file attachments stream in chunks, while
+                // in-memory attachments must fit the upload queue, which a heap dump (tens of MB) overflows.
+                val owned = withContext(Dispatchers.IO) { takeOwnership(File(result.path)) }
+                if (owned == null) {
                     error("profiling_failed", "trace file missing")
                 } else {
                     success(
-                        attachment = CommandAttachment(bytes, contentType = "application/vnd.bitdrift.perfetto-trace"),
+                        attachment = CommandAttachment.file(owned, contentType = "application/vnd.bitdrift.perfetto-trace"),
                         context =
-                            mapOf(
-                                "profiling_type" to profilingType.name,
-                                "duration_ms" to durationMs.toString(),
-                                "trace_bytes" to bytes.size.toString(),
-                            ),
+                            buildMap {
+                                put("profiling_type", profilingType.name)
+                                durationMs?.let { put("duration_ms", it.toString()) }
+                                put("trace_bytes", owned.length().toString())
+                            },
                     )
                 }
             }
             is AppProfiler.Result.Failure ->
+                // The SDK writes its own `error` field, so put the platform error name in the message
+                // and under a separate key. Android's rate limiter allows one capture per hour by default.
                 error(
                     "profiling_failed",
-                    result.message,
-                    context = listOfNotNull(result.errorName?.let { "error" to it }).toMap(),
+                    listOfNotNull(result.errorName, result.message.ifEmpty { null }).joinToString(": "),
+                    context = listOfNotNull(result.errorName?.let { "profiling_error" to it }).toMap(),
                 )
         }
+
+    /** Moves the platform's trace out of the profiling directory into a file the SDK can own and delete. */
+    private fun takeOwnership(source: File): File? {
+        if (!source.isFile) return null
+        val owned = File.createTempFile("command-profile-", ".perfetto-trace", checkNotNull(appContext).filesDir)
+        if (!source.renameTo(owned)) {
+            source.copyTo(owned, overwrite = true)
+            source.delete()
+        }
+        return owned
+    }
 
     private fun CommandScope.log() {
         Log.i(TAG, "Command $key invoked with ${arguments.ifEmpty { "no arguments" }} (commandId=$commandId)")

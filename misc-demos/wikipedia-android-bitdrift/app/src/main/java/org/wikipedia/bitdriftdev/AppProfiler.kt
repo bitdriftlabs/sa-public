@@ -42,7 +42,7 @@ object AppProfiler {
         /** A request of this type with the app's default settings; a heap dump ignores [durationMs]. */
         fun request(durationMs: Int): Request =
             when (this) {
-                JAVA_HEAP_DUMP -> Request.JavaHeapDump
+                JAVA_HEAP_DUMP -> Request.JavaHeapDump()
                 HEAP_PROFILE -> Request.HeapProfile(durationMs)
                 STACK_SAMPLING -> Request.StackSampling(durationMs)
                 SYSTEM_TRACE -> Request.SystemTrace(durationMs)
@@ -54,7 +54,10 @@ object AppProfiler {
         val type: ProfilingType
 
         /** A single snapshot of the Java heap. */
-        data object JavaHeapDump : Request {
+        data class JavaHeapDump(
+            /** The trace buffer; a dump larger than it is truncated. */
+            val bufferSizeKb: Int = JAVA_HEAP_DUMP_BUFFER_SIZE_KB,
+        ) : Request {
             override val type = ProfilingType.JAVA_HEAP_DUMP
         }
 
@@ -152,8 +155,9 @@ object AppProfiler {
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     private fun Request.toPlatformRequest(cancellationSignal: CancellationSignal): ProfilingRequest =
         when (this) {
-            Request.JavaHeapDump ->
+            is Request.JavaHeapDump ->
                 JavaHeapDumpRequestBuilder()
+                    .setBufferSizeKb(bufferSizeKb)
                     .setCancellationSignal(cancellationSignal)
                     .build()
             is Request.HeapProfile ->
@@ -178,6 +182,7 @@ object AppProfiler {
                     .build()
         }
 
+    private const val JAVA_HEAP_DUMP_BUFFER_SIZE_KB = 65536
     private const val HEAP_PROFILE_BUFFER_SIZE_KB = 8192
     private const val HEAP_PROFILE_SAMPLING_INTERVAL_BYTES = 128L * 1024L
     private const val STACK_SAMPLING_BUFFER_SIZE_KB = 4096
