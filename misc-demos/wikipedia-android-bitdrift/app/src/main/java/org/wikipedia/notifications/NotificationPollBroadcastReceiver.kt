@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.wikipedia.Constants
 import org.wikipedia.R
 import org.wikipedia.WikipediaApp
@@ -28,16 +29,21 @@ import org.wikipedia.extensions.parcelableExtra
 import org.wikipedia.games.onthisday.OnThisDayGameNotificationManager
 import org.wikipedia.main.MainActivity
 import org.wikipedia.notifications.db.Notification
+import org.wikipedia.notifications.experiment.NotificationsExperimentAbTest
+import org.wikipedia.notifications.experiment.NotificationsExperimentHelper
+import org.wikipedia.notifications.experiment.NotificationsExperimentMostReadAbTest
+import org.wikipedia.notifications.experiment.WeeklyMostReadNotificationWorker
 import org.wikipedia.page.PageTitle
 import org.wikipedia.push.WikipediaFirebaseMessagingService
 import org.wikipedia.readinglist.recommended.RecommendedReadingListNotificationManager
-import org.wikipedia.readinglist.recommended.RecommendedReadingListUpdateFrequency
 import org.wikipedia.settings.Prefs
+import org.wikipedia.settings.RemoteConfigRefreshTask
 import org.wikipedia.talk.NotificationDirectReplyHelper
 import org.wikipedia.util.DeviceUtil
 import org.wikipedia.util.ReleaseUtil
 import org.wikipedia.util.log.L
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.milliseconds
 
 class NotificationPollBroadcastReceiver : BroadcastReceiver() {
 
@@ -54,6 +60,16 @@ class NotificationPollBroadcastReceiver : BroadcastReceiver() {
                 // Update our channel name, if needed.
                 L.d("channel=" + ReleaseUtil.getChannel(context))
                 startPollTask(context)
+
+                // persist discover notification experiment alarm after reboot
+                if (Prefs.isRecommendedReadingListNotificationEnabled) {
+                    RecommendedReadingListNotificationManager.scheduleRecommendedReadingListNotification(context)
+                }
+
+                // persist trending notification experiment alarm after reboot
+                if (Prefs.notificationsExperimentWeeklyMostReadScheduled) {
+                    NotificationsExperimentHelper.scheduleNotification(context, fromFiredAlarm = false)
+                }
             }
             ACTION_POLL == intent.action -> {
                 if (!AccountUtil.isLoggedIn) {
@@ -84,10 +100,54 @@ class NotificationPollBroadcastReceiver : BroadcastReceiver() {
             }
 
             ACTION_RECOMMENDED_READING_LIST == intent.action -> {
-                if (Prefs.recommendedReadingListUpdateFrequency == RecommendedReadingListUpdateFrequency.MONTHLY) {
+                if (!Prefs.isRecommendedReadingListNotificationEnabled) {
+                    // Cancel the notification when it is disabled from Discover settings.
+                    RecommendedReadingListNotificationManager.cancelRecommendedReadingListNotification(context)
+                    return
+                }
+                // Re-arm before showing, so that a failure while showing can't break the one-shot alarm chain of the experiment.
+                RecommendedReadingListNotificationManager.scheduleRecommendedReadingListNotification(context, fromFiredAlarm = true)
+                if (!NotificationsExperimentAbTest().isNotificationsExperimentEligible()) {
+                    RecommendedReadingListNotificationManager.showNotification(context, Prefs.recommendedReadingListUpdateFrequency)
+                    return
+                }
+                showRecommendedReadingListNotificationAfterRemoteConfigRefresh(context)
+            }
+
+            ACTION_WEEKLY_MOST_READ == intent.action -> {
+                if (!NotificationsExperimentMostReadAbTest().isNotificationsExperimentEligible()) {
+                    NotificationsExperimentHelper.stopWeeklyMostReadNotification(context)
+                    return
+                }
+                // Re-arm before showing, so that a failure while showing can't break the one-shot alarm chain of the experiment.
+                NotificationsExperimentHelper.scheduleNotification(context, fromFiredAlarm = true)
+                WeeklyMostReadNotificationWorker.enqueue(context)
+            }
+        }
+    }
+
+    // Without a refresh, users who don't open the app would stay in the experiment after it's turned off remotely.
+    private fun showRecommendedReadingListNotificationAfterRemoteConfigRefresh(context: Context) {
+        val pendingResult = goAsync()
+        MainScope().launch(CoroutineExceptionHandler { _, throwable ->
+            L.e(throwable)
+        }) {
+            try {
+                withTimeoutOrNull(5000L.milliseconds) {
+                    RemoteConfigRefreshTask.refreshFromBackground()
+                }
+                if (!Prefs.isRecommendedReadingListNotificationEnabled) {
+                    // Disabled from Discover settings while the remote config was refreshing.
+                    RecommendedReadingListNotificationManager.cancelRecommendedReadingListNotification(context)
+                    return@launch
+                }
+                if (!NotificationsExperimentAbTest().isNotificationsExperimentEligible()) {
+                    // Move from the experiment's weekly alarm back to the regular schedule.
                     RecommendedReadingListNotificationManager.scheduleRecommendedReadingListNotification(context)
                 }
                 RecommendedReadingListNotificationManager.showNotification(context, Prefs.recommendedReadingListUpdateFrequency)
+            } finally {
+                pendingResult.finish()
             }
         }
     }
@@ -98,11 +158,11 @@ class NotificationPollBroadcastReceiver : BroadcastReceiver() {
         const val ACTION_DIRECT_REPLY = "action_direct_reply"
         const val ACTION_DAILY_GAME = "action_daily_game"
         const val ACTION_RECOMMENDED_READING_LIST = "action_recommended_reading_list"
+        const val ACTION_WEEKLY_MOST_READ = "action_weekly_most_read"
         const val RESULT_KEY_DIRECT_REPLY = "key_direct_reply"
         const val RESULT_EXTRA_REPLY_TO = "extra_reply_to"
         const val RESULT_EXTRA_ID = "extra_id"
         const val TYPE_MULTIPLE = "multiple"
-
         private const val FIRST_EDITOR_REACTIVATION_NOTIFICATION_SHOW_ON_DAY = 3
         private const val SECOND_EDITOR_REACTIVATION_NOTIFICATION_SHOW_ON_DAY = 7
 
