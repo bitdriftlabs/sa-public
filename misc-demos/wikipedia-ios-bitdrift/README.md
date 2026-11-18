@@ -19,11 +19,17 @@ Create `Configurations/BitdriftLocal.xcconfig` (it is gitignored) with your API 
 BITDRIFT_API_KEY = <your API key>
 // Optional. Defaults to api.bitdrift.io. Give the host without a scheme.
 BITDRIFT_API_HOST = api.bitdrift.io
+// Optional. Defaults to demo.
+ENTITY_ID = <entity ID>
 ```
 
 xcconfig treats `//` as the start of a comment, so if your API key contains `//`, write it as `/$()/`. Without an API key the app runs normally but Capture is not started.
 
 Then follow the steps below to build and run.
+
+### Device commands
+
+`AppDelegate.swift` registers handlers for two device commands from bitdrift's command catalog, adapted from the Capture SDK's iOS sample app: `flip_flag` and `memory_dump`. Run them from the Device Console or `bd command invoke`. A command must also be in your account's command catalog with platform targets that include this app. `ios_memory_dump` is built into newer Capture SDK versions and needs no app code.
 
 ## Building and Running
 

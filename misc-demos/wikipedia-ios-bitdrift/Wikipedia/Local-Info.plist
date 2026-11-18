@@ -135,5 +135,7 @@
 	<string>$(BITDRIFT_API_HOST)</string>
 	<key>BitdriftAPIKey</key>
 	<string>$(BITDRIFT_API_KEY)</string>
+	<key>BitdriftEntityID</key>
+	<string>$(ENTITY_ID)</string>
 </dict>
 </plist>

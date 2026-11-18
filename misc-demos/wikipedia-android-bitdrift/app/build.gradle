@@ -75,6 +75,8 @@ android {
         buildConfigField "String", "BITDRIFT_API_KEY", "\"${bitdriftProps.getProperty("BITDRIFT_API_KEY", "")}\""
         // Set BITDRIFT_API_HOST in local.properties to point at another environment (e.g. api.bitdrift.dev).
         buildConfigField "String", "BITDRIFT_API_HOST", "\"${bitdriftProps.getProperty("BITDRIFT_API_HOST", "api.bitdrift.io").trim()}\""
+        // Set ENTITY_ID in local.properties to report under a specific entity (defaults to "demo").
+        buildConfigField "String", "ENTITY_ID", "\"${bitdriftProps.getProperty("ENTITY_ID", "demo").trim()}\""
     }
 
     testOptions {

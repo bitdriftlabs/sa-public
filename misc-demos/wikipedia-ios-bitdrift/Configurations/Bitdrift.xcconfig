@@ -5,11 +5,13 @@
 //
 //   BITDRIFT_API_KEY = <your API key>
 //   BITDRIFT_API_HOST = api.bitdrift.io
+//   ENTITY_ID = <entity ID>   (defaults to demo)
 //
 // xcconfig treats "//" as the start of a comment, so give the host without a scheme. If your
 // API key contains "//", write it as "/$()/".
 
 BITDRIFT_API_KEY =
 BITDRIFT_API_HOST = api.bitdrift.io
+ENTITY_ID = demo
 
 #include? "BitdriftLocal.xcconfig"

@@ -48,6 +48,7 @@ import io.bitdrift.capture.providers.session.SessionConfiguration
 import kotlin.time.TimeSource
 import okhttp3.HttpUrl
 import java.util.UUID
+import org.wikipedia.bitdriftdev.BitdriftCommands
 import org.wikipedia.bitdriftdev.GlobalDebugGesture
 
 class WikipediaApp : Application() {
@@ -167,7 +168,10 @@ class WikipediaApp : Application() {
             sessionConfiguration = SessionConfiguration(),
             configuration = Configuration(),
         )
-        Logger.setEntityId("demo")
+        // update local.properties to include ENTITY_ID (defaults to "demo")
+        Logger.setEntityId(BuildConfig.ENTITY_ID)
+        BitdriftCommands.register(this)
+
         appStartTime = TimeSource.Monotonic.markNow()
 
         WikiSite.setDefaultBaseUrl(Prefs.mediaWikiBaseUrl)
