@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Authors:
 * Ayaat123
+* Iflaq
 -->
 <resources>
   <string name="app_name_prod">وِکیٖپیٖڈیا</string>
@@ -13,10 +14,14 @@
   <string name="search_hint">وِکیٖپیٖڈیاہَس مَنٛز کٕرو تلاش</string>
   <string name="search_hint_voice_search">آواز تلاش</string>
   <string name="search_hint_search_languages">زَبان کٔرِو تَلاش</string>
-  <string name="filter_hint_filter_my_lists_and_articles" fuzzy="true">میون فِہرِست کٔرِو فِلٹَر</string>
+  <string name="search_back_button_content_description">واپَس گٔژھِو</string>
+  <string name="search_icon_content_description">تَلاش</string>
+  <string name="filter_hint_filter_my_lists_and_articles">میون فِہرِست کٔرِو فِلٹَر</string>
   <string name="nav_item_suggested_edits">تَبدیٖلیہٕ</string>
+  <string name="nav_item_activity">سرگرمی</string>
   <string name="nav_item_more">بێیہِ</string>
   <string name="nav_item_search">ژھانٛڈُن</string>
+  <string name="nav_item_contribute">شَرکژ کرٕنی</string>
   <string name="error_network_error">اِنٹرنؠٹَس سٟتؠ چھُ نَہ جوڑ.</string>
   <string name="page_error_retry">نٔو کوٗشِش</string>
   <string name="card_offline_error_retry">نٔو کوٗشِش</string>
@@ -26,7 +31,7 @@
   <string name="page_error_back_to_main">واپس گَژھن</string>
   <string name="error_back">واپَس گٔژھِو</string>
   <string name="error_next">برٛونٛہہ</string>
-  <string name="menu_clear_all_history" fuzzy="true">تَوأریٖخ مِٹٲیو</string>
+  <string name="menu_clear_all_history">پرنچ ہسٹری کر صاف۔</string>
   <string name="history_item_deleted">%s آو تَوأریٖخ مَنٛز مِٹاونہِ</string>
   <string name="history_items_deleted">%d موضوعات آیہِ توٲریخ منٛز مِٹاونہٕ</string>
   <string name="history_item_delete_undo">رَد کٕرو</string>
@@ -39,7 +44,7 @@
   <string name="wikimedia_commons">وِکیٖمیٖیڈیا کاَمَنٕز</string>
   <string name="wikidata">وِکی ڈیٹا</string>
   <string name="dialog_title_clear_history">توٲریٖخچہٕ مِٹٲوِیو</string>
-  <string name="dialog_message_clear_history" fuzzy="true">یہِ مِٹاوِ تُہنٛز یہ سٲرٕی کامہِ أنہِ مٕژ توأریٖخ ، تہٕ چلَن وٲلی ٹیب تہِ کَرِ بند. تُہہ چھوا یہِ یژھان یہِ کرُن؟</string>
+  <string name="dialog_message_clear_history">یہِ مِٹاوِ تُہنٛز یہ سٲرٕی کامہِ أنہِ مٕژ توأریٖخ. تُہہ چھوا یہِ یژھان یہِ کرُن؟</string>
   <string name="dialog_message_clear_history_yes">آ</string>
   <string name="dialog_message_clear_history_no">نہَ</string>
   <string name="share_via">بٲغرٲوِیو بَذٕریعہ</string>
@@ -78,16 +83,16 @@
   <string name="menu_page_watched">وُچھمُتھ</string>
   <string name="edit_section_find_in_page">صَفَس مَنٛز کٔرِو تَلاش</string>
   <string name="menu_page_font_and_theme">فانٹ تہٕ تِھیٖم</string>
-  <string name="menu_page_add_to_list" fuzzy="true">جمع کٕریٚو پرنٕچہِ فہرستَس منٛز</string>
+  <string name="menu_page_add_to_list">جمع کٕریٚو پرنٕچہِ فہرستَس منٛز</string>
   <string name="menu_page_add_to_default_list">مَحفوٗظ</string>
-  <string name="feed_card_add_to_list" fuzzy="true">جمع کٕریٚو پرنٕچہِ فہرستَس منٛز</string>
+  <string name="feed_card_add_to_list">جمع کٕریٚو پرنٕچہِ فہرستَس منٛز</string>
   <string name="feed_card_add_to_default_list">مَحفوٗظ</string>
   <string name="menu_page_share">لِنک کٕریٚو شیر</string>
   <string name="menu_article_share">موضوع بٲغرٲوِیو</string>
   <string name="menu_page_article_share">بٲغراوُن</string>
   <string name="menu_page_open_a_new_tab">اکھ نوو ٹیب کھوٗلِیو</string>
   <string name="menu_page_new_tab">نوو ٹیب</string>
-  <string name="menu_page_reading_lists" fuzzy="true">پرنٕچہِ فٕہرستہٕ</string>
+  <string name="menu_page_reading_lists">پرنٕچہِ فٕہرستہٕ</string>
   <string name="menu_page_recently_viewed">وُنی وُنی وُچھنہٕ آمُت</string>
   <string name="menu_page_archive">مَحفوٗظ خانہٕ</string>
   <string name="menu_long_press_open_page">یَلہٕ کرن</string>
@@ -121,10 +126,11 @@
   <string name="dialog_message_leaving_edit">تُہٕنٛزٕ تبدیٖلی گٕیی نہٕ وُنہِ تہِ شایعہ کِہین. تُہہ چھوا یژھان زِ تُہہ ترٲوِو یہِ صفہٕ؟</string>
   <string name="dialog_message_leaving_edit_leave">تراوُن/رۄخصت</string>
   <string name="dialog_message_leaving_edit_stay">ٹٕہرُن</string>
+  <string name="dialog_confirm_delete_donation_history_cancel">مَنسوٗخ</string>
   <string name="menu_show_toc">فٕہرست</string>
   <string name="search_no_results_found">کانٛہہ تہِ نتٲیِج آو نہٕ لبنہٕ</string>
   <string name="search_reading_list_no_results">کانٛہہ تہِ نتٲیِج آو نہٕ لبنہٕ \"%s\" منٛز</string>
-  <string name="search_reading_lists_no_results" fuzzy="true">پرنٕچہِ فٕہرستن منٛز آونہٕ کٕہٲنی تہِ نٕتیٖجہٕ لبنٕہ</string>
+  <string name="search_reading_lists_no_results">پرنٕچہِ فٕہرستن منٛز آونہٕ کٕہٲنی تہِ نٕتیٖجہٕ لبنٕہ</string>
   <string name="search_history_no_results">توٲریٖخہِ منٛز آو نہٕ لبنہٕ کانہہ تہِ نٕتیٖجہٕ</string>
   <string name="edit_section_captcha_message">خود کار تخریب کٲری بچاؤ کھأترٕ، مہربٲنی کرِتھ کٕریٚو درٕج ہؠرِ کَنہِ دِنہٕ آمٕتی الفاظ</string>
   <string name="edit_section_captcha_request_an_account_message">تصویٖر چھنہٕ ہؠکان وُچھتٕھی؟ &lt;a href=\"https://en.wikipedia.org/wiki/Wikipedia:Request_an_account\"&gt;&lt;/a&gt;</string>
@@ -197,9 +203,9 @@
   <string name="preferences_heading_syncing">سِنٛکِنٛگ</string>
   <string name="preferences_heading_data_usage">موادُک استعمال</string>
   <string name="preferences_heading_experimental">تجرُبأتی</string>
-  <string name="preference_title_sync_reading_lists_from_account" fuzzy="true">پرنٕچہِ فہرستہِ ہِنٛز سِنٛکِنٛگ</string>
-  <string name="preference_title_download_reading_list_articles" fuzzy="true">ڈاوُنلوڈ کٕریٚو پرنٕچہِ فہرست مَضموٗن</string>
-  <string name="preference_summary_sync_reading_lists" fuzzy="true">پننِس وِکیٖپیٖڈیا کھاتَس پؠٹھ مَحفوٗظ کٔرِتھ کٔرِو مُختٔلِف ڈیوایسَن منٛز پرنٕچ فِہرِسَت سینک</string>
+  <string name="preference_title_sync_reading_lists_from_account">پرنٕچہِ فہرستہِ ہِنٛز سِنٛکِنٛگ</string>
+  <string name="preference_title_download_reading_list_articles">ڈاوُنلوڈ کٕریٚو پرنٕچہِ فہرست مَضموٗن</string>
+  <string name="preference_summary_sync_reading_lists">پننِس وِکیٖپیٖڈیا کھاتَس پؠٹھ مَحفوٗظ کٔرِتھ کٔرِو مُختٔلِف ڈیوایسَن منٛز پرنٕچ فِہرِسَت سینک</string>
   <string name="preference_title_auto_upload_crash_reports">نۄقسانُک رِپورٹ سوٗزِیٚو</string>
   <string name="history_filter_list_hint">فِلٹر تَوأریٖخ</string>
   <string name="page_protected_can_not_edit_title">یہِ صَفہٕ چھُ مَحفوٗظ</string>
@@ -300,7 +306,7 @@
   <string name="unnamed_tab_closed">ٹیب گوو بنٛد</string>
   <string name="tab_item_closed">%s گوو بنٛد</string>
   <string name="all_tab_items_closed">تمام ٹیب گٕیی بنٛد</string>
-  <string name="tool_tip_bookmark_icon_title" fuzzy="true">جمع کٕریٚو پرنٕچہِ فہرستَس منٛز</string>
+  <string name="tool_tip_bookmark_icon_title">جمع کٕریٚو پرنٕچہِ فہرستَس منٛز</string>
   <string name="format_error_server_message">پٲغام: \"%s\"</string>
   <string name="address_copied">پتاہ کٕریٚو کِلِپبوڈَس پؠٹھ نقل.</string>
   <string name="text_copied">مَتن کٕریٚو کِلِپبوڈَس پؠٹھ نقل.</string>
@@ -358,37 +364,37 @@
   <string name="editing_line_numbers_label">سٕترٕ نمبر ہٲوِو</string>
   <string name="editing_monospace_font_label">مونوسِپیس فانٛٹ کٕریٚو استعمال</string>
   <string name="nav_item_saved">مَحفوٗظ روٗد</string>
-  <string name="reading_list_save_to" fuzzy="true">مَحفوٗظ کٕریٚو پرنٕچہِ فہرستَس منٛز</string>
-  <string name="reading_list_move_to" fuzzy="true">موو کٕریٚو پرنٕچہِ فہرستَس منٛز</string>
+  <string name="reading_list_save_to">مَحفوٗظ کٕریٚو پرنٕچہِ فہرستَس منٛز</string>
+  <string name="reading_list_move_to">موو کٕریٚو پرنٕچہِ فہرستَس منٛز</string>
   <string name="reading_list_create_new">نوو بنٲوِو</string>
-  <string name="reading_list_title_exists" fuzzy="true">پرنٕچ فہرست \"%s\" چھُ اوسمُت موجود</string>
+  <string name="reading_list_title_exists">پرنٕچ فہرست \"%s\" چھُ اوسمُت موجود</string>
   <string name="reading_list_article_added_to_named">%1$s جمع کوٚرمُت %2$s منٛز</string>
-  <string name="reading_list_article_added_to_default_list" fuzzy="true">مَحفوٗظ روٗد %s. تُہہ چھوا یژھان یہِ فہرستس منٛز شأمل کرُن؟</string>
+  <string name="reading_list_article_added_to_default_list">مَحفوٗظ روٗد %s. تُہہ چھوا یژھان یہِ فہرستس منٛز شأمل کرُن؟</string>
   <string name="reading_list_article_moved_to_named">موٗوٕڈ %1$s تا %2$s</string>
   <string name="reading_list_article_already_exists_message">سورٕے ٹھیٖک! %1$s چھُ جمع تھأوتھ %2$s.</string>
   <string name="reading_list_articles_already_exist_message">سورٕے ٹھیٖک! %s چھُ جمع تھأوتھ سأری مَضموٗن.</string>
-  <string name="reading_list_added_view_button" fuzzy="true">فِہرِست وُچھُو</string>
-  <string name="reading_list_add_to_list_button" fuzzy="true">فِہرِستِ منٛز کٕریٚو جمع</string>
+  <string name="reading_list_added_view_button">فِہرِست وُچھُو</string>
+  <string name="reading_list_add_to_list_button">فِہرِستِ منٛز کٕریٚو جمع</string>
   <string name="reading_list_sort">چھانٛٹ دِنی</string>
   <string name="reading_list_sort_ellipsis">چھانٛٹ دِنی بمُطٲبق...</string>
   <string name="reading_list_sort_by_name">ناوٕ مُطٲبق چھانٛٹ دِنی</string>
   <string name="reading_list_sort_by_name_desc">ناوٕ مُطٲبق چھانٛٹ دِنی (اُلٹہٕ)</string>
-  <string name="reading_list_menu_delete" fuzzy="true">فہرست کٕریٚو ڈِلیٖٹ</string>
+  <string name="reading_list_menu_delete">فہرست کٕریٚو ڈِلیٖٹ</string>
   <string name="reading_list_menu_select">مُنتَخٕب کٔرِو</string>
   <string name="reading_list_menu_rename">ناو/وضاحت کٕریٚو ایڑِٹ</string>
   <string name="reading_list_action_menu_remove_from_offline">آفلاین پؠٹھہٕ ہَٹٲوِو</string>
   <string name="reading_list_action_menu_save_for_offline">آفلاینَس کھٲترٕ تھٲوِو مَحفوٗظ</string>
   <string name="reading_list_action_menu_remove_all_from_offline">آفلاینہٕ پؠٹھہٕ ہَٹٲوِو سورٕے</string>
   <string name="reading_list_action_menu_save_all_for_offline">آفلاینہٕ کھٲترٕ تھٲوِو سورٕے مَحفوٗظ</string>
-  <string name="reading_list_action_menu_add_to_another_list" fuzzy="true">بیٚیِس فہرستَس مٕنٛز کٕریٚو شٲمل</string>
-  <string name="reading_list_action_menu_move_to_another_list" fuzzy="true">بیٚیِس فہرستَس کُن نِیُو</string>
-  <string name="reading_list_name_sample" fuzzy="true">میأنی پرنٕچ فہرست</string>
-  <string name="reading_list_name_hint" fuzzy="true">یَمہِ فہرستہِ ہِیوٚنٛد ناو</string>
+  <string name="reading_list_action_menu_add_to_another_list">بیٚیِس فہرستَس مٕنٛز کٕریٚو شٲمل</string>
+  <string name="reading_list_action_menu_move_to_another_list">بیٚیِس فہرستَس کُن نِیُو</string>
+  <string name="reading_list_name_sample">میأنی پرنٕچ فہرست</string>
+  <string name="reading_list_name_hint">یَمہِ فہرستہِ ہِیوٚنٛد ناو</string>
   <string name="reading_list_description_hint">تفصیٖل (لاضروٗری)</string>
-  <string name="reading_list_item_deleted" fuzzy="true">%s آو ہَٹاونہٕ فہرستہِ منٛز</string>
+  <string name="reading_list_item_deleted">%s آو ہَٹاونہٕ فہرستہِ منٛز</string>
   <string name="reading_list_item_deleted_from_list">%1$s آو ہَٹاونہٕ %2$s منٛز</string>
-  <string name="reading_list_items_deleted" fuzzy="true">%d مَضموٗن آو ہٓٹاونہٕ فہرستہِ منٛز</string>
-  <string name="reading_lists_item_deleted" fuzzy="true">%s آو ہَٹاونہٕ فہرستو منٛز</string>
+  <string name="reading_list_items_deleted">%d مَضموٗن آو ہٓٹاونہٕ فہرستہِ منٛز</string>
+  <string name="reading_lists_item_deleted">%s آو ہَٹاونہٕ فہرستو منٛز</string>
   <string name="reading_list_item_delete_undo">رَد کٕرو</string>
   <string name="reading_list_deleted">%s آو ہَٹاونہٕ</string>
   <string name="saved_list_empty_title" fuzzy="true">وۄنی روٗد نہٕ کانٛہہ تہِ مَحفوٗظ صَفہٕ</string>
@@ -473,6 +479,7 @@
   <string name="view_random_article_card_title">کانٛہہ تہِ مَضموٗن</string>
   <string name="view_random_article_card_action">مٔذیٖد مَضموٗن</string>
   <string name="view_top_read_card_title">زیٛادٕ پَرنہٕ آمٔتؠ</string>
+  <string name="view_top_read_card_description">وِکیٖپیٖڈیاہَس پٮ۪ٹھ کیٛاہ چھُ آز ٹرینڈ کران</string>
   <string name="view_top_read_card_action">مٔذیٖد زیٛادٕ پَرنہٕ آمٔتؠ</string>
   <string name="view_top_read_card_pageviews_k_suffix">%d ساس</string>
   <string name="view_top_read_card_pageviews_m_suffix">%d مِلیَن</string>
@@ -570,6 +577,7 @@
   <string name="suggested_edits_suggestion_report_submitted">رَپوٹھ آے دِنہٕ</string>
   <string name="image_recommendation_tooltip_next">برٛونٛہہ</string>
   <string name="edit_published_view">وُچھِو</string>
+  <string name="activity_tab_timeline_today">اَز</string>
   <string name="file_page_activity_title">فَیِل صَفہٕ</string>
   <string name="file_page_add_image_caption_button">تصویٖر مُکالمہٕ کٕریٚو درٕج</string>
   <string name="file_page_edit_button_content_description">اؠڈِٹ %s</string>
@@ -584,6 +592,7 @@
   <string name="app_shortcuts_random">کانٛہہ تہِ</string>
   <string name="app_shortcuts_search">ژھانٛڈُن</string>
   <string name="on_this_day_card_title">اَزکِہٕ دۄہ</string>
+  <string name="more_events_text">مٔذیٖد یَتھ تٲریٖخس پؠٹھ</string>
   <string name="this_year">یتھ وٕریَس</string>
   <string name="on_this_day_dialog_next_month">بییِٚس رؠتَس</string>
   <string name="on_this_day_dialog_previous_month">پتٕمِس رؠتَس</string>
@@ -666,6 +675,7 @@
   <string name="talk_user_title">کَتھ: %s</string>
   <string name="talk_new_topic">نٔو موضوٗع</string>
   <string name="talk_new_topic_submitted">موضوٗع آو شایَع کَرنہٕ.</string>
+  <string name="talk_warn_save_dialog_publish">شایع</string>
   <string name="talk_page_empty">یہِ بَحَث صَفہٕ چھُ خٲلی۔</string>
   <string name="talk_add_reply">جَوآب</string>
   <string name="talk_no_subject">(بے موضوع)</string>
@@ -792,4 +802,6 @@
   <string name="data_opt_in_reject">رد کرن</string>
   <string name="places_toggle_buttons_list">فِہرِست</string>
   <string name="survey_dialog_cancel">مَنسوٗخ</string>
+  <string name="explore_feed_date_today">از - %s</string>
+  <string name="explore_feed_community_disclaimer">وِکیٖمیٖڈیا برادٔری ہٕنٛدِ طرفہٕ تہٕ مُتلِق ژارنہٕ آمُت مَواد تہٕ وَسٲیل</string>
 </resources>

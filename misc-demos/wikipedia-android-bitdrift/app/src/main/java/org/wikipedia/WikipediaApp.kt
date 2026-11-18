@@ -45,6 +45,7 @@ import org.wikipedia.yearinreview.data.PrefsYearInReviewStore
 import io.bitdrift.capture.Capture.Logger
 import io.bitdrift.capture.Configuration
 import io.bitdrift.capture.providers.session.SessionConfiguration
+import io.bitdrift.capture.reports.profiling.CrashProfilingMode
 import kotlin.time.TimeSource
 import okhttp3.HttpUrl
 import java.util.UUID
@@ -77,7 +78,7 @@ class WikipediaApp : Application() {
     private var defaultWikiSite: WikiSite? = null
 
     val connectionStateMonitor = ConnectionStateMonitor()
-    val tabList = mutableListOf<Tab>()
+    val tabList by lazy { mutableListOf<Tab>().also { initTabs(it) } }
 
     var currentTheme = Theme.fallback
         set(value) {
@@ -166,7 +167,9 @@ class WikipediaApp : Application() {
             apiUrl = HttpUrl.Builder().scheme("https").host(BuildConfig.BITDRIFT_API_HOST).build(),
             // No inactivity timeout: a new session starts on every SDK start (same as the old SessionStrategy.Fixed()).
             sessionConfiguration = SessionConfiguration(),
-            configuration = Configuration(),
+            // Attaches Android ANR (API 36+) and Java OOM (API 37+) profiles to fatal issues.
+            // Needs Capture 0.52.0+; until it ships, build with BITDRIFT_CAPTURE_VERSION=SNAPSHOT.
+            configuration = Configuration(crashProfilingMode = CrashProfilingMode.AUTOMATIC),
         )
         // update local.properties to include ENTITY_ID (defaults to "demo")
         Logger.setEntityId(BuildConfig.ENTITY_ID)
@@ -185,7 +188,6 @@ class WikipediaApp : Application() {
 
         currentTheme = unmarshalTheme(Prefs.currentThemeId)
 
-        initTabs()
         enableWebViewDebugging()
         registerActivityLifecycleCallbacks(activityLifecycleHandler)
         registerComponentCallbacks(activityLifecycleHandler)
@@ -246,7 +248,7 @@ class WikipediaApp : Application() {
     fun commitTabState() {
         if (tabList.isEmpty()) {
             Prefs.clearTabs()
-            initTabs()
+            initTabs(tabList)
         } else {
             Prefs.tabs = tabList
         }
@@ -316,12 +318,12 @@ class WikipediaApp : Application() {
         return result
     }
 
-    private fun initTabs() {
+    private fun initTabs(tabs: MutableList<Tab>) {
         if (Prefs.hasTabs) {
-            tabList.addAll(Prefs.tabs)
+            tabs.addAll(Prefs.tabs)
         }
-        if (tabList.isEmpty()) {
-            tabList.add(Tab())
+        if (tabs.isEmpty()) {
+            tabs.add(Tab())
         }
     }
 
