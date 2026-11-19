@@ -40,6 +40,15 @@ Then follow the steps below to build and run.
 
 Run commands from the Device Console or `bd command invoke`. A command must be in your account's command catalog with platform targets that include this app.
 
+**Your app ID may differ.** The bundle ID is `org.wikimedia.wikipedia` followed by a per-developer suffix that `scripts/setup` writes to `Configurations/OpenSourceDebug.xcconfig` (gitignored). If you skip its team prompt, the suffix is empty and the app reports `org.wikimedia.wikipedia`, which is fine for the simulator. To run on a physical device you choose your own Apple team, and the app ID becomes `org.wikimedia.wikipedia<TEAM_ID>`, because Apple bundle IDs are unique across teams. Catalog entries match exact app IDs, so add yours to each command you use:
+
+```sh
+bd command register <command> --description "<description>" --platform apple \
+  --app-id org.wikimedia.wikipedia --app-id org.wikimedia.wikipedia<TEAM_ID>
+```
+
+`bd command register` replaces the entry's targets, so list every app ID that should keep it, including other platforms' (run `bd command list -o json` first). Find your app ID under the device's entity in bitdrift, or in `Configurations/OpenSourceDebug.xcconfig`.
+
 | Command | Where it runs | Notes |
 | --- | --- | --- |
 | `take_screenshot` | Built into the SDK | Works on 0.51.0 |
@@ -70,7 +79,7 @@ Then open `Wikipedia-LocalCapture.xcworkspace` instead of the project. Xcode let
 ### Notes
 
 - **Simulator:** use an iOS 26 simulator. On iOS 18 the app fails to launch (`libswiftWebKit.dylib` not found).
-- **Command-line builds:** pass `SIGNING_DISAMBIGUATOR=<your team>` to `xcodebuild` (the value `scripts/setup` writes to `Configurations/OpenSourceDebug.xcconfig`).
+- **Command-line builds:** if you set your own team, pass `SIGNING_DISAMBIGUATOR=<your team>` to `xcodebuild` (the value `scripts/setup` writes to `Configurations/OpenSourceDebug.xcconfig`), so the app ID matches your Xcode builds.
 - **Upstream sync:** upstream moved to Xcode 27.1 on 2026-10-23, which needs macOS 26.6 or later, so the next sync has to be built with Xcode 27.1.
 
 ## Building and Running
