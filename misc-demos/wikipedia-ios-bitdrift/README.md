@@ -27,6 +27,9 @@ BITDRIFT_API_KEY = <your API key>
 BITDRIFT_API_HOST = api.bitdrift.io
 // Optional. Defaults to demo.
 ENTITY_ID = <entity ID>
+// Optional. A throwaway Wikipedia test account for the log_in_user command (compiled into the build).
+BITDRIFT_DEMO_USERNAME = <test account>
+BITDRIFT_DEMO_PASSWORD = <test password>
 ```
 
 xcconfig treats `//` as the start of a comment, so if your API key contains `//`, write it as `/$()/`. Without an API key the app runs normally but Capture is not started.
@@ -42,6 +45,14 @@ Run commands from the Device Console or `bd command invoke`. A command must be i
 | `take_screenshot` | Built into the SDK | Works on 0.51.0 |
 | `memory_dump <include_heap>` | Built into the SDK | iOS memory snapshot, opens in the Perfetto viewer. Needs an SDK newer than 0.51.0; see below. |
 | `flip_flag <flag>` | `AppDelegate.swift` | Toggles a named flag and reports it as a feature flag exposure |
+| `open_settings` | `AppDelegate.swift` | Opens Settings as Profile > Settings does |
+| `clear_cached_data` | `AppDelegate.swift` | Shows the app's own "Clear cached data?" confirmation |
+| `log_out_user` | `AppDelegate.swift` | Logs out at once; the app shows its "you have been logged out" panel. Returns the account type, never the username. |
+| `log_in_user` | `AppDelegate.swift` | Logs in with `BITDRIFT_DEMO_USERNAME` and `BITDRIFT_DEMO_PASSWORD` from `BitdriftLocal.xcconfig`, never from arguments |
+| `request_app_library` | `AppDelegate.swift` | Shows Help > Export User Data's "Share app library?" consent prompt |
+| `fetch_app_library` | `AppDelegate.swift` | Returns the consented app library as a zip attachment, once per consent |
+
+Commands must finish within a few seconds, so the ones that wait for the reader or the network return at once and log their outcome: `clear_cached_data` (`decision`), `log_in_user` (`status`, for example `logged_in`, `needs_email_code`) and `request_app_library` (`app_library_export` with `declined`, `preparing`, `ready` or `failed`). Watch for these in the device's Live Activity log stream.
 
 Android's ANR and OOM crash profiles have no iOS equivalent; they rely on Android's ProfilingManager.
 

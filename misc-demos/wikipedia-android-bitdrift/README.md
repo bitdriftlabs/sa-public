@@ -23,6 +23,9 @@ Wikipedia code, last synced with upstream `main` at
    ENTITY_ID=<entity ID>
    # Optional. Overrides the Capture SDK version; see "Testing other SDK versions".
    BITDRIFT_CAPTURE_VERSION=<version>
+   # Optional. A throwaway Wikipedia test account for the log_in_user command (compiled into the build).
+   BITDRIFT_DEMO_USERNAME=<test account>
+   BITDRIFT_DEMO_PASSWORD=<test password>
    ```
 
 2. Build and install the `dev` flavor:
@@ -114,6 +117,9 @@ need no app code. This app registers handlers for these commands:
 | `flip_flag` | `flag` | Toggles a named feature flag and reports the exposure |
 | `memory_dump` | optional `is_attachment` | Java heap usage numbers (not a dump) |
 | `ui_state_slow` | optional `duration_ms` | Waits, for testing cancellation |
+| `open_settings` | none | Opens the Settings screen |
+| `log_out_user` | none | Logs out at once, as Settings does after its confirmation, and shows a toast. Returns the account type, never the username. |
+| `log_in_user` | none | Logs in with `BITDRIFT_DEMO_USERNAME` and `BITDRIFT_DEMO_PASSWORD` from `local.properties`, never from arguments. Returns `logging_in` and logs the outcome as `log_in_user` (for example `logged_in`, `needs_email_code`). |
 
 The profiling commands use Android's ProfilingManager (API 35+) and return the trace as a file
 attachment, which opens in the embedded Perfetto viewer. In the Device Console, arguments are

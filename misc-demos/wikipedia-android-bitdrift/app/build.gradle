@@ -89,6 +89,12 @@ android {
         buildConfigField "String", "BITDRIFT_API_HOST", "\"${bitdriftProps.getProperty("BITDRIFT_API_HOST", "api.bitdrift.io").trim()}\""
         // Set ENTITY_ID in local.properties to report under a specific entity (defaults to "demo").
         buildConfigField "String", "ENTITY_ID", "\"${bitdriftProps.getProperty("ENTITY_ID", "demo").trim()}\""
+        // Set BITDRIFT_DEMO_USERNAME and BITDRIFT_DEMO_PASSWORD in local.properties for the log_in_user
+        // device command. They are compiled into the build, so use a throwaway test account.
+        ["BITDRIFT_DEMO_USERNAME", "BITDRIFT_DEMO_PASSWORD"].each { key ->
+            def value = bitdriftProps.getProperty(key, "").replace("\\", "\\\\").replace("\"", "\\\"")
+            buildConfigField "String", key, "\"${value}\""
+        }
     }
 
     testOptions {
