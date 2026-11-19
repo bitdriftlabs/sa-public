@@ -11,7 +11,13 @@ The official Wikipedia iOS app.
 
 ## bitdrift Capture
 
-This copy of the app is instrumented with the [bitdrift Capture SDK](https://docs.bitdrift.io/) 0.26.0, including URLSession, CocoaLumberjack and WebView instrumentation.
+This copy of the app is instrumented with the [bitdrift Capture SDK](https://docs.bitdrift.io/) 0.51.0. It is upstream [wikipedia-ios](https://github.com/wikimedia/wikipedia-ios) `main` as of 2026-10-22 (`755cd3b242`) plus the bitdrift changes:
+
+- **SDK setup** (`AppDelegate.swift`): starts Capture with the key and host from `BitdriftLocal.xcconfig`, sets the entity ID, enables the URLSession and CocoaLumberjack integrations (swizzling disabled) and registers device commands.
+- **WebViews:** instrumented manually (article, link previews and `SinglePageWebViewController`). The article code that clears user scripts keeps the Capture bridge in place.
+- **Screen views and launch time:** each main tab logs a screen view; app launch time to interactive is reported.
+- **Analytics:** Wikipedia's Event Platform events are also logged to Capture.
+- **CUJ demo:** `WikipediaUITests/BitdriftCUJDemoUITests.swift` drives a reading journey.
 
 Create `Configurations/BitdriftLocal.xcconfig` (it is gitignored) with your API key:
 
@@ -29,7 +35,32 @@ Then follow the steps below to build and run.
 
 ### Device commands
 
-`AppDelegate.swift` registers handlers for two device commands from bitdrift's command catalog, adapted from the Capture SDK's iOS sample app: `flip_flag` and `memory_dump`. Run them from the Device Console or `bd command invoke`. A command must also be in your account's command catalog with platform targets that include this app. `ios_memory_dump` is built into newer Capture SDK versions and needs no app code.
+Run commands from the Device Console or `bd command invoke`. A command must be in your account's command catalog with platform targets that include this app.
+
+| Command | Where it runs | Notes |
+| --- | --- | --- |
+| `take_screenshot` | Built into the SDK | Works on 0.51.0 |
+| `memory_dump <include_heap>` | Built into the SDK | iOS memory snapshot, opens in the Perfetto viewer. Needs an SDK newer than 0.51.0; see below. |
+| `flip_flag <flag>` | `AppDelegate.swift` | Toggles a named flag and reports it as a feature flag exposure |
+
+Android's ANR and OOM crash profiles have no iOS equivalent; they rely on Android's ProfilingManager.
+
+### Testing an unreleased SDK
+
+`Wikipedia.xcodeproj` uses the released Capture SDK. To build against a Capture SDK from a [capture-sdk](https://github.com/bitdriftlabs/capture-sdk) checkout (for example `main`):
+
+```sh
+scripts/bitdrift-local-capture /path/to/capture-sdk     # builds the framework there first
+scripts/bitdrift-local-capture /path/to/Capture.ios.zip # or use an existing build
+```
+
+Then open `Wikipedia-LocalCapture.xcworkspace` instead of the project. Xcode lets the local package in the gitignored `LocalCapture/capture-ios` override the released one. Open `Wikipedia.xcodeproj` again to go back to the released SDK.
+
+### Notes
+
+- **Simulator:** use an iOS 26 simulator. On iOS 18 the app fails to launch (`libswiftWebKit.dylib` not found).
+- **Command-line builds:** pass `SIGNING_DISAMBIGUATOR=<your team>` to `xcodebuild` (the value `scripts/setup` writes to `Configurations/OpenSourceDebug.xcconfig`).
+- **Upstream sync:** upstream moved to Xcode 27.1 on 2026-10-23, which needs macOS 26.6 or later, so the next sync has to be built with Xcode 27.1.
 
 ## Building and Running
 

@@ -1,0 +1,61 @@
+#!/bin/bash
+# Prepares LocalCapture/capture-ios: the capture-ios Swift package, pointed at a locally built
+# Capture.xcframework. Open Wikipedia-LocalCapture.xcworkspace to build against it; Xcode lets a
+# local package override the remote package of the same name. Wikipedia.xcodeproj is unchanged
+# and keeps using the released SDK.
+#
+# Usage:
+#   scripts/bitdrift-local-capture /path/to/capture-sdk     # builds //:ios_dist there first
+#   scripts/bitdrift-local-capture /path/to/Capture.ios.zip # uses an existing build
+#
+# The package's wrapper sources (CaptureCocoaLumberjack and friends) come from the capture-ios tag
+# matching the SDK version: platform/shared/.sdk_version for a checkout, or the version pinned in
+# Wikipedia.xcodeproj for a zip. Override with CAPTURE_IOS_TAG.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+src="${1:?usage: $0 <capture-sdk checkout | Capture.ios.zip>}"
+if [ -d "$src" ]; then
+  (cd "$src" && ./bazelw build //:ios_dist)
+  zip="$src/bazel-bin/Capture.ios.zip"
+  tag="${CAPTURE_IOS_TAG:-$(cat "$src/platform/shared/.sdk_version")}"
+else
+  zip="$src"
+  tag="${CAPTURE_IOS_TAG:-$(grep -A4 'capture-ios.git' Wikipedia.xcodeproj/project.pbxproj | sed -nE 's/.*version = ([0-9.]+);.*/\1/p' | head -1)}"
+fi
+[ -f "$zip" ] || { echo "Capture.ios.zip not found: $zip" >&2; exit 1; }
+
+dest=LocalCapture/capture-ios
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+git -c advice.detachedHead=false clone -q --depth 1 --branch "$tag" https://github.com/bitdriftlabs/capture-ios.git "$work/capture-ios"
+rm -rf "$work/capture-ios/.git" "$dest"
+mkdir -p LocalCapture
+mv "$work/capture-ios" "$dest"
+
+# Each Swift-version manifest downloads a released framework; point them all at the local one.
+for manifest in "$dest"/Package*.swift; do
+  perl -0pi -e 's/\.binaryTarget\(\s*name:\s*"Capture",\s*url:\s*"[^"]+",\s*checksum:\s*"[^"]+"\s*\)/.binaryTarget(name: "Capture", path: "Capture.xcframework")/s' "$manifest"
+  grep -q 'path: "Capture.xcframework"' "$manifest" || { echo "Could not rewrite $manifest" >&2; exit 1; }
+done
+unzip -q -o "$zip" -d "$dest"
+[ -d "$dest/Capture.xcframework" ] || { echo "No Capture.xcframework in $zip" >&2; exit 1; }
+
+# A Bazel build has no framework Info.plist; release packaging adds one, and Xcode needs it to embed
+# the framework. Write the same keys the released frameworks carry.
+for framework in "$dest"/Capture.xcframework/*/Capture.framework; do
+  [ -f "$framework/Info.plist" ] && continue
+  plist="$framework/Info.plist"
+  plutil -create xml1 "$plist"
+  plutil -insert CFBundleExecutable -string Capture "$plist"
+  plutil -insert CFBundleIdentifier -string io.bitdrift.Capture "$plist"
+  plutil -insert CFBundleInfoDictionaryVersion -string 6.0 "$plist"
+  plutil -insert CFBundleName -string Capture "$plist"
+  plutil -insert CFBundlePackageType -string FMWK "$plist"
+  plutil -insert CFBundleShortVersionString -string "$tag" "$plist"
+  plutil -insert CFBundleVersion -string "$tag-local" "$plist"
+  plutil -insert MinimumOSVersion -string 15.0 "$plist"
+done
+
+echo "LocalCapture/capture-ios ready (wrapper $tag, framework from $zip)."
+echo "Open Wikipedia-LocalCapture.xcworkspace to build against it."
