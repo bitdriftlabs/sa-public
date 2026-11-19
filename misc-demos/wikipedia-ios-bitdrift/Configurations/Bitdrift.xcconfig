@@ -6,6 +6,8 @@
 //   BITDRIFT_API_KEY = <your API key>
 //   BITDRIFT_API_HOST = api.bitdrift.io
 //   ENTITY_ID = <entity ID>   (defaults to demo)
+//   BITDRIFT_DEMO_USERNAME = <test account>   (for the log_in_user device command)
+//   BITDRIFT_DEMO_PASSWORD = <test password>
 //
 // xcconfig treats "//" as the start of a comment, so give the host without a scheme. If your
 // API key contains "//", write it as "/$()/".
@@ -13,5 +15,7 @@
 BITDRIFT_API_KEY =
 BITDRIFT_API_HOST = api.bitdrift.io
 ENTITY_ID = demo
+BITDRIFT_DEMO_USERNAME =
+BITDRIFT_DEMO_PASSWORD =
 
 #include? "BitdriftLocal.xcconfig"

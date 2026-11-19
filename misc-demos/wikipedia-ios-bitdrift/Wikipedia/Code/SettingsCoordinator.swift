@@ -233,7 +233,9 @@ final class SettingsCoordinator: Coordinator, SettingsCoordinatorDelegate {
         }
     }
 
-    private func showClearCacheActionSheet() {
+    /// bitdrift: internal (was private) so the clear_cached_data device command can show the same
+    /// confirmation. `onDecision` reports whether the reader cleared the cache.
+    func showClearCacheActionSheet(onDecision: ((Bool) -> Void)? = nil) {
 
         let baseMessage = WMFLocalizedString("settings-clear-cache-are-you-sure-message", value: "Clearing cached data will free up about %1$@ of space. It will not delete your saved pages.", comment: "Message for the confirmation presented to the user to verify they are sure they want to clear clear cached data. %1$@ is replaced with the approximate file size in bytes that will be made available. Also explains that the action will not delete their saved pages.")
 
@@ -251,12 +253,15 @@ final class SettingsCoordinator: Coordinator, SettingsCoordinatorDelegate {
         let clearTitle = WMFLocalizedString("settings-clear-cache-ok", value: "Clear cache", comment: "Confirm action to clear cached data")
 
         sheet.addAction(UIAlertAction(title: clearTitle, style: .destructive) { [weak self] _ in
+            onDecision?(true)
             self?.clearCache()
         })
 
         let cancelTitle = CommonStrings.cancelActionTitle
 
-        sheet.addAction(UIAlertAction(title: cancelTitle, style: .cancel))
+        sheet.addAction(UIAlertAction(title: cancelTitle, style: .cancel) { _ in
+            onDecision?(false)
+        })
 
         let presenter = (navigationController.presentedViewController ?? navigationController)
         presenter.present(sheet, animated: true)

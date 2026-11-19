@@ -1,5 +1,7 @@
 import UIKit
+import WMF
 import WMFData
+import WMFNativeLocalizations
 import BackgroundTasks
 import CocoaLumberjackSwift
 @_spi(ExperimentalAPI) import Capture
@@ -46,14 +48,29 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
 
             // Device commands (experimental), adapted from the Capture SDK's iOS sample app. Each key must
-            // also exist in the server command catalog. ios_memory_dump is built into newer SDK versions,
-            // so the app doesn't register it.
+            // also exist in the server command catalog. The memory dump is a built-in command in newer SDK
+            // versions, so the app doesn't register one.
             Task {
-                await Logger.registerCommand(key: "memory_dump") { arguments in
-                    BitdriftMemoryDump.run(arguments: arguments)
-                }
                 await Logger.registerCommand(key: "flip_flag") { arguments in
                     BitdriftFlags.flip(arguments: arguments)
+                }
+                await Logger.registerCommand(key: "open_settings") { _ in
+                    await BitdriftAppCommands.openSettings()
+                }
+                await Logger.registerCommand(key: "clear_cached_data") { _ in
+                    await BitdriftAppCommands.clearCachedData()
+                }
+                await Logger.registerCommand(key: "log_out_user") { _ in
+                    await BitdriftAppCommands.logOutUser()
+                }
+                await Logger.registerCommand(key: "log_in_user") { _ in
+                    await BitdriftAppCommands.logInUser()
+                }
+                await Logger.registerCommand(key: "request_app_library") { _ in
+                    await BitdriftAppLibraryExport.request()
+                }
+                await Logger.registerCommand(key: "fetch_app_library") { _ in
+                    await BitdriftAppLibraryExport.fetch()
                 }
             }
         } else {
@@ -266,42 +283,221 @@ enum BitdriftFlags {
     }
 }
 
-/// memory_dump: this process's memory footprint (TASK_VM_INFO).
+/// open_settings and clear_cached_data: drive the app's own screens from a device command.
+@MainActor
+enum BitdriftAppCommands {
+    /// Kept alive while its confirmation is on screen; the alert's clear action holds it weakly.
+    private static var clearCacheCoordinator: SettingsCoordinator?
 
-/// Reports this process's memory footprint (TASK_VM_INFO) as command result fields.
-/// Pass `is_attachment = true` to get the same data as a JSON attachment instead.
-enum BitdriftMemoryDump {
-    static func run(arguments: CommandArguments) -> Result<CommandResult, CommandError> {
-        var info = task_vm_info_data_t()
-        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info>.stride / MemoryLayout<integer_t>.stride)
-        let status = withUnsafeMutablePointer(to: &info) { pointer in
-            pointer.withMemoryRebound(to: integer_t.self, capacity: 1) {
-                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+    private static var appViewController: WMFAppViewController? {
+        (UIApplication.shared.delegate as? AppDelegate)?.appViewController
+    }
+
+    /// Kept alive while its Settings screen is open, as the profile menu keeps its own.
+    private static var settingsCoordinator: SettingsCoordinator?
+
+    /// Opens Settings as Profile > Settings does, with its Done (tick) button. The settings deep link
+    /// opens an older screen with no way to close it.
+    static func openSettings() -> Result<CommandResult, CommandError> {
+        guard let appViewController,
+              let navigationController = appViewController.currentTabNavigationController else {
+            return .failure(CommandError(title: "settings_unavailable", description: "No screen to open Settings from"))
+        }
+        let coordinator = SettingsCoordinator(navigationController: navigationController, theme: appViewController.theme, dataStore: MWKDataStore.shared())
+        settingsCoordinator = coordinator
+        coordinator.start()
+        return .success(CommandResult(context: ["screen": "Settings"]))
+    }
+
+    /// Shows the app's "Clear cached data?" confirmation and returns at once: commands time out after
+    /// a few seconds, so the reader's choice is logged as `clear_cached_data` when they make it.
+    static func clearCachedData() -> Result<CommandResult, CommandError> {
+        guard let appViewController,
+              let navigationController = appViewController.currentTabNavigationController else {
+            return .failure(CommandError(title: "no_screen", description: "No screen to show the confirmation on"))
+        }
+        let estimatedBytes = String(URLCache.shared.currentDiskUsage)
+        let coordinator = SettingsCoordinator(navigationController: navigationController, theme: appViewController.theme, dataStore: MWKDataStore.shared())
+        clearCacheCoordinator = coordinator
+        coordinator.showClearCacheActionSheet { cleared in
+            Logger.logInfo("clear_cached_data", fields: ["decision": cleared ? "cleared" : "cancelled", "estimated_bytes": estimatedBytes])
+        }
+        return .success(CommandResult(context: ["status": "confirmation_shown", "estimated_bytes": estimatedBytes]))
+    }
+
+    /// Logs the reader out at once. Initiated by `.server`, so the app shows its own "you have been
+    /// logged out" panel. Reports the account type, never the username.
+    static func logOutUser() -> Result<CommandResult, CommandError> {
+        let authenticationManager = MWKDataStore.shared().authenticationManager
+        let accountType: String
+        if authenticationManager.authStateIsPermanent {
+            accountType = "permanent"
+        } else if authenticationManager.authStateIsTemporary {
+            accountType = "temporary"
+        } else {
+            return .success(CommandResult(context: ["status": "not_logged_in"]))
+        }
+        authenticationManager.logout(initiatedBy: .server)
+        return .success(CommandResult(context: ["status": "logged_out", "account_type": accountType]))
+    }
+
+    /// Logs in with the demo account from Configurations/BitdriftLocal.xcconfig (BITDRIFT_DEMO_USERNAME
+    /// and BITDRIFT_DEMO_PASSWORD), never from command arguments. Login can take longer than a command
+    /// may run, so this returns at once and logs the outcome as `log_in_user`.
+    static func logInUser() -> Result<CommandResult, CommandError> {
+        guard let username = Bundle.main.object(forInfoDictionaryKey: "BitdriftDemoUsername") as? String, !username.isEmpty,
+              let password = Bundle.main.object(forInfoDictionaryKey: "BitdriftDemoPassword") as? String, !password.isEmpty else {
+            return .failure(CommandError(title: "no_demo_account", description: "Set BITDRIFT_DEMO_USERNAME and BITDRIFT_DEMO_PASSWORD in Configurations/BitdriftLocal.xcconfig"))
+        }
+        let authenticationManager = MWKDataStore.shared().authenticationManager
+        guard !authenticationManager.authStateIsPermanent else {
+            return .success(CommandResult(context: ["status": "already_logged_in"]))
+        }
+        authenticationManager.login(username: username, password: password, retypePassword: nil, oathToken: nil, emailAuthCode: nil, captchaID: nil, captchaWord: nil) { result in
+            switch result {
+            case .success:
+                Logger.logInfo("log_in_user", fields: ["status": "logged_in"])
+            case .failure(let error):
+                Logger.logWarning("log_in_user", fields: ["status": loginFailureStatus(error)])
             }
         }
-        guard status == KERN_SUCCESS else {
-            return .failure(CommandError(title: "Unable to collect memory information", description: "task_info returned \(status)"))
-        }
+        return .success(CommandResult(context: ["status": "logging_in"]))
+    }
 
-        let fields: [String: String] = [
-            "phys_footprint": String(info.phys_footprint),
-            "ledger_phys_footprint_peak": String(info.ledger_phys_footprint_peak),
-            "internal": String(info.internal),
-            "compressed": String(info.compressed),
-            "external": String(info.external),
-            "ledger_tag_graphics_footprint": String(info.ledger_tag_graphics_footprint),
-            "ledger_tag_media_footprint": String(info.ledger_tag_media_footprint),
-            "ledger_tag_network_nonvolatile": String(info.ledger_tag_network_nonvolatile)
+    /// Steps a command can't complete for the reader are reported, not attempted.
+    private nonisolated static func loginFailureStatus(_ error: Error) -> String {
+        guard let loginError = error as? WMFAccountLoginError else { return "failed" }
+        switch loginError {
+        case .wrongPassword: return "wrong_password"
+        case .needsOathTokenFor2FA: return "needs_2fa"
+        case .needsEmailAuthToken: return "needs_email_code"
+        case .captchaRequired, .hCaptchaRequired: return "needs_captcha"
+        case .temporaryPasswordNeedsChange: return "needs_password_change"
+        default: return "failed"
+        }
+    }
+}
+
+/// request_app_library and fetch_app_library: Help > Export User Data, delivered as a command
+/// attachment instead of the share sheet. The reader consents first in the app's own prompt; a command
+/// can't wait for that (commands time out after a few seconds), so the request returns at once and the
+/// outcome is logged as `app_library_export`. fetch_app_library returns the zip once, and only after
+/// consent. Unlike the Help screen, this skips the server-side reading list sync summary.
+@MainActor
+enum BitdriftAppLibraryExport {
+    private static var preparedZip: URL?
+    private static var isPreparing = false
+
+    static func request() -> Result<CommandResult, CommandError> {
+        guard !isPreparing else {
+            return .failure(CommandError(title: "already_preparing", description: "An export is already being prepared"))
+        }
+        guard let presenter = topViewController() else {
+            return .failure(CommandError(title: "no_screen", description: "No screen to show the prompt on"))
+        }
+        // The Help screen's own consent prompt and wording.
+        let title = WMFLocalizedString("export-user-data-confirmation-title", value: "Share app library?", comment: "Title of confirmation modal after user taps \"Export User Data\" button.")
+        let message = WMFDeveloperSettingsDataController.shared.isCommunityFeedMode
+            ? WMFLocalizedString("export-user-data-confirmation-message-community", value: "Sharing your app library includes data about your Reading lists and history, preferences, and Community feed content. This data file should only be shared with a trusted recipient to use for technical diagnostic purposes.", comment: "Message of confirmation modal after user taps \"Export User Data\" button.")
+            : WMFLocalizedString("export-user-data-confirmation-message", value: "Sharing your app library includes data about your Reading lists and history, preferences, and Explore feed content. This data file should only be shared with a trusted recipient to use for technical diagnostic purposes.", comment: "Message of confirmation modal after user taps \"Export User Data\" button.")
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: CommonStrings.shareActionTitle, style: .default) { _ in prepare() })
+        alert.addAction(UIAlertAction(title: CommonStrings.cancelActionTitle, style: .cancel) { _ in
+            Logger.logInfo("app_library_export", fields: ["status": "declined"])
+        })
+        presenter.present(alert, animated: true)
+        return .success(CommandResult(context: ["status": "consent_requested"]))
+    }
+
+    static func fetch() -> Result<CommandResult, CommandError> {
+        if isPreparing {
+            return .failure(CommandError(title: "not_ready", description: "The export is still being prepared; wait for app_library_export status ready"))
+        }
+        guard let zip = preparedZip else {
+            return .failure(CommandError(title: "no_consented_export", description: "Run request_app_library and have the user tap Share first"))
+        }
+        // One fetch per consent. The SDK takes ownership of the file and deletes it after upload.
+        preparedZip = nil
+        let bytes = (try? zip.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(String.init) ?? "unknown"
+        return .success(CommandResult(
+            attachment: .file(url: zip, mimeType: "application/zip"),
+            context: ["status": "attached", "zip_bytes": bytes]
+        ))
+    }
+
+    private static func prepare() {
+        isPreparing = true
+        preparedZip = nil
+        Logger.logInfo("app_library_export", fields: ["status": "preparing"])
+        Task.detached(priority: .userInitiated) {
+            let result = Result { try buildZip() }
+            await MainActor.run {
+                isPreparing = false
+                switch result {
+                case .success(let zip):
+                    preparedZip = zip
+                    let bytes = (try? zip.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(String.init) ?? "unknown"
+                    Logger.logInfo("app_library_export", fields: ["status": "ready", "zip_bytes": bytes])
+                case .failure(let error):
+                    Logger.logError("app_library_export", fields: ["status": "failed", "error": error.localizedDescription])
+                }
+            }
+        }
+    }
+
+    /// The Help screen's steps: copy the shared container, add the console log, drop the same files, zip.
+    nonisolated private static func buildZip() throws -> URL {
+        let fileManager = FileManager()
+        let skipUnreadable = SkipUnreadableFiles()
+        fileManager.delegate = skipUnreadable
+        let staging = fileManager.temporaryDirectory.appendingPathComponent("bitdrift-app-library", isDirectory: true)
+        try? fileManager.removeItem(at: staging)
+        try fileManager.copyItem(at: fileManager.wmf_containerURL(), to: staging)
+        defer { try? fileManager.removeItem(at: staging) }
+
+        if let logFilePath = DDLog.wmf_currentLogFilePath() {
+            try? fileManager.copyItem(at: URL(fileURLWithPath: logFilePath), to: staging.appendingPathComponent("console.log"))
+        }
+        let removed = [
+            "Event Logging", "Event Platform", "Library",
+            "\(SharedContainerCacheCommonNames.pushNotificationsCache).json",
+            "RemoteNotifications.sqlite", "RemoteNotifications.sqlite-shm", "RemoteNotifications.sqlite-wal",
+            "\(SharedContainerCacheCommonNames.widgetCache).json"
         ]
+        for name in removed {
+            try? fileManager.removeItem(at: staging.appendingPathComponent(name))
+        }
 
-        if case .bool(true) = arguments["is_attachment"] {
+        var zip: URL?
+        var moveError: Error?
+        var coordinatorError: NSError?
+        NSFileCoordinator().coordinate(readingItemAt: staging, options: [.forUploading], error: &coordinatorError) { zippedURL in
+            let destination = fileManager.temporaryDirectory.appendingPathComponent("app-library-\(UUID().uuidString).zip")
             do {
-                let data = try JSONSerialization.data(withJSONObject: fields, options: [.prettyPrinted, .sortedKeys])
-                return .success(CommandResult(attachment: CommandAttachment(data: data, mimeType: "application/json")))
+                try fileManager.moveItem(at: zippedURL, to: destination)
+                zip = destination
             } catch {
-                return .failure(CommandError(title: "Unable to encode memory information", description: error.localizedDescription))
+                moveError = error
             }
         }
-        return .success(CommandResult(context: fields))
+        if let coordinatorError { throw coordinatorError }
+        if let moveError { throw moveError }
+        guard let zip else { throw CocoaError(.fileWriteUnknown) }
+        return zip
+    }
+
+    private static func topViewController() -> UIViewController? {
+        var top: UIViewController? = (UIApplication.shared.delegate as? AppDelegate)?.appViewController
+        while let presented = top?.presentedViewController {
+            top = presented
+        }
+        return top
+    }
+
+    /// Same as the Help screen: keep copying when a file can't be read.
+    private final class SkipUnreadableFiles: NSObject, FileManagerDelegate {
+        func fileManager(_ fileManager: FileManager, shouldProceedAfterError error: Error, copyingItemAt srcURL: URL, to dstURL: URL) -> Bool {
+            true
+        }
     }
 }

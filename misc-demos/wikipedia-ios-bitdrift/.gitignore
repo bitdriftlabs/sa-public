@@ -86,3 +86,7 @@ OpenSourceDebug.xcconfig
 
 # bitdrift API key and host (see Configurations/Bitdrift.xcconfig)
 Configurations/BitdriftLocal.xcconfig
+
+# Local Capture SDK build for Wikipedia-LocalCapture.xcworkspace (scripts/bitdrift-local-capture)
+/LocalCapture/
+/Wikipedia-LocalCapture.xcworkspace/xcshareddata/swiftpm/

@@ -1,7 +1,9 @@
 package org.wikipedia.bitdriftdev
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
+import android.widget.Toast
 import io.bitdrift.capture.Capture
 import io.bitdrift.capture.commands.CommandArgument
 import io.bitdrift.capture.commands.CommandAttachment
@@ -14,6 +16,20 @@ import io.bitdrift.capture.experimental.ExperimentalBitdriftApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.MainScope
+import org.wikipedia.BuildConfig
+import org.wikipedia.WikipediaApp
+import org.wikipedia.auth.AccountUtil
+import org.wikipedia.concurrency.FlowEventBus
+import org.wikipedia.events.LoggedInEvent
+import org.wikipedia.login.LoginClient
+import org.wikipedia.login.LoginEmailAuthResult
+import org.wikipedia.login.LoginOATHResult
+import org.wikipedia.login.LoginResult
+import org.wikipedia.notifications.PollNotificationWorker
+import org.wikipedia.readinglist.sync.ReadingListSyncAdapter
+import org.wikipedia.settings.Prefs
+import org.wikipedia.settings.SettingsActivity
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -108,6 +124,53 @@ object BitdriftCommands {
                 val context = appContext ?: return@registerCommand error("no_context")
                 profileResult(request.type, durationMs, AppProfiler.capture(context, request))
             },
+            // Opens the Settings screen, as the main screen's menu does.
+            Capture.Logger.registerCommand("open_settings") {
+                log()
+                val context = appContext ?: return@registerCommand error("no_context")
+                withContext(Dispatchers.Main) {
+                    context.startActivity(SettingsActivity.newIntent(context).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+                success(context = mapOf("screen" to "Settings"))
+            },
+            // Logs the reader out at once, as Settings does after its confirmation, and tells them with a
+            // toast. Reports the account type, never the username.
+            Capture.Logger.registerCommand("log_out_user") {
+                log()
+                val context = appContext ?: return@registerCommand error("no_context")
+                if (!AccountUtil.isLoggedIn) {
+                    return@registerCommand success(context = mapOf("status" to "not_logged_in"))
+                }
+                val accountType = if (AccountUtil.isTemporaryAccount) "temporary" else "permanent"
+                withContext(Dispatchers.Main) {
+                    WikipediaApp.instance.logOut()
+                    Prefs.readingListsLastSyncTime = null
+                    Prefs.isReadingListSyncEnabled = false
+                    Prefs.isSuggestedEditsHighestPriorityEnabled = false
+                    Toast.makeText(context, "You've been logged out", Toast.LENGTH_LONG).show()
+                }
+                success(context = mapOf("status" to "logged_out", "account_type" to accountType))
+            },
+            // Logs in with the demo account from local.properties (BITDRIFT_DEMO_USERNAME and
+            // BITDRIFT_DEMO_PASSWORD), never from command arguments. Login can take longer than a command
+            // may run, so this returns at once and logs the outcome as log_in_user.
+            Capture.Logger.registerCommand("log_in_user") {
+                log()
+                val context = appContext ?: return@registerCommand error("no_context")
+                val username = BuildConfig.BITDRIFT_DEMO_USERNAME
+                val password = BuildConfig.BITDRIFT_DEMO_PASSWORD
+                if (username.isEmpty() || password.isEmpty()) {
+                    return@registerCommand error(
+                        "no_demo_account",
+                        "Set BITDRIFT_DEMO_USERNAME and BITDRIFT_DEMO_PASSWORD in local.properties",
+                    )
+                }
+                if (AccountUtil.isLoggedIn && !AccountUtil.isTemporaryAccount) {
+                    return@registerCommand success(context = mapOf("status" to "already_logged_in"))
+                }
+                withContext(Dispatchers.Main) { startDemoLogin(context, username, password) }
+                success(context = mapOf("status" to "logging_in"))
+            },
             // Sleeps, to test cancellation. The test app owns this with a ViewModel; here it lives with the app.
             Capture.Logger.registerCommand("ui_state_slow") {
                 log()
@@ -160,6 +223,51 @@ object BitdriftCommands {
             source.delete()
         }
         return owned
+    }
+
+    /** The login screen's flow and its after-login steps, minus the screen. Steps a command can't complete are reported. */
+    private fun startDemoLogin(context: Context, username: String, password: String) {
+        fun report(status: String, detail: String? = null) {
+            val fields = listOfNotNull("status" to status, detail?.let { "message_code" to it }).toMap()
+            if (status == "logged_in") Capture.Logger.logInfo(fields) { "log_in_user" } else Capture.Logger.logWarning(fields) { "log_in_user" }
+        }
+        LoginClient().login(MainScope(), WikipediaApp.instance.wikiSite, username, password, cb = object : LoginClient.LoginCallback {
+            override fun success(result: LoginResult) {
+                if (!result.pass()) {
+                    report(if (result.messageCode == "wrongpassword") "wrong_password" else "failed", result.messageCode)
+                    return
+                }
+                AccountUtil.updateAccount(null, result)
+                Prefs.isReadingListSyncEnabled = true
+                Prefs.readingListPagesDeletedIds = emptySet()
+                Prefs.readingListsDeletedIds = emptySet()
+                Prefs.tempAccountWelcomeShown = false
+                Prefs.tempAccountCreateDay = 0L
+                Prefs.lastBackgroundLoginDateTime = ""
+                ReadingListSyncAdapter.manualSyncWithForce()
+                PollNotificationWorker.schedulePollNotificationJob(context)
+                FlowEventBus.post(LoggedInEvent())
+                Toast.makeText(context, "Logged in as the demo account", Toast.LENGTH_LONG).show()
+                report("logged_in")
+            }
+
+            override fun uiPrompt(result: LoginResult, caught: Throwable, captchaId: String?, token: String?) {
+                report(
+                    when {
+                        captchaId != null -> "needs_captcha"
+                        result is LoginOATHResult -> "needs_2fa"
+                        result is LoginEmailAuthResult -> "needs_email_code"
+                        else -> "needs_more_steps"
+                    },
+                )
+            }
+
+            override fun hCaptchaPrompt(result: LoginResult, caught: Throwable, siteKey: String, token: String?) = report("needs_captcha")
+
+            override fun passwordResetPrompt(token: String?) = report("needs_password_change")
+
+            override fun error(caught: Throwable) = report("failed")
+        })
     }
 
     private fun CommandScope.log() {

@@ -162,5 +162,9 @@
 	<string>$(BITDRIFT_API_KEY)</string>
 	<key>BitdriftEntityID</key>
 	<string>$(ENTITY_ID)</string>
+	<key>BitdriftDemoUsername</key>
+	<string>$(BITDRIFT_DEMO_USERNAME)</string>
+	<key>BitdriftDemoPassword</key>
+	<string>$(BITDRIFT_DEMO_PASSWORD)</string>
 </dict>
 </plist>
