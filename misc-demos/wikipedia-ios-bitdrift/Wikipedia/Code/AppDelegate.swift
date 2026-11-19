@@ -46,12 +46,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
 
             // Device commands (experimental), adapted from the Capture SDK's iOS sample app. Each key must
-            // also exist in the server command catalog. ios_memory_dump is built into newer SDK versions,
-            // so the app doesn't register it.
+            // also exist in the server command catalog. The memory dump is a built-in command in newer SDK
+            // versions, so the app doesn't register one.
             Task {
-                await Logger.registerCommand(key: "memory_dump") { arguments in
-                    BitdriftMemoryDump.run(arguments: arguments)
-                }
                 await Logger.registerCommand(key: "flip_flag") { arguments in
                     BitdriftFlags.flip(arguments: arguments)
                 }
@@ -263,45 +260,5 @@ enum BitdriftFlags {
         }
         Logger.setFeatureFlagExposure(withName: flag, variant: !previous)
         return .success(CommandResult(context: ["flag": flag, "from": String(previous), "to": String(!previous)]))
-    }
-}
-
-/// memory_dump: this process's memory footprint (TASK_VM_INFO).
-
-/// Reports this process's memory footprint (TASK_VM_INFO) as command result fields.
-/// Pass `is_attachment = true` to get the same data as a JSON attachment instead.
-enum BitdriftMemoryDump {
-    static func run(arguments: CommandArguments) -> Result<CommandResult, CommandError> {
-        var info = task_vm_info_data_t()
-        var count = mach_msg_type_number_t(MemoryLayout<task_vm_info>.stride / MemoryLayout<integer_t>.stride)
-        let status = withUnsafeMutablePointer(to: &info) { pointer in
-            pointer.withMemoryRebound(to: integer_t.self, capacity: 1) {
-                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
-            }
-        }
-        guard status == KERN_SUCCESS else {
-            return .failure(CommandError(title: "Unable to collect memory information", description: "task_info returned \(status)"))
-        }
-
-        let fields: [String: String] = [
-            "phys_footprint": String(info.phys_footprint),
-            "ledger_phys_footprint_peak": String(info.ledger_phys_footprint_peak),
-            "internal": String(info.internal),
-            "compressed": String(info.compressed),
-            "external": String(info.external),
-            "ledger_tag_graphics_footprint": String(info.ledger_tag_graphics_footprint),
-            "ledger_tag_media_footprint": String(info.ledger_tag_media_footprint),
-            "ledger_tag_network_nonvolatile": String(info.ledger_tag_network_nonvolatile)
-        ]
-
-        if case .bool(true) = arguments["is_attachment"] {
-            do {
-                let data = try JSONSerialization.data(withJSONObject: fields, options: [.prettyPrinted, .sortedKeys])
-                return .success(CommandResult(attachment: CommandAttachment(data: data, mimeType: "application/json")))
-            } catch {
-                return .failure(CommandError(title: "Unable to encode memory information", description: error.localizedDescription))
-            }
-        }
-        return .success(CommandResult(context: fields))
     }
 }

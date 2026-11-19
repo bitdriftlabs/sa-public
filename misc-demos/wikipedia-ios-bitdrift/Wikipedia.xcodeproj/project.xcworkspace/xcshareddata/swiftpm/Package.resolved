@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/bitdriftlabs/capture-ios.git",
       "state" : {
-        "revision" : "cb7648ec30108152c8a3def7a8b1b39402ce358f",
-        "version" : "0.26.0"
+        "revision" : "70ff5a1e7ba1f2f8e7c0396a59ac2653bdd6ba41",
+        "version" : "0.51.0"
       }
     },
     {
