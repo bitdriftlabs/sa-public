@@ -40,10 +40,6 @@ Profiling commands need Android 15 (API 35) or later. ANR crash profiles need An
 and OOM crash profiles Android 17 (API 37). Emulators work; give them 16 GB of data storage, since
 heap dumps are written to the device before upload.
 
-> **Capture SDK version.** Crash profiling (below) uses `CrashProfilingMode`, which arrives in
-> Capture 0.52.0. Until 0.52.0 is published, build with `BITDRIFT_CAPTURE_VERSION=SNAPSHOT` from a
-> local SDK build.
-
 ## What's customized
 
 All bitdrift changes are in the files below. Code written for this demo lives in
@@ -106,7 +102,10 @@ logs a warning to Capture first, so the session shows what was triggered.
 Device commands run code on one device from the Device Console or `bd command invoke`. A command
 needs an entry in your bitdrift command catalog **and** a handler in the app with the same key.
 Built-in commands such as `stack_sampling_trace` and `take_screenshot` are handled by the SDK and
-need no app code. This app registers handlers for these commands:
+need no app code. Capture 0.52.0 adds built-in `system_trace`, `heap_profile_trace` and
+`memory_dump` on Android 15+. Built-ins and app commands are separate namespaces, so this app's own
+`system_trace` and `memory_dump` handlers still work; the catalog entry decides which one runs. This
+app registers handlers for these commands:
 
 | Command | Arguments | What it does |
 | --- | --- | --- |
@@ -133,10 +132,9 @@ Things to know:
   commands fail at once with `profiling_failed`. On a test device, turn the limiter off with
   `adb shell device_config put profiling_testing rate_limiter.disabled true` (undo with
   `device_config delete`).
-- **Attachment size.** Capture 0.51.0 uploads attachments up to 5 MB, which is too small for a heap
-  dump (about 20 to 26 MB here). Chunked uploads for larger files are on capture-sdk `main` for
-  the next release; until then, heap dumps need a `SNAPSHOT` build.
-- **Errors.** Handlers put the failure reason in the error description. On failure the SDK writes
+- **Attachment size.** Capture 0.52.0 uploads attachments compressed and resumable, up to 256 MiB
+  per file, which covers a heap dump (about 20 to 26 MB here).
+- **Errors.** Handlers put the failure reason in the error message. On failure the SDK writes
   its own `error` field, replacing any context field of that name.
 
 ### Crash profiles

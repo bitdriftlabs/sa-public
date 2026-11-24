@@ -271,7 +271,7 @@ enum BitdriftFlags {
 
     static func flip(arguments: CommandArguments) -> Result<CommandResult, CommandError> {
         guard case let .string(flag) = arguments["flag"], !flag.isEmpty else {
-            return .failure(CommandError(title: "Missing flag argument"))
+            return .failure(CommandError.invalidArguments(message: "Missing flag argument"))
         }
         let previous: Bool = lock.withLock {
             let previous = flags[flag] ?? false
@@ -301,7 +301,7 @@ enum BitdriftAppCommands {
     static func openSettings() -> Result<CommandResult, CommandError> {
         guard let appViewController,
               let navigationController = appViewController.currentTabNavigationController else {
-            return .failure(CommandError(title: "settings_unavailable", description: "No screen to open Settings from"))
+            return .failure(CommandError(message: "settings_unavailable: No screen to open Settings from"))
         }
         let coordinator = SettingsCoordinator(navigationController: navigationController, theme: appViewController.theme, dataStore: MWKDataStore.shared())
         settingsCoordinator = coordinator
@@ -314,7 +314,7 @@ enum BitdriftAppCommands {
     static func clearCachedData() -> Result<CommandResult, CommandError> {
         guard let appViewController,
               let navigationController = appViewController.currentTabNavigationController else {
-            return .failure(CommandError(title: "no_screen", description: "No screen to show the confirmation on"))
+            return .failure(CommandError(message: "no_screen: No screen to show the confirmation on"))
         }
         let estimatedBytes = String(URLCache.shared.currentDiskUsage)
         let coordinator = SettingsCoordinator(navigationController: navigationController, theme: appViewController.theme, dataStore: MWKDataStore.shared())
@@ -347,7 +347,7 @@ enum BitdriftAppCommands {
     static func logInUser() -> Result<CommandResult, CommandError> {
         guard let username = Bundle.main.object(forInfoDictionaryKey: "BitdriftDemoUsername") as? String, !username.isEmpty,
               let password = Bundle.main.object(forInfoDictionaryKey: "BitdriftDemoPassword") as? String, !password.isEmpty else {
-            return .failure(CommandError(title: "no_demo_account", description: "Set BITDRIFT_DEMO_USERNAME and BITDRIFT_DEMO_PASSWORD in Configurations/BitdriftLocal.xcconfig"))
+            return .failure(CommandError(message: "no_demo_account: Set BITDRIFT_DEMO_USERNAME and BITDRIFT_DEMO_PASSWORD in Configurations/BitdriftLocal.xcconfig"))
         }
         let authenticationManager = MWKDataStore.shared().authenticationManager
         guard !authenticationManager.authStateIsPermanent else {
@@ -390,10 +390,10 @@ enum BitdriftAppLibraryExport {
 
     static func request() -> Result<CommandResult, CommandError> {
         guard !isPreparing else {
-            return .failure(CommandError(title: "already_preparing", description: "An export is already being prepared"))
+            return .failure(CommandError(message: "already_preparing: An export is already being prepared"))
         }
         guard let presenter = topViewController() else {
-            return .failure(CommandError(title: "no_screen", description: "No screen to show the prompt on"))
+            return .failure(CommandError(message: "no_screen: No screen to show the prompt on"))
         }
         // The Help screen's own consent prompt and wording.
         let title = WMFLocalizedString("export-user-data-confirmation-title", value: "Share app library?", comment: "Title of confirmation modal after user taps \"Export User Data\" button.")
@@ -411,10 +411,10 @@ enum BitdriftAppLibraryExport {
 
     static func fetch() -> Result<CommandResult, CommandError> {
         if isPreparing {
-            return .failure(CommandError(title: "not_ready", description: "The export is still being prepared; wait for app_library_export status ready"))
+            return .failure(CommandError(message: "not_ready: The export is still being prepared; wait for app_library_export status ready"))
         }
         guard let zip = preparedZip else {
-            return .failure(CommandError(title: "no_consented_export", description: "Run request_app_library and have the user tap Share first"))
+            return .failure(CommandError(message: "no_consented_export: Run request_app_library and have the user tap Share first"))
         }
         // One fetch per consent. The SDK takes ownership of the file and deletes it after upload.
         preparedZip = nil

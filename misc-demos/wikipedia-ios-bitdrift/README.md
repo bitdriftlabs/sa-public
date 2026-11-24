@@ -11,7 +11,7 @@ The official Wikipedia iOS app.
 
 ## bitdrift Capture
 
-This copy of the app is instrumented with the [bitdrift Capture SDK](https://docs.bitdrift.io/) 0.51.0. It is upstream [wikipedia-ios](https://github.com/wikimedia/wikipedia-ios) `main` as of 2026-10-22 (`755cd3b242`) plus the bitdrift changes:
+This copy of the app is instrumented with the [bitdrift Capture SDK](https://docs.bitdrift.io/) 0.52.0. It is upstream [wikipedia-ios](https://github.com/wikimedia/wikipedia-ios) `main` as of 2026-10-22 (`755cd3b242`) plus the bitdrift changes:
 
 - **SDK setup** (`AppDelegate.swift`): starts Capture with the key and host from `BitdriftLocal.xcconfig`, sets the entity ID, enables the URLSession and CocoaLumberjack integrations (swizzling disabled) and registers device commands.
 - **WebViews:** instrumented manually (article, link previews and `SinglePageWebViewController`). The article code that clears user scripts keeps the Capture bridge in place.
@@ -51,8 +51,8 @@ bd command register <command> --description "<description>" --platform apple \
 
 | Command | Where it runs | Notes |
 | --- | --- | --- |
-| `take_screenshot` | Built into the SDK | Works on 0.51.0 |
-| `memory_dump <include_heap>` | Built into the SDK | iOS memory snapshot, opens in the Perfetto viewer. Needs an SDK newer than 0.51.0; see below. |
+| `take_screenshot` | Built into the SDK | Captures the current screen |
+| `memory_dump <include_heap>` | Built into the SDK | iOS memory snapshot, opens in the Perfetto viewer. Added in 0.52.0. |
 | `flip_flag <flag>` | `AppDelegate.swift` | Toggles a named flag and reports it as a feature flag exposure |
 | `open_settings` | `AppDelegate.swift` | Opens Settings as Profile > Settings does |
 | `clear_cached_data` | `AppDelegate.swift` | Shows the app's own "Clear cached data?" confirmation |
