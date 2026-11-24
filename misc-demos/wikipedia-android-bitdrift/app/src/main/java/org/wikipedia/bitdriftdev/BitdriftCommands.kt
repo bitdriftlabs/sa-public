@@ -88,7 +88,7 @@ object BitdriftCommands {
                 val requestedType = if ("profiling_type" in arguments) argument<String>("profiling_type") else "STACK_SAMPLING"
                 val profilingType =
                     AppProfiler.ProfilingType.entries.firstOrNull { it.name.equals(requestedType, ignoreCase = true) }
-                        ?: return@registerCommand error("invalid_profiling_type", requestedType, code = CommandErrorCode.InvalidArguments)
+                        ?: return@registerCommand error("invalid_profiling_type", mapOf("profiling_type" to requestedType), code = CommandErrorCode.InvalidArguments)
                 val context = appContext ?: return@registerCommand error("no_context")
                 profileResult(profilingType, durationMs, AppProfiler.capture(context, profilingType.request(durationMs.toInt())))
             },
@@ -161,8 +161,7 @@ object BitdriftCommands {
                 val password = BuildConfig.BITDRIFT_DEMO_PASSWORD
                 if (username.isEmpty() || password.isEmpty()) {
                     return@registerCommand error(
-                        "no_demo_account",
-                        "Set BITDRIFT_DEMO_USERNAME and BITDRIFT_DEMO_PASSWORD in local.properties",
+                        "no_demo_account: set BITDRIFT_DEMO_USERNAME and BITDRIFT_DEMO_PASSWORD in local.properties",
                     )
                 }
                 if (AccountUtil.isLoggedIn && !AccountUtil.isTemporaryAccount) {
@@ -191,7 +190,7 @@ object BitdriftCommands {
                 // in-memory attachments must fit the upload queue, which a heap dump (tens of MB) overflows.
                 val owned = withContext(Dispatchers.IO) { takeOwnership(File(result.path)) }
                 if (owned == null) {
-                    error("profiling_failed", "trace file missing")
+                    error("profiling_failed: trace file missing")
                 } else {
                     success(
                         attachment = CommandAttachment.file(owned, contentType = "application/vnd.bitdrift.perfetto-trace"),
@@ -208,8 +207,7 @@ object BitdriftCommands {
                 // The SDK writes its own `error` field, so put the platform error name in the message
                 // and under a separate key. Android's rate limiter allows one capture per hour by default.
                 error(
-                    "profiling_failed",
-                    listOfNotNull(result.errorName, result.message.ifEmpty { null }).joinToString(": "),
+                    listOfNotNull("profiling_failed", result.errorName, result.message.ifEmpty { null }).joinToString(": "),
                     context = listOfNotNull(result.errorName?.let { "profiling_error" to it }).toMap(),
                 )
         }
